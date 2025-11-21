@@ -2,3 +2,5 @@
 zig-out/
 bin/
 obj/
+node_modules/
+.idea/

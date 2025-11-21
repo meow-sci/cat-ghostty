@@ -1,0 +1,11 @@
+{
+  "name": "libghostty-ts",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "1.3.2",
+    "typescript": "5.9.3",
+    "vitest": "4.0.13"
+  }
+}

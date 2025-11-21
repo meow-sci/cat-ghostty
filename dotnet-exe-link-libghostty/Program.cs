@@ -29,6 +29,8 @@ internal enum GhosttyOscCommandType : int
 	GHOSTTY_OSC_COMMAND_CONEMU_SHOW_MESSAGE_BOX = 16,
 	GHOSTTY_OSC_COMMAND_CONEMU_CHANGE_TAB_TITLE = 17,
 	GHOSTTY_OSC_COMMAND_CONEMU_PROGRESS_REPORT = 18,
+
+
 	GHOSTTY_OSC_COMMAND_CONEMU_WAIT_INPUT = 19,
 	GHOSTTY_OSC_COMMAND_CONEMU_GUIMACRO = 20,
 }
@@ -41,7 +43,10 @@ internal enum GhosttyOscCommandData : int
 
 internal static class Native
 {
-	private const string DLL_NAME = "lib/ghostty-vt.dll";
+	// private const string DLL_NAME = "lib/ghostty-vt.dll";
+	// private const string DLL_NAME = "lib/libghostty-vt.0.1.0.dylib";
+	private const string DLL_NAME = "/Users/asherwin/repos/meow-sci/cat-ghostty/dotnet-exe-link-libghostty/lib/libghostty-vt.0.1.0.dylib";
+		
 
 	[DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
 	internal static extern GhosttyResult ghostty_osc_new(IntPtr allocator, out IntPtr parser);
