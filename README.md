@@ -1,6 +1,6 @@
 # Building `libghostty-vt` for windows
 
-Clone the [Ghostty](https://github.com/ghostty-org/ghostty) and follow the Ghostty documentation on [how to build from source](https://ghostty.org/docs/install/build)
+Clone the [Ghostty repo](https://github.com/ghostty-org/ghostty) and follow the Ghostty documentation on [how to build from source](https://ghostty.org/docs/install/build)
 
 Once you have a working environment, you can use the following Zig build command to cross-compile to windows to produce `ghostty-vt.dll`
 
