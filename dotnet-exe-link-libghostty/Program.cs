@@ -80,7 +80,7 @@ public static class Program
 			// Feed bytes representing '0;hello' to the parser
 			Native.ghostty_osc_next(parser, (byte)'0');
 			Native.ghostty_osc_next(parser, (byte)';');
-			var titleStr = "hello";
+			var titleStr = "hello world 🔥";
 			foreach (var ch in titleStr)
 			{
 				Native.ghostty_osc_next(parser, (byte)ch);
