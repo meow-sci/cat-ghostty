@@ -5,9 +5,17 @@
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>dotnet_exe_link_libghostty</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UseAppHost>true</UseAppHost>
     <Nullable>enable</Nullable>
     <PublishTrimmed>true</PublishTrimmed>
 
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="lib/ghostty-vt.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>
