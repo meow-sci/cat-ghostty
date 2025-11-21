@@ -1,8 +1,8 @@
 # Building `libghostty-vt` for windows
 
-Follow the instructions on https://ghostty.org/docs/install/build for how to setup a build environment
+Clone the [Ghostty](https://github.com/ghostty-org/ghostty) and follow the Ghostty documentation on [how to build from source](https://ghostty.org/docs/install/build)
 
-You can use the following Zig build command to cross-compile to windows to produce `ghostty-vt.dll`
+Once you have a working environment, you can use the following Zig build command to cross-compile to windows to produce `ghostty-vt.dll`
 
 ```bash
 zig build lib-vt -Dtarget=x86_64-windows
@@ -19,7 +19,7 @@ For convenience for now I copy/pasted the headers to `dotnet-exe-link-libghostty
 
 This is a simple proof that the headless ghostty terminal emulator osc parser is working in a dotnet 9 application on windows.
 
-A copy of a pre-built `ghostty-vt.dll` is checked-in to `dotnet-exe-link-libghostty/lib/`
+A copy of a pre-built `ghostty-vt.dll` is checked-in to `dotnet-exe-link-libghostty/lib/` (built at ghostty git repo hash `9955b43e0c9f96b9c9c3dc7edc79aeb904749b16`)
 
 ## to build
 
