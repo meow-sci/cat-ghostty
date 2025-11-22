@@ -5,9 +5,16 @@ public static class Catty
     public static int Main(string[] args)
     {
         Console.WriteLine("here!");
-        if (args != null && args.Length > 0 && (args[0] == "--key-demo" || args[0] == "keydemo"))
+        if (args != null && args.Length > 0)
         {
-            return KeyDemoProgram.Run(args);
+            if (args[0] == "--key-demo" || args[0] == "keydemo")
+            {
+                return KeyDemoProgram.Run(args);
+            }
+            else if (args[0] == "--osc-demo" || args[0] == "oscdemo")
+            {
+                return OscDemoProgram.Run(args);
+            }
         }
         return 0;
     }
