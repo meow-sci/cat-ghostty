@@ -92,17 +92,21 @@ public static class OscDemoProgram
 
       case GhosttyOscCommandType.GHOSTTY_OSC_COMMAND_REPORT_PWD:
         Console.WriteLine("  ✓ PWD report command recognized");
-        // Note: PWD data extraction would require additional GhosttyOscCommandData enum values
+        // Note: Data extraction requires GHOSTTY_OSC_DATA_REPORT_PWD_STR support in libghostty
+        // Currently not available in the API
         break;
 
       case GhosttyOscCommandType.GHOSTTY_OSC_COMMAND_CLIPBOARD_CONTENTS:
         Console.WriteLine("  ✓ Clipboard contents command recognized");
-        // Note: Clipboard data extraction would require additional GhosttyOscCommandData enum values
+        // Note: Data extraction requires GHOSTTY_OSC_DATA_CLIPBOARD_STR support in libghostty
+        // Currently not available in the API
         break;
 
       case GhosttyOscCommandType.GHOSTTY_OSC_COMMAND_COLOR_OPERATION:
         Console.WriteLine("  ✓ Color operation command recognized");
-        // Note: Color operation data extraction would require additional GhosttyOscCommandData enum values
+        // Note: Color operation data extraction is not exposed in the current libghostty C API
+        // The internal Zig implementation (color.zig) parses this data, but ghostty_osc_command_data
+        // does not provide GhosttyOscCommandData enum values to extract it
         break;
 
       case GhosttyOscCommandType.GHOSTTY_OSC_COMMAND_INVALID:
@@ -179,22 +183,125 @@ public static class OscDemoProgram
       0x07);
 
     // Test 4: Color Operation (OSC 4, OSC 10-19, OSC 104-119)
+    Console.WriteLine("\n=== Color Operations: ANSI Palette (OSC 4/5/104/105) ===");
+    
     TestOscSequence(
       parser,
-      "Color Operation - Set Color 4",
-      "4;1;rgb:ff/00/00", // Set color 1 to red
+      "OSC 4 - Set ANSI color 1 to red",
+      "4;1;rgb:ff/00/00",
       0x07);
 
     TestOscSequence(
       parser,
-      "Color Operation - Query Foreground",
-      "10;?", // Query foreground color
+      "OSC 4 - Query ANSI color 0",
+      "4;0;?",
       0x07);
 
     TestOscSequence(
       parser,
-      "Color Operation - Set Background",
-      "11;rgb:00/00/00", // Set background to black
+      "OSC 4 - Set multiple colors",
+      "4;0;red;1;blue",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 4 - Set special color (256=cursor)",
+      "4;256;rgb:00/ff/00",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 5 - Set special color 0",
+      "5;0;rgb:ff/ff/00",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 104 - Reset color 1",
+      "104;1",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 104 - Reset all palette colors",
+      "104",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 105 - Reset special color 0",
+      "105;0",
+      0x07);
+    // Note: OSC 105 may not be fully supported in current libghostty version
+
+    Console.WriteLine("\n=== Color Operations: Dynamic Colors (OSC 10-19) ===");
+
+    TestOscSequence(
+      parser,
+      "OSC 10 - Set foreground color",
+      "10;rgb:ff/ff/ff",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 10 - Query foreground color",
+      "10;?",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 11 - Set background color",
+      "11;rgb:00/00/00",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 12 - Set cursor color",
+      "12;rgb:00/ff/00",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 17 - Set highlight background",
+      "17;rgb:ff/ff/00",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 19 - Set highlight foreground",
+      "19;rgb:00/00/ff",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 11 - Set multiple dynamic colors",
+      "11;red;blue", // Sets background and cursor
+      0x07);
+
+    Console.WriteLine("\n=== Color Operations: Reset Dynamic (OSC 110-119) ===");
+
+    TestOscSequence(
+      parser,
+      "OSC 110 - Reset foreground color",
+      "110",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 111 - Reset background color",
+      "111",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 112 - Reset cursor color",
+      "112",
+      0x07);
+
+    TestOscSequence(
+      parser,
+      "OSC 117 - Reset highlight background",
+      "117",
       0x07);
 
     // Test with ST terminator (0x5C after ESC 0x1B)

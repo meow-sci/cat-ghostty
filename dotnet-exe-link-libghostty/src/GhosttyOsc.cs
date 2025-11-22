@@ -35,10 +35,78 @@ internal enum GhosttyOscCommandType
 	GHOSTTY_OSC_COMMAND_CONEMU_GUIMACRO = 20,
 }
 
+/// <summary>
+/// Color operation types for OSC 4/5/10-19/104-105/110-119 commands
+/// Based on the Ghostty color.zig implementation
+/// </summary>
+internal enum GhosttyColorOperation
+{
+	/// OSC 4 - Set/Query ANSI color (palette 0-255 or special 256-259)
+	OSC_4 = 4,
+	/// OSC 5 - Set/Query Special color (0-7 maps to special colors)
+	OSC_5 = 5,
+	/// OSC 10 - Set/Query foreground color
+	OSC_10 = 10,
+	/// OSC 11 - Set/Query background color
+	OSC_11 = 11,
+	/// OSC 12 - Set/Query cursor color
+	OSC_12 = 12,
+	/// OSC 13 - Set/Query pointer foreground color
+	OSC_13 = 13,
+	/// OSC 14 - Set/Query pointer background color
+	OSC_14 = 14,
+	/// OSC 15 - Set/Query tektronix foreground color
+	OSC_15 = 15,
+	/// OSC 16 - Set/Query tektronix background color
+	OSC_16 = 16,
+	/// OSC 17 - Set/Query highlight background color
+	OSC_17 = 17,
+	/// OSC 18 - Set/Query tektronix cursor color
+	OSC_18 = 18,
+	/// OSC 19 - Set/Query highlight foreground color
+	OSC_19 = 19,
+	/// OSC 104 - Reset ANSI color (palette)
+	OSC_104 = 104,
+	/// OSC 105 - Reset Special color
+	OSC_105 = 105,
+	/// OSC 110 - Reset foreground color
+	OSC_110 = 110,
+	/// OSC 111 - Reset background color
+	OSC_111 = 111,
+	/// OSC 112 - Reset cursor color
+	OSC_112 = 112,
+	/// OSC 113 - Reset pointer foreground color
+	OSC_113 = 113,
+	/// OSC 114 - Reset pointer background color
+	OSC_114 = 114,
+	/// OSC 115 - Reset tektronix foreground color
+	OSC_115 = 115,
+	/// OSC 116 - Reset tektronix background color
+	OSC_116 = 116,
+	/// OSC 117 - Reset highlight background color
+	OSC_117 = 117,
+	/// OSC 118 - Reset tektronix cursor color
+	OSC_118 = 118,
+	/// OSC 119 - Reset highlight foreground color
+	OSC_119 = 119,
+}
+
 internal enum GhosttyOscCommandData
 {
 	GHOSTTY_OSC_DATA_INVALID = 0,
+	
+	/// Window title string data (for CHANGE_WINDOW_TITLE)
 	GHOSTTY_OSC_DATA_CHANGE_WINDOW_TITLE_STR = 1,
+	
+	/// Raw OSC body string (the part after the command number)
+	/// Available for most OSC commands
+	GHOSTTY_OSC_DATA_BODY_STR = 2,
+	
+	/// PWD path string (for REPORT_PWD)
+	GHOSTTY_OSC_DATA_REPORT_PWD_STR = 3,
+	
+	/// Clipboard selection and data (for CLIPBOARD_CONTENTS)
+	GHOSTTY_OSC_DATA_CLIPBOARD_STR = 4,
 }
 
 internal static class GhosttyOsc
