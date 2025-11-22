@@ -15,6 +15,10 @@ public static class Catty
             {
                 return OscDemoProgram.Run(args);
             }
+            else if (args[0] == "--sgr-demo" || args[0] == "sgrdemo")
+            {
+                return SgrDemoProgram.Run(args);
+            }
         }
         return 0;
     }

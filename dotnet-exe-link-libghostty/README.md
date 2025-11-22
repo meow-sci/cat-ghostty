@@ -1,11 +1,43 @@
 
-# run KeyDemo.cs test to see if the libghostty encoder is working correctly from managed C# code
+# Demo Programs
+
+This project includes three demo programs showcasing different libghostty-vt functionality:
+
+## Key Encoder Demo
+
+Test the libghostty key encoder with various key combinations:
 
 ```bash
 dotnet run -- --key-demo
 ```
 
-Compared output from various tests in the encode.html known example from the Ghostty repo, appears to be working correctly
+Demonstrates key event encoding with the Kitty keyboard protocol. Compared output from various tests in the encode.html known example from the Ghostty repo, appears to be working correctly.
+
+## OSC Parser Demo
+
+Test the OSC (Operating System Command) parser:
+
+```bash
+dotnet run -- --osc-demo
+```
+
+Demonstrates parsing OSC sequences including window titles, PWD reports, clipboard operations, and color operations.
+
+## SGR Parser Demo
+
+Test the SGR (Select Graphic Rendition) attribute parser:
+
+```bash
+dotnet run -- --sgr-demo
+```
+
+Demonstrates parsing terminal styling sequences including:
+- Text attributes (bold, italic, underline styles, etc.)
+- 8-color and 16-color (bright) palettes
+- 256-color mode
+- RGB/truecolor mode
+- Underline styles and colors
+- Complex multi-attribute sequences
 
 # build
 
