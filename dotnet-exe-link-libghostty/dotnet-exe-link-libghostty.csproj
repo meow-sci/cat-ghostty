@@ -8,6 +8,7 @@
     <UseAppHost>true</UseAppHost>
     <Nullable>enable</Nullable>
     <PublishTrimmed>true</PublishTrimmed>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
   </PropertyGroup>
 
