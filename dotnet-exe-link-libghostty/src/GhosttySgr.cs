@@ -45,7 +45,7 @@ internal enum GhosttySgrAttributeTag
 /// <summary>
 /// Underline style types.
 /// </summary>
-internal enum GhosttySgrUnderline
+public enum GhosttySgrUnderline
 {
 	GHOSTTY_SGR_UNDERLINE_NONE = 0,
 	GHOSTTY_SGR_UNDERLINE_SINGLE = 1,
@@ -59,7 +59,7 @@ internal enum GhosttySgrUnderline
 /// RGB color value.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct GhosttyColorRgb
+public struct GhosttyColorRgb
 {
 	public byte r; // Red component (0-255)
 	public byte g; // Green component (0-255)

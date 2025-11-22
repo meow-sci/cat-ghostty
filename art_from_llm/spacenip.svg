@@ -1,0 +1,33 @@
+<svg width="400" height="100" viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- S -->
+  <path d="M10 20 Q10 10 20 10 L35 10 Q45 10 45 20 Q45 30 35 30 L20 30 Q10 30 10 40 Q10 50 20 50 L35 50 Q45 50 45 60 Q45 70 35 70 L20 70 Q10 70 10 60" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- P -->
+  <path d="M55 10 L55 70 M55 10 L70 10 Q80 10 80 25 Q80 40 70 40 L55 40" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- A -->
+  <path d="M90 70 L100 10 L110 70 M95 45 L105 45" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- C -->
+  <path d="M135 20 Q125 10 115 20 L115 60 Q125 70 135 60" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- E -->
+  <path d="M145 10 L145 70 M145 10 L165 10 M145 40 L160 40 M145 70 L165 70" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- N -->
+  <path d="M175 70 L175 10 L195 70 L195 10" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- I -->
+  <path d="M205 10 L215 10 M210 10 L210 70 M205 70 L215 70" 
+        fill="none" stroke="black" stroke-width="2"/>
+  
+  <!-- P -->
+  <path d="M225 10 L225 70 M225 10 L240 10 Q250 10 250 25 Q250 40 240 40 L225 40" 
+        fill="none" stroke="black" stroke-width="2"/>
+</svg>
