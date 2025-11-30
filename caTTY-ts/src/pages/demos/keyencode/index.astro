@@ -1,0 +1,10 @@
+---
+import "./_keyencodedemo.css";
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { KeyEncodeDemoPage } from "./_components/KeyEncodeDemoPage";
+---
+
+<BaseLayout>
+  <KeyEncodeDemoPage client:only="react" />
+</BaseLayout>

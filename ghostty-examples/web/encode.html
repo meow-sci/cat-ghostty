@@ -209,6 +209,9 @@
         wasmInstance = wasmModule.instance;
         wasmMemory = wasmInstance.exports.memory;
 
+        console.log("wasmInstance", wasmInstance);
+        console.log("wasmMemory", wasmMemory);
+
         return true;
       } catch (e) {
         console.error('Failed to load WASM:', e);
