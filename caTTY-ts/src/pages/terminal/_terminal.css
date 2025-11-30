@@ -7,16 +7,9 @@ body {
     cursor: pointer;
   }
 
-  #display,
-  #input {
-    font-family: 'Source Code Pro Variable';
-    width: 80ch;
-    color: #eeeeee;
-    font-size: 18px;
-    box-sizing: content-box;
-    grid-column: 2 / 3;
-    padding: 0;
-    overflow: visible;
+  #display {
+    --term-width: 80ch;
+    --term-height: 40ch;
   }
 
   #root {
@@ -26,10 +19,21 @@ body {
     row-gap: 1rem;
   }
 
+  #display,
+  #input {
+    font-family: 'Source Code Pro Variable';
+    width: var(--term-width);
+    color: #eeeeee;
+    font-size: 18px;
+    box-sizing: content-box;
+    grid-column: 2 / 3;
+    padding: 0;
+    overflow: visible;
+  }
+
   #display {
     margin-top: 1rem;
-    height: 40ch;
-    width: 80ch;
+    height: var(--term-height);
     border: solid 1px hotpink;
     position: relative;
   }
