@@ -1,16 +1,19 @@
 using System.Diagnostics;
 using System.Text;
+using System.Collections.Concurrent;
 
 namespace dotnet_exe_link_libghostty.Terminal;
 
 /// <summary>
 /// Manages a child process (shell) with redirected stdin/stdout.
-/// For MVP, uses basic Process class without full PTY support.
+/// Uses async background threads to read output without blocking.
 /// </summary>
 public class ProcessManager : IDisposable
 {
     private Process? _process;
-    private StreamWriter? _processInput;
+    private readonly ConcurrentQueue<byte> _outputQueue = new();
+    private readonly ConcurrentQueue<byte> _errorQueue = new();
+    private CancellationTokenSource? _cancellationTokenSource;
     private bool _disposed;
     
     /// <summary>
@@ -47,7 +50,7 @@ public class ProcessManager : IDisposable
         {
             // Unix-like systems
             shell = Environment.GetEnvironmentVariable("SHELL") ?? "/bin/bash";
-            shellArgs = "";
+            shellArgs = "-i"; // Interactive mode to get prompt
         }
         
         var startInfo = new ProcessStartInfo
@@ -67,13 +70,75 @@ public class ProcessManager : IDisposable
         startInfo.Environment["TERM"] = "xterm-256color";
         startInfo.Environment["COLUMNS"] = "80";
         startInfo.Environment["LINES"] = "24";
+        // Disable some shell features that might interfere
+        startInfo.Environment["PS1"] = "$ "; // Simple prompt
         
         _process = new Process { StartInfo = startInfo };
         _process.EnableRaisingEvents = true;
         _process.Exited += OnProcessExited;
         
         _process.Start();
-        _processInput = _process.StandardInput;
+        
+        // Start background threads to read output
+        _cancellationTokenSource = new CancellationTokenSource();
+        Task.Run(() => ReadOutputLoop(_cancellationTokenSource.Token));
+        Task.Run(() => ReadErrorLoop(_cancellationTokenSource.Token));
+    }
+    
+    private async Task ReadOutputLoop(CancellationToken cancellationToken)
+    {
+        if (_process == null)
+            return;
+        
+        try
+        {
+            var stream = _process.StandardOutput.BaseStream;
+            var buffer = new byte[4096];
+            
+            while (!cancellationToken.IsCancellationRequested && !_process.HasExited)
+            {
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                if (bytesRead > 0)
+                {
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        _outputQueue.Enqueue(buffer[i]);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Silently handle read errors
+        }
+    }
+    
+    private async Task ReadErrorLoop(CancellationToken cancellationToken)
+    {
+        if (_process == null)
+            return;
+        
+        try
+        {
+            var stream = _process.StandardError.BaseStream;
+            var buffer = new byte[4096];
+            
+            while (!cancellationToken.IsCancellationRequested && !_process.HasExited)
+            {
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                if (bytesRead > 0)
+                {
+                    for (int i = 0; i < bytesRead; i++)
+                    {
+                        _errorQueue.Enqueue(buffer[i]);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Silently handle read errors
+        }
     }
     
     /// <summary>
@@ -81,15 +146,13 @@ public class ProcessManager : IDisposable
     /// </summary>
     public void SendInput(byte[] data)
     {
-        if (_disposed || _processInput == null || data == null || data.Length == 0)
+        if (_disposed || _process == null || data == null || data.Length == 0)
             return;
         
         try
         {
-            // Convert bytes to string (assuming UTF-8 or ASCII)
-            string text = Encoding.UTF8.GetString(data);
-            _processInput.Write(text);
-            _processInput.Flush();
+            _process.StandardInput.BaseStream.Write(data, 0, data.Length);
+            _process.StandardInput.BaseStream.Flush();
         }
         catch (Exception)
         {
@@ -99,91 +162,38 @@ public class ProcessManager : IDisposable
     
     /// <summary>
     /// Reads available output from the process stdout.
-    /// Returns null if no data is available or process has exited.
+    /// Returns null if no data is available.
     /// </summary>
-    public byte[]? ReadOutput(int maxBytes = 4096)
+    public byte[]? ReadOutput()
     {
-        if (_disposed || _process == null || _process.HasExited)
+        if (_outputQueue.IsEmpty)
             return null;
         
-        try
+        var result = new List<byte>();
+        while (_outputQueue.TryDequeue(out byte b) && result.Count < 4096)
         {
-            var stdout = _process.StandardOutput;
-            if (stdout.Peek() == -1)
-                return null;
-            
-            var buffer = new char[maxBytes];
-            int read = stdout.Read(buffer, 0, maxBytes);
-            
-            if (read > 0)
-            {
-                return Encoding.UTF8.GetBytes(buffer, 0, read);
-            }
-        }
-        catch (Exception)
-        {
-            // Silently ignore read errors
+            result.Add(b);
         }
         
-        return null;
+        return result.Count > 0 ? result.ToArray() : null;
     }
     
     /// <summary>
     /// Reads available error output from the process stderr.
     /// Returns null if no data is available.
     /// </summary>
-    public byte[]? ReadError(int maxBytes = 4096)
+    public byte[]? ReadError()
     {
-        if (_disposed || _process == null || _process.HasExited)
+        if (_errorQueue.IsEmpty)
             return null;
         
-        try
+        var result = new List<byte>();
+        while (_errorQueue.TryDequeue(out byte b) && result.Count < 4096)
         {
-            var stderr = _process.StandardError;
-            if (stderr.Peek() == -1)
-                return null;
-            
-            var buffer = new char[maxBytes];
-            int read = stderr.Read(buffer, 0, maxBytes);
-            
-            if (read > 0)
-            {
-                return Encoding.UTF8.GetBytes(buffer, 0, read);
-            }
-        }
-        catch (Exception)
-        {
-            // Silently ignore read errors
+            result.Add(b);
         }
         
-        return null;
-    }
-    
-    /// <summary>
-    /// Asynchronously reads a line from stdout.
-    /// Used for testing or simple scenarios.
-    /// </summary>
-    public async Task<byte[]?> ReadOutputAsync()
-    {
-        if (_disposed || _process == null || _process.HasExited)
-            return null;
-        
-        try
-        {
-            var stdout = _process.StandardOutput;
-            var line = await stdout.ReadLineAsync();
-            
-            if (line != null)
-            {
-                return Encoding.UTF8.GetBytes(line + "\n");
-            }
-        }
-        catch (Exception)
-        {
-            // Silently ignore read errors
-        }
-        
-        return null;
+        return result.Count > 0 ? result.ToArray() : null;
     }
     
     private void OnProcessExited(object? sender, EventArgs e)
@@ -197,6 +207,8 @@ public class ProcessManager : IDisposable
         {
             try
             {
+                _cancellationTokenSource?.Cancel();
+                
                 if (_process != null && !_process.HasExited)
                 {
                     _process.Kill(entireProcessTree: true);
@@ -207,7 +219,7 @@ public class ProcessManager : IDisposable
                 // Ignore errors during cleanup
             }
             
-            _processInput?.Dispose();
+            _cancellationTokenSource?.Dispose();
             _process?.Dispose();
             _disposed = true;
         }
