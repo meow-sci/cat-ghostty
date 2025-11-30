@@ -3,13 +3,13 @@ import { atom } from "nanostores";
 import { useStore } from "@nanostores/react";
 
 import type { GhosttyVtInstance } from "../../../../ts/ghostty-vt";
-import { StatefulEncoder } from "./pure/StatefulEncoder";
+import { StatefulKeyEncoder } from "./pure/StatefulKeyEncoder";
 import type { KeyEvent } from "./pure/KeyEvent";
 import { toKeyEvent } from "./ui/toKeyEvent";
 import type { KeyEncoderResult } from "./pure/KeyEncoderResult";
 
 // liar liar pants on fire
-let encoder: StatefulEncoder = null as any;
+let encoder: StatefulKeyEncoder = null as any;
 
 const $output = atom<string>("");
 
@@ -23,7 +23,7 @@ export function KeyEncodeDemo(props: KeyEncodeDemoProps) {
 
   useLayoutEffect(() => {
     if (!encoder) {
-      encoder = new StatefulEncoder(wasm, getKittyFlags());
+      encoder = new StatefulKeyEncoder(wasm, getKittyFlags());
     }
   }, []);
 

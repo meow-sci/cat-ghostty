@@ -1,0 +1,10 @@
+---
+import "./_sgrdemo.css";
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { SgrDemoPage } from "./_ts/SgrDemoPage";
+---
+
+<BaseLayout>
+  <SgrDemoPage client:only="react" />
+</BaseLayout>

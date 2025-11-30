@@ -6,11 +6,11 @@ import type { GhosttyVtInstance } from "../../../../../ts/ghostty-vt";
 import type { KeyEvent } from "./KeyEvent";
 import type { KeyEncoderResult } from "./KeyEncoderResult";
 
-export class StatefulEncoder {
+export class StatefulKeyEncoder {
 
-  wasm: GhosttyVtInstance;
-  _kittyFlags: number;
-  encoderPtr: number;
+  private wasm: GhosttyVtInstance;
+  private _kittyFlags: number;
+  private encoderPtr: number;
 
   constructor(wasm: GhosttyVtInstance, initialKittyFlags: number) {
     this.wasm = wasm;
@@ -19,37 +19,37 @@ export class StatefulEncoder {
     this.updateEncoderFlags();
   }
 
-  set kittyFlags(o: number) {
+  public set kittyFlags(o: number) {
     this._kittyFlags = o;
     this.updateEncoderFlags();
   }
 
-  get kittyFlags(): number {
+  public get kittyFlags(): number {
     return this._kittyFlags;
   }
 
-  initEncoder(): number {
+  private initEncoder(): number {
 
     // Create key encoder
-    const encoderPtrPtr = this.wasm.exports.ghostty_wasm_alloc_opaque();
-    const result = this.wasm.exports.ghostty_key_encoder_new(0, encoderPtrPtr);
+    const ptrPtr = this.wasm.exports.ghostty_wasm_alloc_opaque();
+    const result = this.wasm.exports.ghostty_key_encoder_new(0, ptrPtr);
 
     if (result !== 0) {
       throw new Error(`ghostty_key_encoder_new failed with result ${result}`);
     }
 
-    const ptr = new DataView(this.getBuffer()).getUint32(encoderPtrPtr, true);
+    const ptr = new DataView(this.getBuffer()).getUint32(ptrPtr, true);
 
     // Set kitty flags based on checkboxes
     return ptr;
 
   }
 
-  getBuffer() {
+  private getBuffer() {
     return this.wasm.exports.memory.buffer;
   }
 
-  updateEncoderFlags() {
+  private updateEncoderFlags() {
     if (!this.encoderPtr) return;
 
     const flags = this.kittyFlags;
