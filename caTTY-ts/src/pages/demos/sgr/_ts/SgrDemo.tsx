@@ -1,4 +1,4 @@
-import { useLayoutEffect, type ChangeEvent, type KeyboardEvent } from "react";
+import { useLayoutEffect, type ChangeEvent } from "react";
 import { atom } from "nanostores";
 import { useStore } from "@nanostores/react";
 
@@ -41,7 +41,7 @@ export function SgrDemo(props: KeyEncodeDemoProps) {
           spellCheck="false"
           onChange={onChange}
           defaultValue="4:3;38;2;51;51;51;48;2;170;170;170;58;2;255;97;136"
-          style={{width: "80ch"}}
+          style={{ width: "80ch" }}
         />
       </section>
       <section id="output-section">
