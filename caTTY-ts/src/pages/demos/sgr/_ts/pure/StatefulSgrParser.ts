@@ -10,11 +10,13 @@ interface PreParsedSequence {
 export class StatefulSgrParser {
 
   private wasm: GhosttyVtInstance;
-  // private parserPtr: number;
+  // TODO: FIXME: not sure if it's safe to reuse this parser instance.  the sgr.html parser demo doesn't reuse.
+  //              some basic tests don't show any issues reusing it though, so we will reuse it for now unless a reason is found not to
+  private parserPtr: number;
 
   constructor(wasm: GhosttyVtInstance) {
     this.wasm = wasm;
-    // parserPtr = this.initParser();
+    this.parserPtr = this.initParser();
   }
 
   initParser(): number {
@@ -83,7 +85,7 @@ export class StatefulSgrParser {
 
   private parseWithGhostty(preParsed: PreParsedSequence) {
 
-    const parserPtr = this.initParser();
+    // const parserPtr = this.initParser();
 
     const { params, separators } = preParsed;
 
@@ -102,7 +104,7 @@ export class StatefulSgrParser {
 
     // Set parameters in parser
     const setResult = this.wasm.exports.ghostty_sgr_set_params(
-      parserPtr,
+      this.parserPtr,
       paramsPtr,
       sepsPtr,
       params.length
@@ -129,7 +131,7 @@ export class StatefulSgrParser {
     const attrPtr = this.wasm.exports.ghostty_wasm_alloc_sgr_attribute();
     let count = 0;
 
-    while (this.wasm.exports.ghostty_sgr_next(parserPtr, attrPtr)) {
+    while (this.wasm.exports.ghostty_sgr_next(this.parserPtr, attrPtr)) {
       count++;
 
       // Use the new ghostty_sgr_attribute_tag getter function
@@ -249,7 +251,7 @@ export class StatefulSgrParser {
     output += `\nTotal attributes parsed: ${count}`;
 
     this.wasm.exports.ghostty_wasm_free_sgr_attribute(attrPtr);
-    this.wasm.exports.ghostty_sgr_free(parserPtr);
+    // this.wasm.exports.ghostty_sgr_free(this.parserPtr);
 
     return output;
 

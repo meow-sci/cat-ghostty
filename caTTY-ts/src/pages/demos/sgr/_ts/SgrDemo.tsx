@@ -21,6 +21,7 @@ export function SgrDemo(props: KeyEncodeDemoProps) {
   useLayoutEffect(() => {
     if (!parser) {
       parser = new StatefulSgrParser(wasm);
+      displaySgrParsingResult((document.getElementById("input")! as HTMLInputElement).value);
     }
   }, []);
 
