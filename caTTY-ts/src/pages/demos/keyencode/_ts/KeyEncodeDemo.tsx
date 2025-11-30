@@ -4,6 +4,9 @@ import { useStore } from "@nanostores/react";
 
 import type { GhosttyVtInstance } from "../../../../ts/ghostty-vt";
 import { StatefulEncoder } from "./pure/StatefulEncoder";
+import type { KeyEvent } from "./pure/KeyEvent";
+import { toKeyEvent } from "./ui/toKeyEvent";
+import type { KeyEncoderResult } from "./pure/KeyEncoderResult";
 
 // liar liar pants on fire
 let encoder: StatefulEncoder = null as any;
@@ -41,11 +44,11 @@ export function KeyEncodeDemo(props: KeyEncodeDemoProps) {
           onKeyDown={onKeyDown}
         />
         <section id="checkboxes">
-          <label><input type="checkbox" id="flag_disambiguate" defaultChecked /> Disambiguate</label>
-          <label><input type="checkbox" id="flag_report_events" defaultChecked /> Report Events</label>
-          <label><input type="checkbox" id="flag_report_alternates" defaultChecked /> Report Alternates</label>
-          <label><input type="checkbox" id="flag_report_all_as_escapes" defaultChecked /> Report All As Escapes</label>
-          <label><input type="checkbox" id="flag_report_text" defaultChecked /> Report Text</label>
+          <label><input type="checkbox" id="flag_disambiguate" defaultChecked onChange={updateKittyFlagsOnEncoder} /> Disambiguate</label>
+          <label><input type="checkbox" id="flag_report_events" defaultChecked onChange={updateKittyFlagsOnEncoder} /> Report Events</label>
+          <label><input type="checkbox" id="flag_report_alternates" defaultChecked onChange={updateKittyFlagsOnEncoder} /> Report Alternates</label>
+          <label><input type="checkbox" id="flag_report_all_as_escapes" defaultChecked onChange={updateKittyFlagsOnEncoder} /> Report All As Escapes</label>
+          <label><input type="checkbox" id="flag_report_text" defaultChecked onChange={updateKittyFlagsOnEncoder} /> Report Text</label>
         </section>
       </section>
       <section id="output-section">
@@ -68,25 +71,21 @@ function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     event.preventDefault();
   }
 
-  displayEncoding(event);
+  displayEncoding(toKeyEvent(event));
 }
 
 
-function getKittyFlags(): number {
-  let flags = 0;
-  if ((document.getElementById('flag_disambiguate')! as HTMLInputElement).checked) flags |= 0x01;
-  if ((document.getElementById('flag_report_events')! as HTMLInputElement).checked) flags |= 0x02;
-  if ((document.getElementById('flag_report_alternates')! as HTMLInputElement).checked) flags |= 0x04;
-  if ((document.getElementById('flag_report_all_as_escapes')! as HTMLInputElement).checked) flags |= 0x08;
-  if ((document.getElementById('flag_report_text')! as HTMLInputElement).checked) flags |= 0x10;
-  return flags;
-}
-
-
-function displayEncoding(event: KeyboardEvent<HTMLInputElement>) {
+function displayEncoding(event: KeyEvent) {
 
   // do actual encoding using stateful encoder + wasm
   const encoded = encoder.encodeKeyEvent(event);
+
+  // show results
+  $output.set(buildHumanOutput(event, encoded));
+}
+
+
+function buildHumanOutput(event: KeyEvent, encoded: KeyEncoderResult | null) {
 
   const actionName = "press";
 
@@ -127,5 +126,19 @@ function displayEncoding(event: KeyboardEvent<HTMLInputElement>) {
     output += 'No encoding for this key event';
   }
 
-  $output.set(output);
+  return output;
+}
+
+function getKittyFlags(): number {
+  let flags = 0;
+  if ((document.getElementById('flag_disambiguate')! as HTMLInputElement).checked) flags |= 0x01;
+  if ((document.getElementById('flag_report_events')! as HTMLInputElement).checked) flags |= 0x02;
+  if ((document.getElementById('flag_report_alternates')! as HTMLInputElement).checked) flags |= 0x04;
+  if ((document.getElementById('flag_report_all_as_escapes')! as HTMLInputElement).checked) flags |= 0x08;
+  if ((document.getElementById('flag_report_text')! as HTMLInputElement).checked) flags |= 0x10;
+  return flags;
+}
+
+function updateKittyFlagsOnEncoder() {
+  encoder.kittyFlags = getKittyFlags();
 }

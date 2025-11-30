@@ -1,6 +1,6 @@
-import { type KeyboardEvent } from "react";
+import type { KeyEvent } from "./KeyEvent";
 
-export function getUnshiftedCodepoint(event: KeyboardEvent<HTMLInputElement>) {
+export function getUnshiftedCodepoint(event: KeyEvent) {
   // Derive unshifted codepoint from the physical key code
   const code = event.code;
 

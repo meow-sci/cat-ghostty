@@ -1,22 +1,31 @@
-import { type KeyboardEvent } from "react";
-
 import { KeyCodeMap } from "../../../../../ts/terminal/keyencode/KeyCodeMap";
 import { formatHex } from "./formatHex";
 import { formatString } from "./formatString";
 import { getUnshiftedCodepoint } from "./getUnshiftedCodepoint";
 import type { GhosttyVtInstance } from "../../../../../ts/ghostty-vt";
+import type { KeyEvent } from "./KeyEvent";
+import type { KeyEncoderResult } from "./KeyEncoderResult";
 
 export class StatefulEncoder {
 
   wasm: GhosttyVtInstance;
-  kittyFlags: number;
+  _kittyFlags: number;
   encoderPtr: number;
 
   constructor(wasm: GhosttyVtInstance, initialKittyFlags: number) {
     this.wasm = wasm;
-    this.kittyFlags = initialKittyFlags;
+    this._kittyFlags = initialKittyFlags;
     this.encoderPtr = this.initEncoder();
     this.updateEncoderFlags();
+  }
+
+  set kittyFlags(o: number) {
+    this._kittyFlags = o;
+    this.updateEncoderFlags();
+  }
+
+  get kittyFlags(): number {
+    return this._kittyFlags;
   }
 
   initEncoder(): number {
@@ -54,7 +63,7 @@ export class StatefulEncoder {
     );
   }
 
-  encodeKeyEvent(event: KeyboardEvent<HTMLInputElement>) {
+  encodeKeyEvent(event: KeyEvent): KeyEncoderResult | null {
 
     try {
       // Create key event
@@ -140,6 +149,7 @@ export class StatefulEncoder {
         hex: formatHex(encoded),
         string: formatString(encoded)
       };
+
     } catch (e) {
       console.error('Encoding error:', e);
       return null;
