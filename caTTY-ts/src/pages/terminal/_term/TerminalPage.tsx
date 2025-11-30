@@ -24,9 +24,9 @@ export function TerminalPage() {
       <section id="display"></section>
 
       <input
-        autoFocus
         id="input"
         type="text"
+        autoFocus
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"

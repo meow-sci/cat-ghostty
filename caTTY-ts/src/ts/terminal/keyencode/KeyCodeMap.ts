@@ -1,6 +1,6 @@
 // Map W3C KeyboardEvent.code values to Ghostty key codes
 // Based on include/ghostty/vt/key/event.h
-export const KeyCodeMap = {
+export const KeyCodeMap: Record<string, number> = {
   
   // Writing System Keys
   'Backquote': 1,          // GHOSTTY_KEY_BACKQUOTE
