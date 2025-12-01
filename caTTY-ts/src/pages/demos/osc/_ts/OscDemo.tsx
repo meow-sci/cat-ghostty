@@ -30,7 +30,7 @@ export function OscDemo(props: KeyEncodeDemoProps) {
   return (
     <main>
       <section id="input-section">
-        <p><label htmlFor="input">SGR sequence</label></p>
+        <p><label htmlFor="input">OSC body (e.g. 0;New Title)</label></p>
         <input
           id="input"
           type="text"
@@ -40,7 +40,7 @@ export function OscDemo(props: KeyEncodeDemoProps) {
           autoCapitalize="off"
           spellCheck="false"
           onChange={onChange}
-          defaultValue="4:3;38;2;51;51;51;48;2;170;170;170;58;2;255;97;136"
+          defaultValue="0;hello world"
           style={{ width: "80ch" }}
         />
       </section>
@@ -64,8 +64,8 @@ function onChange(event: ChangeEvent<HTMLInputElement>) {
 function displaySgrParsingResult(sequence: string) {
 
   // do actual encoding using stateful encoder + wasm
-  // const encoded = parser.parse(sequence);
+  const encoded = parser.parse(sequence);
 
   // show results
-  // $output.set(encoded);
+  $output.set(encoded);
 }
