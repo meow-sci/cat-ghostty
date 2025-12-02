@@ -1,76 +1,76 @@
 # Implementation Plan
 
-- [ ] 1. Set up core data structures and types
-  - [ ] 1.1 Create Cell interface with character and attribute fields
+- [x] 1. Set up core data structures and types
+  - [x] 1.1 Create Cell interface with character and attribute fields
     - Define Color type (default, indexed, rgb)
     - Define UnderlineStyle enum
     - Create Cell interface with char, width, fg, bg, bold, italic, underline, inverse, strikethrough, url
     - _Requirements: 1.3, 1.4_
   
-  - [ ] 1.2 Create Line interface
+  - [x] 1.2 Create Line interface
     - Define Line with cells array and wrapped flag
     - _Requirements: 1.1_
   
-  - [ ] 1.3 Create CursorState interface
+  - [x] 1.3 Create CursorState interface
     - Define CursorState with row, col, visible, blinking
     - _Requirements: 2.1, 2.5_
   
-  - [ ] 1.4 Create Attributes interface
+  - [x] 1.4 Create Attributes interface
     - Define Attributes for current text styling
     - _Requirements: 6.2_
 
-- [ ] 2. Implement ScreenBuffer class
-  - [ ] 2.1 Implement buffer initialization and cell access
+- [x] 2. Implement ScreenBuffer class
+  - [x] 2.1 Implement buffer initialization and cell access
     - Create ScreenBuffer class with cols and rows
     - Implement getCell and setCell methods
     - Implement getLine method
     - _Requirements: 1.1, 1.4_
   
-  - [ ] 2.2 Write property test for buffer initialization
+  - [x] 2.2 Write property test for buffer initialization
     - **Property 1: Buffer initialization creates correct dimensions**
     - **Validates: Requirements 1.1**
   
-  - [ ] 2.3 Write property test for cell structure
+  - [x] 2.3 Write property test for cell structure
     - **Property 3: Cell structure completeness**
     - **Validates: Requirements 1.3, 1.4**
   
-  - [ ] 2.4 Implement buffer clearing operations
+  - [x] 2.4 Implement buffer clearing operations
     - Implement clear method
     - Implement clearRegion method
     - _Requirements: 5.6, 5.7_
   
-  - [ ] 2.5 Implement scrolling operations
+  - [x] 2.5 Implement scrolling operations
     - Implement scrollUp method with optional scroll region
     - Implement scrollDown method with optional scroll region
     - _Requirements: 5.8, 5.9, 10.1, 10.2_
   
-  - [ ] 2.6 Write property test for scroll operations
+  - [x] 2.6 Write property test for scroll operations
     - **Property 19: Scroll operations move content correctly**
     - **Validates: Requirements 5.8, 5.9**
   
-  - [ ] 2.7 Write property test for scroll region isolation
+  - [x] 2.7 Write property test for scroll region isolation
     - **Property 35: Scroll region content isolation**
     - **Validates: Requirements 10.2**
   
-  - [ ] 2.8 Implement line and cell insertion/deletion
+  - [x] 2.8 Implement line and cell insertion/deletion
     - Implement insertLines method
     - Implement deleteLines method
     - Implement insertCells method
     - Implement deleteCells method
     - _Requirements: 17.1, 17.2, 17.3, 17.4_
   
-  - [ ] 2.9 Write property tests for insertion and deletion
+  - [x] 2.9 Write property tests for insertion and deletion
     - **Property 51: Character insertion shifts content**
     - **Property 52: Character deletion shifts content**
     - **Property 53: Line insertion shifts content**
     - **Property 54: Line deletion shifts content**
     - **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5**
   
-  - [ ] 2.10 Implement buffer resizing
+  - [x] 2.10 Implement buffer resizing
     - Implement resize method that preserves content
     - _Requirements: 1.2_
   
-  - [ ] 2.11 Write property test for resize preservation
+  - [x] 2.11 Write property test for resize preservation
     - **Property 2: Resize preserves overlapping content**
     - **Validates: Requirements 1.2**
 
