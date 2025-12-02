@@ -74,17 +74,17 @@
     - **Property 2: Resize preserves overlapping content**
     - **Validates: Requirements 1.2**
 
-- [ ] 3. Implement ScrollbackBuffer class
+- [x] 3. Implement ScrollbackBuffer class
   - [x] 3.1 Create circular buffer for scrollback
     - Implement ScrollbackBuffer with push, get, clear methods
     - Handle maximum size limit
     - _Requirements: 8.1, 8.2, 8.5_
   
-  - [ ] 3.2 Write property test for scrollback capture
+  - [x] 3.2 Write property test for scrollback capture
     - **Property 25: Scrollback captures scrolled content**
     - **Validates: Requirements 8.1, 8.5**
   
-  - [ ] 3.3 Write property test for scrollback size limit
+  - [x] 3.3 Write property test for scrollback size limit
     - **Property 26: Scrollback buffer size limit**
     - **Validates: Requirements 8.2**
 
