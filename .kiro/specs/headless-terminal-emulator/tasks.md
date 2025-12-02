@@ -88,29 +88,29 @@
     - **Property 26: Scrollback buffer size limit**
     - **Validates: Requirements 8.2**
 
-- [ ] 4. Implement AlternateScreenManager class
-  - [ ] 4.1 Create dual buffer management
+- [x] 4. Implement AlternateScreenManager class
+  - [x] 4.1 Create dual buffer management
     - Implement primary and alternate ScreenState
     - Implement switchToAlternate and switchToPrimary methods
     - _Requirements: 9.1, 9.2_
   
-  - [ ] 4.2 Write property test for buffer isolation
+  - [x] 4.2 Write property test for buffer isolation
     - **Property 29: Alternate screen buffer isolation**
     - **Validates: Requirements 9.1**
   
-  - [ ] 4.3 Write property test for buffer round-trip
+  - [x] 4.3 Write property test for buffer round-trip
     - **Property 30: Alternate screen round-trip**
     - **Validates: Requirements 9.2**
   
-  - [ ] 4.4 Write property test for alternate screen no scrollback
+  - [x] 4.4 Write property test for alternate screen no scrollback
     - **Property 31: Alternate screen no scrollback**
     - **Validates: Requirements 9.3**
   
-  - [ ] 4.5 Write property test for independent cursor state
+  - [x] 4.5 Write property test for independent cursor state
     - **Property 32: Buffer-independent cursor state**
     - **Validates: Requirements 9.4**
   
-  - [ ] 4.6 Write property test for alternate buffer initialization
+  - [x] 4.6 Write property test for alternate buffer initialization
     - **Property 33: Alternate buffer initialization**
     - **Validates: Requirements 9.5**
 
