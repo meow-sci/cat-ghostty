@@ -483,7 +483,9 @@ export class Parser {
    * Execute a CSI sequence.
    */
   private executeCsi(final: number): void {
-    this.handlers.onCsi?.(this.csiParams, this.csiIntermediates, final);
+    // Ensure at least one parameter (default to 0 for empty params)
+    const params = this.csiParams.length > 0 ? this.csiParams : [0];
+    this.handlers.onCsi?.(params, this.csiIntermediates, final);
   }
   
   /**

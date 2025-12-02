@@ -125,7 +125,7 @@
     - Handle LF, CR, BS, HT, BEL
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
   
-  - [ ] 5.3 Implement CSI sequence parsing
+  - [x] 5.3 Implement CSI sequence parsing
     - Parse CSI parameters and intermediates
     - Handle cursor movement (A, B, C, D, H)
     - Handle erase operations (J, K)
