@@ -75,7 +75,7 @@
     - **Validates: Requirements 1.2**
 
 - [ ] 3. Implement ScrollbackBuffer class
-  - [ ] 3.1 Create circular buffer for scrollback
+  - [x] 3.1 Create circular buffer for scrollback
     - Implement ScrollbackBuffer with push, get, clear methods
     - Handle maximum size limit
     - _Requirements: 8.1, 8.2, 8.5_
