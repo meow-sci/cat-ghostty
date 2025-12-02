@@ -1,38 +1,25 @@
-# Building `libghostty-vt` for windows
+# Overall Plan
 
-Clone the [Ghostty repo](https://github.com/ghostty-org/ghostty) and follow the Ghostty documentation on [how to build from source](https://ghostty.org/docs/install/build)
+To embed the `libghostty-vt` WASM library into a web project to provide some headless terminal emulation capabilities (OSC aka operating system command parsing, SGR aka Select Graphic Rendition parsing and Key Encoding).
 
-Once you have a working environment, you can use the following Zig build command to cross-compile to windows to produce `ghostty-vt.dll`
+Additional state and glue code must be implemented in TypeScript in a headless design which to implement the remaining functionality of a terminal emulator that `libghostty-vt` does not provide.  Together these form the "model" of a MVC design.
 
-```bash
-zig build lib-vt -Dtarget=x86_64-windows
-```
+A well demarcated TypeScript implementation must also be implemented for the "controller" aspect of the terminal emulator which is also headless and will glue together the browser DOM elements and user interaction events and shuffle the data in/out of the model and then paint it to the view.
 
-# libghostty-vt C api
+The view will be a simple browser DOM `<pre>` of a fixed width/height characters that the terminal screen state is projected onto using CSS absolute positioning of each character in a discrete `<span>`
 
-For convenience for now I copy/pasted the headers to `dotnet-exe-link-libghostty/ghostty-src/src` so I could have AI/LLM look at it in trivially prompts, for reference this was copied from the ghostty git repo `main` branch at commit `9955b43e0c9f96b9c9c3dc7edc79aeb904749b16`
+Custom code must be created to implement the terminal "frontend", which covers, at least, capturing focus and user input,
+sending that input to libghostty-vt for terminal emulation, and then visually displaying a terminal UI in an ImGui window
+using Vulkan.
 
 
-# proof of life using libghostty-vt on windows dotnet 9
+# Technology Overview
 
-`dotnet-exe-link-libghostty/Program.cs` is a simple dotnet 9 console application which calls out to `ghostty-vt.dll` to test it's working by instantiating an osc (Operating System Command) parser, sending a sequence of characters to it, then reading the terminal screen and printing it to stdout.
+`libghostty-vt` is a library which provides headless terminal emulation capabilities via a C interface.
 
-This is a simple proof that the headless ghostty terminal emulator osc parser is working in a dotnet 9 application on windows.
+libghostty-vt has zero dependencies, is cross-platform and exposes it's API as a extern C interface for maximum interoperatbility and portability.
 
-A copy of a pre-built `ghostty-vt.dll` is checked-in to `dotnet-exe-link-libghostty/lib/` (built at ghostty git repo hash `9955b43e0c9f96b9c9c3dc7edc79aeb904749b16`)
 
-## to build
+# Reference Code
 
-```bash
-dotnet publish -c Debug -r win-x64 --self-contained true
-```
-
-## to run
-
-on macOS via Wine
-
-```bash
-wine bin/Debug/net9.0/win-x64/publish/dotnet-exe-link-libghostty.exe 2>/dev/null
-```
-
-on Windows, just run the `dotnet-exe-link-libghostty.exe` program from a terminal
+The libghostty-vt WASM api (from the C API) has its exported functions noted in `WASM_NOTES.md`
