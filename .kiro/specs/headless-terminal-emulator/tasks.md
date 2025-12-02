@@ -121,7 +121,7 @@
     - Handle UTF-8 multi-byte sequences
     - _Requirements: 3.3, 5.1-5.9_
   
-  - [ ] 5.2 Implement control character handling
+  - [x] 5.2 Implement control character handling
     - Handle LF, CR, BS, HT, BEL
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
   

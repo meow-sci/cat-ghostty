@@ -4,6 +4,39 @@
  */
 
 /**
+ * Handlers for parser actions.
+ * These callbacks are invoked when the parser encounters various terminal actions.
+ */
+export interface ParserHandlers {
+  /** Handle a printable character */
+  onPrintable?: (char: string) => void;
+  
+  /** Handle line feed (LF, 0x0A) */
+  onLineFeed?: () => void;
+  
+  /** Handle carriage return (CR, 0x0D) */
+  onCarriageReturn?: () => void;
+  
+  /** Handle backspace (BS, 0x08) */
+  onBackspace?: () => void;
+  
+  /** Handle horizontal tab (HT, 0x09) */
+  onTab?: () => void;
+  
+  /** Handle bell (BEL, 0x07) */
+  onBell?: () => void;
+  
+  /** Handle CSI sequence */
+  onCsi?: (params: number[], intermediates: string, final: number) => void;
+  
+  /** Handle OSC sequence */
+  onOsc?: (command: number, data: string) => void;
+  
+  /** Handle escape sequence */
+  onEscape?: (intermediates: string, final: number) => void;
+}
+
+/**
  * Parser state machine states.
  * Based on the VT100/xterm state machine for parsing escape sequences.
  */
@@ -64,6 +97,17 @@ export class Parser {
   
   /** Buffer for escape intermediate characters */
   private escapeIntermediates: string = '';
+  
+  /** Handlers for parser actions */
+  private handlers: ParserHandlers;
+  
+  /**
+   * Create a new parser with the specified handlers.
+   * @param handlers Callbacks for parser actions
+   */
+  constructor(handlers: ParserHandlers = {}) {
+    this.handlers = handlers;
+  }
   
   /**
    * Parse a chunk of input data.
@@ -432,67 +476,79 @@ export class Parser {
    * Execute an escape sequence.
    */
   private executeEscape(final: number): void {
-    // Placeholder - will be implemented in later tasks
-    // This will handle sequences like ESC M (reverse index), ESC 7 (save cursor), etc.
+    this.handlers.onEscape?.(this.escapeIntermediates, final);
   }
   
   /**
    * Execute a CSI sequence.
    */
   private executeCsi(final: number): void {
-    // Placeholder - will be implemented in later tasks
-    // This will handle cursor movement, erase operations, etc.
+    this.handlers.onCsi?.(this.csiParams, this.csiIntermediates, final);
   }
   
   /**
    * Execute an OSC sequence.
    */
   private executeOsc(): void {
-    // Placeholder - will be implemented in later tasks
-    // This will handle title changes, hyperlinks, clipboard, etc.
+    // Parse OSC command from data
+    const semicolonIndex = this.oscData.indexOf(';');
+    if (semicolonIndex !== -1) {
+      const commandStr = this.oscData.substring(0, semicolonIndex);
+      const command = parseInt(commandStr, 10);
+      const data = this.oscData.substring(semicolonIndex + 1);
+      this.handlers.onOsc?.(command, data);
+    } else {
+      // No semicolon - treat entire string as command with no data
+      const command = parseInt(this.oscData, 10);
+      this.handlers.onOsc?.(command, '');
+    }
   }
   
   /**
    * Handle a printable character.
    */
   private handlePrintable(char: string): void {
-    // Placeholder - will be implemented when Terminal class is created
-    // This will write the character to the screen buffer
+    this.handlers.onPrintable?.(char);
   }
   
   /**
-   * Handle line feed control character.
+   * Handle line feed control character (LF, 0x0A).
+   * Moves the cursor to the next line.
    */
   private handleLineFeed(): void {
-    // Placeholder - will be implemented when Terminal class is created
+    this.handlers.onLineFeed?.();
   }
   
   /**
-   * Handle carriage return control character.
+   * Handle carriage return control character (CR, 0x0D).
+   * Moves the cursor to column 0 of the current line.
    */
   private handleCarriageReturn(): void {
-    // Placeholder - will be implemented when Terminal class is created
+    this.handlers.onCarriageReturn?.();
   }
   
   /**
-   * Handle backspace control character.
+   * Handle backspace control character (BS, 0x08).
+   * Moves the cursor one position left if not at column 0.
    */
   private handleBackspace(): void {
-    // Placeholder - will be implemented when Terminal class is created
+    this.handlers.onBackspace?.();
   }
   
   /**
-   * Handle tab control character.
+   * Handle horizontal tab control character (HT, 0x09).
+   * Moves the cursor to the next tab stop.
    */
   private handleTab(): void {
-    // Placeholder - will be implemented when Terminal class is created
+    this.handlers.onTab?.();
   }
   
   /**
-   * Handle bell control character.
+   * Handle bell control character (BEL, 0x07).
+   * Triggers an audible or visual bell.
    */
   private handleBell(): void {
-    // Placeholder - will be implemented when Terminal class is created
+    this.handlers.onBell?.();
   }
   
   /**
