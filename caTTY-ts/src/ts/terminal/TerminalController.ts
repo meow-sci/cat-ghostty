@@ -9,6 +9,7 @@ import type { Terminal } from './Terminal.js';
 import type { GhosttyVtInstance } from '../ghostty-vt.js';
 import type { KeyEvent } from '../../pages/demos/keyencode/_ts/pure/KeyEvent.js';
 import { KeyCodeMap } from './keyencode/KeyCodeMap.js';
+import { Renderer } from './Renderer.js';
 
 /**
  * Configuration for TerminalController initialization.
@@ -49,6 +50,7 @@ export class TerminalController {
   private readonly inputElement: HTMLInputElement;
   private readonly displayElement: HTMLElement;
   private readonly wasmInstance: GhosttyVtInstance;
+  private readonly renderer: Renderer;
   
   // Event listeners for cleanup
   private readonly eventListeners: Array<() => void> = [];
@@ -75,6 +77,9 @@ export class TerminalController {
     this.inputElement = config.inputElement;
     this.displayElement = config.displayElement;
     this.wasmInstance = config.wasmInstance;
+    
+    // Initialize renderer
+    this.renderer = new Renderer(this.displayElement);
     
     // Set up initial state
     this.setupInitialState();
@@ -561,12 +566,10 @@ export class TerminalController {
   
   /**
    * Renders the current terminal state to the display element.
-   * This is a placeholder - full rendering will be implemented in task 9.
+   * Uses the Renderer class for optimized incremental rendering.
    */
   render(): void {
-    // Placeholder for rendering logic
-    // This will be fully implemented in the Renderer class (task 9)
-    // For now, we just ensure the method exists for the controller interface
+    this.renderer.render(this.terminal);
   }
   
   // Key encoding helper methods
