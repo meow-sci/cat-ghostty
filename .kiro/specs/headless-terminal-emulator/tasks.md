@@ -325,56 +325,56 @@
 - [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement TerminalController class
-  - [ ] 8.1 Create controller initialization
+- [x] 8. Implement TerminalController class
+  - [x] 8.1 Create controller initialization
     - Accept terminal, inputElement, displayElement, wasmInstance
     - Set up event listeners
     - _Requirements: 11.1, 13.1, 13.5_
   
-  - [ ] 8.2 Implement keyboard input handling
+  - [x] 8.2 Implement keyboard input handling
     - Listen for keydown events on input element
     - Convert KeyboardEvent to KeyEvent structure
     - Use libghostty-vt to encode key to escape sequences
     - Send encoded sequences to terminal
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
   
-  - [ ] 8.3 Write property tests for key handling
+  - [x] 8.3 Write property tests for key handling
     - **Property 38: KeyEvent conversion preserves key information**
     - **Property 39: Key encoding produces valid sequences**
     - **Property 40: Key encoding round-trip**
     - **Property 41: Mode-dependent key encoding**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.5, 15.4**
   
-  - [ ] 8.3 Implement paste handling
+  - [x] 8.3 Implement paste handling
     - Listen for paste events
     - Handle bracketed paste mode
     - _Requirements: 15.5_
   
-  - [ ] 8.4 Implement focus management
+  - [x] 8.4 Implement focus management
     - Listen for focus and blur events
     - Update visual state
     - Prevent default browser shortcuts
     - Auto-focus on initialization
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
   
-  - [ ] 8.5 Implement mouse selection
+  - [x] 8.5 Implement mouse selection
     - Listen for mousedown, mousemove, mouseup
     - Track selection range
     - Highlight selected cells
     - _Requirements: 20.1, 20.2_
   
-  - [ ] 8.6 Implement copy handling
+  - [x] 8.6 Implement copy handling
     - Listen for copy events
     - Extract text from selected cells
     - Handle wide characters and line breaks
     - Place text on clipboard
     - _Requirements: 20.3, 20.4, 20.5_
   
-  - [ ] 8.7 Write property test for text extraction
+  - [x] 8.7 Write property test for text extraction
     - **Property 60: Text extraction preserves content**
     - **Validates: Requirements 20.3, 20.4**
   
-  - [ ] 8.8 Implement mount and unmount methods
+  - [x] 8.8 Implement mount and unmount methods
     - Add/remove event listeners
     - Clean up resources
     - _Requirements: 18.5_
