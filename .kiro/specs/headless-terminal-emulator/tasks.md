@@ -168,25 +168,25 @@
     - Emit appropriate events
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
   
-  - [ ] 5.10 Write property test for OSC parsing
+  - [x] 5.10 Write property test for OSC parsing
     - **Property 22: OSC parsing triggers appropriate actions**
     - **Validates: Requirements 7.1**
   
-  - [ ] 5.11 Write property test for OSC 8 hyperlinks
+  - [x] 5.11 Write property test for OSC 8 hyperlinks
     - **Property 23: OSC 8 hyperlink association**
     - **Validates: Requirements 7.3**
   
-  - [ ] 5.12 Write property test for unknown OSC handling
+  - [x] 5.12 Write property test for unknown OSC handling
     - **Property 24: Unknown OSC sequences are ignored**
     - **Validates: Requirements 7.5**
   
-  - [ ] 5.13 Implement character set handling
+  - [x] 5.13 Implement character set handling
     - Track G0-G3 character set designations
     - Handle SI/SO control characters
     - Implement DEC Special Graphics mapping
     - _Requirements: 19.1, 19.2, 19.3, 19.4_
   
-  - [ ] 5.14 Write property tests for character sets
+  - [x] 5.14 Write property tests for character sets
     - **Property 56: Character set designation tracking**
     - **Property 57: Character set switching**
     - **Property 58: DEC Special Graphics mapping**

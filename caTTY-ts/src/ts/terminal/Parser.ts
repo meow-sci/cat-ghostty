@@ -7,6 +7,7 @@ import type { GhosttyVtInstance } from '../ghostty-vt.js';
 import { SgrAttributeTags } from './sgr/SgrAttributeTags.js';
 import { type Attributes, UnderlineStyle } from './types.js';
 import { OscParser, type OscCommand, type OscEvents } from './osc/OscParser.js';
+import { CharacterSetManager } from './CharacterSetManager.js';
 
 /**
  * Handlers for parser actions.
@@ -30,6 +31,12 @@ export interface ParserHandlers extends OscEvents {
   
   /** Handle bell (BEL, 0x07) */
   onBell?: () => void;
+  
+  /** Handle shift in (SI, 0x0F) */
+  onShiftIn?: () => void;
+  
+  /** Handle shift out (SO, 0x0E) */
+  onShiftOut?: () => void;
   
   /** Handle CSI sequence */
   onCsi?: (params: number[], intermediates: string, final: number) => void;
@@ -118,6 +125,9 @@ export class Parser {
   /** OSC parser instance */
   private oscParser?: OscParser;
   
+  /** Character set manager */
+  private characterSetManager: CharacterSetManager;
+  
   /**
    * Create a new parser with the specified handlers.
    * @param handlers Callbacks for parser actions
@@ -126,6 +136,7 @@ export class Parser {
   constructor(handlers: ParserHandlers = {}, wasmInstance?: GhosttyVtInstance) {
     this.handlers = handlers;
     this.wasmInstance = wasmInstance;
+    this.characterSetManager = new CharacterSetManager();
     
     // Initialize OSC parser if WASM is available
     if (wasmInstance) {
@@ -246,6 +257,14 @@ export class Parser {
         
       case 0x07: // BEL (Bell)
         this.handleBell();
+        break;
+        
+      case 0x0E: // SO (Shift Out)
+        this.handleShiftOut();
+        break;
+        
+      case 0x0F: // SI (Shift In)
+        this.handleShiftIn();
         break;
         
       case 0x00: // NUL - ignore
@@ -510,6 +529,15 @@ export class Parser {
    * Execute an escape sequence.
    */
   private executeEscape(final: number): void {
+    // Handle character set designation sequences
+    if (this.escapeIntermediates.length > 0) {
+      const intermediate = this.escapeIntermediates[0];
+      if (intermediate === '(' || intermediate === ')' || intermediate === '*' || intermediate === '+') {
+        this.characterSetManager.parseDesignationSequence(this.escapeIntermediates, final);
+        return;
+      }
+    }
+    
     this.handlers.onEscape?.(this.escapeIntermediates, final);
   }
   
@@ -562,7 +590,9 @@ export class Parser {
    * Handle a printable character.
    */
   private handlePrintable(char: string): void {
-    this.handlers.onPrintable?.(char);
+    // Apply character set mapping
+    const mappedChar = this.characterSetManager.mapCharacter(char);
+    this.handlers.onPrintable?.(mappedChar);
   }
   
   /**
@@ -603,6 +633,24 @@ export class Parser {
    */
   private handleBell(): void {
     this.handlers.onBell?.();
+  }
+  
+  /**
+   * Handle shift in control character (SI, 0x0F).
+   * Activates G0 character set.
+   */
+  private handleShiftIn(): void {
+    this.characterSetManager.shiftIn();
+    this.handlers.onShiftIn?.();
+  }
+  
+  /**
+   * Handle shift out control character (SO, 0x0E).
+   * Activates G1 character set.
+   */
+  private handleShiftOut(): void {
+    this.characterSetManager.shiftOut();
+    this.handlers.onShiftOut?.();
   }
   
   /**
@@ -837,8 +885,18 @@ export class Parser {
     this.utf8Expected = 0;
     this.escapeIntermediates = '';
     
+    // Reset character sets to default
+    this.characterSetManager.reset();
+    
     // Reset OSC parser if available
     this.oscParser?.reset();
+  }
+  
+  /**
+   * Get the character set manager (for testing).
+   */
+  getCharacterSetManager(): CharacterSetManager {
+    return this.characterSetManager;
   }
   
   /**

@@ -91,6 +91,53 @@ export interface CursorState {
 }
 
 /**
+ * Character set identifiers.
+ * Represents the different character sets that can be designated to G0-G3.
+ */
+export enum CharacterSet {
+  /** US ASCII (default) */
+  ASCII = 'B',
+  
+  /** DEC Special Character and Line Drawing Set */
+  DECSpecialGraphics = '0',
+  
+  /** DEC Alternate Character ROM Standard Character Set */
+  DECAlternate = 'A',
+  
+  /** DEC Alternate Character ROM Special Character Set */
+  DECAlternateSpecial = '1',
+  
+  /** DEC Technical Character Set */
+  DECTechnical = '>',
+  
+  /** United Kingdom (UK) */
+  UK = 'A'
+}
+
+/**
+ * Character set state tracking G0-G3 designations and active set.
+ */
+export interface CharacterSetState {
+  /** G0 character set (default active) */
+  g0: CharacterSet;
+  
+  /** G1 character set */
+  g1: CharacterSet;
+  
+  /** G2 character set */
+  g2: CharacterSet;
+  
+  /** G3 character set */
+  g3: CharacterSet;
+  
+  /** Currently active character set (GL - left side) */
+  activeGL: 'g0' | 'g1';
+  
+  /** Currently active character set (GR - right side) */
+  activeGR: 'g2' | 'g3';
+}
+
+/**
  * Current text attributes for new characters.
  * These attributes are applied to characters as they are written.
  */
