@@ -246,6 +246,8 @@ class Parser {
 }
 ```
 
+**SGR Parsing Design Decision**: All SGR (Select Graphic Rendition) parsing will be delegated to libghostty-vt WASM. The library accepts both the standard semicolon ';' separator and the non-standard colon ':' separator for compatibility with some non-compliant software. This behavior is expected and correct - the Parser should pass SGR sequences directly to libghostty-vt without attempting to validate or normalize the separator format.
+
 ### Controller
 
 Handles DOM integration and user interaction.
@@ -616,6 +618,7 @@ The terminal emulator will validate all inputs and handle errors gracefully:
 3. **Invalid UTF-8**: Invalid UTF-8 sequences should be replaced with the Unicode replacement character (U+FFFD)
 4. **Out of Bounds Access**: Attempts to access cells outside the buffer should return empty cells or be clamped
 5. **WASM Errors**: Errors from libghostty-vt should be caught and logged without crashing the terminal
+6. **SGR Parameter Separators**: Both semicolon ';' and colon ':' separators in SGR sequences are valid and should be accepted (libghostty-vt handles both for compatibility with non-compliant software)
 
 ### Resource Management
 
