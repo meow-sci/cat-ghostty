@@ -148,10 +148,13 @@
   - [ ] 5.6 Integrate libghostty-vt for SGR parsing
     - Create wrapper for ghostty_sgr_* functions
     - Parse SGR sequences and update attributes
+    - Note: libghostty-vt accepts both standard semicolon ';' and non-standard colon ':' separators for compatibility
+    - Delegate all SGR parsing to libghostty-vt without validating separator format
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   
   - [ ] 5.7 Write property test for SGR parsing
     - **Property 20: SGR parsing updates attributes**
+    - Test with both semicolon and colon separators to verify libghostty-vt handles both correctly
     - **Validates: Requirements 6.1, 6.2**
   
   - [ ] 5.8 Write property test for SGR attribute persistence
