@@ -11,6 +11,8 @@ ghostty-examples/       # Reference implementations (HTML demos)
 
 ### Core Directories
 
+- `ghostty-c-api/include` - contains the C header files for the libghostty-vt functionality.  includes very useful reference documentation inside the comments about behavior.
+
 - `src/pages/` - Astro pages (file-based routing)
   - `index.astro` - Homepage
   - `demos/` - Interactive demo pages

@@ -93,6 +93,8 @@ This document specifies the requirements for a headless terminal emulator implem
 
 **IMPORTANT** libghostty-vt accepts EITHER the standard semicolon ';' as a separator or the non-standard ':' colon.  This is to be compatible with some non-compliant software.  We can trust the libghostty-vt will behave correctly.  All SGR parsing must be delegated to libghostty-vt WASM and it's results should be trustworthy (but validated with unit tests)
 
+**NOTE** use the data in `ghostty-c-api/include` as reference documentation for the SGR tag behavior, because ghostty supports more modern capabilities then VT100/xterm-compatible does.
+
 #### Acceptance Criteria
 
 1. WHEN an SGR sequence is received THEN the Terminal Emulator SHALL parse it using libghostty-vt
