@@ -6,12 +6,13 @@
 import type { GhosttyVtInstance } from '../ghostty-vt.js';
 import { SgrAttributeTags } from './sgr/SgrAttributeTags.js';
 import { type Attributes, UnderlineStyle } from './types.js';
+import { OscParser, type OscCommand, type OscEvents } from './osc/OscParser.js';
 
 /**
  * Handlers for parser actions.
  * These callbacks are invoked when the parser encounters various terminal actions.
  */
-export interface ParserHandlers {
+export interface ParserHandlers extends OscEvents {
   /** Handle a printable character */
   onPrintable?: (char: string) => void;
   
@@ -36,7 +37,7 @@ export interface ParserHandlers {
   /** Handle SGR attribute update */
   onSgrAttributes?: (attributes: Attributes) => void;
   
-  /** Handle OSC sequence */
+  /** Handle OSC sequence (legacy callback) */
   onOsc?: (command: number, data: string) => void;
   
   /** Handle escape sequence */
@@ -114,14 +115,27 @@ export class Parser {
   /** WASM instance for SGR parsing */
   private wasmInstance?: GhosttyVtInstance;
   
+  /** OSC parser instance */
+  private oscParser?: OscParser;
+  
   /**
    * Create a new parser with the specified handlers.
    * @param handlers Callbacks for parser actions
-   * @param wasmInstance Optional WASM instance for SGR parsing
+   * @param wasmInstance Optional WASM instance for SGR and OSC parsing
    */
   constructor(handlers: ParserHandlers = {}, wasmInstance?: GhosttyVtInstance) {
     this.handlers = handlers;
     this.wasmInstance = wasmInstance;
+    
+    // Initialize OSC parser if WASM is available
+    if (wasmInstance) {
+      this.oscParser = new OscParser(wasmInstance, {
+        onTitleChange: handlers.onTitleChange,
+        onHyperlink: handlers.onHyperlink,
+        onClipboard: handlers.onClipboard,
+        onCommand: handlers.onCommand,
+      });
+    }
   }
   
   /**
@@ -149,6 +163,12 @@ export class Parser {
     // Check for UTF-8 multi-byte sequence start
     if (this.state === ParserState.Ground && byte >= 0x80) {
       this.startUtf8Sequence(byte);
+      return;
+    }
+    
+    // Handle OSC state specially - BEL and ESC terminate OSC
+    if (this.state === ParserState.OscString) {
+      this.handleOscString(byte);
       return;
     }
     
@@ -186,10 +206,6 @@ export class Parser {
         
       case ParserState.CsiIgnore:
         this.handleCsiIgnore(byte);
-        break;
-        
-      case ParserState.OscString:
-        this.handleOscString(byte);
         break;
     }
   }
@@ -519,7 +535,16 @@ export class Parser {
    * Execute an OSC sequence.
    */
   private executeOsc(): void {
-    // Parse OSC command from data
+    // Use libghostty-vt OSC parser if available
+    if (this.oscParser) {
+      try {
+        this.oscParser.parse(this.oscData);
+      } catch (error) {
+        console.warn('OSC parsing failed:', error);
+      }
+    }
+    
+    // Also call legacy handler for backward compatibility
     const semicolonIndex = this.oscData.indexOf(';');
     if (semicolonIndex !== -1) {
       const commandStr = this.oscData.substring(0, semicolonIndex);
@@ -811,5 +836,16 @@ export class Parser {
     this.utf8Buffer = [];
     this.utf8Expected = 0;
     this.escapeIntermediates = '';
+    
+    // Reset OSC parser if available
+    this.oscParser?.reset();
+  }
+  
+  /**
+   * Dispose of the parser and clean up resources.
+   */
+  dispose(): void {
+    this.oscParser?.dispose();
+    this.oscParser = undefined;
   }
 }

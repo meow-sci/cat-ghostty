@@ -162,7 +162,7 @@
     - **Property 21: SGR attributes persist across characters**
     - **Validates: Requirements 6.4, 6.5**
   
-  - [ ] 5.9 Integrate libghostty-vt for OSC parsing
+  - [x] 5.9 Integrate libghostty-vt for OSC parsing
     - Create wrapper for ghostty_osc_* functions
     - Handle OSC 0/2 (title), OSC 8 (hyperlink), OSC 52 (clipboard)
     - Emit appropriate events
