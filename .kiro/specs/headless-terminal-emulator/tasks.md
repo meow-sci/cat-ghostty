@@ -322,7 +322,7 @@
     - getCursor
     - _Requirements: 18.3_
 
-- [ ] 7. Checkpoint - Ensure all tests pass
+- [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Implement TerminalController class
