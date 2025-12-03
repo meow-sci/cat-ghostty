@@ -193,23 +193,23 @@
     - **Property 59: Character set affects written characters**
     - **Validates: Requirements 19.1, 19.2, 19.3, 19.4**
 
-- [ ] 6. Implement Terminal class (main emulator)
-  - [ ] 6.1 Create Terminal class with initialization
+- [x] 6. Implement Terminal class (main emulator)
+  - [x] 6.1 Create Terminal class with initialization
     - Accept TerminalConfig (cols, rows, scrollback)
     - Initialize screen buffer, cursor, attributes
     - Set up event emitters
     - _Requirements: 1.1, 2.1, 18.1_
   
-  - [ ] 6.2 Implement write method
+  - [x] 6.2 Implement write method
     - Accept string or Uint8Array
     - Pass data to parser
     - _Requirements: 18.2_
   
-  - [ ] 6.3 Write property test for input type handling
+  - [x] 6.3 Write property test for input type handling
     - **Property 55: API accepts multiple input types**
     - **Validates: Requirements 18.2**
   
-  - [ ] 6.4 Implement character writing logic
+  - [x] 6.4 Implement character writing logic
     - Write printable characters to buffer at cursor position
     - Apply current attributes
     - Handle wide characters (CJK)
@@ -217,7 +217,7 @@
     - Handle auto-wrap mode
     - _Requirements: 2.2, 3.1, 3.2, 3.4, 3.5, 15.1, 15.2_
   
-  - [ ] 6.5 Write property tests for character writing
+  - [x] 6.5 Write property tests for character writing
     - **Property 4: Cursor advances on character write**
     - **Property 9: Printable characters appear at cursor**
     - **Property 10: SGR attributes apply to written characters**
@@ -225,75 +225,75 @@
     - **Property 13: Line-end behavior respects auto-wrap mode**
     - **Validates: Requirements 2.2, 3.1, 3.2, 3.4, 3.5, 15.1, 15.2**
   
-  - [ ] 6.6 Write property test for UTF-8 handling
+  - [x] 6.6 Write property test for UTF-8 handling
     - **Property 11: UTF-8 decoding correctness**
     - **Validates: Requirements 3.3**
   
-  - [ ] 6.7 Implement cursor movement methods
+  - [x] 6.7 Implement cursor movement methods
     - Implement moveCursor, setCursorPosition
     - Handle boundary conditions
     - _Requirements: 2.4, 5.1-5.5_
   
-  - [ ] 6.8 Write property tests for cursor operations
+  - [x] 6.8 Write property tests for cursor operations
     - **Property 5: Auto-wrap at line end**
     - **Property 6: Cursor movement sequences update position**
     - **Property 7: Cursor visibility state tracking**
     - **Property 8: Cursor position query accuracy**
     - **Validates: Requirements 2.3, 2.4, 2.5, 2.6**
   
-  - [ ] 6.9 Implement scrolling with scrollback
+  - [x] 6.9 Implement scrolling with scrollback
     - When scrolling up, push top line to scrollback
     - Respect scrollback size limit
     - Handle alternate screen (no scrollback)
     - _Requirements: 8.1, 8.2, 9.3_
   
-  - [ ] 6.10 Implement viewport management
+  - [x] 6.10 Implement viewport management
     - Track viewport offset
     - Implement getViewportOffset and setViewportOffset
     - Handle auto-scroll on write
     - _Requirements: 8.3, 8.4_
   
-  - [ ] 6.11 Write property tests for viewport
+  - [x] 6.11 Write property tests for viewport
     - **Property 27: Viewport offset tracking**
     - **Property 28: Auto-scroll behavior**
     - **Validates: Requirements 8.3, 8.4**
   
-  - [ ] 6.12 Implement terminal modes
+  - [x] 6.12 Implement terminal modes
     - Track auto-wrap mode
     - Track cursor visibility mode
     - Track application cursor keys mode
     - Track bracketed paste mode
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
   
-  - [ ] 6.13 Write property test for mode-dependent behavior
+  - [x] 6.13 Write property test for mode-dependent behavior
     - **Property 49: Bracketed paste mode wrapping**
     - **Validates: Requirements 15.5**
   
-  - [ ] 6.14 Implement tab stop management
+  - [x] 6.14 Implement tab stop management
     - Initialize default tab stops every 8 columns
     - Implement setTabStop and clearTabStop
     - Implement tab character handling
     - _Requirements: 14.1, 14.2, 14.3, 14.4_
   
-  - [ ] 6.15 Write property tests for tab stops
+  - [x] 6.15 Write property tests for tab stops
     - **Property 14: Tab moves to next tab stop**
     - **Property 47: Tab stop setting and usage**
     - **Property 48: Tab stop clearing**
     - **Validates: Requirements 14.2, 14.3, 14.4**
   
-  - [ ] 6.16 Implement scroll region management
+  - [x] 6.16 Implement scroll region management
     - Track scroll region top and bottom
     - Apply region to scroll operations
     - Allow cursor movement outside region
     - _Requirements: 10.1, 10.3, 10.4, 10.5_
   
-  - [ ] 6.17 Write property tests for scroll regions
+  - [x] 6.17 Write property tests for scroll regions
     - **Property 34: Scroll region restricts scrolling**
     - **Property 36: Scroll region reset restores full scrolling**
     - **Property 37: Cursor movement ignores scroll region**
     - **Validates: Requirements 10.1, 10.3, 10.4, 10.5**
   
-  - [ ] 6.18 Implement event emission
+  - [x] 6.18 Implement event emission
     - Emit bell event
     - Emit title change event
     - Emit clipboard event
@@ -302,22 +302,22 @@
     - Emit state change event
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5_
   
-  - [ ] 6.19 Write property test for data output events
+  - [x] 6.19 Write property test for data output events
     - **Property 50: Data output event emission**
     - **Validates: Requirements 16.4**
   
-  - [ ] 6.20 Implement resize method
+  - [x] 6.20 Implement resize method
     - Resize screen buffer
     - Emit resize event
     - _Requirements: 1.2, 16.5_
   
-  - [ ] 6.21 Implement dispose method
+  - [x] 6.21 Implement dispose method
     - Clean up WASM resources
     - Clear buffers
     - Remove event listeners
     - _Requirements: 18.5_
   
-  - [ ] 6.22 Implement query methods
+  - [x] 6.22 Implement query methods
     - getLine, getScrollbackLine, getScrollbackSize
     - getCursor
     - _Requirements: 18.3_
