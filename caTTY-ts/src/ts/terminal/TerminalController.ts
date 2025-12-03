@@ -586,8 +586,7 @@ export class TerminalController {
         throw new Error(`ghostty_key_encoder_new failed with result ${result}`);
       }
       
-      const buffer = this.wasmInstance.exports.memory.buffer;
-      this.keyEncoderPtr = new DataView(buffer).getUint32(ptrPtr, true);
+      this.keyEncoderPtr = new DataView(this.wasmInstance.exports.memory.buffer).getUint32(ptrPtr, true);
       
       // Free the temporary pointer
       this.wasmInstance.exports.ghostty_wasm_free_opaque(ptrPtr);
@@ -683,8 +682,6 @@ export class TerminalController {
     }
     
     try {
-      const buffer = this.wasmInstance.exports.memory.buffer;
-      
       // Create WASM key event
       const eventPtrPtr = this.wasmInstance.exports.ghostty_wasm_alloc_opaque();
       const result = this.wasmInstance.exports.ghostty_key_event_new(0, eventPtrPtr);
@@ -693,7 +690,7 @@ export class TerminalController {
         throw new Error(`ghostty_key_event_new failed with result ${result}`);
       }
       
-      const eventPtr = new DataView(buffer).getUint32(eventPtrPtr, true);
+      const eventPtr = new DataView(this.wasmInstance.exports.memory.buffer).getUint32(eventPtrPtr, true);
       
       try {
         // Set action (1 = press)
@@ -727,9 +724,9 @@ export class TerminalController {
         if (keyEvent.key.length === 1) {
           const utf8Bytes = new TextEncoder().encode(keyEvent.key);
           const utf8Ptr = this.wasmInstance.exports.ghostty_wasm_alloc_u8_array(utf8Bytes.length);
-          new Uint8Array(buffer).set(utf8Bytes, utf8Ptr);
+          new Uint8Array(this.wasmInstance.exports.memory.buffer).set(utf8Bytes, utf8Ptr);
           this.wasmInstance.exports.ghostty_key_event_set_utf8(eventPtr, utf8Ptr, utf8Bytes.length);
-          this.wasmInstance.exports.ghostty_wasm_free_u8_array(utf8Ptr, utf8Bytes.length);
+          // Note: Don't free utf8Ptr here - the key event stores a pointer to it
         }
         
         // Set unshifted codepoint
@@ -744,7 +741,7 @@ export class TerminalController {
           this.keyEncoderPtr, eventPtr, 0, 0, requiredPtr
         );
         
-        const required = new DataView(buffer).getUint32(requiredPtr, true);
+        const required = new DataView(this.wasmInstance.exports.memory.buffer).getUint32(requiredPtr, true);
         this.wasmInstance.exports.ghostty_wasm_free_usize(requiredPtr);
         
         if (required === 0) {
@@ -763,8 +760,8 @@ export class TerminalController {
           return null; // No encoding for this key
         }
         
-        const written = new DataView(buffer).getUint32(writtenPtr, true);
-        const encoded = new Uint8Array(buffer).slice(bufPtr, bufPtr + written);
+        const written = new DataView(this.wasmInstance.exports.memory.buffer).getUint32(writtenPtr, true);
+        const encoded = new Uint8Array(this.wasmInstance.exports.memory.buffer).slice(bufPtr, bufPtr + written);
         
         // Clean up
         this.wasmInstance.exports.ghostty_wasm_free_u8_array(bufPtr, required);
