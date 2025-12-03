@@ -19,6 +19,7 @@ This document specifies the requirements for a headless terminal emulator implem
 - **Cell**: A single character position in the terminal grid containing a character and its attributes
 - **Controller**: The component that handles DOM events and coordinates between model and view
 - **View**: The HTML rendering of the terminal state
+- **SampleShell**: A simple demonstration shell backend that processes commands and generates terminal output
 
 ## Requirements
 
@@ -270,3 +271,15 @@ This document specifies the requirements for a headless terminal emulator implem
 3. WHEN the user copies THEN the Controller SHALL extract text from the selected cells
 4. WHEN extracting text THEN the Controller SHALL preserve line breaks and handle wide characters correctly
 5. WHEN copying THEN the Controller SHALL place the text on the system clipboard
+
+### Requirement 21
+
+**User Story:** As a terminal user, I want a demonstration shell backend, so that I can interact with the terminal emulator and verify its functionality.
+
+#### Acceptance Criteria
+
+1. WHEN the terminal demo page is initialized THEN the system SHALL use SampleShell as the default shell backend
+2. WHEN SampleShell receives the "ls" command THEN the SampleShell SHALL output a list of five dummy filenames
+3. WHEN SampleShell receives the "echo" command with arguments THEN the SampleShell SHALL output the arguments back to the terminal
+4. WHEN SampleShell receives Ctrl+L keystroke THEN the SampleShell SHALL send escape sequences to clear the screen and reset cursor position
+5. WHEN SampleShell receives an unknown command THEN the SampleShell SHALL output an appropriate error message

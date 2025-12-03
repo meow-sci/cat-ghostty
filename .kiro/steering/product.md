@@ -23,3 +23,10 @@ The project includes interactive demo pages for:
 - SGR parsing (`/demos/sgr`)
 - OSC parsing (`/demos/osc`)
 - Full terminal emulator (`/terminal`)
+
+## Features
+
+- Implements a simple shell "backend" called SampleShell which supports a few features to demonstrate that the terminal emulator is working
+    - ls - display a simple list of five dummy filenames
+    - echo [arg] - echo back the contents like echo in bash would do
+    - [ctrl + l] - this keystroke clears the screen and resets the cursor position to the beginning

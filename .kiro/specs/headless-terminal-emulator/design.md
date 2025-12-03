@@ -303,6 +303,35 @@ class Renderer {
 }
 ```
 
+### SampleShell
+
+A demonstration shell backend for testing terminal functionality.
+
+```typescript
+interface ShellConfig {
+  onOutput: (data: string) => void;
+}
+
+class SampleShell {
+  constructor(config: ShellConfig);
+  
+  // Process input from terminal
+  processInput(data: string): void;
+  
+  // Command handlers
+  private handleLs(): void;
+  private handleEcho(args: string): void;
+  private handleClearScreen(): void;
+  private handleUnknownCommand(command: string): void;
+  
+  // State
+  private currentLine: string;
+  private prompt: string;
+}
+```
+
+**Design Decision**: SampleShell is a simple demonstration backend that processes commands and generates terminal output. It maintains minimal state (current input line) and responds to basic commands. The shell is designed to be easily replaceable with a real shell backend in the future.
+
 ## Data Models
 
 ### Terminal State
@@ -606,6 +635,24 @@ Property 59: Character set affects written characters
 Property 60: Text extraction preserves content
 *For any* selected region of terminal content, extracting the text should preserve the characters, line breaks, and handle wide characters correctly
 **Validates: Requirements 20.3, 20.4**
+
+### SampleShell Properties
+
+Property 61: ls command output format
+*For any* invocation of the "ls" command, SampleShell should output exactly five dummy filenames
+**Validates: Requirements 21.2**
+
+Property 62: echo command reflects input
+*For any* string argument passed to the "echo" command, SampleShell should output that exact string back to the terminal
+**Validates: Requirements 21.3**
+
+Property 63: Ctrl+L clears screen
+*For any* terminal state, when Ctrl+L is received, SampleShell should send escape sequences that clear the screen and reset cursor to position (0, 0)
+**Validates: Requirements 21.4**
+
+Property 64: Unknown command error handling
+*For any* unrecognized command, SampleShell should output an error message indicating the command was not found
+**Validates: Requirements 21.5**
 
 ## Error Handling
 
