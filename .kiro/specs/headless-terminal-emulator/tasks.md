@@ -135,12 +135,12 @@
     - Handle tab operations (H, g)
     - _Requirements: 5.1-5.9, 10.1, 14.3, 14.4, 17.1-17.4_
   
-  - [ ] 5.4 Write property tests for CSI cursor movement
+  - [x] 5.4 Write property tests for CSI cursor movement
     - **Property 15: CSI cursor movement correctness**
     - **Property 16: CSI cursor positioning absolute**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
   
-  - [ ] 5.5 Write property tests for erase operations
+  - [x] 5.5 Write property tests for erase operations
     - **Property 17: Erase in display clears correct region**
     - **Property 18: Erase in line clears correct region**
     - **Validates: Requirements 5.6, 5.7**
