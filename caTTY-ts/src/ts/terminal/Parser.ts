@@ -3,6 +3,10 @@
  * Implements a state machine for parsing VT100/xterm-compatible sequences.
  */
 
+import type { GhosttyVtInstance } from '../ghostty-vt.js';
+import { SgrAttributeTags } from './sgr/SgrAttributeTags.js';
+import { type Attributes, UnderlineStyle } from './types.js';
+
 /**
  * Handlers for parser actions.
  * These callbacks are invoked when the parser encounters various terminal actions.
@@ -28,6 +32,9 @@ export interface ParserHandlers {
   
   /** Handle CSI sequence */
   onCsi?: (params: number[], intermediates: string, final: number) => void;
+  
+  /** Handle SGR attribute update */
+  onSgrAttributes?: (attributes: Attributes) => void;
   
   /** Handle OSC sequence */
   onOsc?: (command: number, data: string) => void;
@@ -80,6 +87,9 @@ export class Parser {
   /** Buffer for collecting CSI parameters */
   private csiParams: number[] = [];
   
+  /** Buffer for collecting CSI parameter separators */
+  private csiSeparators: string[] = [];
+  
   /** Buffer for collecting CSI intermediate characters */
   private csiIntermediates: string = '';
   
@@ -101,12 +111,17 @@ export class Parser {
   /** Handlers for parser actions */
   private handlers: ParserHandlers;
   
+  /** WASM instance for SGR parsing */
+  private wasmInstance?: GhosttyVtInstance;
+  
   /**
    * Create a new parser with the specified handlers.
    * @param handlers Callbacks for parser actions
+   * @param wasmInstance Optional WASM instance for SGR parsing
    */
-  constructor(handlers: ParserHandlers = {}) {
+  constructor(handlers: ParserHandlers = {}, wasmInstance?: GhosttyVtInstance) {
     this.handlers = handlers;
+    this.wasmInstance = wasmInstance;
   }
   
   /**
@@ -295,6 +310,7 @@ export class Parser {
   private enterCsi(): void {
     this.state = ParserState.CsiEntry;
     this.csiParams = [];
+    this.csiSeparators = [];
     this.csiIntermediates = '';
   }
   
@@ -306,9 +322,10 @@ export class Parser {
       // Digit - start parameter
       this.csiParams.push(byte - 0x30);
       this.state = ParserState.CsiParam;
-    } else if (byte === 0x3B) {
-      // Semicolon - empty parameter
+    } else if (byte === 0x3B || byte === 0x3A) {
+      // Semicolon or colon - empty parameter
       this.csiParams.push(0);
+      this.csiSeparators.push(String.fromCharCode(byte));
       this.state = ParserState.CsiParam;
     } else if (byte >= 0x3C && byte <= 0x3F) {
       // Private marker - ignore sequence
@@ -332,9 +349,10 @@ export class Parser {
       // Digit - add to current parameter
       const lastIdx = this.csiParams.length - 1;
       this.csiParams[lastIdx] = this.csiParams[lastIdx] * 10 + (byte - 0x30);
-    } else if (byte === 0x3B) {
-      // Semicolon - start new parameter
+    } else if (byte === 0x3B || byte === 0x3A) {
+      // Semicolon or colon - start new parameter
       this.csiParams.push(0);
+      this.csiSeparators.push(String.fromCharCode(byte));
     } else if (byte >= 0x3C && byte <= 0x3F) {
       // Invalid - ignore sequence
       this.state = ParserState.CsiIgnore;
@@ -485,6 +503,15 @@ export class Parser {
   private executeCsi(final: number): void {
     // Ensure at least one parameter (default to 0 for empty params)
     const params = this.csiParams.length > 0 ? this.csiParams : [0];
+    
+    // Handle SGR sequences (final byte 'm') with libghostty-vt
+    if (final === 0x6D && this.wasmInstance) { // 'm'
+      const attributes = this.parseSgrWithWasm(params, this.csiSeparators);
+      if (attributes) {
+        this.handlers.onSgrAttributes?.(attributes);
+      }
+    }
+    
     this.handlers.onCsi?.(params, this.csiIntermediates, final);
   }
   
@@ -554,11 +581,230 @@ export class Parser {
   }
   
   /**
+   * Parse SGR parameters using libghostty-vt WASM and return attributes.
+   * This delegates all SGR parsing to libghostty-vt without validating separator format.
+   * libghostty-vt accepts both semicolon ';' and colon ':' separators for compatibility.
+   */
+  private parseSgrWithWasm(params: number[], separators: string[] = []): Attributes | null {
+    if (!this.wasmInstance) {
+      return null;
+    }
+
+    const attributes: Attributes = {
+      fg: { type: 'default' },
+      bg: { type: 'default' },
+      bold: false,
+      italic: false,
+      underline: UnderlineStyle.None,
+      inverse: false,
+      strikethrough: false
+    };
+
+    try {
+      // Create SGR parser
+      const ptrPtr = this.wasmInstance.exports.ghostty_wasm_alloc_opaque();
+      const result = this.wasmInstance.exports.ghostty_sgr_new(0, ptrPtr);
+
+      if (result !== 0) {
+        throw new Error(`ghostty_sgr_new failed with result ${result}`);
+      }
+
+      const parserPtr = new DataView(this.wasmInstance.exports.memory.buffer).getUint32(ptrPtr, true);
+
+      // Allocate and set parameters
+      const paramsPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u16_array(params.length);
+      const paramsView = new Uint16Array(this.wasmInstance.exports.memory.buffer, paramsPtr, params.length);
+      params.forEach((p, i) => paramsView[i] = p);
+
+      // Allocate and set separators
+      let sepsPtr = 0;
+      if (separators.length > 0) {
+        sepsPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8_array(separators.length);
+        const sepsView = new Uint8Array(this.wasmInstance.exports.memory.buffer, sepsPtr, separators.length);
+        separators.forEach((s, i) => sepsView[i] = s.charCodeAt(0));
+      }
+
+      // Set parameters in parser
+      const setResult = this.wasmInstance.exports.ghostty_sgr_set_params(
+        parserPtr,
+        paramsPtr,
+        sepsPtr,
+        params.length
+      );
+
+      if (setResult !== 0) {
+        throw new Error(`ghostty_sgr_set_params failed with result ${setResult}`);
+      }
+
+      // Iterate through attributes
+      const attrPtr = this.wasmInstance.exports.ghostty_wasm_alloc_sgr_attribute();
+
+      while (this.wasmInstance.exports.ghostty_sgr_next(parserPtr, attrPtr)) {
+        const tag: number = this.wasmInstance.exports.ghostty_sgr_attribute_tag(attrPtr);
+        const valuePtr = this.wasmInstance.exports.ghostty_sgr_attribute_value(attrPtr);
+
+        switch (tag) {
+          case SgrAttributeTags.BOLD:
+            attributes.bold = true;
+            break;
+
+          case SgrAttributeTags.RESET_BOLD:
+            attributes.bold = false;
+            break;
+
+          case SgrAttributeTags.ITALIC:
+            attributes.italic = true;
+            break;
+
+          case SgrAttributeTags.RESET_ITALIC:
+            attributes.italic = false;
+            break;
+
+          case SgrAttributeTags.INVERSE:
+            attributes.inverse = true;
+            break;
+
+          case SgrAttributeTags.RESET_INVERSE:
+            attributes.inverse = false;
+            break;
+
+          case SgrAttributeTags.STRIKETHROUGH:
+            attributes.strikethrough = true;
+            break;
+
+          case SgrAttributeTags.RESET_STRIKETHROUGH:
+            attributes.strikethrough = false;
+            break;
+
+          case SgrAttributeTags.UNDERLINE: {
+            const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 4);
+            const style = view.getUint32(0, true);
+            if (style >= 0 && style <= 5) {
+              attributes.underline = style as UnderlineStyle;
+            }
+            break;
+          }
+
+          case SgrAttributeTags.RESET_UNDERLINE:
+            attributes.underline = UnderlineStyle.None;
+            break;
+
+          case SgrAttributeTags.FG_8:
+          case SgrAttributeTags.BRIGHT_FG_8: {
+            const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
+            const color = view.getUint8(0);
+            attributes.fg = { type: 'indexed', index: color };
+            break;
+          }
+
+          case SgrAttributeTags.BG_8:
+          case SgrAttributeTags.BRIGHT_BG_8: {
+            const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
+            const color = view.getUint8(0);
+            attributes.bg = { type: 'indexed', index: color };
+            break;
+          }
+
+          case SgrAttributeTags.FG_256: {
+            const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
+            const color = view.getUint8(0);
+            attributes.fg = { type: 'indexed', index: color };
+            break;
+          }
+
+          case SgrAttributeTags.BG_256: {
+            const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
+            const color = view.getUint8(0);
+            attributes.bg = { type: 'indexed', index: color };
+            break;
+          }
+
+          case SgrAttributeTags.DIRECT_COLOR_FG: {
+            // Extract RGB components
+            const rPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+            const gPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+            const bPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+
+            this.wasmInstance.exports.ghostty_color_rgb_get(valuePtr, rPtr, gPtr, bPtr);
+
+            const r = new Uint8Array(this.wasmInstance.exports.memory.buffer, rPtr, 1)[0];
+            const g = new Uint8Array(this.wasmInstance.exports.memory.buffer, gPtr, 1)[0];
+            const b = new Uint8Array(this.wasmInstance.exports.memory.buffer, bPtr, 1)[0];
+
+            attributes.fg = { type: 'rgb', r, g, b };
+
+            this.wasmInstance.exports.ghostty_wasm_free_u8(rPtr);
+            this.wasmInstance.exports.ghostty_wasm_free_u8(gPtr);
+            this.wasmInstance.exports.ghostty_wasm_free_u8(bPtr);
+            break;
+          }
+
+          case SgrAttributeTags.DIRECT_COLOR_BG: {
+            // Extract RGB components
+            const rPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+            const gPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+            const bPtr = this.wasmInstance.exports.ghostty_wasm_alloc_u8();
+
+            this.wasmInstance.exports.ghostty_color_rgb_get(valuePtr, rPtr, gPtr, bPtr);
+
+            const r = new Uint8Array(this.wasmInstance.exports.memory.buffer, rPtr, 1)[0];
+            const g = new Uint8Array(this.wasmInstance.exports.memory.buffer, gPtr, 1)[0];
+            const b = new Uint8Array(this.wasmInstance.exports.memory.buffer, bPtr, 1)[0];
+
+            attributes.bg = { type: 'rgb', r, g, b };
+
+            this.wasmInstance.exports.ghostty_wasm_free_u8(rPtr);
+            this.wasmInstance.exports.ghostty_wasm_free_u8(gPtr);
+            this.wasmInstance.exports.ghostty_wasm_free_u8(bPtr);
+            break;
+          }
+
+          case SgrAttributeTags.RESET_FG:
+            attributes.fg = { type: 'default' };
+            break;
+
+          case SgrAttributeTags.RESET_BG:
+            attributes.bg = { type: 'default' };
+            break;
+
+          case SgrAttributeTags.UNSET:
+            // Reset all attributes
+            attributes.fg = { type: 'default' };
+            attributes.bg = { type: 'default' };
+            attributes.bold = false;
+            attributes.italic = false;
+            attributes.underline = UnderlineStyle.None;
+            attributes.inverse = false;
+            attributes.strikethrough = false;
+            break;
+        }
+      }
+
+      // Clean up
+      this.wasmInstance.exports.ghostty_wasm_free_sgr_attribute(attrPtr);
+      this.wasmInstance.exports.ghostty_wasm_free_u16_array(paramsPtr, params.length);
+      if (sepsPtr !== 0) {
+        this.wasmInstance.exports.ghostty_wasm_free_u8_array(sepsPtr, separators.length);
+      }
+      this.wasmInstance.exports.ghostty_sgr_free(parserPtr);
+      this.wasmInstance.exports.ghostty_wasm_free_opaque(ptrPtr);
+
+    } catch (error) {
+      // If parsing fails, return null to indicate failure
+      console.warn('SGR parsing failed:', error);
+      return null;
+    }
+
+    return attributes;
+  }
+
+  /**
    * Reset the parser to initial state.
    */
   reset(): void {
     this.state = ParserState.Ground;
     this.csiParams = [];
+    this.csiSeparators = [];
     this.csiIntermediates = '';
     this.oscData = '';
     this.oscCommand = 0;

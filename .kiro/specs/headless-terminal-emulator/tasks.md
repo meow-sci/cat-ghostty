@@ -145,15 +145,16 @@
     - **Property 18: Erase in line clears correct region**
     - **Validates: Requirements 5.6, 5.7**
   
-  - [ ] 5.6 Integrate libghostty-vt for SGR parsing
+  - [x] 5.6 Integrate libghostty-vt for SGR parsing
     - Create wrapper for ghostty_sgr_* functions
     - Parse SGR sequences and update attributes
     - Note: libghostty-vt accepts both standard semicolon ';' and non-standard colon ':' separators for compatibility
     - Delegate all SGR parsing to libghostty-vt without validating separator format
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   
-  - [ ] 5.7 Write property test for SGR parsing
+  - [x] 5.7 Write property test for SGR parsing
     - **Property 20: SGR parsing updates attributes**
+    - Tests must instantiate the WASM bundle using node patterns (see LoadWasm.test.ts as an example) and pass them to class instances that will interface with libghostty-vt.  This way unit tests invoked by node will be responsible for the node variant of WASM.
     - Test with both semicolon and colon separators to verify libghostty-vt handles both correctly
     - **Validates: Requirements 6.1, 6.2**
   
