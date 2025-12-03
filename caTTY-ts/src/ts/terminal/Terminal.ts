@@ -9,6 +9,7 @@ import { ScreenBuffer } from './ScreenBuffer.js';
 import { ScrollbackBuffer } from './ScrollbackBuffer.js';
 import { AlternateScreenManager } from './AlternateScreenManager.js';
 import { Parser, type ParserHandlers } from './Parser.js';
+import type { OscCommand } from './osc/OscParser.js';
 import type { 
   CursorState, 
   Attributes, 
@@ -746,8 +747,11 @@ export class Terminal {
     this.events.onClipboard?.(content);
   }
   
-  private handleOscCommand(command: number, data: string): void {
+  private handleOscCommand(command: OscCommand): void {
     // Additional OSC command handling if needed
+    // The specific OSC commands (title, hyperlink, clipboard) are already
+    // handled by their dedicated callbacks (onTitleChange, onHyperlink, onClipboard)
+    // This is a catch-all for any other OSC commands
     this.emitStateChange();
   }
   
