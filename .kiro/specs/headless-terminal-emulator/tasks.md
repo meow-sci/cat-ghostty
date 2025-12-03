@@ -158,7 +158,7 @@
     - Test with both semicolon and colon separators to verify libghostty-vt handles both correctly
     - **Validates: Requirements 6.1, 6.2**
   
-  - [ ] 5.8 Write property test for SGR attribute persistence
+  - [x] 5.8 Write property test for SGR attribute persistence
     - **Property 21: SGR attributes persist across characters**
     - **Validates: Requirements 6.4, 6.5**
   

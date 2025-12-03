@@ -134,6 +134,116 @@ describe('Parser SGR Property Tests', () => {
   });
 
   /**
+   * Feature: headless-terminal-emulator, Property 21: SGR attributes persist across characters
+   * For any SGR attributes set, all subsequently written characters should have those attributes until they are changed
+   * Validates: Requirements 6.4, 6.5
+   */
+  it('Property 21: SGR attributes persist across characters', () => {
+    fc.assert(
+      fc.property(
+        // Generate SGR parameters for setting attributes
+        fc.record({
+          // Generate initial SGR sequence
+          initialSgr: fc.array(fc.integer({ min: 0, max: 255 }), { minLength: 1, maxLength: 5 }),
+          // Generate characters to write after setting attributes
+          characters: fc.array(fc.constantFrom('a', 'b', 'c', 'd', 'e', 'A', 'B', 'C', '1', '2', '3', ' ', 'x', 'y', 'z'), { minLength: 1, maxLength: 10 }),
+          // Generate optional second SGR sequence to change attributes
+          secondSgr: fc.option(fc.array(fc.integer({ min: 0, max: 255 }), { minLength: 1, maxLength: 3 }))
+        }),
+        ({ initialSgr, characters, secondSgr }) => {
+          // Track attribute changes
+          let currentAttributes: Attributes | null = null;
+          let attributeHistory: Attributes[] = [];
+          let characterAttributes: Attributes[] = [];
+
+          const handlers: ParserHandlers = {
+            onSgrAttributes: (attributes: Attributes) => {
+              currentAttributes = { ...attributes };
+              attributeHistory.push({ ...attributes });
+            },
+            onPrintable: (char: string) => {
+              // When a character is written, it should use the current attributes
+              if (currentAttributes) {
+                characterAttributes.push({ ...currentAttributes });
+              }
+            }
+          };
+
+          const parser = new Parser(handlers, wasmInstance);
+
+          // Set initial SGR attributes
+          const initialSgrSequence = `\x1B[${initialSgr.join(';')}m`;
+          parser.parse(new TextEncoder().encode(initialSgrSequence));
+
+          // Verify initial attributes were set
+          expect(currentAttributes).not.toBeNull();
+          expect(attributeHistory.length).toBeGreaterThan(0);
+
+          const initialAttributes = { ...currentAttributes! };
+
+          // Write characters - they should all use the initial attributes
+          for (const char of characters) {
+            parser.parse(new TextEncoder().encode(char));
+          }
+
+          // Verify all characters got the same attributes as the initial SGR
+          expect(characterAttributes.length).toBe(characters.length);
+          for (let i = 0; i < characterAttributes.length; i++) {
+            const charAttrs = characterAttributes[i];
+            
+            // All attributes should match the initial SGR attributes
+            expect(charAttrs.fg).toEqual(initialAttributes.fg);
+            expect(charAttrs.bg).toEqual(initialAttributes.bg);
+            expect(charAttrs.bold).toBe(initialAttributes.bold);
+            expect(charAttrs.italic).toBe(initialAttributes.italic);
+            expect(charAttrs.underline).toBe(initialAttributes.underline);
+            expect(charAttrs.inverse).toBe(initialAttributes.inverse);
+            expect(charAttrs.strikethrough).toBe(initialAttributes.strikethrough);
+            expect(charAttrs.url).toBe(initialAttributes.url);
+          }
+
+          // If there's a second SGR sequence, test attribute change persistence
+          if (secondSgr) {
+            // Reset character tracking
+            characterAttributes = [];
+            
+            // Apply second SGR sequence
+            const secondSgrSequence = `\x1B[${secondSgr.join(';')}m`;
+            parser.parse(new TextEncoder().encode(secondSgrSequence));
+
+            // Verify attributes changed
+            expect(currentAttributes).not.toBeNull();
+            const secondAttributes = { ...currentAttributes! };
+
+            // Write more characters - they should use the new attributes
+            const moreChars = ['a', 'b', 'c'];
+            for (const char of moreChars) {
+              parser.parse(new TextEncoder().encode(char));
+            }
+
+            // Verify characters after second SGR use the new attributes
+            expect(characterAttributes.length).toBe(moreChars.length);
+            for (let i = 0; i < characterAttributes.length; i++) {
+              const charAttrs = characterAttributes[i];
+              
+              // All attributes should match the second SGR attributes
+              expect(charAttrs.fg).toEqual(secondAttributes.fg);
+              expect(charAttrs.bg).toEqual(secondAttributes.bg);
+              expect(charAttrs.bold).toBe(secondAttributes.bold);
+              expect(charAttrs.italic).toBe(secondAttributes.italic);
+              expect(charAttrs.underline).toBe(secondAttributes.underline);
+              expect(charAttrs.inverse).toBe(secondAttributes.inverse);
+              expect(charAttrs.strikethrough).toBe(secondAttributes.strikethrough);
+              expect(charAttrs.url).toBe(secondAttributes.url);
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
    * Test that libghostty-vt handles both semicolon and colon separators correctly.
    * This verifies libghostty-vt handles both separator types as documented.
    * Colon separators are used for specific color formats like underline styles.
