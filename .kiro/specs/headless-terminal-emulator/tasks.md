@@ -433,62 +433,62 @@
     - Send responses back to terminal
     - _Requirements: 16.4_
 
-- [ ] 11. Implement SampleShell class
-  - [ ] 11.1 Create SampleShell class with initialization
+- [x] 11. Implement SampleShell class
+  - [x] 11.1 Create SampleShell class with initialization
     - Accept ShellConfig with onOutput callback
     - Initialize prompt string (e.g., "$ ")
     - Track current input line
     - _Requirements: 21.1_
   
-  - [ ] 11.2 Implement input processing and command parsing
+  - [x] 11.2 Implement input processing and command parsing
     - Process incoming data character by character
     - Handle backspace and line editing
     - Parse command and arguments on Enter
     - Route to appropriate command handler
     - _Requirements: 21.1_
   
-  - [ ] 11.3 Implement ls command handler
+  - [x] 11.3 Implement ls command handler
     - Output five dummy filenames (e.g., "file1.txt", "file2.txt", etc.)
     - Format output with newlines
     - Display prompt after output
     - _Requirements: 21.2_
   
-  - [ ] 11.4 Write property test for ls command
+  - [x] 11.4 Write property test for ls command
     - **Property 61: ls command output format**
     - **Validates: Requirements 21.2**
   
-  - [ ] 11.5 Implement echo command handler
+  - [x] 11.5 Implement echo command handler
     - Extract arguments after "echo" command
     - Output arguments back to terminal
     - Display prompt after output
     - _Requirements: 21.3_
   
-  - [ ] 11.6 Write property test for echo command
+  - [x] 11.6 Write property test for echo command
     - **Property 62: echo command reflects input**
     - **Validates: Requirements 21.3**
   
-  - [ ] 11.7 Implement Ctrl+L handler
+  - [x] 11.7 Implement Ctrl+L handler
     - Detect Ctrl+L control sequence
     - Send CSI J (clear screen) escape sequence
     - Send CSI H (cursor home) escape sequence
     - Display prompt after clearing
     - _Requirements: 21.4_
   
-  - [ ] 11.8 Write property test for Ctrl+L
+  - [x] 11.8 Write property test for Ctrl+L
     - **Property 63: Ctrl+L clears screen**
     - **Validates: Requirements 21.4**
   
-  - [ ] 11.9 Implement unknown command handler
+  - [x] 11.9 Implement unknown command handler
     - Output error message for unrecognized commands
     - Format: "command: command not found" or similar
     - Display prompt after error
     - _Requirements: 21.5_
   
-  - [ ] 11.10 Write property test for unknown commands
+  - [x] 11.10 Write property test for unknown commands
     - **Property 64: Unknown command error handling**
     - **Validates: Requirements 21.5**
   
-  - [ ] 11.11 Integrate SampleShell with terminal page
+  - [x] 11.11 Integrate SampleShell with terminal page
     - Replace EchoShell with SampleShell in TerminalPage
     - Wire up data output events to SampleShell.processInput
     - Wire up SampleShell.onOutput to terminal.write

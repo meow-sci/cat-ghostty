@@ -2,7 +2,7 @@ import { Suspense, useLayoutEffect, useRef } from 'react';
 import { loadWasm } from '../../../ts/terminal/wasm/LoadWasm.js';
 import { Terminal } from '../../../ts/terminal/Terminal.js';
 import { TerminalController } from '../../../ts/terminal/TerminalController.js';
-import { EchoShell } from './EchoShell.js';
+import { SampleShell } from './SampleShell.js';
 import type { GhosttyVtInstance } from '../../../ts/ghostty-vt.js';
 
 // Wrapper to use WASM resource with Suspense
@@ -43,7 +43,7 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
   useLayoutEffect(() => {
     let terminal: Terminal | null = null;
     let controller: TerminalController | null = null;
-    let shell: EchoShell | null = null;
+    let shell: SampleShell | null = null;
 
     // Refs are guaranteed to be populated now
     if (!displayRef.current || !inputRef.current) {
@@ -86,10 +86,12 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
     );
 
     // Create shell simulation
-    shell = new EchoShell((output: string) => {
-      if (terminal) {
-        terminal.write(output);
-      }
+    shell = new SampleShell({
+      onOutput: (output: string) => {
+        if (terminal) {
+          terminal.write(output);
+        }
+      },
     });
 
     // Create TerminalController instance
@@ -104,10 +106,10 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
     controller.mount();
     controller.render();
 
-    // Write welcome message
+    // Write welcome message and initial prompt
     terminal.write('Welcome to caTTY Terminal Emulator!\r\n');
-    terminal.write('This is a demo terminal with a simple echo shell.\r\n');
-    terminal.write('Type "help" for available commands.\r\n');
+    terminal.write('This is a demo terminal with SampleShell.\r\n');
+    terminal.write('Available commands: ls, echo\r\n');
     terminal.write('\r\n');
     terminal.write('$ ');
 
