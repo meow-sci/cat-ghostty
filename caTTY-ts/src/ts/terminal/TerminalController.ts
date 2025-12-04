@@ -430,8 +430,8 @@ export class TerminalController {
     const encodedSequence = this.encodeKeyEvent(keyEvent);
     
     if (encodedSequence) {
-      // Send encoded sequence to terminal
-      this.terminal.write(encodedSequence);
+      // Send encoded sequence to shell backend
+      this.terminal.sendInput(encodedSequence);
     }
   }
   
@@ -450,10 +450,10 @@ export class TerminalController {
     if (bracketedPasteEnabled) {
       // Wrap pasted content with bracketed paste sequences
       const wrappedText = '\x1b[200~' + pastedText + '\x1b[201~';
-      this.terminal.write(wrappedText);
+      this.terminal.sendInput(wrappedText);
     } else {
       // Send pasted text directly
-      this.terminal.write(pastedText);
+      this.terminal.sendInput(pastedText);
     }
   }
   

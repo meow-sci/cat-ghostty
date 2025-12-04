@@ -958,6 +958,15 @@ export class Terminal {
   }
   
   /**
+   * Sends user input data to the shell backend.
+   * This is used for keyboard input and other user-generated data.
+   * @param data String or byte array to send to the shell
+   */
+  sendInput(data: string | Uint8Array): void {
+    this.emitDataOutput(data);
+  }
+  
+  /**
    * Writes data to the terminal.
    * Accepts either string or Uint8Array input and processes it through the parser.
    * @param data String or byte array to write to the terminal
