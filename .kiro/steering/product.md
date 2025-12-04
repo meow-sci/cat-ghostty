@@ -29,4 +29,6 @@ The project includes interactive demo pages for:
 - Implements a simple shell "backend" called SampleShell which supports a few features to demonstrate that the terminal emulator is working
     - ls - display a simple list of five dummy filenames
     - echo [arg] - echo back the contents like echo in bash would do
+    - red [arg] - echo text in red color using SGR escape sequences
+    - green [arg] - echo text in green color using SGR escape sequences
     - [ctrl + l] - this keystroke clears the screen and resets the cursor position to the beginning
