@@ -495,5 +495,202 @@
     - Display initial prompt on load
     - _Requirements: 21.1_
 
-- [ ] 12. Final checkpoint - Ensure all tests pass
+- [ ] 12. Implement Backend Server for PTY integration
+  - [ ] 12.1 Set up Node.js backend project structure
+    - Create backend directory with package.json
+    - Install dependencies: `@lydell/node-pty`, `ws` (WebSocket library)
+    - Set up TypeScript configuration for Node.js
+    - _Requirements: 22.1_
+  
+  - [ ] 12.2 Implement BackendServer class
+    - Create BackendServer class with configuration (port, shell)
+    - Implement start and stop methods for server lifecycle
+    - Set up WebSocket server using `ws` package
+    - _Requirements: 22.1_
+  
+  - [ ] 12.3 Implement PTY spawning on connection
+    - Handle WebSocket connection events
+    - Spawn PTY process using `@lydell/node-pty` with appropriate shell (bash/powershell)
+    - Configure PTY with terminal dimensions (cols, rows)
+    - Track active PTY processes per connection
+    - _Requirements: 22.2, 22.3, 22.4_
+  
+  - [ ] 12.4 Write property test for PTY spawn
+    - **Property 65: PTY spawn on connection**
+    - **Validates: Requirements 22.2, 22.4**
+  
+  - [ ] 12.5 Implement PTY to WebSocket data forwarding
+    - Listen for PTY data events
+    - Forward PTY output to WebSocket client
+    - Handle binary and text data appropriately
+    - _Requirements: 22.5, 23.2_
+  
+  - [ ] 12.6 Write property test for PTY output forwarding
+    - **Property 66: PTY output forwarding**
+    - **Validates: Requirements 22.5**
+  
+  - [ ] 12.7 Implement WebSocket to PTY data forwarding
+    - Listen for WebSocket message events
+    - Write client data to PTY process
+    - Handle encoding/decoding appropriately
+    - _Requirements: 23.1_
+  
+  - [ ] 12.8 Write property test for client input forwarding
+    - **Property 67: Client input forwarding**
+    - **Validates: Requirements 23.1, 23.2**
+  
+  - [ ] 12.9 Implement resize message handling
+    - Parse resize messages from WebSocket client
+    - Call PTY resize method with new dimensions
+    - _Requirements: 23.5_
+  
+  - [ ] 12.10 Write property test for resize propagation
+    - **Property 68: Terminal resize propagation**
+    - **Validates: Requirements 23.5**
+  
+  - [ ] 12.11 Implement connection cleanup
+    - Handle WebSocket close events
+    - Terminate associated PTY process
+    - Remove all event listeners
+    - Clean up connection tracking
+    - _Requirements: 24.1, 24.5_
+  
+  - [ ] 12.12 Write property test for connection cleanup
+    - **Property 69: Connection cleanup on disconnect**
+    - **Validates: Requirements 24.1, 24.5**
+  
+  - [ ] 12.13 Implement PTY exit handling
+    - Listen for PTY exit events
+    - Close associated WebSocket connection
+    - Log exit code and signal
+    - _Requirements: 24.2_
+  
+  - [ ] 12.14 Write property test for PTY exit cleanup
+    - **Property 70: PTY exit cleanup**
+    - **Validates: Requirements 24.2**
+  
+  - [ ] 12.15 Implement error handling
+    - Handle PTY spawn errors
+    - Handle WebSocket errors
+    - Log errors appropriately
+    - Clean up resources on error
+    - _Requirements: 24.4_
+  
+  - [ ]* 12.16 Write integration tests for backend server
+    - Test complete connection lifecycle
+    - Test bidirectional data flow
+    - Test error scenarios
+    - _Requirements: 22.1-22.5, 23.1-23.5, 24.1-24.5_
+
+- [ ] 13. Extend TerminalController for WebSocket integration
+  - [ ] 13.1 Add WebSocket connection management
+    - Add WebSocket instance property to TerminalController
+    - Implement connectWebSocket method with configuration
+    - Implement disconnectWebSocket method
+    - Track connection state (disconnected, connecting, connected, error)
+    - _Requirements: 25.1_
+  
+  - [ ] 13.2 Write property test for connection establishment
+    - **Property 71: WebSocket connection establishment**
+    - **Validates: Requirements 25.1**
+  
+  - [ ] 13.3 Implement WebSocket event handlers
+    - Handle WebSocket open event (connection established)
+    - Handle WebSocket message event (data from backend)
+    - Handle WebSocket close event (connection lost)
+    - Handle WebSocket error event
+    - _Requirements: 23.3, 23.4_
+  
+  - [ ] 13.4 Implement data forwarding to terminal
+    - Write received WebSocket data to Terminal instance
+    - Handle both text and binary data
+    - _Requirements: 23.4, 25.2, 25.4_
+  
+  - [ ] 13.5 Write property test for shell output display
+    - **Property 72: Real shell output display**
+    - **Validates: Requirements 25.2, 25.4**
+  
+  - [ ] 13.6 Implement data forwarding to backend
+    - Modify data output event handler to send to WebSocket
+    - Send user input through WebSocket connection
+    - Handle connection state (only send if connected)
+    - _Requirements: 23.3, 25.3_
+  
+  - [ ] 13.7 Write property test for command execution
+    - **Property 73: Command execution through PTY**
+    - **Validates: Requirements 25.3**
+  
+  - [ ] 13.8 Implement resize message sending
+    - Send resize messages to backend when terminal is resized
+    - Format resize message with cols and rows
+    - _Requirements: 23.5_
+  
+  - [ ] 13.9 Implement connection failure handling
+    - Display error message on connection failure
+    - Implement optional fallback to SampleShell
+    - Provide user feedback on connection status
+    - _Requirements: 25.5_
+  
+  - [ ] 13.10 Write property test for connection failure fallback
+    - **Property 74: Connection failure fallback**
+    - **Validates: Requirements 25.5**
+  
+  - [ ] 13.11 Update unmount method for WebSocket cleanup
+    - Close WebSocket connection on unmount
+    - Remove WebSocket event listeners
+    - _Requirements: 24.3_
+  
+  - [ ]* 13.12 Write integration tests for WebSocket controller
+    - Test connection establishment and data flow
+    - Test fallback to SampleShell on failure
+    - Test cleanup on page unload
+    - _Requirements: 25.1-25.5_
+
+- [ ] 14. Update terminal page for backend integration
+  - [ ] 14.1 Add WebSocket connection configuration
+    - Add WebSocket URL configuration (default: ws://localhost:3000)
+    - Add connection mode toggle (SampleShell vs Real PTY)
+    - Display connection status in UI
+    - _Requirements: 25.1_
+  
+  - [ ] 14.2 Implement automatic connection on page load
+    - Attempt WebSocket connection when TerminalPage mounts
+    - Handle connection success and failure
+    - Fall back to SampleShell if configured
+    - _Requirements: 25.1, 25.5_
+  
+  - [ ] 14.3 Add connection status indicator
+    - Display visual indicator for connection state
+    - Show error messages for connection failures
+    - Provide reconnect button if connection fails
+    - _Requirements: 25.5_
+  
+  - [ ] 14.4 Update terminal page documentation
+    - Document how to start the backend server
+    - Document WebSocket configuration options
+    - Add troubleshooting guide for connection issues
+    - _Requirements: 25.1_
+
+- [ ] 15. Create backend server entry point
+  - [ ] 15.1 Create server.ts entry point
+    - Import and instantiate BackendServer
+    - Configure port from environment variable or default
+    - Add graceful shutdown handling (SIGINT, SIGTERM)
+    - Log server startup and shutdown
+    - _Requirements: 22.1_
+  
+  - [ ] 15.2 Add npm scripts for backend
+    - Add "start:backend" script to run server
+    - Add "dev:backend" script with auto-reload
+    - Add "build:backend" script to compile TypeScript
+    - _Requirements: 22.1_
+  
+  - [ ] 15.3 Create backend README
+    - Document how to install dependencies
+    - Document how to start the server
+    - Document configuration options
+    - Document WebSocket protocol
+    - _Requirements: 22.1_
+
+- [ ] 16. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

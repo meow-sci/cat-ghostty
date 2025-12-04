@@ -32,3 +32,7 @@ The project includes interactive demo pages for:
     - red [arg] - echo text in red color using SGR escape sequences
     - green [arg] - echo text in green color using SGR escape sequences
     - [ctrl + l] - this keystroke clears the screen and resets the cursor position to the beginning
+
+## Backend
+
+- Ability to connect to a real PTY shell session backend, a WebSocket will transport the data between the caTTY terminal and the pty process backend.  Uses `@lydell/node-pty` npm package to provide pty from node.  When the UI launches, it will connect to a websocket on the node backend, when the node backend opens a new websocket it will launch a pty shell and shuffle the data back/forth.  When the WebSocket disconnects, the pty shell will be killed.  If the end-user exits the pty process, the websocket will be killed and no data will be exchanged.

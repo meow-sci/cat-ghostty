@@ -20,6 +20,9 @@ This document specifies the requirements for a headless terminal emulator implem
 - **Controller**: The component that handles DOM events and coordinates between model and view
 - **View**: The HTML rendering of the terminal state
 - **SampleShell**: A simple demonstration shell backend that processes commands and generates terminal output
+- **PTY (Pseudo-Terminal)**: A pair of virtual devices that provide bidirectional communication between a terminal emulator and a shell process
+- **WebSocket**: A protocol providing full-duplex communication channels over a single TCP connection
+- **Backend Server**: A Node.js server that manages PTY processes and WebSocket connections
 
 ## Requirements
 
@@ -283,3 +286,53 @@ This document specifies the requirements for a headless terminal emulator implem
 3. WHEN SampleShell receives the "echo" command with arguments THEN the SampleShell SHALL output the arguments back to the terminal
 4. WHEN SampleShell receives Ctrl+L keystroke THEN the SampleShell SHALL send escape sequences to clear the screen and reset cursor position
 5. WHEN SampleShell receives an unknown command THEN the SampleShell SHALL output an appropriate error message
+6. WHEN SampleShell receives the "red" command with arguments THEN the SampleShell SHALL output the arguments in red color using SGR escape sequences
+7. WHEN SampleShell receives the "green" command with arguments THEN the SampleShell SHALL output the arguments in green color using SGR escape sequences
+
+### Requirement 22
+
+**User Story:** As a developer, I want a Node.js backend server that manages PTY processes, so that the terminal emulator can connect to real shell sessions.
+
+#### Acceptance Criteria
+
+1. WHEN the backend server starts THEN the Backend Server SHALL listen for WebSocket connections on a configured port
+2. WHEN a WebSocket connection is established THEN the Backend Server SHALL spawn a new PTY process using the @lydell/node-pty package
+3. WHEN spawning a PTY process THEN the Backend Server SHALL use the appropriate shell for the operating system (bash for Unix-like systems, powershell.exe for Windows)
+4. WHEN a PTY process is spawned THEN the Backend Server SHALL configure it with terminal dimensions (cols and rows)
+5. WHEN the PTY process outputs data THEN the Backend Server SHALL forward the data to the connected WebSocket client
+
+### Requirement 23
+
+**User Story:** As a developer, I want bidirectional data flow between the terminal emulator and PTY process, so that user input reaches the shell and shell output reaches the terminal.
+
+#### Acceptance Criteria
+
+1. WHEN the WebSocket receives data from the client THEN the Backend Server SHALL write the data to the PTY process
+2. WHEN the PTY process emits data THEN the Backend Server SHALL send the data through the WebSocket to the client
+3. WHEN the terminal emulator sends user input THEN the Controller SHALL transmit the data through the WebSocket connection
+4. WHEN the WebSocket receives data from the server THEN the Controller SHALL write the data to the Terminal Emulator
+5. WHEN the terminal is resized THEN the Controller SHALL send a resize message through the WebSocket to update the PTY dimensions
+
+### Requirement 24
+
+**User Story:** As a developer, I want proper connection lifecycle management, so that resources are cleaned up when connections close.
+
+#### Acceptance Criteria
+
+1. WHEN a WebSocket connection closes THEN the Backend Server SHALL terminate the associated PTY process
+2. WHEN a PTY process exits THEN the Backend Server SHALL close the associated WebSocket connection
+3. WHEN the terminal page is unloaded THEN the Controller SHALL close the WebSocket connection
+4. WHEN a connection error occurs THEN the system SHALL log the error and clean up associated resources
+5. WHEN the PTY process is terminated THEN the Backend Server SHALL remove all event listeners for that process
+
+### Requirement 25
+
+**User Story:** As a terminal user, I want to connect to a real shell through the terminal emulator, so that I can execute actual commands and interact with my system.
+
+#### Acceptance Criteria
+
+1. WHEN the terminal page loads THEN the Controller SHALL establish a WebSocket connection to the backend server
+2. WHEN the WebSocket connection is established THEN the terminal SHALL display output from the real shell
+3. WHEN the user types commands THEN the commands SHALL be executed in the real shell via the PTY process
+4. WHEN the shell outputs data THEN the data SHALL be displayed in the terminal emulator with correct formatting
+5. WHEN the WebSocket connection fails THEN the terminal SHALL display an error message and optionally fall back to SampleShell

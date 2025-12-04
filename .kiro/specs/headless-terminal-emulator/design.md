@@ -12,35 +12,64 @@ The terminal emulator will provide VT100/xterm-compatible terminal emulation, su
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Controller                          │
-│  ┌──────────────┐         ┌──────────────┐             │
-│  │ Input Handler│────────▶│ View Renderer│             │
-│  └──────┬───────┘         └──────▲───────┘             │
-│         │                        │                      │
-└─────────┼────────────────────────┼──────────────────────┘
-          │                        │
-          ▼                        │
+│                   Browser (Frontend)                     │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │                  Controller                        │  │
+│  │  ┌──────────────┐         ┌──────────────┐       │  │
+│  │  │ Input Handler│────────▶│ View Renderer│       │  │
+│  │  └──────┬───────┘         └──────▲───────┘       │  │
+│  │         │                        │                │  │
+│  │         │    ┌──────────────┐    │                │  │
+│  │         └───▶│  WebSocket   │◀───┘                │  │
+│  │              │    Client    │                     │  │
+│  │              └──────┬───────┘                     │  │
+│  └─────────────────────┼─────────────────────────────┘  │
+│                        │                                 │
+│  ┌─────────────────────┼─────────────────────────────┐  │
+│  │                     ▼         Model (Headless)    │  │
+│  │  ┌──────────────────────────────────────────────┐│  │
+│  │  │           Terminal Emulator Core             ││  │
+│  │  │  ┌────────────┐  ┌──────────────┐          ││  │
+│  │  │  │   Screen   │  │    Parser    │          ││  │
+│  │  │  │   Buffer   │  │   (CSI/ESC)  │          ││  │
+│  │  │  └────────────┘  └──────────────┘          ││  │
+│  │  │  ┌────────────┐  ┌──────────────┐          ││  │
+│  │  │  │   Cursor   │  │  Scrollback  │          ││  │
+│  │  │  │   State    │  │    Buffer    │          ││  │
+│  │  │  └────────────┘  └──────────────┘          ││  │
+│  │  └──────────────────────────────────────────────┘│  │
+│  │                                                   │  │
+│  │  ┌──────────────────────────────────────────────┐│  │
+│  │  │         libghostty-vt WASM Integration       ││  │
+│  │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ││  │
+│  │  │  │   SGR    │  │   OSC    │  │   Key    │  ││  │
+│  │  │  │  Parser  │  │  Parser  │  │ Encoder  │  ││  │
+│  │  │  └──────────┘  └──────────┘  └──────────┘  ││  │
+│  │  └──────────────────────────────────────────────┘│  │
+│  └─────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────┘
+                        │
+                        │ WebSocket
+                        │
 ┌─────────────────────────────────────────────────────────┐
-│                    Model (Headless)                      │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │           Terminal Emulator Core                  │  │
-│  │  ┌────────────┐  ┌──────────────┐               │  │
-│  │  │   Screen   │  │    Parser    │               │  │
-│  │  │   Buffer   │  │   (CSI/ESC)  │               │  │
-│  │  └────────────┘  └──────────────┘               │  │
-│  │  ┌────────────┐  ┌──────────────┐               │  │
-│  │  │   Cursor   │  │  Scrollback  │               │  │
-│  │  │   State    │  │    Buffer    │               │  │
-│  │  └────────────┘  └──────────────┘               │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │         libghostty-vt WASM Integration           │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐      │  │
-│  │  │   SGR    │  │   OSC    │  │   Key    │      │  │
-│  │  │  Parser  │  │  Parser  │  │ Encoder  │      │  │
-│  │  └──────────┘  └──────────┘  └──────────┘      │  │
-│  └──────────────────────────────────────────────────┘  │
+│                 Node.js Backend Server                   │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │              WebSocket Server                      │  │
+│  │  ┌──────────────┐         ┌──────────────┐       │  │
+│  │  │  Connection  │────────▶│     PTY      │       │  │
+│  │  │   Manager    │         │   Manager    │       │  │
+│  │  └──────┬───────┘         └──────┬───────┘       │  │
+│  │         │                        │                │  │
+│  │         └────────────────────────┘                │  │
+│  └───────────────────────────────────────────────────┘  │
+│                        │                                 │
+│  ┌─────────────────────▼─────────────────────────────┐  │
+│  │              PTY Process                           │  │
+│  │  ┌──────────────────────────────────────────────┐│  │
+│  │  │  bash / zsh / powershell.exe                 ││  │
+│  │  │  (@lydell/node-pty)                          ││  │
+│  │  └──────────────────────────────────────────────┘│  │
+│  └─────────────────────────────────────────────────────┘
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -59,11 +88,20 @@ The terminal emulator will provide VT100/xterm-compatible terminal emulation, su
    - Coordination between model and view
    - Key encoding via libghostty-vt
    - View rendering orchestration
+   - WebSocket connection management
+   - Backend communication
 
 3. **View Layer**
    - HTML rendering using absolute-positioned spans
    - CSS styling for colors and attributes
    - Cursor visualization
+
+4. **Backend Layer (Node.js)**
+   - WebSocket server for client connections
+   - PTY process management using `@lydell/node-pty`
+   - Bidirectional data forwarding
+   - Connection lifecycle management
+   - Resource cleanup
 
 ## Components and Interfaces
 
@@ -332,6 +370,75 @@ class SampleShell {
 
 **Design Decision**: SampleShell is a simple demonstration backend that processes commands and generates terminal output. It maintains minimal state (current input line) and responds to basic commands. The shell is designed to be easily replaceable with a real shell backend in the future.
 
+### Backend Server
+
+A Node.js server that manages PTY processes and WebSocket connections for real shell integration.
+
+```typescript
+interface BackendServerConfig {
+  port: number;
+  shell?: string;  // Optional shell override (defaults to bash/powershell)
+}
+
+class BackendServer {
+  constructor(config: BackendServerConfig);
+  
+  // Lifecycle
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  
+  // WebSocket handling
+  private handleConnection(ws: WebSocket): void;
+  private handleDisconnection(ws: WebSocket): void;
+  
+  // PTY management
+  private spawnPty(cols: number, rows: number): IPty;
+  private terminatePty(pty: IPty): void;
+  
+  // Data flow
+  private handleClientData(ws: WebSocket, data: string): void;
+  private handlePtyData(ws: WebSocket, data: string): void;
+  private handleResize(pty: IPty, cols: number, rows: number): void;
+}
+```
+
+**Design Decision**: The backend server uses the `@lydell/node-pty` package to spawn real shell processes. Each WebSocket connection gets its own dedicated PTY process. The server acts as a bidirectional bridge, forwarding data between the WebSocket client and the PTY process. When either side disconnects, the server cleans up both the WebSocket and PTY resources.
+
+### WebSocket Client Integration
+
+The controller will be extended to support WebSocket connections for real shell integration.
+
+```typescript
+interface WebSocketConfig {
+  url: string;
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  onError?: (error: Error) => void;
+}
+
+class TerminalController {
+  // ... existing methods ...
+  
+  // WebSocket connection
+  connectWebSocket(config: WebSocketConfig): void;
+  disconnectWebSocket(): void;
+  
+  // Connection state
+  isConnected(): boolean;
+  
+  // Private WebSocket handlers
+  private handleWebSocketOpen(): void;
+  private handleWebSocketMessage(data: string): void;
+  private handleWebSocketClose(): void;
+  private handleWebSocketError(error: Event): void;
+  
+  // Send data to backend
+  private sendToBackend(data: Uint8Array): void;
+}
+```
+
+**Design Decision**: The WebSocket integration is optional and can coexist with SampleShell. When a WebSocket connection is established, the controller switches from SampleShell to the real PTY backend. If the connection fails or is unavailable, the controller can fall back to SampleShell for demonstration purposes.
+
 ## Data Models
 
 ### Terminal State
@@ -349,6 +456,16 @@ The terminal maintains several pieces of state:
 9. **Scroll Region**: Optional restricted scrolling area
 10. **Character Sets**: G0-G3 character set designations
 11. **Viewport Offset**: Scrollback viewing position
+
+### Backend Connection State
+
+The controller maintains connection state for backend integration:
+
+1. **Connection Type**: SampleShell (demo) or WebSocket (real PTY)
+2. **WebSocket Instance**: Active WebSocket connection (if connected)
+3. **Connection Status**: Disconnected, connecting, connected, error
+4. **Reconnection Strategy**: Optional automatic reconnection logic
+5. **Fallback Mode**: Whether to fall back to SampleShell on connection failure
 
 ### Buffer Management
 
@@ -654,6 +771,48 @@ Property 64: Unknown command error handling
 *For any* unrecognized command, SampleShell should output an error message indicating the command was not found
 **Validates: Requirements 21.5**
 
+### Backend Server Properties
+
+Property 65: PTY spawn on connection
+*For any* WebSocket connection established, the backend server should spawn exactly one PTY process with the specified terminal dimensions
+**Validates: Requirements 22.2, 22.4**
+
+Property 66: PTY output forwarding
+*For any* data emitted by the PTY process, the backend server should forward it to the connected WebSocket client
+**Validates: Requirements 22.5**
+
+Property 67: Client input forwarding
+*For any* data received from the WebSocket client, the backend server should write it to the PTY process
+**Validates: Requirements 23.1, 23.2**
+
+Property 68: Terminal resize propagation
+*For any* resize message received from the client, the backend server should update the PTY dimensions to match
+**Validates: Requirements 23.5**
+
+Property 69: Connection cleanup on disconnect
+*For any* WebSocket connection that closes, the backend server should terminate the associated PTY process and remove all event listeners
+**Validates: Requirements 24.1, 24.5**
+
+Property 70: PTY exit cleanup
+*For any* PTY process that exits, the backend server should close the associated WebSocket connection
+**Validates: Requirements 24.2**
+
+Property 71: WebSocket connection establishment
+*For any* terminal page load, the controller should attempt to establish a WebSocket connection to the backend server
+**Validates: Requirements 25.1**
+
+Property 72: Real shell output display
+*For any* data received through the WebSocket, the terminal should display it with correct formatting
+**Validates: Requirements 25.2, 25.4**
+
+Property 73: Command execution through PTY
+*For any* user command typed in the terminal, it should be executed in the real shell via the PTY process
+**Validates: Requirements 25.3**
+
+Property 74: Connection failure fallback
+*For any* WebSocket connection failure, the terminal should display an error message and optionally fall back to SampleShell
+**Validates: Requirements 25.5**
+
 ## Error Handling
 
 ### Input Validation
@@ -672,12 +831,18 @@ The terminal emulator will validate all inputs and handle errors gracefully:
 1. **Memory Cleanup**: All WASM memory allocations must be freed when no longer needed
 2. **Event Listener Cleanup**: All DOM event listeners must be removed when the controller is unmounted
 3. **Disposal**: The terminal dispose method must clean up all resources including WASM instances
+4. **WebSocket Cleanup**: WebSocket connections must be properly closed when the page unloads or the terminal is disposed
+5. **PTY Process Cleanup**: Backend server must terminate PTY processes when WebSocket connections close
+6. **Event Listener Removal**: Backend server must remove all PTY event listeners when processes are terminated
 
 ### Graceful Degradation
 
 1. **Missing WASM**: If libghostty-vt fails to load, provide clear error message
 2. **Unsupported Sequences**: Unknown escape sequences should be ignored
 3. **Browser Compatibility**: Fallback for browsers without clipboard API support
+4. **WebSocket Connection Failure**: If WebSocket connection fails, display error and optionally fall back to SampleShell
+5. **Backend Server Unavailable**: Terminal should handle backend unavailability gracefully with clear user feedback
+6. **PTY Process Errors**: Backend server should log PTY errors and close connections cleanly
 
 ## Testing Strategy
 
@@ -717,6 +882,9 @@ Integration tests will verify the complete system:
 1. **WASM Integration**: Test that libghostty-vt integration works correctly
 2. **Controller Integration**: Test that controller correctly coordinates model and view
 3. **End-to-End Scenarios**: Test complete user workflows (typing, scrolling, copying)
+4. **WebSocket Integration**: Test bidirectional data flow between terminal and backend
+5. **PTY Backend Integration**: Test that backend server correctly manages PTY processes and WebSocket connections
+6. **Connection Lifecycle**: Test connection establishment, data transfer, and cleanup scenarios
 
 ### Test Organization
 
@@ -751,6 +919,16 @@ caTTY-ts/src/ts/terminal/
 2. **WASM**: Requires WebAssembly support
 3. **Clipboard**: Use Clipboard API with fallback for older browsers
 4. **Input Method**: Support for IME (Input Method Editor) for international text
+5. **WebSocket**: Requires WebSocket API support (available in all modern browsers)
+
+### Backend Server Implementation
+
+1. **Package**: Use `@lydell/node-pty` for PTY process management
+2. **WebSocket Library**: Use `ws` package for WebSocket server
+3. **Shell Selection**: Automatically detect OS and use appropriate shell (bash for Unix-like, powershell.exe for Windows)
+4. **Port Configuration**: Configurable port for WebSocket server (default: 3000)
+5. **Error Handling**: Log all PTY and WebSocket errors, clean up resources on failure
+6. **Process Management**: Track active PTY processes and clean up on server shutdown
 
 ### Accessibility
 
@@ -766,3 +944,6 @@ caTTY-ts/src/ts/terminal/
 3. **Ligatures**: Font ligature support for programming fonts
 4. **Search**: Text search within terminal content
 5. **Bidirectional Text**: Support for RTL languages
+6. **Reconnection Logic**: Automatic reconnection with exponential backoff for WebSocket failures
+7. **Multiple Sessions**: Support for multiple concurrent terminal sessions with tab management
+8. **Session Persistence**: Save and restore terminal sessions across page reloads
