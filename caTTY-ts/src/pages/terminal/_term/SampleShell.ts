@@ -83,6 +83,10 @@ export class SampleShell {
       this.handleLs();
     } else if (cmd === 'echo') {
       this.handleEcho(args);
+    } else if (cmd === 'red') {
+      this.handleRed(args);
+    } else if (cmd === 'green') {
+      this.handleGreen(args);
     } else {
       this.handleUnknownCommand(cmd);
     }
@@ -105,6 +109,26 @@ export class SampleShell {
    */
   private handleEcho(args: string): void {
     this.onOutput(args + '\r\n');
+    this.displayPrompt();
+  }
+
+  /**
+   * Handles the red command - echoes text in red color.
+   */
+  private handleRed(args: string): void {
+    // SGR sequence: ESC[31m sets foreground to red
+    // SGR sequence: ESC[0m resets all attributes
+    this.onOutput('\x1b[31m' + args + '\x1b[0m\r\n');
+    this.displayPrompt();
+  }
+
+  /**
+   * Handles the green command - echoes text in green color.
+   */
+  private handleGreen(args: string): void {
+    // SGR sequence: ESC[32m sets foreground to green
+    // SGR sequence: ESC[0m resets all attributes
+    this.onOutput('\x1b[32m' + args + '\x1b[0m\r\n');
     this.displayPrompt();
   }
 
