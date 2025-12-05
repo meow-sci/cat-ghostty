@@ -291,14 +291,14 @@ This document specifies the requirements for a headless terminal emulator implem
 
 ### Requirement 22
 
-**User Story:** As a developer, I want a Node.js backend server that manages PTY processes, so that the terminal emulator can connect to real shell sessions.
+**User Story:** As a developer, I want a Node.js backend server that manages PTY processes, so that the terminal emulator can connect to real shell sessions. This is exposed via a node webserver which accepts websocket connections to 
 
 #### Acceptance Criteria
 
 1. WHEN the backend server starts THEN the Backend Server SHALL listen for WebSocket connections on a configured port
 2. WHEN a WebSocket connection is established THEN the Backend Server SHALL spawn a new PTY process using the @lydell/node-pty package
 3. WHEN spawning a PTY process THEN the Backend Server SHALL use the appropriate shell for the operating system (bash for Unix-like systems, powershell.exe for Windows)
-4. WHEN a PTY process is spawned THEN the Backend Server SHALL configure it with terminal dimensions (cols and rows)
+4. WHEN a PTY process is spawned THEN the Backend Server SHALL configure it with terminal dimensions (cols and rows are 80x40)
 5. WHEN the PTY process outputs data THEN the Backend Server SHALL forward the data to the connected WebSocket client
 
 ### Requirement 23

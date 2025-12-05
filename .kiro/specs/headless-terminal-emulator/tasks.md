@@ -495,201 +495,244 @@
     - Display initial prompt on load
     - _Requirements: 21.1_
 
-- [ ] 12. Implement Backend Server for PTY integration
-  - [ ] 12.1 Set up Node.js backend project structure
-    - Create backend directory with package.json
-    - Install dependencies: `@lydell/node-pty`, `ws` (WebSocket library)
-    - Set up TypeScript configuration for Node.js
+- [ ] 12. Implement Backend Server for PTY integration (caTTY-node-pty project)
+  - [ ] 12.1 Set up Node.js backend project structure in caTTY-node-pty
+    - Update caTTY-node-pty/package.json with correct name and scripts
+    - Install `ws` (WebSocket library) dependency in caTTY-node-pty
+    - Configure TypeScript for Node.js backend (target: ES2020, module: NodeNext) in caTTY-node-pty/tsconfig.json
+    - Add build and start scripts to caTTY-node-pty/package.json
     - _Requirements: 22.1_
   
-  - [ ] 12.2 Implement BackendServer class
-    - Create BackendServer class with configuration (port, shell)
-    - Implement start and stop methods for server lifecycle
-    - Set up WebSocket server using `ws` package
+  - [ ] 12.2 Implement BackendServer class in caTTY-node-pty
+    - Create caTTY-node-pty/src/BackendServer.ts with BackendServerConfig interface
+    - Implement constructor accepting port and optional shell configuration
+    - Implement start() method to initialize WebSocket server
+    - Implement stop() method for graceful shutdown
+    - Track active connections in a Map<WebSocket, PTY>
     - _Requirements: 22.1_
   
-  - [ ] 12.3 Implement PTY spawning on connection
-    - Handle WebSocket connection events
-    - Spawn PTY process using `@lydell/node-pty` with appropriate shell (bash/powershell)
-    - Configure PTY with terminal dimensions (cols, rows)
-    - Track active PTY processes per connection
+  - [ ] 12.3 Implement PTY spawning on connection in caTTY-node-pty
+    - Handle WebSocket 'connection' event in BackendServer
+    - Spawn PTY process using `@lydell/node-pty` with appropriate shell (bash for Unix, powershell.exe for Windows)
+    - Configure PTY with default dimensions (80 cols, 40 rows)
+    - Store PTY instance in connection map
+    - Send initial shell prompt to client
     - _Requirements: 22.2, 22.3, 22.4_
   
-  - [ ] 12.4 Write property test for PTY spawn
+  - [ ]* 12.4 Write property test for PTY spawn
     - **Property 65: PTY spawn on connection**
     - **Validates: Requirements 22.2, 22.4**
   
-  - [ ] 12.5 Implement PTY to WebSocket data forwarding
-    - Listen for PTY data events
-    - Forward PTY output to WebSocket client
-    - Handle binary and text data appropriately
+  - [ ] 12.5 Implement PTY to WebSocket data forwarding in caTTY-node-pty
+    - Listen for PTY 'data' events in BackendServer
+    - Forward PTY output to WebSocket client using ws.send()
+    - Handle both text and binary data appropriately
+    - Add error handling for send failures
     - _Requirements: 22.5, 23.2_
   
-  - [ ] 12.6 Write property test for PTY output forwarding
+  - [ ]* 12.6 Write property test for PTY output forwarding in caTTY-node-pty
     - **Property 66: PTY output forwarding**
     - **Validates: Requirements 22.5**
   
-  - [ ] 12.7 Implement WebSocket to PTY data forwarding
-    - Listen for WebSocket message events
-    - Write client data to PTY process
-    - Handle encoding/decoding appropriately
+  - [ ] 12.7 Implement WebSocket to PTY data forwarding in caTTY-node-pty
+    - Listen for WebSocket 'message' events in BackendServer
+    - Write client data to PTY process using pty.write()
+    - Handle both string and Buffer message types
+    - Add error handling for write failures
     - _Requirements: 23.1_
   
-  - [ ] 12.8 Write property test for client input forwarding
+  - [ ]* 12.8 Write property test for client input forwarding in caTTY-node-pty
     - **Property 67: Client input forwarding**
     - **Validates: Requirements 23.1, 23.2**
   
-  - [ ] 12.9 Implement resize message handling
-    - Parse resize messages from WebSocket client
-    - Call PTY resize method with new dimensions
+  - [ ] 12.9 Implement resize message handling in caTTY-node-pty
+    - Define resize message protocol (JSON: {type: 'resize', cols: number, rows: number})
+    - Parse resize messages from WebSocket client in BackendServer
+    - Call pty.resize(cols, rows) with new dimensions
+    - Add validation for dimension values
     - _Requirements: 23.5_
   
-  - [ ] 12.10 Write property test for resize propagation
+  - [ ]* 12.10 Write property test for resize propagation in caTTY-node-pty
     - **Property 68: Terminal resize propagation**
     - **Validates: Requirements 23.5**
   
-  - [ ] 12.11 Implement connection cleanup
-    - Handle WebSocket close events
-    - Terminate associated PTY process
-    - Remove all event listeners
-    - Clean up connection tracking
+  - [ ] 12.11 Implement connection cleanup in caTTY-node-pty
+    - Handle WebSocket 'close' event in BackendServer
+    - Terminate associated PTY process using pty.kill()
+    - Remove connection from tracking map
+    - Remove all PTY event listeners
+    - Log disconnection with connection details
     - _Requirements: 24.1, 24.5_
   
-  - [ ] 12.12 Write property test for connection cleanup
+  - [ ]* 12.12 Write property test for connection cleanup in caTTY-node-pty
     - **Property 69: Connection cleanup on disconnect**
     - **Validates: Requirements 24.1, 24.5**
   
-  - [ ] 12.13 Implement PTY exit handling
-    - Listen for PTY exit events
-    - Close associated WebSocket connection
+  - [ ] 12.13 Implement PTY exit handling in caTTY-node-pty
+    - Listen for PTY 'exit' events in BackendServer
+    - Close associated WebSocket connection using ws.close()
     - Log exit code and signal
+    - Remove connection from tracking map
     - _Requirements: 24.2_
   
-  - [ ] 12.14 Write property test for PTY exit cleanup
+  - [ ]* 12.14 Write property test for PTY exit cleanup in caTTY-node-pty
     - **Property 70: PTY exit cleanup**
     - **Validates: Requirements 24.2**
   
-  - [ ] 12.15 Implement error handling
-    - Handle PTY spawn errors
-    - Handle WebSocket errors
-    - Log errors appropriately
-    - Clean up resources on error
+  - [ ] 12.15 Implement error handling in caTTY-node-pty
+    - Handle PTY spawn errors with try-catch in BackendServer
+    - Handle WebSocket 'error' events
+    - Log all errors with context (connection ID, error details)
+    - Clean up resources on error (close WebSocket, kill PTY)
+    - Send error messages to client when appropriate
     - _Requirements: 24.4_
   
-  - [ ]* 12.16 Write integration tests for backend server
+  - [ ]* 12.16 Write integration tests for backend server in caTTY-node-pty
     - Test complete connection lifecycle
     - Test bidirectional data flow
     - Test error scenarios
     - _Requirements: 22.1-22.5, 23.1-23.5, 24.1-24.5_
 
-- [ ] 13. Extend TerminalController for WebSocket integration
-  - [ ] 13.1 Add WebSocket connection management
-    - Add WebSocket instance property to TerminalController
-    - Implement connectWebSocket method with configuration
-    - Implement disconnectWebSocket method
-    - Track connection state (disconnected, connecting, connected, error)
+- [ ] 13. Extend TerminalController for WebSocket integration (caTTY-ts project)
+  - [ ] 13.1 Add WebSocket connection management to TerminalController in caTTY-ts
+    - Add private websocket: WebSocket | null property to TerminalController
+    - Add private connectionState: 'disconnected' | 'connecting' | 'connected' | 'error' property
+    - Implement connectWebSocket(url: string) method to connect to caTTY-node-pty backend
+    - Implement disconnectWebSocket() method
+    - Implement isConnected() method to check connection state
     - _Requirements: 25.1_
   
-  - [ ] 13.2 Write property test for connection establishment
+  - [ ]* 13.2 Write property test for connection establishment in caTTY-ts
     - **Property 71: WebSocket connection establishment**
     - **Validates: Requirements 25.1**
   
-  - [ ] 13.3 Implement WebSocket event handlers
-    - Handle WebSocket open event (connection established)
-    - Handle WebSocket message event (data from backend)
-    - Handle WebSocket close event (connection lost)
-    - Handle WebSocket error event
+  - [ ] 13.3 Implement WebSocket event handlers in TerminalController (caTTY-ts)
+    - Implement handleWebSocketOpen() to set connectionState to 'connected'
+    - Implement handleWebSocketMessage(event: MessageEvent) to receive data from caTTY-node-pty backend
+    - Implement handleWebSocketClose() to set connectionState to 'disconnected'
+    - Implement handleWebSocketError(event: Event) to set connectionState to 'error'
+    - Bind and attach event listeners in connectWebSocket()
     - _Requirements: 23.3, 23.4_
   
-  - [ ] 13.4 Implement data forwarding to terminal
-    - Write received WebSocket data to Terminal instance
-    - Handle both text and binary data
+  - [ ] 13.4 Implement data forwarding from WebSocket to terminal in caTTY-ts
+    - In handleWebSocketMessage, extract data from event.data (from caTTY-node-pty)
+    - Convert data to Uint8Array if needed (handle both string and ArrayBuffer)
+    - Call terminal.write() with received data
+    - Add error handling for write failures
     - _Requirements: 23.4, 25.2, 25.4_
   
-  - [ ] 13.5 Write property test for shell output display
+  - [ ]* 13.5 Write property test for shell output display in caTTY-ts
     - **Property 72: Real shell output display**
     - **Validates: Requirements 25.2, 25.4**
   
-  - [ ] 13.6 Implement data forwarding to backend
-    - Modify data output event handler to send to WebSocket
-    - Send user input through WebSocket connection
-    - Handle connection state (only send if connected)
+  - [ ] 13.6 Implement data forwarding from terminal to WebSocket backend in caTTY-ts
+    - Modify terminal's onDataOutput event handler to check if WebSocket is connected
+    - If connected, send data through WebSocket to caTTY-node-pty using websocket.send()
+    - If not connected, fall back to SampleShell behavior
+    - Handle both string and Uint8Array data types
+    - Add error handling for send failures
     - _Requirements: 23.3, 25.3_
   
-  - [ ] 13.7 Write property test for command execution
+  - [ ]* 13.7 Write property test for command execution in caTTY-ts
     - **Property 73: Command execution through PTY**
     - **Validates: Requirements 25.3**
   
-  - [ ] 13.8 Implement resize message sending
-    - Send resize messages to backend when terminal is resized
-    - Format resize message with cols and rows
+  - [ ] 13.8 Implement resize message sending to backend in caTTY-ts
+    - Listen for terminal resize events
+    - Create resize message object: {type: 'resize', cols: number, rows: number}
+    - Serialize to JSON and send through WebSocket to caTTY-node-pty
+    - Only send if WebSocket is connected
     - _Requirements: 23.5_
   
-  - [ ] 13.9 Implement connection failure handling
-    - Display error message on connection failure
-    - Implement optional fallback to SampleShell
-    - Provide user feedback on connection status
+  - [ ] 13.9 Implement connection failure handling in caTTY-ts
+    - In handleWebSocketError, log error details
+    - Display error message in terminal using terminal.write()
+    - Set connectionState to 'error'
+    - Optionally initialize SampleShell as fallback
+    - Provide visual indicator of connection status
     - _Requirements: 25.5_
   
-  - [ ] 13.10 Write property test for connection failure fallback
+  - [ ]* 13.10 Write property test for connection failure fallback in caTTY-ts
     - **Property 74: Connection failure fallback**
     - **Validates: Requirements 25.5**
   
-  - [ ] 13.11 Update unmount method for WebSocket cleanup
-    - Close WebSocket connection on unmount
-    - Remove WebSocket event listeners
+  - [ ] 13.11 Update unmount method for WebSocket cleanup in caTTY-ts
+    - Check if WebSocket exists and is connected
+    - Call disconnectWebSocket() to close connection to caTTY-node-pty
+    - Remove all WebSocket event listeners
+    - Set websocket property to null
     - _Requirements: 24.3_
   
-  - [ ]* 13.12 Write integration tests for WebSocket controller
-    - Test connection establishment and data flow
+  - [ ]* 13.12 Write integration tests for WebSocket controller in caTTY-ts
+    - Test connection establishment and data flow with caTTY-node-pty
     - Test fallback to SampleShell on failure
     - Test cleanup on page unload
     - _Requirements: 25.1-25.5_
 
-- [ ] 14. Update terminal page for backend integration
-  - [ ] 14.1 Add WebSocket connection configuration
-    - Add WebSocket URL configuration (default: ws://localhost:3000)
-    - Add connection mode toggle (SampleShell vs Real PTY)
-    - Display connection status in UI
+- [ ] 14. Update terminal page for backend integration (caTTY-ts project)
+  - [ ] 14.1 Add WebSocket connection configuration to TerminalPage in caTTY-ts
+    - Add WebSocket URL state (default: 'ws://localhost:3000' to connect to caTTY-node-pty)
+    - Add connection mode state: 'sampleshell' | 'websocket'
+    - Add connection status state: 'disconnected' | 'connecting' | 'connected' | 'error'
+    - Create UI controls for toggling connection mode
+    - Display current connection status in UI
     - _Requirements: 25.1_
   
-  - [ ] 14.2 Implement automatic connection on page load
-    - Attempt WebSocket connection when TerminalPage mounts
-    - Handle connection success and failure
-    - Fall back to SampleShell if configured
+  - [ ] 14.2 Implement automatic connection on page load in caTTY-ts
+    - In useEffect hook, check connection mode on mount
+    - If mode is 'websocket', call controller.connectWebSocket(url) to connect to caTTY-node-pty
+    - If mode is 'sampleshell', initialize SampleShell
+    - Handle connection success by updating status state
+    - Handle connection failure by updating status and optionally falling back to SampleShell
     - _Requirements: 25.1, 25.5_
   
-  - [ ] 14.3 Add connection status indicator
-    - Display visual indicator for connection state
-    - Show error messages for connection failures
-    - Provide reconnect button if connection fails
+  - [ ] 14.3 Add connection status indicator UI in caTTY-ts
+    - Create status indicator component showing connection state to caTTY-node-pty
+    - Display colored badge (green=connected, yellow=connecting, red=error, gray=disconnected)
+    - Show error messages in terminal or status area for connection failures
+    - Add reconnect button that appears when connection fails
+    - Implement reconnect button handler to retry WebSocket connection to caTTY-node-pty
     - _Requirements: 25.5_
   
-  - [ ] 14.4 Update terminal page documentation
-    - Document how to start the backend server
-    - Document WebSocket configuration options
-    - Add troubleshooting guide for connection issues
+  - [ ] 14.4 Update terminal page documentation in caTTY-ts
+    - Add comments in TerminalPage.tsx explaining WebSocket integration with caTTY-node-pty
+    - Document WebSocket URL configuration and how to change it
+    - Add troubleshooting section for common connection issues (CORS, port conflicts, firewall)
+    - Document the message protocol (data messages vs resize messages)
+    - Reference caTTY-node-pty README for backend server setup
     - _Requirements: 25.1_
 
-- [ ] 15. Create backend server entry point
-  - [ ] 15.1 Create server.ts entry point
-    - Import and instantiate BackendServer
-    - Configure port from environment variable or default
-    - Add graceful shutdown handling (SIGINT, SIGTERM)
-    - Log server startup and shutdown
+- [ ] 15. Create backend server entry point (caTTY-node-pty project)
+  - [ ] 15.1 Create server.ts entry point in caTTY-node-pty
+    - Create caTTY-node-pty/src/server.ts file
+    - Import BackendServer class
+    - Read port from environment variable PORT or default to 3000
+    - Instantiate BackendServer with configuration
+    - Call server.start() and log startup message with port
+    - Add graceful shutdown handlers for SIGINT and SIGTERM signals
+    - In shutdown handler, call server.stop() and log shutdown message
+    - Add error handling for startup failures
     - _Requirements: 22.1_
   
-  - [ ] 15.2 Add npm scripts for backend
-    - Add "start:backend" script to run server
-    - Add "dev:backend" script with auto-reload
-    - Add "build:backend" script to compile TypeScript
+  - [ ] 15.2 Add npm scripts for backend in caTTY-node-pty
+    - Update caTTY-node-pty/package.json name to "catty-backend" or similar
+    - Add "build" script: "tsc" to compile TypeScript
+    - Add "start" script: "node dist/server.js" to run compiled server
+    - Add "dev" script: "tsx watch src/server.ts" for development with auto-reload (requires tsx package)
+    - Add "clean" script to remove dist directory
+    - Install tsx as dev dependency in caTTY-node-pty for development mode
     - _Requirements: 22.1_
   
-  - [ ] 15.3 Create backend README
-    - Document how to install dependencies
-    - Document how to start the server
-    - Document configuration options
-    - Document WebSocket protocol
+  - [ ] 15.3 Create backend README in caTTY-node-pty
+    - Create caTTY-node-pty/README.md
+    - Document installation: "pnpm install" in caTTY-node-pty directory
+    - Document build process: "pnpm build"
+    - Document starting server: "pnpm start" (production) and "pnpm dev" (development)
+    - Document configuration: PORT environment variable (default: 3000)
+    - Document WebSocket protocol: connection flow, message types (data vs resize), message format
+    - Add troubleshooting section: port conflicts, firewall issues, PTY spawn errors
+    - Add example client connection code from caTTY-ts
+    - Document how caTTY-ts connects to this backend
     - _Requirements: 22.1_
 
 - [ ] 16. Final checkpoint - Ensure all tests pass
