@@ -13,25 +13,27 @@ ghostty-examples/       # Reference implementations (HTML demos)
 
 - `ghostty-c-api/include` - contains the C header files for the libghostty-vt functionality.  includes very useful reference documentation inside the comments about behavior.
 
-- `src/pages/` - Astro pages (file-based routing)
-  - `index.astro` - Homepage
-  - `demos/` - Interactive demo pages
-    - `keyencode/` - Key encoding demo
-    - `sgr/` - SGR parsing demo
-    - `osc/` - OSC parsing demo
-  - `terminal/` - Full terminal emulator page
+- `caTTY-ts` - Astro project to host and run the terminal from a web page in a browser
+  - `src/pages/` - Astro pages (file-based routing)
+    - `index.astro` - Homepage
+    - `demos/` - Interactive demo pages
+      - `keyencode/` - Key encoding demo
+      - `sgr/` - SGR parsing demo
+      - `osc/` - OSC parsing demo
+    - `terminal/` - Full terminal emulator page
+  - `src/ts/` - Headless TypeScript logic (pure, framework-agnostic)
+    - `terminal/` - Core terminal functionality
+      - `keyencode/` - Key encoding utilities
+      - `sgr/` - SGR constants and types
+      - `osc/` - OSC type definitions
+      - `wasm/` - WASM loading and integration
+    - `state/` - State management utilities
+  - `src/styles/` - Global CSS
+  - `src/layouts/` - Astro layout components
+  - `public/` - Static assets (including `ghostty-vt.wasm`)
 
-- `src/ts/` - Headless TypeScript logic (pure, framework-agnostic)
-  - `terminal/` - Core terminal functionality
-    - `keyencode/` - Key encoding utilities
-    - `sgr/` - SGR constants and types
-    - `osc/` - OSC type definitions
-    - `wasm/` - WASM loading and integration
-  - `state/` - State management utilities
+- `caTTY-node-pty` - vanilla typescript project which will run a websocket server where each new connection will launch a pty process and stream the data back/forth between the websocket client and the underlying pty process
 
-- `src/styles/` - Global CSS
-- `src/layouts/` - Astro layout components
-- `public/` - Static assets (including `ghostty-vt.wasm`)
 
 ### Demo Page Pattern
 

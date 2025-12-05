@@ -94,3 +94,5 @@ pnpm tsc              # Type check without emitting files
   ptyProcess.resize(100, 40);
   ptyProcess.write('ls\r');
   ```
+
+- `caTTY-node-pty` - project to host the pty websocket server code
