@@ -1037,7 +1037,33 @@ export class Terminal {
    */
   dispose(): void {
     this.parser.dispose();
-    // Clear buffers
+    
+    // Clear all buffers
     this.scrollback.clear();
+    this.screenManager.getPrimaryBuffer().clear();
+    this.screenManager.getAlternateBuffer().clear();
+    
+    // Reset to primary screen
+    this.screenManager.switchToPrimary();
+    
+    // Reset cursor to default position
+    const cursor = this.screenManager.getCurrentCursor();
+    cursor.row = 0;
+    cursor.col = 0;
+    cursor.visible = true;
+    cursor.blinking = false;
+    this.screenManager.setCurrentCursor(cursor);
+    
+    // Reset attributes to default
+    const defaultAttrs = {
+      fg: { type: 'default' as const },
+      bg: { type: 'default' as const },
+      bold: false,
+      italic: false,
+      underline: UnderlineStyle.None,
+      inverse: false,
+      strikethrough: false,
+    };
+    this.screenManager.setCurrentAttributes(defaultAttrs);
   }
 }

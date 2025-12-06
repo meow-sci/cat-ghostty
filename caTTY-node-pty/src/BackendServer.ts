@@ -71,7 +71,9 @@ export class BackendServer {
 
   private handleConnection(ws: WebSocket): void {
     const connectionId = Math.random().toString(36).substring(7);
-    console.log(`New WebSocket connection (ID: ${connectionId})`);
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] New WebSocket connection (ID: ${connectionId})`);
+    console.log(`[${timestamp}] Active connections before: ${this.connections.size}`);
 
     try {
       // Determine the appropriate shell for the OS
@@ -89,14 +91,15 @@ export class BackendServer {
       // Store the connection
       this.connections.set(ws, pty);
 
-      console.log(`PTY spawned with PID ${pty.pid} for shell: ${shell} (Connection ID: ${connectionId})`);
+      console.log(`[${timestamp}] PTY spawned with PID ${pty.pid} for shell: ${shell} (Connection ID: ${connectionId})`);
+      console.log(`[${timestamp}] Active connections after: ${this.connections.size}`);
 
       // Set up event handlers
       this.setupPtyHandlers(ws, pty, connectionId);
       this.setupWebSocketHandlers(ws, pty, connectionId);
 
     } catch (error) {
-      console.error(`Error spawning PTY (Connection ID: ${connectionId}):`, error);
+      console.error(`[${timestamp}] Error spawning PTY (Connection ID: ${connectionId}):`, error);
       
       // Send error message to client if possible
       try {
@@ -129,20 +132,22 @@ export class BackendServer {
 
     // Handle PTY exit
     pty.onExit(({ exitCode, signal }) => {
-      console.log(`PTY exited with code ${exitCode}, signal ${signal}`);
+      const timestamp = new Date().toISOString();
+      console.log(`[${timestamp}] PTY exited with code ${exitCode}, signal ${signal} (Connection ID: ${_connectionId})`);
       
       // Close the associated WebSocket connection
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         try {
           ws.close();
-          console.log('WebSocket closed due to PTY exit');
+          console.log(`[${timestamp}] WebSocket closed due to PTY exit (Connection ID: ${_connectionId})`);
         } catch (error) {
-          console.error('Error closing WebSocket on PTY exit:', error);
+          console.error(`[${timestamp}] Error closing WebSocket on PTY exit:`, error);
         }
       }
       
       // Remove from connection map
       this.connections.delete(ws);
+      console.log(`[${timestamp}] Active connections after PTY exit: ${this.connections.size}`);
     });
   }
 
@@ -179,7 +184,8 @@ export class BackendServer {
 
     // Handle WebSocket close
     ws.on('close', () => {
-      console.log(`WebSocket connection closed (Connection ID: ${connectionId})`);
+      const timestamp = new Date().toISOString();
+      console.log(`[${timestamp}] WebSocket connection closed (Connection ID: ${connectionId})`);
       
       // Get the associated PTY
       const pty = this.connections.get(ws);
@@ -187,13 +193,14 @@ export class BackendServer {
         try {
           // Terminate the PTY process
           pty.kill();
-          console.log(`PTY process terminated for closed connection (Connection ID: ${connectionId})`);
+          console.log(`[${timestamp}] PTY process terminated for closed connection (Connection ID: ${connectionId})`);
         } catch (error) {
-          console.error(`Error terminating PTY on close (Connection ID: ${connectionId}):`, error);
+          console.error(`[${timestamp}] Error terminating PTY on close (Connection ID: ${connectionId}):`, error);
         }
         
         // Remove from connection map
         this.connections.delete(ws);
+        console.log(`[${timestamp}] Active connections after close: ${this.connections.size}`);
       }
     });
 
