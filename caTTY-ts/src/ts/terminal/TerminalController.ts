@@ -833,7 +833,7 @@ export class TerminalController {
   
   /**
    * Connects to a WebSocket backend server.
-   * @param url WebSocket URL (e.g., 'ws://localhost:3000')
+   * @param url WebSocket URL (e.g., 'ws://localhost:4444')
    */
   connectWebSocket(url: string): void {
     // Close any existing connection

@@ -669,16 +669,16 @@
     - Test cleanup on page unload
     - _Requirements: 25.1-25.5_
 
-- [ ] 14. Update terminal page for backend integration (caTTY-ts project)
-  - [ ] 14.1 Add WebSocket connection configuration to TerminalPage in caTTY-ts
-    - Add WebSocket URL state (default: 'ws://localhost:3000' to connect to caTTY-node-pty)
-    - Add connection mode state: 'sampleshell' | 'websocket'
+- [x] 14. Update terminal page for backend integration (caTTY-ts project)
+  - [x] 14.1 Add WebSocket connection configuration to TerminalPage in caTTY-ts
+    - Add WebSocket URL state (default: 'ws://localhost:4444' to connect to caTTY-node-pty)
+    - Add connection mode state: 'sampleshell' | 'websocket' (default 'websocket')
     - Add connection status state: 'disconnected' | 'connecting' | 'connected' | 'error'
     - Create UI controls for toggling connection mode
     - Display current connection status in UI
     - _Requirements: 25.1_
   
-  - [ ] 14.2 Implement automatic connection on page load in caTTY-ts
+  - [x] 14.2 Implement automatic connection on page load in caTTY-ts
     - In useEffect hook, check connection mode on mount
     - If mode is 'websocket', call controller.connectWebSocket(url) to connect to caTTY-node-pty
     - If mode is 'sampleshell', initialize SampleShell
@@ -686,7 +686,7 @@
     - Handle connection failure by updating status and optionally falling back to SampleShell
     - _Requirements: 25.1, 25.5_
   
-  - [ ] 14.3 Add connection status indicator UI in caTTY-ts
+  - [x] 14.3 Add connection status indicator UI in caTTY-ts
     - Create status indicator component showing connection state to caTTY-node-pty
     - Display colored badge (green=connected, yellow=connecting, red=error, gray=disconnected)
     - Show error messages in terminal or status area for connection failures
@@ -694,13 +694,13 @@
     - Implement reconnect button handler to retry WebSocket connection to caTTY-node-pty
     - _Requirements: 25.5_
   
-  - [ ] 14.4 Update terminal page documentation in caTTY-ts
+  - [x] 14.4 Update terminal page documentation in caTTY-ts
     - Add comments in TerminalPage.tsx explaining WebSocket integration with caTTY-node-pty
     - Document WebSocket URL configuration and how to change it
     - Add troubleshooting section for common connection issues (CORS, port conflicts, firewall)
     - Document the message protocol (data messages vs resize messages)
     - Reference caTTY-node-pty README for backend server setup
-    - _Requirements: 25.1_
+    - _Requirements: 25.1_  
 
 - [ ] 15. Create backend server entry point (caTTY-node-pty project)
   - [ ] 15.1 Create server.ts entry point in caTTY-node-pty
