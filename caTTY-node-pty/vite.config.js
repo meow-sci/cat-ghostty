@@ -1,13 +1,14 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/main.js'),
+      entry: resolve(__dirname, 'src/BackendServer.ts'),
       name: 'catty-node-pty',
       // the proper extensions will be added
       fileName: 'catty-node-pty',
@@ -19,4 +20,15 @@ export default defineConfig({
       },
     },
   },
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'node_modules/@lydell/node-pty-darwin-arm64/pty.node',
+          dest: 'dist',
+        },
+      ],
+    }),
+
+  ]
 })
