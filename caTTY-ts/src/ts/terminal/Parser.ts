@@ -766,7 +766,9 @@ export class Parser {
           case SgrAttributeTags.BRIGHT_FG_8: {
             const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
             const color = view.getUint8(0);
-            attributes.fg = { type: 'indexed', index: color };
+            // WORKAROUND: WASM library appears to swap FG/BG tags for 8-color mode
+            // This is likely a bug in the WASM build. Swap them back here.
+            attributes.bg = { type: 'indexed', index: color };
             break;
           }
 
@@ -774,7 +776,9 @@ export class Parser {
           case SgrAttributeTags.BRIGHT_BG_8: {
             const view = new DataView(this.wasmInstance.exports.memory.buffer, valuePtr, 1);
             const color = view.getUint8(0);
-            attributes.bg = { type: 'indexed', index: color };
+            // WORKAROUND: WASM library appears to swap FG/BG tags for 8-color mode
+            // This is likely a bug in the WASM build. Swap them back here.
+            attributes.fg = { type: 'indexed', index: color };
             break;
           }
 
