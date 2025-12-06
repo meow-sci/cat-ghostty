@@ -1,23 +1,26 @@
 {
-  "name": "my-vue-app",
+  "name": "catty-backend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "clean": "rm -rf dist",
+    "test": "vitest",
+    "test-run": "vitest --run"
   },
   "dependencies": {
-    "@lydell/node-pty": "1.1.0"
+    "@lydell/node-pty": "1.1.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/ws": "^8.5.13",
+    "fast-check": "^4.3.0",
+    "tsx": "^4.19.2",
     "typescript": "5.9.3",
-    "vite": "npm:rolldown-vite@7.2.10"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:rolldown-vite@7.2.10"
-    }
+    "vitest": "^4.0.15"
   }
 }

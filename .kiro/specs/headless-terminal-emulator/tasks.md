@@ -496,14 +496,14 @@
     - _Requirements: 21.1_
 
 - [ ] 12. Implement Backend Server for PTY integration (caTTY-node-pty project)
-  - [ ] 12.1 Set up Node.js backend project structure in caTTY-node-pty
+  - [x] 12.1 Set up Node.js backend project structure in caTTY-node-pty
     - Update caTTY-node-pty/package.json with correct name and scripts
     - Install `ws` (WebSocket library) dependency in caTTY-node-pty
     - Configure TypeScript for Node.js backend (target: ES2020, module: NodeNext) in caTTY-node-pty/tsconfig.json
     - Add build and start scripts to caTTY-node-pty/package.json
     - _Requirements: 22.1_
   
-  - [ ] 12.2 Implement BackendServer class in caTTY-node-pty
+  - [x] 12.2 Implement BackendServer class in caTTY-node-pty
     - Create caTTY-node-pty/src/BackendServer.ts with BackendServerConfig interface
     - Implement constructor accepting port and optional shell configuration
     - Implement start() method to initialize WebSocket server
@@ -511,7 +511,7 @@
     - Track active connections in a Map<WebSocket, PTY>
     - _Requirements: 22.1_
   
-  - [ ] 12.3 Implement PTY spawning on connection in caTTY-node-pty
+  - [x] 12.3 Implement PTY spawning on connection in caTTY-node-pty
     - Handle WebSocket 'connection' event in BackendServer
     - Spawn PTY process using `@lydell/node-pty` with appropriate shell (bash for Unix, powershell.exe for Windows)
     - Configure PTY with default dimensions (80 cols, 40 rows)
@@ -519,44 +519,44 @@
     - Send initial shell prompt to client
     - _Requirements: 22.2, 22.3, 22.4_
   
-  - [ ]* 12.4 Write property test for PTY spawn
+  - [x] 12.4 Write property test for PTY spawn
     - **Property 65: PTY spawn on connection**
     - **Validates: Requirements 22.2, 22.4**
   
-  - [ ] 12.5 Implement PTY to WebSocket data forwarding in caTTY-node-pty
+  - [x] 12.5 Implement PTY to WebSocket data forwarding in caTTY-node-pty
     - Listen for PTY 'data' events in BackendServer
     - Forward PTY output to WebSocket client using ws.send()
     - Handle both text and binary data appropriately
     - Add error handling for send failures
     - _Requirements: 22.5, 23.2_
   
-  - [ ]* 12.6 Write property test for PTY output forwarding in caTTY-node-pty
+  - [x] 12.6 Write property test for PTY output forwarding in caTTY-node-pty
     - **Property 66: PTY output forwarding**
     - **Validates: Requirements 22.5**
   
-  - [ ] 12.7 Implement WebSocket to PTY data forwarding in caTTY-node-pty
+  - [x] 12.7 Implement WebSocket to PTY data forwarding in caTTY-node-pty
     - Listen for WebSocket 'message' events in BackendServer
     - Write client data to PTY process using pty.write()
     - Handle both string and Buffer message types
     - Add error handling for write failures
     - _Requirements: 23.1_
   
-  - [ ]* 12.8 Write property test for client input forwarding in caTTY-node-pty
+  - [x] 12.8 Write property test for client input forwarding in caTTY-node-pty
     - **Property 67: Client input forwarding**
     - **Validates: Requirements 23.1, 23.2**
   
-  - [ ] 12.9 Implement resize message handling in caTTY-node-pty
+  - [x] 12.9 Implement resize message handling in caTTY-node-pty
     - Define resize message protocol (JSON: {type: 'resize', cols: number, rows: number})
     - Parse resize messages from WebSocket client in BackendServer
     - Call pty.resize(cols, rows) with new dimensions
     - Add validation for dimension values
     - _Requirements: 23.5_
   
-  - [ ]* 12.10 Write property test for resize propagation in caTTY-node-pty
+  - [x] 12.10 Write property test for resize propagation in caTTY-node-pty
     - **Property 68: Terminal resize propagation**
     - **Validates: Requirements 23.5**
   
-  - [ ] 12.11 Implement connection cleanup in caTTY-node-pty
+  - [x] 12.11 Implement connection cleanup in caTTY-node-pty
     - Handle WebSocket 'close' event in BackendServer
     - Terminate associated PTY process using pty.kill()
     - Remove connection from tracking map
@@ -564,22 +564,22 @@
     - Log disconnection with connection details
     - _Requirements: 24.1, 24.5_
   
-  - [ ]* 12.12 Write property test for connection cleanup in caTTY-node-pty
+  - [x] 12.12 Write property test for connection cleanup in caTTY-node-pty
     - **Property 69: Connection cleanup on disconnect**
     - **Validates: Requirements 24.1, 24.5**
   
-  - [ ] 12.13 Implement PTY exit handling in caTTY-node-pty
+  - [x] 12.13 Implement PTY exit handling in caTTY-node-pty
     - Listen for PTY 'exit' events in BackendServer
     - Close associated WebSocket connection using ws.close()
     - Log exit code and signal
     - Remove connection from tracking map
     - _Requirements: 24.2_
   
-  - [ ]* 12.14 Write property test for PTY exit cleanup in caTTY-node-pty
+  - [x] 12.14 Write property test for PTY exit cleanup in caTTY-node-pty
     - **Property 70: PTY exit cleanup**
     - **Validates: Requirements 24.2**
   
-  - [ ] 12.15 Implement error handling in caTTY-node-pty
+  - [x] 12.15 Implement error handling in caTTY-node-pty
     - Handle PTY spawn errors with try-catch in BackendServer
     - Handle WebSocket 'error' events
     - Log all errors with context (connection ID, error details)
@@ -587,7 +587,7 @@
     - Send error messages to client when appropriate
     - _Requirements: 24.4_
   
-  - [ ]* 12.16 Write integration tests for backend server in caTTY-node-pty
+  - [x] 12.16 Write integration tests for backend server in caTTY-node-pty
     - Test complete connection lifecycle
     - Test bidirectional data flow
     - Test error scenarios

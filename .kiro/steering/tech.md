@@ -51,6 +51,7 @@ pnpm tsc              # Type check without emitting files
 - Write pure functions in `src/ts/` (no side effects, no DOM access)
 - Use descriptive variable names (avoid single-letter except in loops/lambdas)
 - Add JSDoc comments for public APIs and complex logic
+- Always use exact package versions in package.json for npm packages
 
 ## Testing Conventions
 
