@@ -4,6 +4,7 @@
 
 ```
 caTTY-ts/               # Main Astro project
+caTTY-node-pty/         # vanilla TypeScript project which runs a WebSocket <> PTY process bridge
 ghostty-examples/       # Reference implementations (HTML demos)
 ```
 

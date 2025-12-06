@@ -29,7 +29,7 @@ inclusion: always
 - **Memory Management**: Wrappers must handle allocate → use → free pattern
 - **API Design**: Hide C API complexity, expose idiomatic TypeScript interfaces
 
-## Working Directory
+## Working Directory for caTTY-ts
 
 All commands run from `caTTY-ts/` directory:
 
@@ -42,6 +42,22 @@ pnpm test             # Run tests in watch mode
 pnpm test-run         # Run tests once (use in CI or for quick checks)
 pnpm tsc              # Type check without emitting files
 ```
+
+## Working Directory for caTTY-node-pty
+
+All commands run from `caTTY-node-pty/` directory:
+
+```bash
+pnpm install          # Install dependencies
+pnpm dev              # Start dev server at localhost:4444
+pnpm test             # Run tests in watch mode
+pnpm test-run         # Run tests once (use in CI or for quick checks)
+pnpm tsc              # Type check without emitting files
+```
+
+The `pnpm dev` server should be used to run the WebSocket process when working with caTTY-ts
+
+
 
 ## Code Style Requirements
 

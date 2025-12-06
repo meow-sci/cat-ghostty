@@ -1,7 +1,7 @@
 import { BackendServer } from "./BackendServer.js";
 
 const server = new BackendServer({
-    port: 4321,
+    port: 4444,
     shell: "bash",
 });
 
