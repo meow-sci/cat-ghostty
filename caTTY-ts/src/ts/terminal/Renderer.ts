@@ -305,6 +305,16 @@ export class Renderer {
    * @param cell The cell containing attribute information
    */
   private applyStyles(element: HTMLElement, cell: Cell): void {
+    // Reset all styles first to ensure clean state
+    element.style.color = '';
+    element.style.backgroundColor = '';
+    element.style.fontWeight = '';
+    element.style.fontStyle = '';
+    element.style.textDecoration = '';
+    element.style.cursor = '';
+    element.style.width = '';
+    element.removeAttribute('data-url');
+    
     // Apply foreground color
     const fgColor = this.colorToCSS(cell.fg);
     if (fgColor) {
