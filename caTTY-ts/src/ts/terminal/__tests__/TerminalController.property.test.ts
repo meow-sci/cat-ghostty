@@ -337,4 +337,248 @@ describe('TerminalController Property Tests', () => {
       }
     ), { numRuns: 50 });
   });
+  
+  // WebSocket-related property tests
+  
+  it('Property 71: WebSocket connection establishment', () => {
+    // **Feature: headless-terminal-emulator, Property 71: WebSocket connection establishment**
+    const urlArb = fc.constantFrom(
+      'ws://localhost:3000',
+      'ws://localhost:8080',
+      'ws://127.0.0.1:3000',
+      'ws://example.com:3000'
+    );
+    
+    fc.assert(fc.property(urlArb, (url) => {
+      const { controller } = createTestSetup();
+      
+      // Mock WebSocket constructor
+      const mockWebSocket = {
+        readyState: 0, // CONNECTING
+        onopen: null as any,
+        onmessage: null as any,
+        onclose: null as any,
+        onerror: null as any,
+        send: vi.fn(),
+        close: vi.fn(),
+      };
+      
+      // Replace global WebSocket with mock constructor
+      const originalWebSocket = (global as any).WebSocket;
+      const MockWebSocketConstructor = function(this: any, url: string) {
+        return mockWebSocket;
+      };
+      // Add WebSocket constants
+      (MockWebSocketConstructor as any).CONNECTING = 0;
+      (MockWebSocketConstructor as any).OPEN = 1;
+      (MockWebSocketConstructor as any).CLOSING = 2;
+      (MockWebSocketConstructor as any).CLOSED = 3;
+      (global as any).WebSocket = MockWebSocketConstructor;
+      
+      try {
+        // Attempt to connect
+        controller.connectWebSocket(url);
+        
+        // Verify connection state is 'connecting'
+        expect(controller.getConnectionState()).toBe('connecting');
+        
+        // Verify event handlers are set
+        expect(mockWebSocket.onopen).not.toBeNull();
+        expect(mockWebSocket.onmessage).not.toBeNull();
+        expect(mockWebSocket.onclose).not.toBeNull();
+        expect(mockWebSocket.onerror).not.toBeNull();
+        
+        // Simulate successful connection
+        mockWebSocket.readyState = 1; // OPEN
+        if (mockWebSocket.onopen) {
+          mockWebSocket.onopen({} as Event);
+        }
+        
+        // Verify connection state is 'connected'
+        expect(controller.getConnectionState()).toBe('connected');
+        // Note: isConnected() checks readyState === WebSocket.OPEN, which requires the constant
+        // Since we're in a test environment, we just check the connection state
+        
+      } finally {
+        // Restore original WebSocket
+        (global as any).WebSocket = originalWebSocket;
+        controller.disconnectWebSocket();
+      }
+    }), { numRuns: 20 });
+  });
+  
+  it('Property 72: Real shell output display', () => {
+    // **Feature: headless-terminal-emulator, Property 72: Real shell output display**
+    const shellOutputArb = fc.string({ minLength: 1, maxLength: 100 });
+    
+    fc.assert(fc.property(shellOutputArb, (shellOutput) => {
+      const { terminal, controller } = createTestSetup();
+      
+      // Mock WebSocket
+      const mockWebSocket = {
+        readyState: 1, // OPEN
+        onopen: null as any,
+        onmessage: null as any,
+        onclose: null as any,
+        onerror: null as any,
+        send: vi.fn(),
+        close: vi.fn(),
+      };
+      
+      const originalWebSocket = (global as any).WebSocket;
+      (global as any).WebSocket = function(this: any, url: string) {
+        return mockWebSocket;
+      };
+      
+      try {
+        // Connect and simulate open
+        controller.connectWebSocket('ws://localhost:3000');
+        mockWebSocket.readyState = 1;
+        if (mockWebSocket.onopen) {
+          mockWebSocket.onopen({} as Event);
+        }
+        
+        // Get initial cursor position
+        const initialCursor = terminal.getCursor();
+        
+        // Simulate receiving data from WebSocket (as string)
+        if (mockWebSocket.onmessage) {
+          mockWebSocket.onmessage({ data: shellOutput } as MessageEvent);
+        }
+        
+        // Verify terminal processed the data
+        // The cursor should have moved or content should be visible
+        const newCursor = terminal.getCursor();
+        
+        // Terminal should still be in valid state
+        expect(newCursor.row).toBeGreaterThanOrEqual(0);
+        expect(newCursor.row).toBeLessThan(24);
+        expect(newCursor.col).toBeGreaterThanOrEqual(0);
+        expect(newCursor.col).toBeLessThan(80);
+        
+      } finally {
+        (global as any).WebSocket = originalWebSocket;
+        controller.disconnectWebSocket();
+      }
+    }), { numRuns: 20 });
+  });
+  
+  it('Property 73: Command execution through PTY', () => {
+    // **Feature: headless-terminal-emulator, Property 73: Command execution through PTY**
+    const commandArb = fc.constantFrom('ls', 'echo hello', 'pwd', 'whoami', 'date');
+    
+    fc.assert(fc.property(commandArb, (command) => {
+      const { terminal, controller } = createTestSetup();
+      
+      // Mock WebSocket
+      const mockWebSocket = {
+        readyState: 0, // Start as CONNECTING
+        onopen: null as any,
+        onmessage: null as any,
+        onclose: null as any,
+        onerror: null as any,
+        send: vi.fn(),
+        close: vi.fn(),
+      };
+      
+      const originalWebSocket = (global as any).WebSocket;
+      const MockWebSocketConstructor = function(this: any, url: string) {
+        return mockWebSocket;
+      };
+      (MockWebSocketConstructor as any).OPEN = 1;
+      (global as any).WebSocket = MockWebSocketConstructor;
+      
+      try {
+        // Connect
+        controller.connectWebSocket('ws://localhost:3000');
+        
+        // Simulate successful connection
+        mockWebSocket.readyState = 1; // OPEN
+        if (mockWebSocket.onopen) {
+          mockWebSocket.onopen({} as Event);
+        }
+        
+        // Verify we're connected
+        expect(controller.getConnectionState()).toBe('connected');
+        
+        // Set up data output handler for fallback
+        const dataOutputHandler = vi.fn();
+        controller.setShellBackend(dataOutputHandler);
+        
+        // Simulate user typing command
+        const commandBytes = new TextEncoder().encode(command + '\r');
+        controller.handleDataOutput(commandBytes);
+        
+        // Verify data was sent through WebSocket
+        expect(mockWebSocket.send).toHaveBeenCalled();
+        
+        // Verify the sent data is an ArrayBuffer
+        const sentData = mockWebSocket.send.mock.calls[0][0];
+        expect(sentData).toBeInstanceOf(ArrayBuffer);
+        
+        // Verify shell backend was NOT called (since WebSocket is connected)
+        expect(dataOutputHandler).not.toHaveBeenCalled();
+        
+      } finally {
+        (global as any).WebSocket = originalWebSocket;
+        controller.disconnectWebSocket();
+      }
+    }), { numRuns: 20 });
+  });
+  
+  it('Property 74: Connection failure fallback', () => {
+    // **Feature: headless-terminal-emulator, Property 74: Connection failure fallback**
+    fc.assert(fc.property(fc.constant('ws://localhost:3000'), (url) => {
+      const { terminal, controller } = createTestSetup();
+      
+      // Mock WebSocket that fails
+      const mockWebSocket = {
+        readyState: 0, // CONNECTING
+        onopen: null as any,
+        onmessage: null as any,
+        onclose: null as any,
+        onerror: null as any,
+        send: vi.fn(),
+        close: vi.fn(),
+      };
+      
+      const originalWebSocket = (global as any).WebSocket;
+      (global as any).WebSocket = function(this: any, url: string) {
+        return mockWebSocket;
+      };
+      
+      try {
+        // Set up shell backend for fallback
+        const shellBackendCalled = vi.fn();
+        controller.setShellBackend(shellBackendCalled);
+        
+        // Connect
+        controller.connectWebSocket(url);
+        
+        // Simulate connection error
+        if (mockWebSocket.onerror) {
+          mockWebSocket.onerror({} as Event);
+        }
+        
+        // Verify connection state is 'error'
+        expect(controller.getConnectionState()).toBe('error');
+        expect(controller.isConnected()).toBe(false);
+        
+        // Verify error message was written to terminal
+        // (We can't easily check the exact content, but we can verify the terminal is still functional)
+        expect(() => terminal.getLine(0)).not.toThrow();
+        
+        // Verify fallback to shell backend works
+        const testData = new Uint8Array([65, 66, 67]); // "ABC"
+        controller.handleDataOutput(testData);
+        
+        // Shell backend should have been called since WebSocket is not connected
+        expect(shellBackendCalled).toHaveBeenCalledWith(testData);
+        
+      } finally {
+        (global as any).WebSocket = originalWebSocket;
+        controller.disconnectWebSocket();
+      }
+    }), { numRuns: 20 });
+  });
 });

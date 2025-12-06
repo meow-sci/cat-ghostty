@@ -593,8 +593,8 @@
     - Test error scenarios
     - _Requirements: 22.1-22.5, 23.1-23.5, 24.1-24.5_
 
-- [ ] 13. Extend TerminalController for WebSocket integration (caTTY-ts project)
-  - [ ] 13.1 Add WebSocket connection management to TerminalController in caTTY-ts
+- [-] 13. Extend TerminalController for WebSocket integration (caTTY-ts project)
+  - [x] 13.1 Add WebSocket connection management to TerminalController in caTTY-ts
     - Add private websocket: WebSocket | null property to TerminalController
     - Add private connectionState: 'disconnected' | 'connecting' | 'connected' | 'error' property
     - Implement connectWebSocket(url: string) method to connect to caTTY-node-pty backend
@@ -602,11 +602,11 @@
     - Implement isConnected() method to check connection state
     - _Requirements: 25.1_
   
-  - [ ]* 13.2 Write property test for connection establishment in caTTY-ts
+  - [x] 13.2 Write property test for connection establishment in caTTY-ts
     - **Property 71: WebSocket connection establishment**
     - **Validates: Requirements 25.1**
   
-  - [ ] 13.3 Implement WebSocket event handlers in TerminalController (caTTY-ts)
+  - [x] 13.3 Implement WebSocket event handlers in TerminalController (caTTY-ts)
     - Implement handleWebSocketOpen() to set connectionState to 'connected'
     - Implement handleWebSocketMessage(event: MessageEvent) to receive data from caTTY-node-pty backend
     - Implement handleWebSocketClose() to set connectionState to 'disconnected'
@@ -614,18 +614,18 @@
     - Bind and attach event listeners in connectWebSocket()
     - _Requirements: 23.3, 23.4_
   
-  - [ ] 13.4 Implement data forwarding from WebSocket to terminal in caTTY-ts
+  - [x] 13.4 Implement data forwarding from WebSocket to terminal in caTTY-ts
     - In handleWebSocketMessage, extract data from event.data (from caTTY-node-pty)
     - Convert data to Uint8Array if needed (handle both string and ArrayBuffer)
     - Call terminal.write() with received data
     - Add error handling for write failures
     - _Requirements: 23.4, 25.2, 25.4_
   
-  - [ ]* 13.5 Write property test for shell output display in caTTY-ts
+  - [x] 13.5 Write property test for shell output display in caTTY-ts
     - **Property 72: Real shell output display**
     - **Validates: Requirements 25.2, 25.4**
   
-  - [ ] 13.6 Implement data forwarding from terminal to WebSocket backend in caTTY-ts
+  - [x] 13.6 Implement data forwarding from terminal to WebSocket backend in caTTY-ts
     - Modify terminal's onDataOutput event handler to check if WebSocket is connected
     - If connected, send data through WebSocket to caTTY-node-pty using websocket.send()
     - If not connected, fall back to SampleShell behavior
@@ -633,18 +633,18 @@
     - Add error handling for send failures
     - _Requirements: 23.3, 25.3_
   
-  - [ ]* 13.7 Write property test for command execution in caTTY-ts
+  - [x] 13.7 Write property test for command execution in caTTY-ts
     - **Property 73: Command execution through PTY**
     - **Validates: Requirements 25.3**
   
-  - [ ] 13.8 Implement resize message sending to backend in caTTY-ts
+  - [x] 13.8 Implement resize message sending to backend in caTTY-ts
     - Listen for terminal resize events
     - Create resize message object: {type: 'resize', cols: number, rows: number}
     - Serialize to JSON and send through WebSocket to caTTY-node-pty
     - Only send if WebSocket is connected
     - _Requirements: 23.5_
   
-  - [ ] 13.9 Implement connection failure handling in caTTY-ts
+  - [x] 13.9 Implement connection failure handling in caTTY-ts
     - In handleWebSocketError, log error details
     - Display error message in terminal using terminal.write()
     - Set connectionState to 'error'
@@ -652,18 +652,18 @@
     - Provide visual indicator of connection status
     - _Requirements: 25.5_
   
-  - [ ]* 13.10 Write property test for connection failure fallback in caTTY-ts
+  - [x] 13.10 Write property test for connection failure fallback in caTTY-ts
     - **Property 74: Connection failure fallback**
     - **Validates: Requirements 25.5**
   
-  - [ ] 13.11 Update unmount method for WebSocket cleanup in caTTY-ts
+  - [x] 13.11 Update unmount method for WebSocket cleanup in caTTY-ts
     - Check if WebSocket exists and is connected
     - Call disconnectWebSocket() to close connection to caTTY-node-pty
     - Remove all WebSocket event listeners
     - Set websocket property to null
     - _Requirements: 24.3_
   
-  - [ ]* 13.12 Write integration tests for WebSocket controller in caTTY-ts
+  - [x] 13.12 Write integration tests for WebSocket controller in caTTY-ts
     - Test connection establishment and data flow with caTTY-node-pty
     - Test fallback to SampleShell on failure
     - Test cleanup on page unload

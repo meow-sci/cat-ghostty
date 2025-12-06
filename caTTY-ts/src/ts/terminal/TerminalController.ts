@@ -68,6 +68,13 @@ export class TerminalController {
   // Key encoder state
   private keyEncoderPtr: number | null = null;
   
+  // WebSocket connection state
+  private websocket: WebSocket | null = null;
+  private connectionState: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
+  
+  // Shell backend for fallback when WebSocket is not connected
+  private shellBackend: ((data: Uint8Array) => void) | null = null;
+  
   /**
    * Creates a new TerminalController instance.
    * @param config Controller configuration
@@ -136,6 +143,9 @@ export class TerminalController {
     
     // Clean up key encoder
     this.cleanupKeyEncoder();
+    
+    // Clean up WebSocket connection (will be fully implemented in subtask 13.11)
+    this.disconnectWebSocket();
   }
   
   /**
@@ -817,5 +827,212 @@ export class TerminalController {
     }
     
     return 0;
+  }
+  
+  // WebSocket connection management methods
+  
+  /**
+   * Connects to a WebSocket backend server.
+   * @param url WebSocket URL (e.g., 'ws://localhost:3000')
+   */
+  connectWebSocket(url: string): void {
+    // Close any existing connection
+    if (this.websocket) {
+      this.disconnectWebSocket();
+    }
+    
+    try {
+      this.connectionState = 'connecting';
+      this.websocket = new WebSocket(url);
+      
+      // Bind event handlers
+      this.websocket.onopen = this.handleWebSocketOpen.bind(this);
+      this.websocket.onmessage = this.handleWebSocketMessage.bind(this);
+      this.websocket.onclose = this.handleWebSocketClose.bind(this);
+      this.websocket.onerror = this.handleWebSocketError.bind(this);
+      
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      this.connectionState = 'error';
+      this.websocket = null;
+    }
+  }
+  
+  /**
+   * Disconnects from the WebSocket backend server.
+   */
+  disconnectWebSocket(): void {
+    if (this.websocket) {
+      // Remove event listeners to prevent callbacks during close
+      this.websocket.onopen = null;
+      this.websocket.onmessage = null;
+      this.websocket.onclose = null;
+      this.websocket.onerror = null;
+      
+      // Close the connection if it's open
+      if (this.websocket.readyState === WebSocket.OPEN || 
+          this.websocket.readyState === WebSocket.CONNECTING) {
+        this.websocket.close();
+      }
+      
+      this.websocket = null;
+    }
+    
+    this.connectionState = 'disconnected';
+  }
+  
+  /**
+   * Checks if the WebSocket is currently connected.
+   * @returns true if connected, false otherwise
+   */
+  isConnected(): boolean {
+    return this.connectionState === 'connected' && 
+           this.websocket !== null && 
+           this.websocket.readyState === WebSocket.OPEN;
+  }
+  
+  /**
+   * Gets the current connection state.
+   * @returns The current connection state
+   */
+  getConnectionState(): 'disconnected' | 'connecting' | 'connected' | 'error' {
+    return this.connectionState;
+  }
+  
+  /**
+   * Sets the shell backend for fallback when WebSocket is not connected.
+   * @param handler Function to handle data output when not connected to WebSocket
+   */
+  setShellBackend(handler: (data: Uint8Array) => void): void {
+    this.shellBackend = handler;
+  }
+  
+  /**
+   * Handles data output from the terminal.
+   * Routes data to WebSocket if connected, otherwise to shell backend.
+   * @param data Data to send
+   */
+  handleDataOutput(data: Uint8Array): void {
+    if (this.isConnected() && this.websocket) {
+      // Send through WebSocket if connected
+      try {
+        // WebSocket can send ArrayBuffer or Blob, so we send the underlying buffer
+        this.websocket.send(data.buffer);
+      } catch (error) {
+        console.error('Failed to send data through WebSocket:', error);
+        // Fall back to shell backend on error
+        if (this.shellBackend) {
+          this.shellBackend(data);
+        }
+      }
+    } else {
+      // Fall back to shell backend if not connected
+      if (this.shellBackend) {
+        this.shellBackend(data);
+      }
+    }
+  }
+  
+  /**
+   * Handles terminal resize events and sends resize message to backend.
+   * @param cols New number of columns
+   * @param rows New number of rows
+   */
+  handleResize(cols: number, rows: number): void {
+    // Only send resize message if WebSocket is connected
+    if (this.isConnected() && this.websocket) {
+      try {
+        const resizeMessage = {
+          type: 'resize',
+          cols,
+          rows,
+        };
+        
+        // Serialize to JSON and send
+        const messageJson = JSON.stringify(resizeMessage);
+        this.websocket.send(messageJson);
+      } catch (error) {
+        console.error('Failed to send resize message through WebSocket:', error);
+      }
+    }
+  }
+  
+  // WebSocket event handlers
+  
+  /**
+   * Handles WebSocket connection open event.
+   */
+  private handleWebSocketOpen(): void {
+    this.connectionState = 'connected';
+    console.log('WebSocket connection established');
+  }
+  
+  /**
+   * Handles incoming WebSocket messages.
+   * @param event MessageEvent containing data from the backend
+   */
+  private handleWebSocketMessage(event: MessageEvent): void {
+    try {
+      let data: Uint8Array;
+      
+      // Convert data to Uint8Array based on type
+      if (typeof event.data === 'string') {
+        // String data - encode to UTF-8
+        const encoder = new TextEncoder();
+        data = encoder.encode(event.data);
+      } else if (event.data instanceof ArrayBuffer) {
+        // ArrayBuffer - wrap in Uint8Array
+        data = new Uint8Array(event.data);
+      } else if (event.data instanceof Uint8Array) {
+        // Already Uint8Array
+        data = event.data;
+      } else if (event.data instanceof Blob) {
+        // Blob - need to read asynchronously
+        event.data.arrayBuffer().then((buffer: ArrayBuffer) => {
+          const blobData = new Uint8Array(buffer);
+          this.terminal.write(blobData);
+        }).catch((error: Error) => {
+          console.error('Failed to read Blob data:', error);
+        });
+        return;
+      } else {
+        console.warn('Unsupported WebSocket message type:', typeof event.data);
+        return;
+      }
+      
+      // Write data to terminal
+      this.terminal.write(data);
+      
+    } catch (error) {
+      console.error('Failed to process WebSocket message:', error);
+    }
+  }
+  
+  /**
+   * Handles WebSocket connection close event.
+   */
+  private handleWebSocketClose(): void {
+    this.connectionState = 'disconnected';
+    this.websocket = null;
+    console.log('WebSocket connection closed');
+  }
+  
+  /**
+   * Handles WebSocket error events.
+   * @param event Error event
+   */
+  private handleWebSocketError(event: Event): void {
+    this.connectionState = 'error';
+    console.error('WebSocket error:', event);
+    
+    // Display error message in terminal
+    const errorMessage = '\r\n\x1b[31m[WebSocket Error: Connection failed]\x1b[0m\r\n';
+    this.terminal.write(errorMessage);
+    
+    // If we have a shell backend, we can fall back to it
+    if (this.shellBackend) {
+      const fallbackMessage = '\x1b[33m[Falling back to SampleShell]\x1b[0m\r\n$ ';
+      this.terminal.write(fallbackMessage);
+    }
   }
 }
