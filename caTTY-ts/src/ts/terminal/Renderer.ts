@@ -103,7 +103,9 @@ export class Renderer {
         
         // Check if cell has changed
         const cachedCell = this.cellCache.get(cellKey);
-        if (cachedCell && this.cellsEqual(cachedCell, cell)) {
+        const cellsMatch = cachedCell && this.cellsEqual(cachedCell, cell);
+        
+        if (cellsMatch) {
           updatedCells.add(cellKey);
           continue;
         }
@@ -302,7 +304,7 @@ export class Renderer {
   /**
    * Applies CSS styles to a cell element based on cell attributes.
    * @param element The HTML element to style
-   * @param cell The cell containing attribute information
+   * @param cell The Cell containing attribute information
    */
   private applyStyles(element: HTMLElement, cell: Cell): void {
     // Reset all styles first to ensure clean state
@@ -316,7 +318,15 @@ export class Renderer {
     element.removeAttribute('data-url');
     
     // Apply foreground color
-    const fgColor = this.colorToCSS(cell.fg);
+    let fgColor = this.colorToCSS(cell.fg);
+    
+    // WORKAROUND: If foreground is black (index 0) and background is default/black,
+    // treat foreground as default (white) to avoid invisible text
+    if (cell.fg.type === 'indexed' && cell.fg.index === 0 && 
+        (cell.bg.type === 'default' || (cell.bg.type === 'indexed' && cell.bg.index === 0))) {
+      fgColor = null; // Use default color (white)
+    }
+    
     if (fgColor) {
       element.style.color = fgColor;
     }

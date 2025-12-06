@@ -359,7 +359,7 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
       {/* Connection controls */}
       <div style={{
         position: 'absolute',
-        top: '10px',
+        bottom: '10px',
         right: '10px',
         zIndex: 1000,
         background: 'rgba(0, 0, 0, 0.8)',
