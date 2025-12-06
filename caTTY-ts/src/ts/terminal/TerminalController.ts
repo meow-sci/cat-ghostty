@@ -964,7 +964,6 @@ export class TerminalController {
    */
   private handleWebSocketOpen(): void {
     this.connectionState = 'connected';
-    console.log('WebSocket connection established');
   }
   
   /**
@@ -1014,7 +1013,6 @@ export class TerminalController {
   private handleWebSocketClose(): void {
     this.connectionState = 'disconnected';
     this.websocket = null;
-    console.log('WebSocket connection closed');
   }
   
   /**
@@ -1024,15 +1022,5 @@ export class TerminalController {
   private handleWebSocketError(event: Event): void {
     this.connectionState = 'error';
     console.error('WebSocket error:', event);
-    
-    // Display error message in terminal
-    const errorMessage = '\r\n\x1b[31m[WebSocket Error: Connection failed]\x1b[0m\r\n';
-    this.terminal.write(errorMessage);
-    
-    // If we have a shell backend, we can fall back to it
-    if (this.shellBackend) {
-      const fallbackMessage = '\x1b[33m[Falling back to SampleShell]\x1b[0m\r\n$ ';
-      this.terminal.write(fallbackMessage);
-    }
   }
 }

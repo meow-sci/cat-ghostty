@@ -116,6 +116,7 @@ interface TerminalViewProps {
 function TerminalView({ wasmInstance }: TerminalViewProps) {
   const displayRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const logRef = useRef<HTMLPreElement>(null);
   
   // WebSocket connection configuration
   // Default URL points to caTTY-node-pty backend on localhost:4444
@@ -133,6 +134,17 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
   // Store controller and terminal references for reconnection functionality
   const controllerRef = useRef<TerminalController | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
+  
+  /**
+   * Logs a debug message to the debug log area (not the terminal)
+   */
+  const logDebug = (message: string) => {
+    if (logRef.current) {
+      const timestamp = new Date().toISOString();
+      const logLine = `${timestamp} - ${message}\n`;
+      logRef.current.textContent = logLine + logRef.current.textContent;
+    }
+  };
 
   /**
    * Reconnect handler - Attempts to re-establish WebSocket connection
@@ -144,7 +156,7 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
     if (controllerRef.current && terminalRef.current && connectionMode === 'websocket') {
       setConnectionStatus('connecting');
       setErrorMessage('');
-      terminalRef.current.write('\r\nReconnecting to backend server...\r\n');
+      logDebug('Reconnecting to backend server...');
       
       try {
         // Attempt to establish new WebSocket connection
@@ -157,12 +169,12 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
             setConnectionStatus(state);
             
             if (state === 'connected') {
-              terminalRef.current?.write('\x1b[32mReconnected successfully!\x1b[0m\r\n');
+              logDebug('Reconnected successfully!');
               setErrorMessage('');
             } else if (state === 'error') {
               const errMsg = 'Reconnection failed. Backend server may not be running.';
               setErrorMessage(errMsg);
-              terminalRef.current?.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
+              logDebug(errMsg);
             }
           }
         }, 500);
@@ -171,7 +183,7 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
         const errMsg = error instanceof Error ? error.message : 'Unknown reconnection error';
         setConnectionStatus('error');
         setErrorMessage(errMsg);
-        terminalRef.current?.write('\x1b[31mReconnection error: ' + errMsg + '\x1b[0m\r\n');
+        logDebug('Reconnection error: ' + errMsg);
       }
     }
   };
@@ -205,12 +217,16 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
           console.log('Clipboard:', content);
         },
         onDataOutput: (data: Uint8Array) => {
-          if (shell) {
-            shell.processInput(data);
+          // Route data to the appropriate backend via controller
+          if (controller) {
+            controller.handleDataOutput(data);
           }
         },
         onResize: (cols: number, rows: number) => {
           console.log('Resized:', cols, rows);
+          if (controller) {
+            controller.handleResize(cols, rows);
+          }
         },
         onStateChange: () => {
           if (controller) {
@@ -237,6 +253,13 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
       displayElement: displayRef.current,
       wasmInstance,
     });
+    
+    // Set up shell backend for fallback when WebSocket is not connected
+    controller.setShellBackend((data: Uint8Array) => {
+      if (shell) {
+        shell.processInput(data);
+      }
+    });
 
     // Store references for reconnection
     controllerRef.current = controller;
@@ -251,7 +274,7 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
       // WebSocket mode: Connect to caTTY-node-pty backend for real PTY shell
       setConnectionStatus('connecting');
       setErrorMessage('');
-      terminal.write('Connecting to backend server at ' + websocketUrl + '...\r\n');
+      logDebug('Connecting to backend server at ' + websocketUrl + '...');
       
       try {
         // Initiate WebSocket connection to backend
@@ -266,14 +289,15 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
           
           if (state === 'connected') {
             // Successfully connected to backend PTY
-            terminal.write('\x1b[32mConnected to real shell!\x1b[0m\r\n');
+            logDebug('Connected to real shell!');
             setErrorMessage('');
           } else if (state === 'error') {
             // Connection failed - provide helpful error message
             const errMsg = 'Failed to connect to backend server. Check that caTTY-node-pty is running.';
             setErrorMessage(errMsg);
-            terminal.write('\x1b[31m' + errMsg + '\x1b[0m\r\n');
-            terminal.write('\x1b[33mFalling back to SampleShell.\x1b[0m\r\n');
+            logDebug(errMsg);
+            logDebug('Falling back to SampleShell.');
+            terminal.write('Welcome to caTTY Terminal Emulator!\r\n');
             terminal.write('Available commands: ls, echo, red, green\r\n');
             terminal.write('\r\n');
             terminal.write('$ ');
@@ -285,8 +309,9 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
         const errMsg = error instanceof Error ? error.message : 'Unknown connection error';
         setConnectionStatus('error');
         setErrorMessage(errMsg);
-        terminal.write('\x1b[31mConnection error: ' + errMsg + '\x1b[0m\r\n');
-        terminal.write('\x1b[33mUsing SampleShell.\x1b[0m\r\n');
+        logDebug('Connection error: ' + errMsg);
+        logDebug('Using SampleShell.');
+        terminal.write('Welcome to caTTY Terminal Emulator!\r\n');
         terminal.write('Available commands: ls, echo, red, green\r\n');
         terminal.write('\r\n');
         terminal.write('$ ');
@@ -312,6 +337,25 @@ function TerminalView({ wasmInstance }: TerminalViewProps) {
 
   return (
     <>
+      {/* Debug log area */}
+      <pre ref={logRef} style={{
+        position: 'absolute',
+        bottom: '10px',
+        left: '10px',
+        zIndex: 1000,
+        background: 'rgba(0, 0, 0, 0.9)',
+        padding: '10px',
+        borderRadius: '5px',
+        color: '#0f0',
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        maxWidth: '500px',
+        maxHeight: '200px',
+        overflow: 'auto',
+        whiteSpace: 'pre-wrap',
+        wordWrap: 'break-word'
+      }}></pre>
+      
       {/* Connection controls */}
       <div style={{
         position: 'absolute',
