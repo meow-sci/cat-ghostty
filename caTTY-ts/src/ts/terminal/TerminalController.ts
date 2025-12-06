@@ -916,8 +916,10 @@ export class TerminalController {
     if (this.isConnected() && this.websocket) {
       // Send through WebSocket if connected
       try {
-        // WebSocket can send ArrayBuffer or Blob, so we send the underlying buffer
-        this.websocket.send(data.buffer);
+        // Create a properly sized ArrayBuffer to avoid sending extra bytes
+        // If data is a view into a larger buffer, we need to copy just the relevant slice
+        const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        this.websocket.send(buffer);
       } catch (error) {
         console.error('Failed to send data through WebSocket:', error);
         // Fall back to shell backend on error
