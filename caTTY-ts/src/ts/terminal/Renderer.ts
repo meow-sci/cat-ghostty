@@ -79,6 +79,12 @@ export class Renderer {
       return;
     }
     
+    // If all rows are dirty (screen clear), clear the entire cache and DOM
+    // This handles the case where the screen is cleared (e.g., after htop exits)
+    if (dirtyRows.size === config.rows) {
+      this.clearCache();
+    }
+    
     // Use document fragment for batching DOM updates
     const fragment = document.createDocumentFragment();
     
@@ -307,6 +313,12 @@ export class Renderer {
     if (runCell !== null) {
       const runSpan = this.createRunSpan(runCell, runStart, runText);
       lineElement.appendChild(runSpan);
+    } else if (line.cells.length > 0) {
+      // If we have cells but no run was created (e.g., all cells have width 0),
+      // create an empty span to ensure the line has proper height
+      const emptySpan = document.createElement('span');
+      emptySpan.textContent = ' ';
+      lineElement.appendChild(emptySpan);
     }
     
     return lineElement;

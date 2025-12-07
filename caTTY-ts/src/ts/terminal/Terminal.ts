@@ -909,6 +909,24 @@ export class Terminal {
       case '2004': // Bracketed paste mode
         this.modes.bracketedPaste = enabled;
         break;
+        
+      case '47': // Alternate screen (simple)
+      case '1047': // Alternate screen (with clear)
+      case '1049': // Alternate screen (with cursor save/restore)
+        if (enabled) {
+          this.screenManager.switchToAlternate();
+          // Mark all rows as dirty since we switched screens
+          for (let row = 0; row < this.config.rows; row++) {
+            this.dirtyRows.add(row);
+          }
+        } else {
+          this.screenManager.switchToPrimary();
+          // Mark all rows as dirty since we switched screens
+          for (let row = 0; row < this.config.rows; row++) {
+            this.dirtyRows.add(row);
+          }
+        }
+        break;
     }
     
     this.emitStateChange();

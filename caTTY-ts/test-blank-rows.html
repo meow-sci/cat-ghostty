@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Blank Rows</title>
+  <style>
+    body {
+      margin: 20px;
+      font-family: monospace;
+      background: #000;
+      color: #fff;
+    }
+    #terminal {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background: #000;
+      border: 1px solid #333;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1;
+      overflow: hidden;
+    }
+    .line {
+      position: absolute;
+      left: 0;
+      height: 1em;
+      white-space: pre;
+    }
+    .debug {
+      margin-top: 20px;
+      padding: 10px;
+      background: #222;
+      border: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Blank Rows Issue</h1>
+  <div id="terminal"></div>
+  <div class="debug">
+    <h3>Debug Info</h3>
+    <div id="debug-info"></div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const debugInfo = document.getElementById('debug-info');
+
+    // Simulate what happens after htop exits and ls runs
+    function simulateIssue() {
+      // Step 1: Clear terminal (simulate screen clear)
+      terminal.innerHTML = '';
+      
+      // Step 2: Create lines with content (simulate ls output)
+      const lines = [
+        'total 392',
+        'drwxr-xr-x  65 user  staff  2.0K Dec  6 21:46 .',
+        'drwxr-xr-x   3 user  staff  160B Nov 17 21:30 ..',
+        '-r--------   1 user  staff   7B Dec 25  2024 .CFUserTextEncoding',
+        '-rw-r--r--@  1 user  staff  22K Dec  2 21:18 .DS_Store',
+        'drwxr-xr-x@ 26 user  staff  852B Dec  3 01:00 .ServiceHub',
+        'drwx------  32 user  staff  1.0K Dec  6 21:45 .Trash',
+        '-rw-r--r--   1 user  staff  53B Dec 25  2024 .ackrc',
+        'drwxr-xr-x   5 user  staff  160B Dec 26  2024 .aider',
+        'drwxr-xr-x   5 user  staff  96B Nov 16 09:56 .aspnet',
+        'drwxr-xr-x@  3 user  staff  96B Dec  1 18:16 .aws',
+        '-rw-------@  1 user  staff  1.0K Dec  6 21:46 .bash_history',
+        'drwxr-xr-x@  5 user  staff  160B Dec 26  2024 .bun',
+      ];
+
+      const fragment = document.createDocumentFragment();
+      
+      for (let row = 0; row < lines.length; row++) {
+        const lineElement = document.createElement('div');
+        lineElement.className = 'line';
+        lineElement.style.top = `${row}em`;
+        lineElement.textContent = lines[row];
+        fragment.appendChild(lineElement);
+      }
+      
+      terminal.appendChild(fragment);
+      
+      // Debug: Show what's in the DOM
+      const lineElements = terminal.querySelectorAll('.line');
+      debugInfo.innerHTML = `
+        <p>Total line elements: ${lineElements.length}</p>
+        <p>Lines in DOM:</p>
+        <ul>
+          ${Array.from(lineElements).map((el, i) => 
+            `<li>Row ${i}: top=${el.style.top}, text="${el.textContent.substring(0, 30)}..."</li>`
+          ).join('')}
+        </ul>
+      `;
+    }
+
+    // Run simulation
+    simulateIssue();
+  </script>
+</body>
+</html>
