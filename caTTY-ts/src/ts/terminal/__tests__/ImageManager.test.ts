@@ -468,4 +468,210 @@ describe('ImageManager', () => {
       expect(manager.getTransmission(2)).toBeUndefined();
     });
   });
+
+  describe('Unicode Placeholder Support', () => {
+    it('should associate placeholder with placement on creation', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      
+      const placementId = manager.getPlacementAtCell(5, 10);
+      expect(placementId).toBe(1);
+    });
+
+    it('should not associate placeholder if not specified', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10
+      };
+      
+      manager.createPlacement(placement);
+      
+      const placementId = manager.getPlacementAtCell(5, 10);
+      expect(placementId).toBeUndefined();
+    });
+
+    it('should remove placement when placeholder cell is overwritten', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      manager.handleCellOverwrite(5, 10);
+      
+      expect(manager.getPlacement(1)).toBeUndefined();
+      expect(manager.getPlacementAtCell(5, 10)).toBeUndefined();
+      expect(manager.getVisiblePlacements()).toHaveLength(0);
+    });
+
+    it('should not affect placement without placeholder when cell is overwritten', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10
+      };
+      
+      manager.createPlacement(placement);
+      manager.handleCellOverwrite(5, 10);
+      
+      expect(manager.getPlacement(1)).toBeDefined();
+      expect(manager.getVisiblePlacements()).toHaveLength(1);
+    });
+
+    it('should remove multiple placements when region is overwritten', () => {
+      const placement1: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      const placement2: ImagePlacement = {
+        placementId: 2,
+        imageId: 1,
+        row: 5,
+        col: 15,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement1);
+      manager.createPlacement(placement2);
+      
+      manager.handleRegionOverwrite(5, 5, 10, 20);
+      
+      expect(manager.getPlacement(1)).toBeUndefined();
+      expect(manager.getPlacement(2)).toBeUndefined();
+      expect(manager.getVisiblePlacements()).toHaveLength(0);
+    });
+
+    it('should update placeholder positions when scrolling up', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 10,
+        col: 5,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      manager.handleScroll('up', 3, 24);
+      
+      // Placeholder should move from (10, 5) to (7, 5)
+      expect(manager.getPlacementAtCell(10, 5)).toBeUndefined();
+      expect(manager.getPlacementAtCell(7, 5)).toBe(1);
+    });
+
+    it('should update placeholder positions when scrolling down', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      manager.handleScroll('down', 2, 24);
+      
+      // Placeholder should move from (5, 10) to (7, 10)
+      expect(manager.getPlacementAtCell(5, 10)).toBeUndefined();
+      expect(manager.getPlacementAtCell(7, 10)).toBe(1);
+    });
+
+    it('should remove placeholder association when scrolling off screen', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 2,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      manager.handleScroll('up', 5, 24);
+      
+      // Placeholder scrolled off top, should be removed
+      expect(manager.getPlacementAtCell(2, 10)).toBeUndefined();
+      expect(manager.getPlacementAtCell(-3, 10)).toBeUndefined();
+    });
+
+    it('should remove placeholder association when deleting placement', () => {
+      const placement: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement);
+      manager.deletePlacement(1);
+      
+      expect(manager.getPlacementAtCell(5, 10)).toBeUndefined();
+    });
+
+    it('should clear all placeholder associations when clearing screen', () => {
+      const placement1: ImagePlacement = {
+        placementId: 1,
+        imageId: 1,
+        row: 5,
+        col: 10,
+        width: 20,
+        height: 10,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      const placement2: ImagePlacement = {
+        placementId: 2,
+        imageId: 1,
+        row: 15,
+        col: 20,
+        width: 30,
+        height: 15,
+        unicodePlaceholder: '🖼️'
+      };
+      
+      manager.createPlacement(placement1);
+      manager.createPlacement(placement2);
+      
+      manager.handleClear('screen');
+      
+      expect(manager.getPlacementAtCell(5, 10)).toBeUndefined();
+      expect(manager.getPlacementAtCell(15, 20)).toBeUndefined();
+    });
+  });
 });

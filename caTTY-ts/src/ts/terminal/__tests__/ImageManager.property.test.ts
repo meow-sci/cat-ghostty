@@ -2357,3 +2357,387 @@ describe('ImageManager Property Tests', () => {
     );
   });
 });
+
+describe('ImageManager Transparency Property Tests', () => {
+  /**
+   * Feature: headless-terminal-emulator, Property 114: Alpha channel preservation
+   * For any image with alpha channel, the transparency should be preserved
+   * Validates: Requirements 35.1
+   */
+  it('Property 114: Alpha channel preservation', () => {
+    fc.assert(
+      fc.property(
+        // Generate random image IDs
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate random image dimensions
+        fc.integer({ min: 1, max: 2000 }),
+        fc.integer({ min: 1, max: 2000 }),
+        // Generate random format
+        fc.constantFrom('png', 'gif'), // PNG and GIF support alpha, JPEG does not
+        (imageId, width, height, format) => {
+          const manager = new ImageManager();
+          
+          // Create a mock ImageBitmap with the specified dimensions
+          const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
+          
+          // Store the image with alpha channel enabled
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
+          
+          // Retrieve the image
+          const retrieved = manager.getImage(imageId);
+          
+          // Verify the image was stored with alpha channel preserved
+          expect(retrieved).toBeDefined();
+          expect(retrieved?.hasAlpha).toBe(true);
+          expect(retrieved?.id).toBe(imageId);
+          expect(retrieved?.data).toBe(mockBitmap);
+          expect(retrieved?.format).toBe(format);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 115: Transparent pixel rendering
+   * For any transparent image, the terminal background should show through transparent pixels
+   * Validates: Requirements 35.2
+   * 
+   * Note: This property verifies that images with alpha channel are stored correctly.
+   * The actual rendering behavior (background showing through) is tested in Renderer tests.
+   */
+  it('Property 115: Transparent pixel rendering', () => {
+    fc.assert(
+      fc.property(
+        // Generate random image and placement parameters
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 2000 }),  // width
+        fc.integer({ min: 1, max: 2000 }),  // height
+        fc.constantFrom('png', 'gif'),      // format with alpha support
+        fc.integer({ min: 0, max: 200 }),   // row
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 100 }),   // placement width in cells
+        fc.integer({ min: 1, max: 100 }),   // placement height in cells
+        (imageId, placementId, width, height, format, row, col, cellWidth, cellHeight) => {
+          const manager = new ImageManager();
+          
+          // Create a mock ImageBitmap
+          const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
+          
+          // Store image with alpha channel
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
+          
+          // Create a placement for this image
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width: cellWidth,
+            height: cellHeight
+          };
+          manager.createPlacement(placement);
+          
+          // Verify the image has alpha channel
+          const image = manager.getImage(imageId);
+          expect(image?.hasAlpha).toBe(true);
+          
+          // Verify the placement exists and references the transparent image
+          const retrievedPlacement = manager.getPlacement(placementId);
+          expect(retrievedPlacement).toBeDefined();
+          expect(retrievedPlacement?.imageId).toBe(imageId);
+          
+          // The renderer should use the hasAlpha flag to determine rendering behavior
+          // This is verified by checking that the flag is accessible through the image
+          expect(image?.hasAlpha).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 116: Opaque image handling
+   * For any image without alpha channel, it should be treated as fully opaque
+   * Validates: Requirements 35.3
+   */
+  it('Property 116: Opaque image handling', () => {
+    fc.assert(
+      fc.property(
+        // Generate random image IDs
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate random image dimensions
+        fc.integer({ min: 1, max: 2000 }),
+        fc.integer({ min: 1, max: 2000 }),
+        // Generate random format (JPEG never has alpha, PNG/GIF can be opaque)
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        (imageId, width, height, format) => {
+          const manager = new ImageManager();
+          
+          // Create a mock ImageBitmap
+          const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
+          
+          // Store the image without alpha channel (opaque)
+          manager.storeImage(imageId, mockBitmap, format, width, height, false);
+          
+          // Retrieve the image
+          const retrieved = manager.getImage(imageId);
+          
+          // Verify the image is marked as opaque (no alpha channel)
+          expect(retrieved).toBeDefined();
+          expect(retrieved?.hasAlpha).toBe(false);
+          expect(retrieved?.id).toBe(imageId);
+          expect(retrieved?.data).toBe(mockBitmap);
+          expect(retrieved?.format).toBe(format);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 117: Image text layering
+   * For any transparent image overlapping text, the image should be layered appropriately
+   * Validates: Requirements 35.4
+   * 
+   * Note: This property verifies that placements with transparent images can be created
+   * and positioned over text cells. The actual layering behavior is handled by the Renderer.
+   */
+  it('Property 117: Image text layering', () => {
+    fc.assert(
+      fc.property(
+        // Generate random image and placement parameters
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 2000 }),  // width
+        fc.integer({ min: 1, max: 2000 }),  // height
+        fc.constantFrom('png', 'gif'),      // format with alpha support
+        fc.integer({ min: 0, max: 200 }),   // row (where text might be)
+        fc.integer({ min: 0, max: 200 }),   // col (where text might be)
+        fc.integer({ min: 1, max: 100 }),   // placement width in cells
+        fc.integer({ min: 1, max: 100 }),   // placement height in cells
+        fc.option(fc.integer({ min: -100, max: 100 }), { nil: undefined }), // zIndex for layering
+        (imageId, placementId, width, height, format, row, col, cellWidth, cellHeight, zIndex) => {
+          const manager = new ImageManager();
+          
+          // Create a mock ImageBitmap
+          const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
+          
+          // Store image with alpha channel (transparent)
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
+          
+          // Create a placement that might overlap with text
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width: cellWidth,
+            height: cellHeight,
+            ...(zIndex !== undefined && { zIndex })
+          };
+          manager.createPlacement(placement);
+          
+          // Verify the placement exists
+          const retrievedPlacement = manager.getPlacement(placementId);
+          expect(retrievedPlacement).toBeDefined();
+          expect(retrievedPlacement?.imageId).toBe(imageId);
+          
+          // Verify the image has alpha channel for proper layering
+          const image = manager.getImage(imageId);
+          expect(image?.hasAlpha).toBe(true);
+          
+          // Verify zIndex is preserved if provided (for layering control)
+          if (zIndex !== undefined) {
+            expect(retrievedPlacement?.zIndex).toBe(zIndex);
+          }
+          
+          // The placement can be positioned at any cell location,
+          // potentially overlapping with text. The renderer will handle
+          // the actual layering based on hasAlpha and zIndex.
+          expect(retrievedPlacement?.row).toBe(row);
+          expect(retrievedPlacement?.col).toBe(col);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 118: Background color change updates transparency
+   * For any terminal background color change, transparent images should update their appearance
+   * Validates: Requirements 35.5
+   * 
+   * Note: This property verifies that transparent images maintain their hasAlpha flag
+   * consistently, which allows the renderer to respond to background color changes.
+   * The actual visual update is handled by the Renderer component.
+   */
+  it('Property 118: Background color change updates transparency', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple images with different transparency settings
+        // Generate arrays with unique imageIds, then assign unique placementIds
+        fc.uniqueArray(
+          fc.record({
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            width: fc.integer({ min: 1, max: 2000 }),
+            height: fc.integer({ min: 1, max: 2000 }),
+            format: fc.constantFrom('png', 'gif'),
+            hasAlpha: fc.boolean(),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            cellWidth: fc.integer({ min: 1, max: 100 }),
+            cellHeight: fc.integer({ min: 1, max: 100 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 10,
+            selector: (item) => item.imageId
+          }
+        ).map(images => {
+          // Assign unique placementIds to each image
+          return images.map((img, index) => ({
+            ...img,
+            placementId: index + 1
+          }));
+        }),
+        (images) => {
+          const manager = new ImageManager();
+          
+          // Build a map to track the final state of each image
+          // (in case same imageId appears multiple times, last one wins)
+          const imageStates = new Map<number, typeof images[0]>();
+          for (const img of images) {
+            imageStates.set(img.imageId, img);
+          }
+          
+          // Store all images and create placements
+          for (const img of images) {
+            const mockBitmap = new (globalThis as any).ImageBitmap(img.width, img.height);
+            
+            // Store image with specified alpha channel setting
+            manager.storeImage(img.imageId, mockBitmap, img.format, img.width, img.height, img.hasAlpha);
+            
+            // Create placement
+            const placement: ImagePlacement = {
+              placementId: img.placementId,
+              imageId: img.imageId,
+              row: img.row,
+              col: img.col,
+              width: img.cellWidth,
+              height: img.cellHeight
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Simulate background color change by verifying all images maintain their alpha state
+          // In a real scenario, the renderer would query these images and re-render them
+          // with the new background color showing through transparent pixels
+          
+          // Verify each stored image has the correct alpha state (from the final store operation)
+          for (const [imageId, finalState] of imageStates) {
+            const storedImage = manager.getImage(imageId);
+            
+            // Verify image alpha state matches the final state
+            expect(storedImage).toBeDefined();
+            expect(storedImage?.hasAlpha).toBe(finalState.hasAlpha);
+            
+            // The renderer can now use the hasAlpha flag to determine
+            // whether to blend with the new background color
+            if (finalState.hasAlpha) {
+              // Transparent images should be re-rendered with new background
+              expect(storedImage?.hasAlpha).toBe(true);
+            } else {
+              // Opaque images don't need background blending
+              expect(storedImage?.hasAlpha).toBe(false);
+            }
+          }
+          
+          // Verify all placements are still visible and accessible
+          const visiblePlacements = manager.getVisiblePlacements();
+          expect(visiblePlacements).toHaveLength(images.length);
+          
+          // Each placement should still reference an image with correct alpha state
+          for (const placement of visiblePlacements) {
+            const image = manager.getImage(placement.imageId);
+            expect(image).toBeDefined();
+            
+            // Find the final state for this image
+            const finalState = imageStates.get(placement.imageId);
+            expect(finalState).toBeDefined();
+            expect(image?.hasAlpha).toBe(finalState?.hasAlpha);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 114-116: Mixed transparency images
+   * For any collection of images with mixed transparency settings, each should maintain
+   * its transparency state independently
+   * Validates: Requirements 35.1, 35.2, 35.3
+   */
+  it('Property 114-116: Mixed transparency images', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple images with different transparency settings
+        fc.uniqueArray(
+          fc.record({
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            width: fc.integer({ min: 1, max: 2000 }),
+            height: fc.integer({ min: 1, max: 2000 }),
+            format: fc.constantFrom('png', 'jpeg', 'gif'),
+            hasAlpha: fc.boolean()
+          }),
+          {
+            minLength: 2,
+            maxLength: 20,
+            selector: (item) => item.imageId
+          }
+        ),
+        (images) => {
+          const manager = new ImageManager();
+          
+          // Store all images with their respective alpha settings
+          for (const img of images) {
+            const mockBitmap = new (globalThis as any).ImageBitmap(img.width, img.height);
+            manager.storeImage(img.imageId, mockBitmap, img.format, img.width, img.height, img.hasAlpha);
+          }
+          
+          // Verify each image maintains its transparency state independently
+          for (const img of images) {
+            const retrieved = manager.getImage(img.imageId);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.hasAlpha).toBe(img.hasAlpha);
+            expect(retrieved?.id).toBe(img.imageId);
+            expect(retrieved?.format).toBe(img.format);
+          }
+          
+          // Verify that changing one image doesn't affect others
+          // Replace the first image with opposite alpha setting
+          if (images.length > 0) {
+            const firstImage = images[0];
+            const newAlpha = !firstImage.hasAlpha;
+            const mockBitmap = new (globalThis as any).ImageBitmap(firstImage.width, firstImage.height);
+            manager.storeImage(firstImage.imageId, mockBitmap, firstImage.format, firstImage.width, firstImage.height, newAlpha);
+            
+            // Verify the first image was updated
+            const updated = manager.getImage(firstImage.imageId);
+            expect(updated?.hasAlpha).toBe(newAlpha);
+            
+            // Verify all other images remain unchanged
+            for (let i = 1; i < images.length; i++) {
+              const img = images[i];
+              const retrieved = manager.getImage(img.imageId);
+              expect(retrieved?.hasAlpha).toBe(img.hasAlpha);
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});

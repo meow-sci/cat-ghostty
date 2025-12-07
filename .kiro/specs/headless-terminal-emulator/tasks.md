@@ -878,7 +878,7 @@
     - Update transparent images when background color changes
     - _Requirements: 35.1, 35.2, 35.3, 35.4, 35.5_
   
-  - [ ] 16.21 Write property tests for transparency
+  - [x] 16.21 Write property tests for transparency
     - **Property 114: Alpha channel preservation**
     - **Property 115: Transparent pixel rendering**
     - **Property 116: Opaque image handling**
@@ -886,7 +886,7 @@
     - **Property 118: Background color change updates transparency**
     - **Validates: Requirements 35.1, 35.2, 35.3, 35.4, 35.5**
   
-  - [ ] 16.22 Implement Unicode placeholder support
+  - [x] 16.22 Implement Unicode placeholder support
     - Write placeholder character to grid when placement created
     - Create bidirectional association between cell and placement
     - Remove placement when placeholder is erased

@@ -37,6 +37,9 @@ export class ImageManager {
   
   /** Counter for automatic placement ID generation */
   private nextPlacementId: number = 1;
+  
+  /** Map from cell position (row,col) to placement ID for Unicode placeholder tracking */
+  private placeholderCells: Map<string, number> = new Map();
 
   /**
    * Generate a unique image ID.
@@ -142,6 +145,7 @@ export class ImageManager {
   /**
    * Create a new image placement.
    * If a placement with this ID already exists, it will be replaced.
+   * If the placement has a Unicode placeholder, associates it with the cell position.
    * 
    * @param placement - Placement configuration
    */
@@ -155,6 +159,11 @@ export class ImageManager {
       p => p.placementId !== placement.placementId
     );
     this.activePlacements.push(placement);
+    
+    // If this placement has a Unicode placeholder, associate it with the cell
+    if (placement.unicodePlaceholder) {
+      this.associatePlaceholder(placement.row, placement.col, placement.placementId);
+    }
     
     // Update next ID counter if this ID is >= current counter
     // This ensures we don't reuse IDs that were explicitly provided
@@ -176,10 +185,19 @@ export class ImageManager {
   /**
    * Delete a specific placement by ID.
    * Removes the placement from both active and scrollback lists.
+   * Also removes any Unicode placeholder associations.
    * 
    * @param id - Placement identifier to delete
    */
   deletePlacement(id: number): void {
+    // Get the placement to check for placeholder
+    const placement = this.placements.get(id);
+    
+    // Remove placeholder association if it exists
+    if (placement && placement.unicodePlaceholder) {
+      this.removePlaceholderAt(placement.row, placement.col);
+    }
+    
     // Remove from placements map
     this.placements.delete(id);
     
@@ -234,6 +252,7 @@ export class ImageManager {
   /**
    * Handle scrolling operations.
    * Moves placements between active and scrollback lists based on scroll direction.
+   * Also updates Unicode placeholder associations.
    * 
    * @param direction - Scroll direction ('up' or 'down')
    * @param lines - Number of lines scrolled
@@ -241,6 +260,9 @@ export class ImageManager {
    * @param isAlternateScreen - Whether terminal is in alternate screen mode (default: false)
    */
   handleScroll(direction: 'up' | 'down', lines: number, screenRows: number, isAlternateScreen: boolean = false): void {
+    // Update placeholder positions first
+    this.handlePlaceholderScroll(direction, lines, screenRows);
+    
     if (direction === 'up') {
       // Content scrolls up, placements move up
       // Placements that scroll off the top go to scrollback (unless in alternate screen)
@@ -295,7 +317,7 @@ export class ImageManager {
 
   /**
    * Handle clear operations.
-   * Removes placements in the cleared region.
+   * Removes placements in the cleared region and their Unicode placeholder associations.
    * 
    * @param region - Region to clear ('screen' or 'line')
    * @param row - Row number (for 'line' region)
@@ -309,8 +331,9 @@ export class ImageManager {
     endCol?: number
   ): void {
     if (region === 'screen') {
-      // Clear all active placements
+      // Clear all active placements and placeholder associations
       this.deleteAllPlacements();
+      this.placeholderCells.clear();
     } else if (region === 'line' && row !== undefined) {
       // Remove placements on the specified line
       const placementsToDelete: number[] = [];
@@ -339,6 +362,24 @@ export class ImageManager {
       
       for (const id of placementsToDelete) {
         this.deletePlacement(id);
+      }
+      
+      // Also remove placeholder associations in the cleared region
+      if (startCol !== undefined && endCol !== undefined) {
+        this.handleRegionOverwrite(row, row, startCol, endCol);
+      } else {
+        // Clear entire line - we need to know the screen width
+        // For now, just remove placeholders we know about on this row
+        const keysToRemove: string[] = [];
+        for (const key of this.placeholderCells.keys()) {
+          const [rowStr] = key.split(',');
+          if (parseInt(rowStr, 10) === row) {
+            keysToRemove.push(key);
+          }
+        }
+        for (const key of keysToRemove) {
+          this.placeholderCells.delete(key);
+        }
       }
     }
   }
@@ -523,5 +564,125 @@ export class ImageManager {
     this.activePlacements = [];
     this.scrollbackPlacements = [];
     this.transmissions.clear();
+    this.placeholderCells.clear();
+  }
+
+  /**
+   * Associate a Unicode placeholder character with an image placement.
+   * Creates a bidirectional mapping between the cell position and the placement.
+   * 
+   * @param row - Row position of the placeholder
+   * @param col - Column position of the placeholder
+   * @param placementId - ID of the placement to associate
+   */
+  associatePlaceholder(row: number, col: number, placementId: number): void {
+    const key = `${row},${col}`;
+    this.placeholderCells.set(key, placementId);
+  }
+
+  /**
+   * Remove the placeholder association for a cell.
+   * 
+   * @param row - Row position of the placeholder
+   * @param col - Column position of the placeholder
+   */
+  removePlaceholderAt(row: number, col: number): void {
+    const key = `${row},${col}`;
+    this.placeholderCells.delete(key);
+  }
+
+  /**
+   * Get the placement ID associated with a placeholder at the given position.
+   * 
+   * @param row - Row position
+   * @param col - Column position
+   * @returns Placement ID if found, undefined otherwise
+   */
+  getPlacementAtCell(row: number, col: number): number | undefined {
+    const key = `${row},${col}`;
+    return this.placeholderCells.get(key);
+  }
+
+  /**
+   * Handle a cell being erased or overwritten.
+   * If the cell contains a Unicode placeholder, removes the associated image placement.
+   * 
+   * @param row - Row position of the cell
+   * @param col - Column position of the cell
+   */
+  handleCellOverwrite(row: number, col: number): void {
+    const placementId = this.getPlacementAtCell(row, col);
+    if (placementId !== undefined) {
+      // Remove the placeholder association
+      this.removePlaceholderAt(row, col);
+      
+      // Remove the associated placement
+      this.deletePlacement(placementId);
+    }
+  }
+
+  /**
+   * Handle a region of cells being erased.
+   * Removes any image placements associated with Unicode placeholders in the region.
+   * 
+   * @param startRow - Starting row (inclusive)
+   * @param endRow - Ending row (inclusive)
+   * @param startCol - Starting column (inclusive)
+   * @param endCol - Ending column (inclusive)
+   */
+  handleRegionOverwrite(startRow: number, endRow: number, startCol: number, endCol: number): void {
+    const placementsToDelete = new Set<number>();
+    
+    // Find all placeholders in the region
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        const placementId = this.getPlacementAtCell(row, col);
+        if (placementId !== undefined) {
+          placementsToDelete.add(placementId);
+          this.removePlaceholderAt(row, col);
+        }
+      }
+    }
+    
+    // Delete all affected placements
+    for (const placementId of placementsToDelete) {
+      this.deletePlacement(placementId);
+    }
+  }
+
+  /**
+   * Update placeholder positions when content scrolls.
+   * Moves placeholder associations along with the scrolled content.
+   * 
+   * @param direction - Scroll direction ('up' or 'down')
+   * @param lines - Number of lines scrolled
+   * @param screenRows - Total number of rows on screen
+   */
+  handlePlaceholderScroll(direction: 'up' | 'down', lines: number, screenRows: number): void {
+    const newPlaceholderCells = new Map<string, number>();
+    
+    for (const [key, placementId] of this.placeholderCells.entries()) {
+      const [rowStr, colStr] = key.split(',');
+      const row = parseInt(rowStr, 10);
+      const col = parseInt(colStr, 10);
+      
+      let newRow: number;
+      if (direction === 'up') {
+        newRow = row - lines;
+      } else {
+        newRow = row + lines;
+      }
+      
+      // Keep placeholder if it's still on screen
+      if (newRow >= 0 && newRow < screenRows) {
+        const newKey = `${newRow},${col}`;
+        newPlaceholderCells.set(newKey, placementId);
+      } else {
+        // Placeholder scrolled off screen - it will be handled by handleScroll
+        // which moves placements to scrollback or removes them
+      }
+    }
+    
+    this.placeholderCells = newPlaceholderCells;
   }
 }
