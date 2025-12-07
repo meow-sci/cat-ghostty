@@ -2114,4 +2114,246 @@ describe('ImageManager Property Tests', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 111: Image ID reuse replaces data
+   * For any image ID reused, the previous image data should be replaced with new data
+   * Validates: Requirements 34.3
+   */
+  it('Property 111: Image ID reuse replaces data', () => {
+    fc.assert(
+      fc.property(
+        // Generate a single image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate two different sets of image properties
+        fc.tuple(
+          fc.integer({ min: 1, max: 2000 }),
+          fc.integer({ min: 1, max: 2000 }),
+          fc.constantFrom('png', 'jpeg', 'gif')
+        ),
+        fc.tuple(
+          fc.integer({ min: 1, max: 2000 }),
+          fc.integer({ min: 1, max: 2000 }),
+          fc.constantFrom('png', 'jpeg', 'gif')
+        ),
+        (imageId, [width1, height1, format1], [width2, height2, format2]) => {
+          const manager = new ImageManager();
+          
+          // Store first image
+          const mockBitmap1 = new (globalThis as any).ImageBitmap(width1, height1);
+          manager.storeImage(imageId, mockBitmap1, format1, width1, height1);
+          
+          // Verify first image is stored
+          const retrieved1 = manager.getImage(imageId);
+          expect(retrieved1).toBeDefined();
+          expect(retrieved1?.data).toBe(mockBitmap1);
+          expect(retrieved1?.format).toBe(format1);
+          expect(retrieved1?.width).toBe(width1);
+          expect(retrieved1?.height).toBe(height1);
+          
+          // Store second image with same ID (reuse)
+          const mockBitmap2 = new (globalThis as any).ImageBitmap(width2, height2);
+          manager.storeImage(imageId, mockBitmap2, format2, width2, height2);
+          
+          // Verify the second image replaced the first
+          const retrieved2 = manager.getImage(imageId);
+          expect(retrieved2).toBeDefined();
+          expect(retrieved2?.data).toBe(mockBitmap2);
+          expect(retrieved2?.format).toBe(format2);
+          expect(retrieved2?.width).toBe(width2);
+          expect(retrieved2?.height).toBe(height2);
+          
+          // Verify it's not the first image
+          expect(retrieved2?.data).not.toBe(mockBitmap1);
+          
+          // Verify only one image exists with this ID
+          expect(manager.getImage(imageId)).toBeDefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 112: Placement ID reuse replaces placement
+   * For any placement ID reused, the previous placement should be replaced with the new placement
+   * Validates: Requirements 34.4
+   */
+  it('Property 112: Placement ID reuse replaces placement', () => {
+    fc.assert(
+      fc.property(
+        // Generate a single placement ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate two different sets of placement properties
+        fc.tuple(
+          fc.integer({ min: 1, max: 10000 }), // imageId1
+          fc.integer({ min: 0, max: 200 }),   // row1
+          fc.integer({ min: 0, max: 200 }),   // col1
+          fc.integer({ min: 1, max: 100 }),   // width1
+          fc.integer({ min: 1, max: 100 })    // height1
+        ),
+        fc.tuple(
+          fc.integer({ min: 1, max: 10000 }), // imageId2
+          fc.integer({ min: 0, max: 200 }),   // row2
+          fc.integer({ min: 0, max: 200 }),   // col2
+          fc.integer({ min: 1, max: 100 }),   // width2
+          fc.integer({ min: 1, max: 100 })    // height2
+        ),
+        (placementId, [imageId1, row1, col1, width1, height1], [imageId2, row2, col2, width2, height2]) => {
+          const manager = new ImageManager();
+          
+          // Create first placement
+          const placement1: ImagePlacement = {
+            placementId,
+            imageId: imageId1,
+            row: row1,
+            col: col1,
+            width: width1,
+            height: height1
+          };
+          manager.createPlacement(placement1);
+          
+          // Verify first placement is created
+          const retrieved1 = manager.getPlacement(placementId);
+          expect(retrieved1).toBeDefined();
+          expect(retrieved1).toEqual(placement1);
+          
+          // Verify it's in visible placements
+          const visible1 = manager.getVisiblePlacements();
+          expect(visible1).toHaveLength(1);
+          expect(visible1[0]).toEqual(placement1);
+          
+          // Create second placement with same ID (reuse)
+          const placement2: ImagePlacement = {
+            placementId,
+            imageId: imageId2,
+            row: row2,
+            col: col2,
+            width: width2,
+            height: height2
+          };
+          manager.createPlacement(placement2);
+          
+          // Verify the second placement replaced the first
+          const retrieved2 = manager.getPlacement(placementId);
+          expect(retrieved2).toBeDefined();
+          expect(retrieved2).toEqual(placement2);
+          
+          // Verify only one placement exists in visible list
+          const visible2 = manager.getVisiblePlacements();
+          expect(visible2).toHaveLength(1);
+          expect(visible2[0]).toEqual(placement2);
+          
+          // Verify it's not the first placement
+          expect(retrieved2).not.toEqual(placement1);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 113: Automatic ID generation
+   * For any image or placement without specified ID, the terminal should generate a unique ID automatically
+   * Validates: Requirements 34.5
+   */
+  it('Property 113: Automatic ID generation', () => {
+    fc.assert(
+      fc.property(
+        // Generate number of images and placements to create
+        fc.integer({ min: 1, max: 20 }), // numImages
+        fc.integer({ min: 1, max: 20 }), // numPlacements
+        // Generate some explicit IDs to test counter updates
+        fc.option(fc.integer({ min: 50, max: 200 }), { nil: undefined }), // explicitImageId
+        fc.option(fc.integer({ min: 50, max: 200 }), { nil: undefined }), // explicitPlacementId
+        (numImages, numPlacements, explicitImageId, explicitPlacementId) => {
+          const manager = new ImageManager();
+          const generatedImageIds: number[] = [];
+          const generatedPlacementIds: number[] = [];
+          
+          // Generate image IDs
+          for (let i = 0; i < numImages; i++) {
+            const id = manager.generateImageId();
+            generatedImageIds.push(id);
+            
+            // Insert explicit ID in the middle if provided
+            if (i === Math.floor(numImages / 2) && explicitImageId !== undefined) {
+              const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
+              manager.storeImage(explicitImageId, mockBitmap, 'png', 100, 100);
+            }
+          }
+          
+          // Generate placement IDs
+          for (let i = 0; i < numPlacements; i++) {
+            const id = manager.generatePlacementId();
+            generatedPlacementIds.push(id);
+            
+            // Insert explicit ID in the middle if provided
+            if (i === Math.floor(numPlacements / 2) && explicitPlacementId !== undefined) {
+              const placement: ImagePlacement = {
+                placementId: explicitPlacementId,
+                imageId: 1,
+                row: 0,
+                col: 0,
+                width: 10,
+                height: 10
+              };
+              manager.createPlacement(placement);
+            }
+          }
+          
+          // Verify all generated image IDs are unique
+          const uniqueImageIds = new Set(generatedImageIds);
+          expect(uniqueImageIds.size).toBe(generatedImageIds.length);
+          
+          // Verify all generated placement IDs are unique
+          const uniquePlacementIds = new Set(generatedPlacementIds);
+          expect(uniquePlacementIds.size).toBe(generatedPlacementIds.length);
+          
+          // Verify image IDs are sequential (with possible jump after explicit ID)
+          for (let i = 1; i < generatedImageIds.length; i++) {
+            const diff = generatedImageIds[i] - generatedImageIds[i - 1];
+            // Difference should be 1, or larger if explicit ID was inserted
+            expect(diff).toBeGreaterThanOrEqual(1);
+          }
+          
+          // Verify placement IDs are sequential (with possible jump after explicit ID)
+          for (let i = 1; i < generatedPlacementIds.length; i++) {
+            const diff = generatedPlacementIds[i] - generatedPlacementIds[i - 1];
+            // Difference should be 1, or larger if explicit ID was inserted
+            expect(diff).toBeGreaterThanOrEqual(1);
+          }
+          
+          // Verify first generated IDs start from 1 (if no explicit ID was inserted before)
+          if (explicitImageId === undefined || Math.floor(numImages / 2) > 0) {
+            expect(generatedImageIds[0]).toBe(1);
+          }
+          
+          if (explicitPlacementId === undefined || Math.floor(numPlacements / 2) > 0) {
+            expect(generatedPlacementIds[0]).toBe(1);
+          }
+          
+          // If explicit IDs were provided, verify counter jumped past them
+          if (explicitImageId !== undefined) {
+            const idsAfterExplicit = generatedImageIds.slice(Math.floor(numImages / 2) + 1);
+            for (const id of idsAfterExplicit) {
+              if (explicitImageId >= generatedImageIds[Math.floor(numImages / 2)]) {
+                expect(id).toBeGreaterThan(explicitImageId);
+              }
+            }
+          }
+          
+          if (explicitPlacementId !== undefined) {
+            const idsAfterExplicit = generatedPlacementIds.slice(Math.floor(numPlacements / 2) + 1);
+            for (const id of idsAfterExplicit) {
+              if (explicitPlacementId >= generatedPlacementIds[Math.floor(numPlacements / 2)]) {
+                expect(id).toBeGreaterThan(explicitPlacementId);
+              }
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });

@@ -865,7 +865,7 @@
     - Implement automatic ID generation when not specified
     - _Requirements: 34.3, 34.4, 34.5_
   
-  - [-] 16.19 Write property tests for ID management
+  - [x] 16.19 Write property tests for ID management
     - **Property 111: Image ID reuse replaces data**
     - **Property 112: Placement ID reuse replaces placement**
     - **Property 113: Automatic ID generation**
