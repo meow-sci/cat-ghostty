@@ -299,6 +299,62 @@ export class ImageManager {
   }
 
   /**
+   * Handle line insertion.
+   * Shifts image placements down when lines are inserted.
+   * 
+   * @param insertRow - Row where lines are being inserted
+   * @param count - Number of lines being inserted
+   * @param screenRows - Total number of rows on screen
+   */
+  handleLineInsertion(insertRow: number, count: number, screenRows: number): void {
+    // Shift placements that are at or below the insertion point
+    this.activePlacements = this.activePlacements.filter(placement => {
+      if (placement.row >= insertRow) {
+        // Shift placement down
+        placement.row += count;
+        
+        // Remove if it goes off the bottom of the screen
+        if (placement.row >= screenRows) {
+          this.placements.delete(placement.placementId);
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Handle line deletion.
+   * Shifts image placements up when lines are deleted and removes placements in deleted lines.
+   * 
+   * @param deleteRow - Row where lines are being deleted
+   * @param count - Number of lines being deleted
+   */
+  handleLineDeletion(deleteRow: number, count: number): void {
+    const deleteEndRow = deleteRow + count - 1;
+    
+    // Process all active placements
+    this.activePlacements = this.activePlacements.filter(placement => {
+      const placementStartRow = placement.row;
+      const placementEndRow = placement.row + placement.height - 1;
+      
+      // Check if placement overlaps with deleted lines
+      if (placementStartRow <= deleteEndRow && placementEndRow >= deleteRow) {
+        // Placement is in the deleted region - remove it
+        this.placements.delete(placement.placementId);
+        return false;
+      }
+      
+      // If placement is below the deleted region, shift it up
+      if (placementStartRow > deleteEndRow) {
+        placement.row -= count;
+      }
+      
+      return true;
+    });
+  }
+
+  /**
    * Handle terminal resize.
    * Repositions placements based on new cell dimensions.
    * Note: This is a simplified implementation. Full implementation would

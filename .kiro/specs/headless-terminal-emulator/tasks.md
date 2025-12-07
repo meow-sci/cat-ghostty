@@ -844,14 +844,14 @@
     - **Property 93: Display update on placement deletion**
     - **Validates: Requirements 29.1, 29.2, 29.3, 29.4, 29.5**
   
-  - [ ] 16.16 Implement terminal operation integration
+  - [x] 16.16 Implement terminal operation integration
     - Implement handleClear() to remove images in cleared regions
     - Remove images on line erase operations
     - Shift images on line insertion/deletion
     - Reposition images on terminal resize
     - _Requirements: 33.1, 33.2, 33.3, 33.4, 33.5_
   
-  - [ ] 16.17 Write property tests for terminal operations
+  - [-] 16.17 Write property tests for terminal operations
     - **Property 106: Clear screen removes images**
     - **Property 107: Line erase removes images**
     - **Property 108: Line insertion shifts images**
