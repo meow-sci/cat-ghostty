@@ -813,14 +813,14 @@
     - **Property 83: Screen boundary clipping**
     - **Validates: Requirements 27.1, 27.2, 27.3, 27.4, 27.5**
   
-  - [ ] 16.12 Implement image scrolling behavior
+  - [x] 16.12 Implement image scrolling behavior
     - Implement handleScroll() in ImageManager to move placements with content
     - Move placements to scrollback buffer when scrolling off top
     - Remove placements when scrolling off bottom (reverse scroll)
     - Prevent scrollback preservation in alternate screen mode
     - _Requirements: 28.1, 28.2, 28.3, 28.4, 28.5_
   
-  - [ ] 16.13 Write property tests for scrolling
+  - [x] 16.13 Write property tests for scrolling
     - **Property 84: Image scrolling with content**
     - **Property 85: Scrollback buffer image preservation**
     - **Property 86: Reverse scroll image removal**
@@ -828,7 +828,7 @@
     - **Property 88: Alternate screen no image scrollback**
     - **Validates: Requirements 28.1, 28.2, 28.3, 28.4, 28.5**
   
-  - [ ] 16.14 Implement image deletion operations
+  - [x] 16.14 Implement image deletion operations
     - Implement deletion by image ID (removes all placements)
     - Implement deletion by placement ID (removes single placement)
     - Implement delete all visible placements

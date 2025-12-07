@@ -193,11 +193,12 @@ export class ImageManager {
    * @param direction - Scroll direction ('up' or 'down')
    * @param lines - Number of lines scrolled
    * @param screenRows - Total number of rows on screen
+   * @param isAlternateScreen - Whether terminal is in alternate screen mode (default: false)
    */
-  handleScroll(direction: 'up' | 'down', lines: number, screenRows: number): void {
+  handleScroll(direction: 'up' | 'down', lines: number, screenRows: number, isAlternateScreen: boolean = false): void {
     if (direction === 'up') {
       // Content scrolls up, placements move up
-      // Placements that scroll off the top go to scrollback
+      // Placements that scroll off the top go to scrollback (unless in alternate screen)
       const movedToScrollback: ImagePlacement[] = [];
       
       this.activePlacements = this.activePlacements.filter(placement => {
@@ -205,10 +206,16 @@ export class ImageManager {
         
         if (newRow < 0) {
           // Placement scrolled off the top
-          movedToScrollback.push({
-            ...placement,
-            row: newRow // Keep negative row to track position in scrollback
-          });
+          if (!isAlternateScreen) {
+            // In primary screen mode, preserve in scrollback
+            movedToScrollback.push({
+              ...placement,
+              row: newRow // Keep negative row to track position in scrollback
+            });
+          } else {
+            // In alternate screen mode, remove the placement entirely
+            this.placements.delete(placement.placementId);
+          }
           return false;
         }
         
@@ -217,8 +224,10 @@ export class ImageManager {
         return true;
       });
       
-      // Add to scrollback
-      this.scrollbackPlacements.push(...movedToScrollback);
+      // Add to scrollback (only if not in alternate screen mode)
+      if (!isAlternateScreen) {
+        this.scrollbackPlacements.push(...movedToScrollback);
+      }
       
     } else {
       // Content scrolls down (reverse scroll)

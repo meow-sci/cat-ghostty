@@ -816,4 +816,430 @@ describe('ImageManager Property Tests', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 84: Image scrolling with content
+   * For any image placement in a scrolled region, the placement should move with the scrolled content
+   * Validates: Requirements 28.1
+   */
+  it('Property 84: Image scrolling with content', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 10, max: 100 }), // screenRows
+        // Generate initial placement position
+        fc.integer({ min: 5, max: 50 }), // initial row (somewhere in middle of screen)
+        fc.integer({ min: 0, max: 50 }), // col
+        // Generate scroll amount
+        fc.integer({ min: 1, max: 10 }), // lines to scroll
+        // Generate placement dimensions
+        fc.integer({ min: 1, max: 10 }), // width
+        fc.integer({ min: 1, max: 10 }), // height
+        (screenRows, initialRow, col, scrollLines, width, height) => {
+          // Ensure initial row is within screen bounds
+          const row = Math.min(initialRow, screenRows - 1);
+          
+          const manager = new ImageManager();
+          
+          // Create a placement
+          const placement: ImagePlacement = {
+            placementId: 1,
+            imageId: 1,
+            row,
+            col,
+            width,
+            height
+          };
+          manager.createPlacement(placement);
+          
+          // Scroll up (content moves up, placements move up)
+          manager.handleScroll('up', scrollLines, screenRows, false);
+          
+          // Verify placement moved with the content
+          const retrieved = manager.getPlacement(1);
+          
+          if (row - scrollLines >= 0) {
+            // Placement should still be visible, just moved up
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.row).toBe(row - scrollLines);
+            expect(retrieved?.col).toBe(col);
+            
+            // Should still be in active placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(true);
+          } else {
+            // Placement scrolled off the top, should be in scrollback
+            const scrollback = manager.getScrollbackPlacements();
+            expect(scrollback.some(p => p.placementId === 1)).toBe(true);
+            
+            // Should not be in active placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(false);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 85: Scrollback buffer image preservation
+   * For any image placement that scrolls off the top, it should be moved to the scrollback buffer
+   * Validates: Requirements 28.2
+   */
+  it('Property 85: Scrollback buffer image preservation', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 10, max: 100 }), // screenRows
+        // Generate initial placement position (near top)
+        fc.integer({ min: 0, max: 5 }), // initial row
+        fc.integer({ min: 0, max: 50 }), // col
+        // Generate scroll amount that will push it off screen
+        fc.integer({ min: 6, max: 20 }), // lines to scroll (more than initial row)
+        // Generate placement dimensions
+        fc.integer({ min: 1, max: 10 }), // width
+        fc.integer({ min: 1, max: 10 }), // height
+        (screenRows, row, col, scrollLines, width, height) => {
+          const manager = new ImageManager();
+          
+          // Create a placement near the top
+          const placement: ImagePlacement = {
+            placementId: 1,
+            imageId: 1,
+            row,
+            col,
+            width,
+            height
+          };
+          manager.createPlacement(placement);
+          
+          // Verify it's initially in active placements
+          expect(manager.getVisiblePlacements()).toHaveLength(1);
+          expect(manager.getScrollbackPlacements()).toHaveLength(0);
+          
+          // Scroll up enough to push it off the top
+          manager.handleScroll('up', scrollLines, screenRows, false);
+          
+          // Verify placement moved to scrollback
+          const scrollback = manager.getScrollbackPlacements();
+          expect(scrollback.length).toBeGreaterThan(0);
+          expect(scrollback.some(p => p.placementId === 1)).toBe(true);
+          
+          // Verify it's no longer in active placements
+          const visible = manager.getVisiblePlacements();
+          expect(visible.some(p => p.placementId === 1)).toBe(false);
+          
+          // Verify the placement still exists in the placements map
+          const retrieved = manager.getPlacement(1);
+          expect(retrieved).toBeDefined();
+          
+          // Verify the row is negative (indicating scrollback position)
+          const scrollbackPlacement = scrollback.find(p => p.placementId === 1);
+          expect(scrollbackPlacement?.row).toBeLessThan(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 86: Reverse scroll image removal
+   * For any image placement that scrolls off the bottom during reverse scroll, it should be removed
+   * Validates: Requirements 28.3
+   */
+  it('Property 86: Reverse scroll image removal', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 10, max: 100 }), // screenRows
+        // Generate initial placement position (near bottom)
+        fc.integer({ min: 0, max: 50 }), // col
+        // Generate scroll amount
+        fc.integer({ min: 1, max: 20 }), // lines to scroll down
+        // Generate placement dimensions
+        fc.integer({ min: 1, max: 10 }), // width
+        fc.integer({ min: 1, max: 10 }), // height
+        (screenRows, col, scrollLines, width, height) => {
+          const manager = new ImageManager();
+          
+          // Create a placement near the bottom
+          const row = screenRows - 3; // 3 rows from bottom
+          const placement: ImagePlacement = {
+            placementId: 1,
+            imageId: 1,
+            row,
+            col,
+            width,
+            height
+          };
+          manager.createPlacement(placement);
+          
+          // Verify it's initially in active placements
+          expect(manager.getVisiblePlacements()).toHaveLength(1);
+          
+          // Scroll down (reverse scroll)
+          manager.handleScroll('down', scrollLines, screenRows, false);
+          
+          const newRow = row + scrollLines;
+          
+          if (newRow >= screenRows) {
+            // Placement scrolled off the bottom, should be removed entirely
+            const retrieved = manager.getPlacement(1);
+            expect(retrieved).toBeUndefined();
+            
+            // Should not be in active placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(false);
+            
+            // Should not be in scrollback either
+            const scrollback = manager.getScrollbackPlacements();
+            expect(scrollback.some(p => p.placementId === 1)).toBe(false);
+          } else {
+            // Placement should still be visible, just moved down
+            const retrieved = manager.getPlacement(1);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.row).toBe(newRow);
+            
+            // Should still be in active placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(true);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 87: Scrollback image display
+   * For any scrollback view, image placements in the scrollback buffer should be displayed
+   * Validates: Requirements 28.4
+   */
+  it('Property 87: Scrollback image display', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 10, max: 100 }), // screenRows
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 10 }), // near top
+            col: fc.integer({ min: 0, max: 50 }),
+            width: fc.integer({ min: 1, max: 10 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 5,
+            selector: (item) => item.placementId
+          }
+        ),
+        // Generate scroll amount
+        fc.integer({ min: 15, max: 30 }), // enough to push all placements to scrollback
+        (screenRows, placements, scrollLines) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.placementId, // use same ID for simplicity
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Verify all are initially in active placements
+          expect(manager.getVisiblePlacements().length).toBe(placements.length);
+          expect(manager.getScrollbackPlacements().length).toBe(0);
+          
+          // Scroll up to push all placements to scrollback
+          manager.handleScroll('up', scrollLines, screenRows, false);
+          
+          // Verify placements are now in scrollback
+          const scrollback = manager.getScrollbackPlacements();
+          expect(scrollback.length).toBeGreaterThan(0);
+          
+          // Verify all placements that scrolled off are in scrollback
+          for (const p of placements) {
+            const newRow = p.row - scrollLines;
+            if (newRow < 0) {
+              // Should be in scrollback
+              expect(scrollback.some(sp => sp.placementId === p.placementId)).toBe(true);
+              
+              // Should not be in active placements
+              const visible = manager.getVisiblePlacements();
+              expect(visible.some(vp => vp.placementId === p.placementId)).toBe(false);
+            }
+          }
+          
+          // Verify scrollback placements can be retrieved
+          const scrollbackPlacements = manager.getScrollbackPlacements();
+          expect(scrollbackPlacements).toBeInstanceOf(Array);
+          expect(scrollbackPlacements.length).toBeGreaterThan(0);
+          
+          // Verify each scrollback placement has correct structure
+          for (const sp of scrollbackPlacements) {
+            expect(sp).toHaveProperty('placementId');
+            expect(sp).toHaveProperty('imageId');
+            expect(sp).toHaveProperty('row');
+            expect(sp).toHaveProperty('col');
+            expect(sp).toHaveProperty('width');
+            expect(sp).toHaveProperty('height');
+            expect(sp.row).toBeLessThan(0); // scrollback rows are negative
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 88: Alternate screen no image scrollback
+   * For any image in alternate screen mode, it should not be preserved in scrollback when scrolled
+   * Validates: Requirements 28.5
+   */
+  it('Property 88: Alternate screen no image scrollback', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 10, max: 100 }), // screenRows
+        // Generate initial placement position
+        fc.integer({ min: 0, max: 10 }), // initial row (near top)
+        fc.integer({ min: 0, max: 50 }), // col
+        // Generate scroll amount that will push it off screen
+        fc.integer({ min: 15, max: 30 }), // lines to scroll
+        // Generate placement dimensions
+        fc.integer({ min: 1, max: 10 }), // width
+        fc.integer({ min: 1, max: 10 }), // height
+        (screenRows, row, col, scrollLines, width, height) => {
+          const manager = new ImageManager();
+          
+          // Create a placement
+          const placement: ImagePlacement = {
+            placementId: 1,
+            imageId: 1,
+            row,
+            col,
+            width,
+            height
+          };
+          manager.createPlacement(placement);
+          
+          // Verify it's initially in active placements
+          expect(manager.getVisiblePlacements()).toHaveLength(1);
+          expect(manager.getScrollbackPlacements()).toHaveLength(0);
+          
+          // Scroll up in alternate screen mode (isAlternateScreen = true)
+          manager.handleScroll('up', scrollLines, screenRows, true);
+          
+          // Verify placement is NOT in scrollback (alternate screen doesn't preserve scrollback)
+          const scrollback = manager.getScrollbackPlacements();
+          expect(scrollback.some(p => p.placementId === 1)).toBe(false);
+          
+          // Verify placement is removed entirely if it scrolled off
+          const newRow = row - scrollLines;
+          if (newRow < 0) {
+            // Should be completely removed, not in scrollback
+            const retrieved = manager.getPlacement(1);
+            expect(retrieved).toBeUndefined();
+            
+            // Should not be in active placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(false);
+            
+            // Verify scrollback is still empty
+            expect(manager.getScrollbackPlacements()).toHaveLength(0);
+          } else {
+            // If still visible, should be in active placements
+            const retrieved = manager.getPlacement(1);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.row).toBe(newRow);
+            
+            const visible = manager.getVisiblePlacements();
+            expect(visible.some(p => p.placementId === 1)).toBe(true);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 88: Multiple placements in alternate screen
+   * For any multiple placements in alternate screen mode, none should be preserved in scrollback
+   * Validates: Requirements 28.5
+   */
+  it('Property 88: Multiple placements in alternate screen no scrollback', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 20, max: 100 }), // screenRows
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 15 }), // near top
+            col: fc.integer({ min: 0, max: 50 }),
+            width: fc.integer({ min: 1, max: 10 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 2,
+            maxLength: 10,
+            selector: (item) => item.placementId
+          }
+        ),
+        // Generate scroll amount
+        fc.integer({ min: 20, max: 40 }), // enough to push all off screen
+        (screenRows, placements, scrollLines) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.placementId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements().length).toBe(initialCount);
+          
+          // Scroll up in alternate screen mode
+          manager.handleScroll('up', scrollLines, screenRows, true);
+          
+          // Verify NO placements are in scrollback
+          const scrollback = manager.getScrollbackPlacements();
+          expect(scrollback).toHaveLength(0);
+          
+          // Verify placements that scrolled off are completely removed
+          for (const p of placements) {
+            const newRow = p.row - scrollLines;
+            if (newRow < 0) {
+              // Should be completely removed
+              const retrieved = manager.getPlacement(p.placementId);
+              expect(retrieved).toBeUndefined();
+            }
+          }
+          
+          // Count how many should still be visible
+          const expectedVisible = placements.filter(p => p.row - scrollLines >= 0).length;
+          const visible = manager.getVisiblePlacements();
+          expect(visible.length).toBe(expectedVisible);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });
