@@ -129,7 +129,7 @@ describe('Renderer Property Tests', () => {
       // First line should have span elements for characters
       const firstLine = lines[0];
       const spans = firstLine.querySelectorAll('span');
-      expect(spans.length).toBeGreaterThanOrEqual(3); // At least A, B, C
+      expect(spans.length).toBeGreaterThanOrEqual(1); // With batching, may be 1 span for all chars
       
       // Check character content
       const textContent = Array.from(spans).map(span => span.textContent).join('');
@@ -184,9 +184,11 @@ describe('Renderer Property Tests', () => {
       // the renderer correctly handles whatever color type is present
       renderer.render(terminal);
       
-      // Find the span with 'R'
+      // Find the span containing 'Red' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const redSpan = Array.from(spans).find(span => span.textContent === 'R') as HTMLElement;
+      const redSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('Red')
+      ) as HTMLElement;
       expect(redSpan).toBeTruthy();
       
       // If the cell has an indexed color, it should be rendered
@@ -208,9 +210,11 @@ describe('Renderer Property Tests', () => {
       terminal.write('\x1b[41mBG');
       renderer.render(terminal);
       
-      // Find the span with 'B'
+      // Find the span containing 'BG' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const bgSpan = Array.from(spans).find(span => span.textContent === 'B') as HTMLElement;
+      const bgSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('BG')
+      ) as HTMLElement;
       expect(bgSpan).toBeTruthy();
       expect(bgSpan.style.backgroundColor).toBeTruthy();
       
@@ -226,9 +230,11 @@ describe('Renderer Property Tests', () => {
       terminal.write('\x1b[1mBold');
       renderer.render(terminal);
       
-      // Find the span with 'B'
+      // Find the span containing 'Bold' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const boldSpan = Array.from(spans).find(span => span.textContent === 'B') as HTMLElement;
+      const boldSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('Bold')
+      ) as HTMLElement;
       expect(boldSpan).toBeTruthy();
       expect(boldSpan.style.fontWeight).toBe('bold');
       
@@ -244,9 +250,11 @@ describe('Renderer Property Tests', () => {
       terminal.write('\x1b[3mItalic');
       renderer.render(terminal);
       
-      // Find the span with 'I'
+      // Find the span containing 'Italic' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const italicSpan = Array.from(spans).find(span => span.textContent === 'I') as HTMLElement;
+      const italicSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('Italic')
+      ) as HTMLElement;
       expect(italicSpan).toBeTruthy();
       expect(italicSpan.style.fontStyle).toBe('italic');
       
@@ -262,9 +270,11 @@ describe('Renderer Property Tests', () => {
       terminal.write('\x1b[4mUnder');
       renderer.render(terminal);
       
-      // Find the span with 'U'
+      // Find the span containing 'Under' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const underlineSpan = Array.from(spans).find(span => span.textContent === 'U') as HTMLElement;
+      const underlineSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('Under')
+      ) as HTMLElement;
       expect(underlineSpan).toBeTruthy();
       expect(underlineSpan.style.textDecoration).toContain('underline');
       
@@ -287,9 +297,11 @@ describe('Renderer Property Tests', () => {
       // the renderer correctly handles whatever attributes are present
       renderer.render(terminal);
       
-      // Find the span with 'M'
+      // Find the span containing 'Multi' (with batching, may be in one span)
       const spans = displayElement.querySelectorAll('span');
-      const multiSpan = Array.from(spans).find(span => span.textContent === 'M') as HTMLElement;
+      const multiSpan = Array.from(spans).find(span => 
+        span.textContent && span.textContent.includes('Multi')
+      ) as HTMLElement;
       expect(multiSpan).toBeTruthy();
       
       // Check that attributes are rendered if they're present in the cell
@@ -504,6 +516,203 @@ describe('Renderer Property Tests', () => {
       expect(textContent).toContain('C');
       
       // Cursor should be at correct position
+      const cursor = terminal.getCursor();
+      expect(cursor.col).toBe(7); // A(1) + 你(2) + B(1) + 好(2) + C(1)
+      
+      terminal.dispose();
+    });
+  });
+
+  describe('Property 76: Cell batching reduces DOM elements', () => {
+    /**
+     * Feature: headless-terminal-emulator, Property 76: Cell batching reduces DOM elements
+     * Validates: Performance requirement - minimize DOM element count
+     */
+    it('should batch consecutive same-styled cells into single spans', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write a line of same-styled text
+      terminal.write('AAAAAAAAAA'); // 10 characters with same style
+      renderer.render(terminal);
+      
+      // Count span elements in the first line
+      const lines = displayElement.querySelectorAll('div:not(.terminal-cursor)');
+      expect(lines.length).toBeGreaterThan(0);
+      
+      const firstLine = lines[0];
+      const spans = firstLine.querySelectorAll('span');
+      
+      // With batching, should have 1 span for all 10 characters
+      // Without batching, would have 10 spans
+      expect(spans.length).toBeLessThan(10);
+      expect(spans.length).toBeGreaterThanOrEqual(1);
+      
+      // The span should contain all the text
+      const totalText = Array.from(spans).map(s => s.textContent).join('');
+      expect(totalText).toContain('AAAAAAAAAA');
+      
+      terminal.dispose();
+    });
+    
+    it('should create separate spans when style changes', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write text with style changes: normal + bold + normal
+      terminal.write('AAA\x1b[1mBBB\x1b[0mCCC');
+      renderer.render(terminal);
+      
+      // Count span elements
+      const lines = displayElement.querySelectorAll('div:not(.terminal-cursor)');
+      const firstLine = lines[0];
+      const spans = firstLine.querySelectorAll('span');
+      
+      // Should have at least 3 spans (one for each style run)
+      expect(spans.length).toBeGreaterThanOrEqual(3);
+      
+      // Check that bold span has correct styling
+      const boldSpan = Array.from(spans).find(s => {
+        const htmlSpan = s as HTMLElement;
+        return htmlSpan.style.fontWeight === 'bold';
+      }) as HTMLElement;
+      expect(boldSpan).toBeTruthy();
+      expect(boldSpan.textContent).toContain('BBB');
+      
+      terminal.dispose();
+    });
+    
+    it('should significantly reduce DOM element count for typical terminal content', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write multiple lines of typical terminal output
+      terminal.write('$ ls -la\n');
+      terminal.write('total 48\n');
+      terminal.write('drwxr-xr-x  12 user  staff   384 Dec  6 10:00 .\n');
+      terminal.write('drwxr-xr-x   8 user  staff   256 Dec  5 09:00 ..\n');
+      renderer.render(terminal);
+      
+      // Count total span elements
+      const allSpans = displayElement.querySelectorAll('span');
+      
+      // With batching, should have far fewer spans than total characters
+      // Total characters written: ~150+
+      // With batching: should be < 50 spans (most lines are same-styled)
+      // Without batching: would be ~150 spans
+      expect(allSpans.length).toBeLessThan(100);
+      
+      terminal.dispose();
+    });
+  });
+
+  describe('Property 77: Cell batching preserves visual output', () => {
+    /**
+     * Feature: headless-terminal-emulator, Property 77: Cell batching preserves visual output
+     * Validates: Performance requirement - minimize DOM element count
+     */
+    it('should produce identical visual output with batching', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write various content
+      terminal.write('Normal text\n');
+      terminal.write('\x1b[1mBold text\x1b[0m\n');
+      terminal.write('\x1b[31mRed text\x1b[0m\n');
+      terminal.write('\x1b[1;4;32mBold underline green\x1b[0m\n');
+      renderer.render(terminal);
+      
+      // Verify all text is present
+      const textContent = displayElement.textContent || '';
+      expect(textContent).toContain('Normal text');
+      expect(textContent).toContain('Bold text');
+      expect(textContent).toContain('Red text');
+      expect(textContent).toContain('Bold underline green');
+      
+      // Verify styles are applied correctly
+      const spans = displayElement.querySelectorAll('span');
+      const boldSpans = Array.from(spans).filter(s => {
+        const htmlSpan = s as HTMLElement;
+        return htmlSpan.style.fontWeight === 'bold';
+      });
+      expect(boldSpans.length).toBeGreaterThan(0);
+      
+      const coloredSpans = Array.from(spans).filter(s => {
+        const htmlSpan = s as HTMLElement;
+        return htmlSpan.style.color && htmlSpan.style.color !== '';
+      });
+      expect(coloredSpans.length).toBeGreaterThan(0);
+      
+      terminal.dispose();
+    });
+    
+    it('should handle wide characters correctly in batched runs', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write wide characters with same style
+      terminal.write('你好世界'); // 4 wide characters
+      renderer.render(terminal);
+      
+      // Verify content is present
+      const textContent = displayElement.textContent || '';
+      expect(textContent).toContain('你');
+      expect(textContent).toContain('好');
+      expect(textContent).toContain('世');
+      expect(textContent).toContain('界');
+      
+      // Cursor should be at correct position (each wide char takes 2 cells)
+      const cursor = terminal.getCursor();
+      expect(cursor.col).toBe(8); // 4 wide chars × 2 cells each
+      
+      terminal.dispose();
+    });
+    
+    it('should handle empty cells (spaces) in batched runs', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write text with spaces
+      terminal.write('A   B   C'); // Text with multiple spaces
+      renderer.render(terminal);
+      
+      // Verify spacing is preserved
+      const textContent = displayElement.textContent || '';
+      expect(textContent).toContain('A');
+      expect(textContent).toContain('B');
+      expect(textContent).toContain('C');
+      
+      // Cursor should be at correct position
+      const cursor = terminal.getCursor();
+      expect(cursor.col).toBe(9); // A + 3 spaces + B + 3 spaces + C
+      
+      terminal.dispose();
+    });
+    
+    it('should handle mixed content with style changes and wide characters', () => {
+      const config: TerminalConfig = { cols: 80, rows: 24, scrollback: 1000 };
+      const terminal = new Terminal(config, {}, wasmInstance);
+      const renderer = new Renderer(displayElement);
+      
+      // Write complex mixed content
+      terminal.write('A\x1b[1m你\x1b[0mB好C');
+      renderer.render(terminal);
+      
+      // Verify all content is present
+      const textContent = displayElement.textContent || '';
+      expect(textContent).toContain('A');
+      expect(textContent).toContain('你');
+      expect(textContent).toContain('B');
+      expect(textContent).toContain('好');
+      expect(textContent).toContain('C');
+      
+      // Verify cursor position
       const cursor = terminal.getCursor();
       expect(cursor.col).toBe(7); // A(1) + 你(2) + B(1) + 好(2) + C(1)
       

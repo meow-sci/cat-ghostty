@@ -35,7 +35,6 @@ export class Renderer {
   private cellCache: Map<string, CachedCell> = new Map();
   private lastCursorPosition: { row: number; col: number; visible: boolean } | null = null;
   private lineElements: Map<number, HTMLElement> = new Map();
-  private cellElements: Map<string, HTMLElement> = new Map();
   private cursorElement: HTMLElement | null = null;
   
   /**
@@ -82,12 +81,9 @@ export class Renderer {
     
     // Use document fragment for batching DOM updates
     const fragment = document.createDocumentFragment();
-    const updatedElements: HTMLElement[] = [];
-    
-    // Track which cells have been updated
-    const updatedCells = new Set<string>();
     
     // Render only dirty rows
+    // With cell batching, we re-render entire lines when they're dirty
     for (const row of dirtyRows) {
       // Skip invalid row indices
       if (row < 0 || row >= config.rows) {
@@ -96,61 +92,22 @@ export class Renderer {
       
       const line = terminal.getLine(row);
       
-      // Get or create line element
-      let lineElement = this.lineElements.get(row);
-      if (!lineElement) {
-        lineElement = this.createLineElement(row);
-        this.lineElements.set(row, lineElement);
-        fragment.appendChild(lineElement);
+      // Remove old line element if it exists
+      const oldLineElement = this.lineElements.get(row);
+      if (oldLineElement) {
+        oldLineElement.remove();
       }
       
-      // Update cells in this line
+      // Render new line with batched cells
+      const lineElement = this.renderLine(line, row);
+      this.lineElements.set(row, lineElement);
+      fragment.appendChild(lineElement);
+      
+      // Update cache for all cells in this line
       for (let col = 0; col < line.cells.length; col++) {
         const cell = line.cells[col];
         const cellKey = `${row},${col}`;
-        
-        // Skip continuation cells (width === 0)
-        if (cell.width === 0) {
-          updatedCells.add(cellKey);
-          continue;
-        }
-        
-        // Check if cell has changed
-        const cachedCell = this.cellCache.get(cellKey);
-        const cellsMatch = cachedCell && this.cellsEqual(cachedCell, cell);
-        
-        if (cellsMatch) {
-          updatedCells.add(cellKey);
-          continue;
-        }
-        
-        // Cell has changed, update it
-        let cellElement = this.cellElements.get(cellKey);
-        if (!cellElement) {
-          cellElement = this.renderCell(cell, col);
-          this.cellElements.set(cellKey, cellElement);
-          lineElement.appendChild(cellElement);
-        } else {
-          // Update existing cell element
-          this.updateCellElement(cellElement, cell);
-        }
-        
-        // Update cache
         this.cellCache.set(cellKey, this.cloneCell(cell));
-        updatedCells.add(cellKey);
-      }
-    }
-    
-    // Remove cells from dirty rows that no longer exist
-    for (const [key, element] of this.cellElements.entries()) {
-      const [rowStr] = key.split(',');
-      const row = parseInt(rowStr, 10);
-      
-      // Only remove cells from dirty rows
-      if (dirtyRows.has(row) && !updatedCells.has(key)) {
-        element.remove();
-        this.cellElements.delete(key);
-        this.cellCache.delete(key);
       }
     }
     
@@ -193,6 +150,23 @@ export class Renderer {
     return (
       a.char === b.char &&
       a.width === b.width &&
+      a.bold === b.bold &&
+      a.italic === b.italic &&
+      a.underline === b.underline &&
+      a.inverse === b.inverse &&
+      a.strikethrough === b.strikethrough &&
+      a.url === b.url &&
+      this.colorsEqual(a.fg, b.fg) &&
+      this.colorsEqual(a.bg, b.bg)
+    );
+  }
+  
+  /**
+   * Checks if two cells have equal styles (ignoring char and width).
+   * Used for cell batching optimization.
+   */
+  private cellStylesEqual(a: Cell, b: Cell): boolean {
+    return (
       a.bold === b.bold &&
       a.italic === b.italic &&
       a.underline === b.underline &&
@@ -267,13 +241,13 @@ export class Renderer {
     this.cellCache.clear();
     this.lastCursorPosition = null;
     this.lineElements.clear();
-    this.cellElements.clear();
     this.cursorElement = null;
     this.displayElement.innerHTML = '';
   }
   
   /**
    * Renders a single line to an HTML element.
+   * Uses cell batching to combine consecutive same-styled cells into single spans.
    * @param line The line to render
    * @param row The row index
    * @returns The HTML element representing the line
@@ -286,17 +260,53 @@ export class Renderer {
     lineElement.style.height = '1em';
     lineElement.style.whiteSpace = 'pre';
     
-    // Render each cell in the line
+    // Batch consecutive cells with identical styling
+    let runStart = 0;
+    let runText = '';
+    let runCell: Cell | null = null;
+    
     for (let col = 0; col < line.cells.length; col++) {
       const cell = line.cells[col];
       
-      // Skip continuation cells (width === 0)
+      // Skip continuation cells (width === 0) but include them in the run
       if (cell.width === 0) {
         continue;
       }
       
-      const cellElement = this.renderCell(cell, col);
-      lineElement.appendChild(cellElement);
+      // Check if this cell can be batched with the current run
+      const canBatch = runCell !== null && this.cellStylesEqual(runCell, cell);
+      
+      if (canBatch) {
+        // Add to current run
+        runText += cell.char || ' ';
+        
+        // Handle wide characters - they occupy 2 positions
+        if (cell.width === 2) {
+          runText += ' '; // Add extra space for wide character
+        }
+      } else {
+        // Style changed or first cell - flush current run
+        if (runCell !== null) {
+          const runSpan = this.createRunSpan(runCell, runStart, runText);
+          lineElement.appendChild(runSpan);
+        }
+        
+        // Start new run
+        runStart = col;
+        runText = cell.char || ' ';
+        runCell = cell;
+        
+        // Handle wide characters
+        if (cell.width === 2) {
+          runText += ' ';
+        }
+      }
+    }
+    
+    // Flush final run
+    if (runCell !== null) {
+      const runSpan = this.createRunSpan(runCell, runStart, runText);
+      lineElement.appendChild(runSpan);
     }
     
     return lineElement;
@@ -315,6 +325,28 @@ export class Renderer {
     
     // Set character content (use space for empty cells)
     span.textContent = cell.char || ' ';
+    
+    // Apply cell styling
+    this.applyStyles(span, cell);
+    
+    return span;
+  }
+  
+  /**
+   * Creates a span element for a run of consecutive same-styled cells.
+   * This is used for cell batching optimization.
+   * @param cell The cell containing the style to apply
+   * @param col The starting column position
+   * @param text The concatenated text from all cells in the run
+   * @returns The HTML element representing the run
+   */
+  private createRunSpan(cell: Cell, col: number, text: string): HTMLElement {
+    const span = document.createElement('span');
+    span.style.position = 'absolute';
+    span.style.left = `${col}ch`;
+    
+    // Set the concatenated text content
+    span.textContent = text;
     
     // Apply cell styling
     this.applyStyles(span, cell);
