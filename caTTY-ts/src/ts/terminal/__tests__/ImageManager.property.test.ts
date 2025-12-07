@@ -51,7 +51,7 @@ describe('ImageManager Property Tests', () => {
           const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
           
           // Store the image
-          manager.storeImage(imageId, mockBitmap, format, width, height);
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
           
           // Retrieve the image
           const retrieved = manager.getImage(imageId);
@@ -95,11 +95,11 @@ describe('ImageManager Property Tests', () => {
           
           // Store first image
           const mockBitmap1 = new (globalThis as any).ImageBitmap(width1, height1);
-          manager.storeImage(imageId, mockBitmap1, format1, width1, height1);
+          manager.storeImage(imageId, mockBitmap1, format1, width1, height1, true);
           
           // Store second image with same ID
           const mockBitmap2 = new (globalThis as any).ImageBitmap(width2, height2);
-          manager.storeImage(imageId, mockBitmap2, format2, width2, height2);
+          manager.storeImage(imageId, mockBitmap2, format2, width2, height2, true);
           
           // Retrieve the image
           const retrieved = manager.getImage(imageId);
@@ -149,7 +149,7 @@ describe('ImageManager Property Tests', () => {
           for (const img of images) {
             const mockBitmap = new (globalThis as any).ImageBitmap(img.width, img.height);
             bitmaps.set(img.id, mockBitmap);
-            manager.storeImage(img.id, mockBitmap, img.format, img.width, img.height);
+            manager.storeImage(img.id, mockBitmap, img.format, img.width, img.height, true);
           }
           
           // Verify all images can be retrieved independently
@@ -432,7 +432,7 @@ describe('ImageManager Property Tests', () => {
           
           // Store the image
           const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
-          manager.storeImage(imageId, mockBitmap, format, width, height);
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
           
           // Create all placements
           const placementIds: number[] = [];
@@ -572,7 +572,7 @@ describe('ImageManager Property Tests', () => {
           // Store other images
           for (let i = 1; i < imageIds.length; i++) {
             const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
-            manager.storeImage(imageIds[i], mockBitmap, format, 100, 100);
+            manager.storeImage(imageIds[i], mockBitmap, format, 100, 100, true);
           }
           
           // Verify other images were stored successfully
@@ -1277,7 +1277,7 @@ describe('ImageManager Property Tests', () => {
           
           // Store the image
           const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
-          manager.storeImage(imageId, mockBitmap, format, width, height);
+          manager.storeImage(imageId, mockBitmap, format, width, height, true);
           
           // Verify image is stored
           expect(manager.getImage(imageId)).toBeDefined();
@@ -1491,7 +1491,7 @@ describe('ImageManager Property Tests', () => {
           for (const img of images) {
             const mockBitmap = new (globalThis as any).ImageBitmap(img.width, img.height);
             bitmaps.set(img.id, mockBitmap);
-            manager.storeImage(img.id, mockBitmap, img.format, img.width, img.height);
+            manager.storeImage(img.id, mockBitmap, img.format, img.width, img.height, true);
           }
           
           // Verify all images are stored
@@ -2141,7 +2141,7 @@ describe('ImageManager Property Tests', () => {
           
           // Store first image
           const mockBitmap1 = new (globalThis as any).ImageBitmap(width1, height1);
-          manager.storeImage(imageId, mockBitmap1, format1, width1, height1);
+          manager.storeImage(imageId, mockBitmap1, format1, width1, height1, true);
           
           // Verify first image is stored
           const retrieved1 = manager.getImage(imageId);
@@ -2153,7 +2153,7 @@ describe('ImageManager Property Tests', () => {
           
           // Store second image with same ID (reuse)
           const mockBitmap2 = new (globalThis as any).ImageBitmap(width2, height2);
-          manager.storeImage(imageId, mockBitmap2, format2, width2, height2);
+          manager.storeImage(imageId, mockBitmap2, format2, width2, height2, true);
           
           // Verify the second image replaced the first
           const retrieved2 = manager.getImage(imageId);
@@ -2279,7 +2279,7 @@ describe('ImageManager Property Tests', () => {
             // Insert explicit ID in the middle if provided
             if (i === Math.floor(numImages / 2) && explicitImageId !== undefined) {
               const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
-              manager.storeImage(explicitImageId, mockBitmap, 'png', 100, 100);
+              manager.storeImage(explicitImageId, mockBitmap, 'png', 100, 100, true);
             }
           }
           

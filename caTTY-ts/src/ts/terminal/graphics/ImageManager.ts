@@ -71,20 +71,23 @@ export class ImageManager {
    * @param format - Image format (png, jpeg, gif)
    * @param width - Image width in pixels
    * @param height - Image height in pixels
+   * @param hasAlpha - Whether the image has an alpha channel (transparency)
    */
   storeImage(
     id: number,
     data: ImageBitmap | HTMLImageElement,
     format: 'png' | 'jpeg' | 'gif',
     width: number,
-    height: number
+    height: number,
+    hasAlpha: boolean = false
   ): void {
     this.images.set(id, {
       id,
       data,
       width,
       height,
-      format
+      format,
+      hasAlpha
     });
     
     // Update next ID counter if this ID is >= current counter

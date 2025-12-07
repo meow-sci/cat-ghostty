@@ -19,7 +19,7 @@ describe('ImageManager', () => {
       // Create a mock ImageBitmap
       const mockBitmap = {} as ImageBitmap;
       
-      manager.storeImage(1, mockBitmap, 'png', 100, 100);
+      manager.storeImage(1, mockBitmap, 'png', 100, 100, true);
       
       const retrieved = manager.getImage(1);
       expect(retrieved).toBeDefined();
@@ -34,8 +34,8 @@ describe('ImageManager', () => {
       const mockBitmap1 = {} as ImageBitmap;
       const mockBitmap2 = {} as ImageBitmap;
       
-      manager.storeImage(1, mockBitmap1, 'png', 100, 100);
-      manager.storeImage(1, mockBitmap2, 'jpeg', 200, 200);
+      manager.storeImage(1, mockBitmap1, 'png', 100, 100, true);
+      manager.storeImage(1, mockBitmap2, 'jpeg', 200, 200, false);
       
       const retrieved = manager.getImage(1);
       expect(retrieved?.data).toBe(mockBitmap2);
@@ -51,7 +51,7 @@ describe('ImageManager', () => {
     it('should delete an image', () => {
       const mockBitmap = {} as ImageBitmap;
       
-      manager.storeImage(1, mockBitmap, 'png', 100, 100);
+      manager.storeImage(1, mockBitmap, 'png', 100, 100, true);
       manager.deleteImage(1);
       
       const retrieved = manager.getImage(1);
@@ -171,7 +171,7 @@ describe('ImageManager', () => {
   describe('Image Deletion with Placements', () => {
     it('should delete all placements when deleting an image', () => {
       const mockBitmap = {} as ImageBitmap;
-      manager.storeImage(1, mockBitmap, 'png', 100, 100);
+      manager.storeImage(1, mockBitmap, 'png', 100, 100, true);
       
       const placement1: ImagePlacement = {
         placementId: 1,
@@ -206,8 +206,8 @@ describe('ImageManager', () => {
       const mockBitmap1 = {} as ImageBitmap;
       const mockBitmap2 = {} as ImageBitmap;
       
-      manager.storeImage(1, mockBitmap1, 'png', 100, 100);
-      manager.storeImage(2, mockBitmap2, 'png', 100, 100);
+      manager.storeImage(1, mockBitmap1, 'png', 100, 100, true);
+      manager.storeImage(2, mockBitmap2, 'png', 100, 100, true);
       
       const placement1: ImagePlacement = {
         placementId: 1,
@@ -445,7 +445,7 @@ describe('ImageManager', () => {
   describe('Clear All', () => {
     it('should clear all data', () => {
       const mockBitmap = {} as ImageBitmap;
-      manager.storeImage(1, mockBitmap, 'png', 100, 100);
+      manager.storeImage(1, mockBitmap, 'png', 100, 100, true);
       
       const placement: ImagePlacement = {
         placementId: 1,

@@ -86,6 +86,12 @@ export class Renderer {
       this.displayElement.appendChild(fragment);
     }
     
+    // Render images if terminal has image support
+    // Images are rendered after text to ensure proper layering
+    if (typeof (terminal as any).getVisibleImagePlacements === 'function') {
+      this.renderImages(terminal);
+    }
+    
     // Update cursor if it has changed
     if (this.cursorHasChanged(cursor)) {
       if (this.cursorElement) {
@@ -211,6 +217,8 @@ export class Renderer {
     this.lastCursorPosition = null;
     this.lineElements.clear();
     this.cursorElement = null;
+    
+    // Clear all rendered content including images
     this.displayElement.innerHTML = '';
   }
   
@@ -510,5 +518,117 @@ export class Renderer {
     }
     
     return cursorElement;
+  }
+
+  /**
+   * Renders all visible image placements.
+   * Images are rendered with proper transparency support and layering.
+   * @param terminal The terminal instance
+   */
+  private renderImages(terminal: any): void {
+    // Get visible image placements
+    const placements = terminal.getVisibleImagePlacements?.() || [];
+    
+    // Remove old image elements
+    const oldImages = this.displayElement.querySelectorAll('.terminal-image');
+    oldImages.forEach(img => img.remove());
+    
+    // Render each placement
+    for (const placement of placements) {
+      const imageElement = this.renderImagePlacement(terminal, placement);
+      if (imageElement) {
+        this.displayElement.appendChild(imageElement);
+      }
+    }
+  }
+
+  /**
+   * Renders a single image placement.
+   * Handles transparency, positioning, sizing, and cropping.
+   * @param terminal The terminal instance
+   * @param placement The image placement configuration
+   * @returns The HTML element representing the image, or null if image not found
+   */
+  private renderImagePlacement(terminal: any, placement: any): HTMLElement | null {
+    // Get the image data
+    const imageManager = (terminal as any).imageManager;
+    if (!imageManager) {
+      return null;
+    }
+    
+    const imageData = imageManager.getImage(placement.imageId);
+    if (!imageData) {
+      return null;
+    }
+    
+    // Create container for the image
+    const container = document.createElement('div');
+    container.className = 'terminal-image';
+    container.style.position = 'absolute';
+    container.style.left = `${placement.col}ch`;
+    container.style.top = `${placement.row}em`;
+    container.style.width = `${placement.width}ch`;
+    container.style.height = `${placement.height}em`;
+    container.style.overflow = 'hidden';
+    container.style.pointerEvents = 'none';
+    
+    // Set z-index for proper layering
+    // Images should be behind text by default, but can be configured
+    const zIndex = placement.zIndex ?? -1;
+    container.style.zIndex = String(zIndex);
+    
+    // Create canvas for rendering the image
+    // Canvas is used to support transparency and cropping
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', {
+      alpha: true, // Enable alpha channel for transparency
+      desynchronized: true // Optimize for performance
+    });
+    
+    if (!ctx) {
+      return null;
+    }
+    
+    // Calculate canvas dimensions based on placement size
+    // Use a reasonable pixel density (assume 10px per character width, 20px per line height)
+    const pixelsPerCh = 10;
+    const pixelsPerEm = 20;
+    canvas.width = placement.width * pixelsPerCh;
+    canvas.height = placement.height * pixelsPerEm;
+    
+    // Set canvas style to fill container
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.imageRendering = 'auto'; // Use browser's best quality
+    
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the image with proper transparency handling
+    try {
+      if (placement.sourceX !== undefined || placement.sourceY !== undefined ||
+          placement.sourceWidth !== undefined || placement.sourceHeight !== undefined) {
+        // Source rectangle cropping is specified
+        const sx = placement.sourceX ?? 0;
+        const sy = placement.sourceY ?? 0;
+        const sw = placement.sourceWidth ?? imageData.width;
+        const sh = placement.sourceHeight ?? imageData.height;
+        
+        ctx.drawImage(
+          imageData.data,
+          sx, sy, sw, sh,
+          0, 0, canvas.width, canvas.height
+        );
+      } else {
+        // No cropping - draw entire image
+        ctx.drawImage(imageData.data, 0, 0, canvas.width, canvas.height);
+      }
+    } catch (error) {
+      console.error('Failed to render image:', error);
+      return null;
+    }
+    
+    container.appendChild(canvas);
+    return container;
   }
 }

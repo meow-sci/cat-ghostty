@@ -294,13 +294,13 @@ export class KittyGraphicsParser {
    * 
    * @param payload - Base64-encoded image data
    * @param format - Image format identifier (100=PNG, 24=RGB, 32=RGBA, etc.)
-   * @returns Promise resolving to decoded ImageBitmap and format
+   * @returns Promise resolving to decoded ImageBitmap, format, and transparency info
    * @throws Error if decoding fails or format is unsupported
    */
   async decodeImageData(
     payload: string,
     format?: string
-  ): Promise<{ bitmap: ImageBitmap; format: 'png' | 'jpeg' | 'gif'; width: number; height: number }> {
+  ): Promise<{ bitmap: ImageBitmap; format: 'png' | 'jpeg' | 'gif'; width: number; height: number; hasAlpha: boolean }> {
     try {
       // Validate payload is not empty
       if (!payload || payload.length === 0) {
@@ -346,13 +346,22 @@ export class KittyGraphicsParser {
       const blob = new Blob([bytes], { type: mimeType });
 
       // Decode to ImageBitmap for efficient rendering
-      const bitmap = await createImageBitmap(blob);
+      // Use premultiplyAlpha: 'none' to preserve alpha channel exactly as encoded
+      const bitmap = await createImageBitmap(blob, {
+        premultiplyAlpha: 'none',
+        colorSpaceConversion: 'none'
+      });
+
+      // Detect if image has alpha channel
+      // PNG and GIF can have transparency, JPEG cannot
+      const hasAlpha = this.detectAlphaChannel(detectedFormat, bytes);
 
       return {
         bitmap,
         format: detectedFormat,
         width: bitmap.width,
-        height: bitmap.height
+        height: bitmap.height,
+        hasAlpha
       };
     } catch (error) {
       // Provide more context in error message
@@ -409,6 +418,94 @@ export class KittyGraphicsParser {
         return 'image/jpeg';
       case 'gif':
         return 'image/gif';
+    }
+  }
+
+  /**
+   * Detect if an image has an alpha channel (transparency).
+   * 
+   * @param format - Image format
+   * @param bytes - Raw image data
+   * @returns true if image has alpha channel, false otherwise
+   */
+  private detectAlphaChannel(format: 'png' | 'jpeg' | 'gif', bytes: Uint8Array): boolean {
+    switch (format) {
+      case 'jpeg':
+        // JPEG format does not support transparency
+        return false;
+      
+      case 'gif':
+        // GIF can have transparency via transparent color index
+        // Check for Graphic Control Extension (0x21 0xF9)
+        // This is a simplified check - GIF transparency is complex
+        for (let i = 0; i < bytes.length - 1; i++) {
+          if (bytes[i] === 0x21 && bytes[i + 1] === 0xF9) {
+            // Found Graphic Control Extension
+            // Check if transparent color flag is set (bit 0 of packed field)
+            if (i + 3 < bytes.length) {
+              const packedField = bytes[i + 3];
+              const hasTransparentColor = (packedField & 0x01) !== 0;
+              if (hasTransparentColor) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      
+      case 'png':
+        // PNG can have alpha channel in several ways:
+        // 1. Color type 4 (Grayscale with alpha) or 6 (Truecolor with alpha)
+        // 2. tRNS chunk for indexed color or grayscale
+        
+        // PNG structure: 8-byte signature, then chunks
+        // IHDR chunk is always first after signature
+        // IHDR format: length(4) + "IHDR"(4) + width(4) + height(4) + bit_depth(1) + color_type(1) + ...
+        
+        if (bytes.length < 25) {
+          // Not enough data for PNG header
+          return false;
+        }
+        
+        // Skip 8-byte PNG signature
+        let offset = 8;
+        
+        // Read IHDR chunk
+        // Skip length (4 bytes)
+        offset += 4;
+        
+        // Verify this is IHDR chunk
+        const chunkType = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+        if (chunkType !== 'IHDR') {
+          // Malformed PNG
+          return false;
+        }
+        offset += 4;
+        
+        // Skip width (4 bytes) and height (4 bytes)
+        offset += 8;
+        
+        // Skip bit depth (1 byte)
+        offset += 1;
+        
+        // Read color type (1 byte)
+        const colorType = bytes[offset];
+        
+        // Color type 4 (Grayscale with alpha) or 6 (Truecolor with alpha) have alpha channel
+        if (colorType === 4 || colorType === 6) {
+          return true;
+        }
+        
+        // For other color types, check for tRNS chunk
+        // This is a simplified check - we'd need to parse all chunks to be thorough
+        // For now, assume color types 0, 2, 3 without tRNS are opaque
+        // A more complete implementation would scan for tRNS chunk
+        
+        return false;
+      
+      default:
+        // Unknown format - assume opaque
+        return false;
     }
   }
 

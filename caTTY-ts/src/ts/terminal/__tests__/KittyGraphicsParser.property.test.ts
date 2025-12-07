@@ -22,7 +22,7 @@ describe('KittyGraphicsParser Property Tests', () => {
     }
     
     if (!globalThis.createImageBitmap) {
-      globalThis.createImageBitmap = async (blob: Blob): Promise<ImageBitmap> => {
+      (globalThis as any).createImageBitmap = async (image: ImageBitmapSource, options?: ImageBitmapOptions): Promise<ImageBitmap> => {
         // Create a mock ImageBitmap instance with actual dimensions from the blob
         const mockBitmap = new (globalThis as any).ImageBitmap();
         // For testing purposes, we'll just use 1x1 dimensions

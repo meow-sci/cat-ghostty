@@ -186,6 +186,9 @@ export interface ImageData {
   
   /** Image format */
   format: 'png' | 'jpeg' | 'gif';
+  
+  /** Whether the image has an alpha channel (transparency) */
+  hasAlpha: boolean;
 }
 
 /**

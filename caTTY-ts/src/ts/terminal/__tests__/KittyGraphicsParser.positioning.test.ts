@@ -248,6 +248,7 @@ describe('KittyGraphicsParser Positioning Tests', () => {
             width: imageWidth,
             height: imageHeight,
             format: 'png',
+            hasAlpha: true,
           };
           
           // Create params without dimensions
@@ -306,6 +307,7 @@ describe('KittyGraphicsParser Positioning Tests', () => {
             width: imageWidth,
             height: imageHeight,
             format: 'png',
+            hasAlpha: true,
           };
           
           // Create params without dimensions
@@ -514,6 +516,7 @@ describe('KittyGraphicsParser Positioning Tests', () => {
             width: config.imageWidth,
             height: config.imageHeight,
             format: 'png',
+            hasAlpha: true,
           };
           
           // Create params

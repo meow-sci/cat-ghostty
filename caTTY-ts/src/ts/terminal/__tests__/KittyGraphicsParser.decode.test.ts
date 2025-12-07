@@ -21,7 +21,7 @@ describe('KittyGraphicsParser Image Decoding', () => {
     }
     
     if (!globalThis.createImageBitmap) {
-      globalThis.createImageBitmap = async (blob: Blob): Promise<ImageBitmap> => {
+      (globalThis as any).createImageBitmap = async (image: ImageBitmapSource, options?: ImageBitmapOptions): Promise<ImageBitmap> => {
         // Create a mock ImageBitmap instance
         return new (globalThis as any).ImageBitmap();
       };

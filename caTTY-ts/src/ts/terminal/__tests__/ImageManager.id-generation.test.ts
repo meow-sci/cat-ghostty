@@ -60,7 +60,7 @@ describe('ImageManager ID Generation', () => {
     
     // Store an image with explicit ID 100
     const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
-    manager.storeImage(100, mockBitmap, 'png', 100, 100);
+    manager.storeImage(100, mockBitmap, 'png', 100, 100, true);
     
     // Next generated ID should be 101
     expect(manager.generateImageId()).toBe(101);
@@ -98,7 +98,7 @@ describe('ImageManager ID Generation', () => {
     
     // Store an image with ID 5 (less than current counter of 11)
     const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
-    manager.storeImage(5, mockBitmap, 'png', 100, 100);
+    manager.storeImage(5, mockBitmap, 'png', 100, 100, true);
     
     // Next generated ID should still be 11
     expect(manager.generateImageId()).toBe(11);
@@ -134,11 +134,11 @@ describe('ImageManager ID Generation', () => {
     const mockBitmap2 = new (globalThis as any).ImageBitmap(200, 200);
     
     // Store image with ID 50
-    manager.storeImage(50, mockBitmap1, 'png', 100, 100);
+    manager.storeImage(50, mockBitmap1, 'png', 100, 100, true);
     expect(manager.generateImageId()).toBe(51);
     
     // Reuse ID 50 with different image data
-    manager.storeImage(50, mockBitmap2, 'png', 200, 200);
+    manager.storeImage(50, mockBitmap2, 'png', 200, 200, true);
     
     // Counter should still be 51 (not affected by reuse)
     expect(manager.generateImageId()).toBe(52);
@@ -198,7 +198,7 @@ describe('ImageManager ID Generation', () => {
     
     // Store image with high ID
     const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
-    manager.storeImage(100, mockBitmap, 'png', 100, 100);
+    manager.storeImage(100, mockBitmap, 'png', 100, 100, true);
     
     // Image counter should be updated, but placement counter should not
     expect(manager.generateImageId()).toBe(101);
