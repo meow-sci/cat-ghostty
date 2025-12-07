@@ -735,11 +735,235 @@
     - Document how caTTY-ts connects to this backend
     - _Requirements: 22.1_
 
-- [ ] 16. Final checkpoint - Ensure all tests pass
+- [ ] 16. Implement Kitty Graphics Protocol support
+  - [ ] 16.1 Create image data structures and types
+    - Create ImageData interface with id, data (ImageBitmap), width, height, format
+    - Create ImagePlacement interface with placementId, imageId, position, dimensions, source rectangle, zIndex, unicodePlaceholder
+    - Create TransmissionState interface for tracking chunked transmissions
+    - Create GraphicsParams interface for parsed graphics command parameters
+    - _Requirements: 26.1, 26.3, 26.4, 26.5_
+  
+  - [ ] 16.2 Implement KittyGraphicsParser class
+    - Create KittyGraphicsParser class that parses ESC_G sequences
+    - Implement parseGraphicsCommand() to extract action and parameters
+    - Implement handleTransmission() for image data transmission commands
+    - Implement handleDisplay() for image placement commands
+    - Implement handleDelete() for image deletion commands
+    - Parse all graphics parameters (action, imageId, placementId, format, dimensions, etc.)
+    - _Requirements: 26.1_
+  
+  - [ ] 16.3 Write property test for graphics command parsing
+    - **Property 75: Graphics command parsing**
+    - **Validates: Requirements 26.1**
+  
+  - [ ] 16.4 Implement image decoding
+    - Implement decodeImageData() method to decode base64 image data
+    - Support PNG, JPEG, and GIF formats
+    - Convert decoded data to ImageBitmap for efficient rendering
+    - Handle decoding errors gracefully
+    - _Requirements: 26.2, 30.1, 30.2, 30.3_
+  
+  - [ ] 16.5 Write property test for image decoding
+    - **Property 76: Image data decoding**
+    - **Validates: Requirements 26.2, 30.1, 30.2, 30.3**
+  
+  - [ ] 16.6 Implement ImageManager class
+    - Create ImageManager class with image and placement storage
+    - Implement storeImage() to store decoded images by ID
+    - Implement getImage() and deleteImage() methods
+    - Implement createPlacement() to create image placements
+    - Implement getPlacement() and deletePlacement() methods
+    - Track active placements (visible on screen) separately from scrollback placements
+    - _Requirements: 26.3, 26.4, 29.1, 29.2, 29.3, 34.1, 34.2_
+  
+  - [ ] 16.7 Write property tests for image storage
+    - **Property 77: Image storage with ID**
+    - **Property 78: Placement creation at cursor**
+    - **Validates: Requirements 26.3, 26.4, 26.5, 34.1**
+  
+  - [ ] 16.8 Implement chunked transmission support
+    - Implement startTransmission() to begin chunked transmission
+    - Implement addChunk() to accumulate image data chunks
+    - Implement completeTransmission() to finalize and decode image
+    - Implement cancelTransmission() for error handling
+    - Track multiple concurrent transmissions independently
+    - _Requirements: 31.1, 31.2, 31.3, 31.4, 31.5_
+  
+  - [ ] 16.9 Write property tests for chunked transmission
+    - **Property 96: Chunked transmission accumulation**
+    - **Property 97: Non-blocking chunked transmission**
+    - **Property 98: Transmission completion finalization**
+    - **Property 99: Transmission failure cleanup**
+    - **Property 100: Concurrent transmission independence**
+    - **Validates: Requirements 31.1, 31.2, 31.3, 31.4, 31.5**
+  
+  - [ ] 16.10 Implement image placement positioning
+    - Implement grid coordinate positioning (row/col)
+    - Implement pixel to cell dimension conversion
+    - Implement source rectangle cropping logic
+    - Implement native dimension fallback
+    - Implement screen boundary clipping
+    - _Requirements: 27.1, 27.2, 27.3, 27.4, 27.5_
+  
+  - [ ] 16.11 Write property tests for positioning
+    - **Property 79: Grid coordinate positioning**
+    - **Property 80: Pixel to cell conversion**
+    - **Property 81: Source rectangle cropping**
+    - **Property 82: Native dimension fallback**
+    - **Property 83: Screen boundary clipping**
+    - **Validates: Requirements 27.1, 27.2, 27.3, 27.4, 27.5**
+  
+  - [ ] 16.12 Implement image scrolling behavior
+    - Implement handleScroll() in ImageManager to move placements with content
+    - Move placements to scrollback buffer when scrolling off top
+    - Remove placements when scrolling off bottom (reverse scroll)
+    - Prevent scrollback preservation in alternate screen mode
+    - _Requirements: 28.1, 28.2, 28.3, 28.4, 28.5_
+  
+  - [ ] 16.13 Write property tests for scrolling
+    - **Property 84: Image scrolling with content**
+    - **Property 85: Scrollback buffer image preservation**
+    - **Property 86: Reverse scroll image removal**
+    - **Property 87: Scrollback image display**
+    - **Property 88: Alternate screen no image scrollback**
+    - **Validates: Requirements 28.1, 28.2, 28.3, 28.4, 28.5**
+  
+  - [ ] 16.14 Implement image deletion operations
+    - Implement deletion by image ID (removes all placements)
+    - Implement deletion by placement ID (removes single placement)
+    - Implement delete all visible placements
+    - Free image data from memory when deleted
+    - Update display when placements are removed
+    - _Requirements: 29.1, 29.2, 29.3, 29.4, 29.5_
+  
+  - [ ] 16.15 Write property tests for deletion
+    - **Property 89: Image deletion by image ID**
+    - **Property 90: Placement deletion by placement ID**
+    - **Property 91: Delete all visible placements**
+    - **Property 92: Image data memory cleanup**
+    - **Property 93: Display update on placement deletion**
+    - **Validates: Requirements 29.1, 29.2, 29.3, 29.4, 29.5**
+  
+  - [ ] 16.16 Implement terminal operation integration
+    - Implement handleClear() to remove images in cleared regions
+    - Remove images on line erase operations
+    - Shift images on line insertion/deletion
+    - Reposition images on terminal resize
+    - _Requirements: 33.1, 33.2, 33.3, 33.4, 33.5_
+  
+  - [ ] 16.17 Write property tests for terminal operations
+    - **Property 106: Clear screen removes images**
+    - **Property 107: Line erase removes images**
+    - **Property 108: Line insertion shifts images**
+    - **Property 109: Line deletion shifts images**
+    - **Property 110: Resize repositions images**
+    - **Validates: Requirements 33.1, 33.2, 33.3, 33.4, 33.5**
+  
+  - [ ] 16.18 Implement ID management
+    - Handle image ID reuse (replace previous data)
+    - Handle placement ID reuse (replace previous placement)
+    - Implement automatic ID generation when not specified
+    - _Requirements: 34.3, 34.4, 34.5_
+  
+  - [ ] 16.19 Write property tests for ID management
+    - **Property 111: Image ID reuse replaces data**
+    - **Property 112: Placement ID reuse replaces placement**
+    - **Property 113: Automatic ID generation**
+    - **Validates: Requirements 34.3, 34.4, 34.5**
+  
+  - [ ] 16.20 Implement transparency support
+    - Preserve alpha channel in images
+    - Handle images without alpha channel as opaque
+    - Ensure proper layering with text content
+    - Update transparent images when background color changes
+    - _Requirements: 35.1, 35.2, 35.3, 35.4, 35.5_
+  
+  - [ ] 16.21 Write property tests for transparency
+    - **Property 114: Alpha channel preservation**
+    - **Property 115: Transparent pixel rendering**
+    - **Property 116: Opaque image handling**
+    - **Property 117: Image text layering**
+    - **Property 118: Background color change updates transparency**
+    - **Validates: Requirements 35.1, 35.2, 35.3, 35.4, 35.5**
+  
+  - [ ] 16.22 Implement Unicode placeholder support
+    - Write placeholder character to grid when placement created
+    - Create bidirectional association between cell and placement
+    - Remove placement when placeholder is erased
+    - Move placement when placeholder scrolls
+    - Remove placement when placeholder is overwritten
+    - _Requirements: 36.1, 36.2, 36.3, 36.4, 36.5_
+  
+  - [ ] 16.23 Write property tests for Unicode placeholders
+    - **Property 119: Unicode placeholder association**
+    - **Property 120: Placeholder erase removes image**
+    - **Property 121: Placeholder scroll moves image**
+    - **Property 122: Placeholder overwrite removes image**
+    - **Validates: Requirements 36.1, 36.2, 36.3, 36.4, 36.5**
+  
+  - [ ] 16.24 Integrate graphics parser with terminal
+    - Add KittyGraphicsParser instance to Terminal class
+    - Route ESC_G sequences to graphics parser
+    - Connect parser to ImageManager
+    - Emit events for image-related actions
+    - _Requirements: 26.1_
+  
+  - [ ] 16.25 Update Renderer for image display
+    - Implement renderImages() method to render all visible placements
+    - Implement renderImagePlacement() to create image elements
+    - Position image elements at correct grid coordinates
+    - Size image elements according to placement dimensions
+    - Apply CSS clipping for source rectangles
+    - Remove image elements when placements are deleted
+    - _Requirements: 32.1, 32.2, 32.3, 32.4, 32.5_
+  
+  - [ ] 16.26 Write property tests for image rendering
+    - **Property 101: Image element creation for placements**
+    - **Property 102: Image element positioning**
+    - **Property 103: Image element sizing**
+    - **Property 104: CSS clipping for source rectangle**
+    - **Property 105: Image element removal**
+    - **Validates: Requirements 32.1, 32.2, 32.3, 32.4, 32.5**
+  
+  - [ ] 16.27 Implement animated GIF support
+    - Ensure ImageBitmap or img element preserves animation
+    - Test that animated GIFs play correctly
+    - _Requirements: 30.4_
+  
+  - [ ] 16.28 Write property test for animated GIFs
+    - **Property 94: Animated GIF support**
+    - **Validates: Requirements 30.4**
+  
+  - [ ] 16.29 Implement error handling for images
+    - Handle unsupported image formats with error event
+    - Handle decoding failures gracefully
+    - Handle invalid graphics commands without crashing
+    - Log errors for debugging
+    - _Requirements: 30.5_
+  
+  - [ ] 16.30 Write property test for error handling
+    - **Property 95: Unsupported format error handling**
+    - **Validates: Requirements 30.5**
+  
+  - [ ] 16.31 Add Terminal API methods for images
+    - Implement getVisibleImagePlacements() method
+    - Implement getScrollbackImagePlacements() method
+    - Update dispose() to clean up image resources
+    - _Requirements: 18.5, 26.4_
+  
+  - [ ] 16.32 Write integration tests for Kitty Graphics Protocol
+    - Test complete image transmission and display workflow
+    - Test image scrolling through scrollback
+    - Test image deletion and cleanup
+    - Test Unicode placeholder integration
+    - Test interaction with terminal operations (clear, resize, etc.)
+    - _Requirements: 26.1-36.5_
+
+- [ ] 17. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 17. Performance Optimizations
-  - [x] 17.1 Implement dirty row tracking (HIGHEST PRIORITY)
+- [ ] 18. Performance Optimizations
+  - [x] 18.1 Implement dirty row tracking (HIGHEST PRIORITY)
     - **Impact:** Massive (20-50x faster for typical terminal usage)
     - **Effort:** Low
     - **Problem:** Currently, every state change triggers a full screen render of all 1,920 cells (80×24), even when only 1-2 rows changed
@@ -772,7 +996,7 @@
     - **Property 75: Dirty row tracking correctness**
     - **Validates: Performance requirement - minimize unnecessary rendering**
   
-  - [x] 17.2 Implement cell batching for consecutive same-styled cells (HIGH PRIORITY)
+  - [x] 18.2 Implement cell batching for consecutive same-styled cells (HIGH PRIORITY)
     - **Impact:** High (70-90% reduction in DOM elements, 2-3x faster rendering)
     - **Effort:** Medium
     - **Problem:** Each character is rendered as an individual `<span>` element with absolute positioning. For 80×24 terminal = 1,920 DOM elements
@@ -814,7 +1038,7 @@
     - **Property 77: Cell batching preserves visual output**
     - **Validates: Performance requirement - minimize DOM element count**
   
-  - [ ] 17.3 Optimize cursor rendering (MEDIUM PRIORITY)
+  - [ ] 18.3 Optimize cursor rendering (MEDIUM PRIORITY)
     - **Impact:** Medium (eliminates unnecessary DOM thrashing on every render)
     - **Effort:** Very Low
     - **Problem:** Cursor element is removed and recreated on every render, even when it hasn't moved
@@ -840,7 +1064,7 @@
     - **Property 78: Cursor element reuse**
     - **Validates: Performance requirement - minimize DOM manipulation**
   
-  - [ ] 17.4 Implement conditional style application (MEDIUM PRIORITY)
+  - [ ] 18.4 Implement conditional style application (MEDIUM PRIORITY)
     - **Impact:** Medium (reduces browser style recalculation overhead)
     - **Effort:** Low
     - **Problem:** `applyStyles()` resets ALL styles first, then reapplies them, forcing browser recalculation even when nothing changed
@@ -872,7 +1096,7 @@
     - **Property 79: Conditional style application correctness**
     - **Validates: Performance requirement - minimize style recalculation**
   
-  - [ ] 17.5 Add performance monitoring and metrics (LOW PRIORITY)
+  - [ ] 18.5 Add performance monitoring and metrics (LOW PRIORITY)
     - **Impact:** Low (enables measurement and future optimization)
     - **Effort:** Low
     - **Problem:** No visibility into actual performance characteristics
@@ -905,7 +1129,7 @@
     - **Property 80: Performance metrics accuracy**
     - **Validates: Performance requirement - measurable performance characteristics**
   
-  - [ ] 17.6 Write comprehensive performance benchmarks
+  - [ ] 18.6 Write comprehensive performance benchmarks
     - **Impact:** Low (validation and regression prevention)
     - **Effort:** Medium
     - **Problem:** No automated way to detect performance regressions

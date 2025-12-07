@@ -23,6 +23,13 @@ This document specifies the requirements for a headless terminal emulator implem
 - **PTY (Pseudo-Terminal)**: A pair of virtual devices that provide bidirectional communication between a terminal emulator and a shell process
 - **WebSocket**: A protocol providing full-duplex communication channels over a single TCP connection
 - **Backend Server**: A Node.js server that manages PTY processes and WebSocket connections
+- **Kitty Graphics Protocol**: A terminal graphics protocol for displaying images inline in the terminal
+- **Graphics Command**: An escape sequence starting with ESC_G that encodes image data and display parameters
+- **Transmission Medium**: The method used to transfer image data (direct, file, temporary file, shared memory)
+- **Image Placement**: The positioning and sizing of an image within the terminal grid
+- **Image ID**: A unique identifier for an image that allows referencing and manipulation
+- **Placement ID**: A unique identifier for a specific placement of an image on screen
+- **Virtual Placement**: An image placement that exists in the scrollback buffer or alternate screen
 
 ## Requirements
 
@@ -336,3 +343,135 @@ This document specifies the requirements for a headless terminal emulator implem
 3. WHEN the user types commands THEN the commands SHALL be executed in the real shell via the PTY process
 4. WHEN the shell outputs data THEN the data SHALL be displayed in the terminal emulator with correct formatting
 5. WHEN the WebSocket connection fails THEN the terminal SHALL display an error message and optionally fall back to SampleShell
+
+### Requirement 26
+
+**User Story:** As a terminal user, I want to display images inline in the terminal, so that I can view graphics output from applications.
+
+#### Acceptance Criteria
+
+1. WHEN a Kitty graphics command is received THEN the Terminal Emulator SHALL parse the escape sequence and extract the action and payload
+2. WHEN an image transmission command is received THEN the Terminal Emulator SHALL decode the base64-encoded image data
+3. WHEN image data transmission is complete THEN the Terminal Emulator SHALL store the image data associated with its image ID
+4. WHEN a display command is received THEN the Terminal Emulator SHALL create an image placement at the specified position
+5. WHEN an image is placed THEN the Terminal Emulator SHALL associate the placement with the current cursor position and cell dimensions
+
+### Requirement 27
+
+**User Story:** As a terminal user, I want images to be positioned correctly in the terminal grid, so that they appear where applications intend them.
+
+#### Acceptance Criteria
+
+1. WHEN an image placement specifies rows and columns THEN the Terminal Emulator SHALL position the image at those grid coordinates
+2. WHEN an image placement specifies pixel dimensions THEN the Terminal Emulator SHALL convert pixels to cell dimensions based on cell size
+3. WHEN an image placement specifies source rectangle THEN the Terminal Emulator SHALL crop the image to that region before display
+4. WHEN an image placement does not specify dimensions THEN the Terminal Emulator SHALL use the image's native dimensions
+5. WHEN an image placement extends beyond the screen THEN the Terminal Emulator SHALL clip the image at the screen boundaries
+
+### Requirement 28
+
+**User Story:** As a terminal user, I want images to scroll with terminal content, so that they remain associated with their context.
+
+#### Acceptance Criteria
+
+1. WHEN content scrolls and an image placement is in the scrolled region THEN the Terminal Emulator SHALL move the placement with the scrolled content
+2. WHEN an image placement scrolls off the top of the screen THEN the Terminal Emulator SHALL move it to the scrollback buffer
+3. WHEN an image placement scrolls off the bottom during reverse scroll THEN the Terminal Emulator SHALL remove the placement
+4. WHEN the terminal is scrolled to view scrollback THEN the Terminal Emulator SHALL display image placements in the scrollback buffer
+5. WHILE in alternate screen mode, WHEN content scrolls THEN the Terminal Emulator SHALL not preserve image placements in scrollback
+
+### Requirement 29
+
+**User Story:** As a terminal user, I want to manage displayed images, so that I can control what graphics are shown.
+
+#### Acceptance Criteria
+
+1. WHEN a delete command with image ID is received THEN the Terminal Emulator SHALL remove all placements of that image
+2. WHEN a delete command with placement ID is received THEN the Terminal Emulator SHALL remove only that specific placement
+3. WHEN a delete command with no IDs is received THEN the Terminal Emulator SHALL remove all visible image placements
+4. WHEN an image is deleted THEN the Terminal Emulator SHALL free the associated image data from memory
+5. WHEN a placement is deleted THEN the Terminal Emulator SHALL update the display to remove the image
+
+### Requirement 30
+
+**User Story:** As a terminal user, I want images to support various formats, so that I can display different types of graphics.
+
+#### Acceptance Criteria
+
+1. WHEN a PNG image is transmitted THEN the Terminal Emulator SHALL decode and display the image
+2. WHEN a JPEG image is transmitted THEN the Terminal Emulator SHALL decode and display the image
+3. WHEN a GIF image is transmitted THEN the Terminal Emulator SHALL decode and display the image
+4. WHEN an animated GIF is transmitted THEN the Terminal Emulator SHALL display the animation
+5. WHEN an unsupported format is transmitted THEN the Terminal Emulator SHALL emit an error event and ignore the image
+
+### Requirement 31
+
+**User Story:** As a terminal user, I want images to be transmitted efficiently, so that large images don't block terminal output.
+
+#### Acceptance Criteria
+
+1. WHEN image data is transmitted in chunks THEN the Terminal Emulator SHALL accumulate chunks until transmission is complete
+2. WHEN a chunked transmission is in progress THEN the Terminal Emulator SHALL continue processing other terminal output
+3. WHEN a transmission is marked as complete THEN the Terminal Emulator SHALL finalize the image and make it available for placement
+4. WHEN a transmission fails THEN the Terminal Emulator SHALL discard partial data and emit an error event
+5. WHEN multiple images are transmitted concurrently THEN the Terminal Emulator SHALL handle each transmission independently
+
+### Requirement 32
+
+**User Story:** As a web developer, I want the renderer to display images at their placements, so that users can see the graphics.
+
+#### Acceptance Criteria
+
+1. WHEN rendering the terminal THEN the Renderer SHALL create image elements for all visible placements
+2. WHEN rendering an image placement THEN the Renderer SHALL position the image element at the correct grid coordinates
+3. WHEN rendering an image placement THEN the Renderer SHALL size the image element according to the placement dimensions
+4. WHEN an image placement has a source rectangle THEN the Renderer SHALL apply CSS clipping to show only that region
+5. WHEN an image placement is removed THEN the Renderer SHALL remove the corresponding image element from the DOM
+
+### Requirement 33
+
+**User Story:** As a terminal user, I want images to respect terminal operations, so that they behave consistently with text content.
+
+#### Acceptance Criteria
+
+1. WHEN the screen is cleared THEN the Terminal Emulator SHALL remove all image placements in the cleared region
+2. WHEN a line is erased THEN the Terminal Emulator SHALL remove image placements on that line
+3. WHEN lines are inserted THEN the Terminal Emulator SHALL shift image placements down accordingly
+4. WHEN lines are deleted THEN the Terminal Emulator SHALL shift image placements up and remove those in deleted lines
+5. WHEN the terminal is resized THEN the Terminal Emulator SHALL reposition image placements based on new cell dimensions
+
+### Requirement 34
+
+**User Story:** As a terminal user, I want image placements to have unique identifiers, so that I can reference and manipulate specific images.
+
+#### Acceptance Criteria
+
+1. WHEN an image is transmitted with an ID THEN the Terminal Emulator SHALL store the image data with that ID
+2. WHEN a placement is created with a placement ID THEN the Terminal Emulator SHALL associate that ID with the placement
+3. WHEN an image ID is reused THEN the Terminal Emulator SHALL replace the previous image data with the new data
+4. WHEN a placement ID is reused THEN the Terminal Emulator SHALL replace the previous placement with the new placement
+5. WHEN no ID is specified THEN the Terminal Emulator SHALL generate a unique ID automatically
+
+### Requirement 35
+
+**User Story:** As a terminal user, I want images to support transparency, so that they blend correctly with the terminal background.
+
+#### Acceptance Criteria
+
+1. WHEN an image with alpha channel is displayed THEN the Terminal Emulator SHALL preserve the transparency
+2. WHEN rendering a transparent image THEN the Renderer SHALL allow the terminal background to show through transparent pixels
+3. WHEN an image has no alpha channel THEN the Terminal Emulator SHALL treat it as fully opaque
+4. WHEN a transparent image overlaps text THEN the Renderer SHALL layer the image appropriately
+5. WHEN the terminal background color changes THEN the Renderer SHALL update the appearance of transparent images
+
+### Requirement 36
+
+**User Story:** As a terminal user, I want images to support Unicode placeholders, so that text-mode applications can reserve space for images.
+
+#### Acceptance Criteria
+
+1. WHEN an image placement is created with Unicode placeholder THEN the Terminal Emulator SHALL write the placeholder character to the grid
+2. WHEN a Unicode placeholder is written THEN the Terminal Emulator SHALL associate it with the image placement
+3. WHEN the placeholder character is erased THEN the Terminal Emulator SHALL remove the associated image placement
+4. WHEN the placeholder character scrolls THEN the Terminal Emulator SHALL move the image placement with it
+5. WHEN text overwrites a placeholder THEN the Terminal Emulator SHALL remove the associated image placement

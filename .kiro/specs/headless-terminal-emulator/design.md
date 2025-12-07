@@ -4,7 +4,7 @@
 
 This design document describes a headless terminal emulator implementation in TypeScript that integrates with the libghostty-vt WASM library. The architecture follows a strict MVC pattern where the Model (terminal emulator core) is completely headless and framework-agnostic, the Controller handles DOM events and coordinates data flow, and the View renders the terminal state to HTML.
 
-The terminal emulator will provide VT100/xterm-compatible terminal emulation, supporting standard escape sequences, cursor control, screen manipulation, text attributes, and advanced features like alternate screen buffers and scrollback.
+The terminal emulator will provide VT100/xterm-compatible terminal emulation, supporting standard escape sequences, cursor control, screen manipulation, text attributes, and advanced features like alternate screen buffers and scrollback. Additionally, the terminal supports the Kitty Graphics Protocol for displaying inline images with features including multiple image formats, transparency, scrolling, and Unicode placeholder integration.
 
 ## Architecture
 
@@ -36,6 +36,10 @@ The terminal emulator will provide VT100/xterm-compatible terminal emulation, su
 │  │  │  ┌────────────┐  ┌──────────────┐          ││  │
 │  │  │  │   Cursor   │  │  Scrollback  │          ││  │
 │  │  │  │   State    │  │    Buffer    │          ││  │
+│  │  │  └────────────┘  └──────────────┘          ││  │
+│  │  │  ┌────────────┐  ┌──────────────┐          ││  │
+│  │  │  │   Image    │  │   Graphics   │          ││  │
+│  │  │  │  Manager   │  │    Parser    │          ││  │
 │  │  │  └────────────┘  └──────────────┘          ││  │
 │  │  └──────────────────────────────────────────────┘│  │
 │  │                                                   │  │
@@ -222,6 +226,10 @@ class Terminal {
   // Resize
   resize(cols: number, rows: number): void;
   
+  // Image management
+  getVisibleImagePlacements(): ImagePlacement[];
+  getScrollbackImagePlacements(): ImagePlacement[];
+  
   // Cleanup
   dispose(): void;
 }
@@ -338,6 +346,8 @@ class Renderer {
   private renderCell(cell: Cell, col: number): HTMLElement;
   private renderCursor(cursor: CursorState): HTMLElement;
   private applyStyles(element: HTMLElement, cell: Cell): void;
+  private renderImages(placements: ImagePlacement[]): void;
+  private renderImagePlacement(placement: ImagePlacement): HTMLElement;
 }
 ```
 
@@ -467,6 +477,17 @@ The controller maintains connection state for backend integration:
 4. **Reconnection Strategy**: Optional automatic reconnection logic
 5. **Fallback Mode**: Whether to fall back to SampleShell on connection failure
 
+### Image Management State
+
+The terminal maintains state for Kitty Graphics Protocol support:
+
+1. **Image Store**: Map of image ID to decoded image data (as ImageBitmap or similar)
+2. **Placement Store**: Map of placement ID to ImagePlacement objects
+3. **Active Placements**: List of placements currently visible on screen
+4. **Scrollback Placements**: List of placements in scrollback buffer
+5. **Transmission State**: Tracking for chunked image transmissions in progress
+6. **Cell Associations**: Mapping between grid cells and image placements (for Unicode placeholders)
+
 ### Buffer Management
 
 The terminal uses a circular buffer for scrollback to efficiently manage memory:
@@ -505,6 +526,115 @@ class AlternateScreenManager {
   getCurrentBuffer(): ScreenBuffer;
 }
 ```
+
+### Kitty Graphics Protocol
+
+The terminal supports inline image display via the Kitty Graphics Protocol.
+
+#### Image Data Structures
+
+```typescript
+interface ImageData {
+  id: number;
+  data: ImageBitmap | HTMLImageElement;
+  width: number;
+  height: number;
+  format: 'png' | 'jpeg' | 'gif';
+}
+
+interface ImagePlacement {
+  placementId: number;
+  imageId: number;
+  row: number;
+  col: number;
+  width: number;   // in cells
+  height: number;  // in cells
+  sourceX?: number;
+  sourceY?: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
+  zIndex?: number;
+  unicodePlaceholder?: string;
+}
+
+interface TransmissionState {
+  imageId: number;
+  chunks: Uint8Array[];
+  format: string;
+  expectedSize?: number;
+  complete: boolean;
+}
+```
+
+#### Graphics Parser
+
+```typescript
+class KittyGraphicsParser {
+  constructor(terminal: Terminal);
+  
+  parseGraphicsCommand(sequence: string): void;
+  
+  private handleTransmission(params: GraphicsParams, payload: string): void;
+  private handleDisplay(params: GraphicsParams): void;
+  private handleDelete(params: GraphicsParams): void;
+  private decodeImageData(payload: string, format: string): Promise<ImageBitmap>;
+  private createPlacement(params: GraphicsParams): ImagePlacement;
+}
+
+interface GraphicsParams {
+  action: 't' | 'd' | 'D';  // transmit, display, delete
+  imageId?: number;
+  placementId?: number;
+  format?: string;
+  width?: number;
+  height?: number;
+  x?: number;
+  y?: number;
+  rows?: number;
+  cols?: number;
+  sourceX?: number;
+  sourceY?: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
+  more?: boolean;  // chunked transmission
+  unicodePlaceholder?: number;
+}
+```
+
+#### Image Manager
+
+```typescript
+class ImageManager {
+  private images: Map<number, ImageData>;
+  private placements: Map<number, ImagePlacement>;
+  private activePlacements: ImagePlacement[];
+  private scrollbackPlacements: ImagePlacement[];
+  private transmissions: Map<number, TransmissionState>;
+  
+  storeImage(id: number, data: ImageBitmap, format: string): void;
+  getImage(id: number): ImageData | undefined;
+  deleteImage(id: number): void;
+  
+  createPlacement(placement: ImagePlacement): void;
+  getPlacement(id: number): ImagePlacement | undefined;
+  deletePlacement(id: number): void;
+  deleteAllPlacements(): void;
+  
+  getVisiblePlacements(): ImagePlacement[];
+  getScrollbackPlacements(): ImagePlacement[];
+  
+  handleScroll(direction: 'up' | 'down', lines: number): void;
+  handleClear(region: 'screen' | 'line', row?: number): void;
+  handleResize(oldCols: number, oldRows: number, newCols: number, newRows: number): void;
+  
+  startTransmission(imageId: number, format: string): void;
+  addChunk(imageId: number, chunk: Uint8Array): void;
+  completeTransmission(imageId: number): Promise<void>;
+  cancelTransmission(imageId: number): void;
+}
+```
+
+**Design Decision**: The Kitty Graphics Protocol implementation separates concerns between parsing (KittyGraphicsParser), storage (ImageManager), and rendering (Renderer). Images are decoded to ImageBitmap for efficient rendering. Placements track both screen and scrollback positions. Unicode placeholders create bidirectional associations between grid cells and image placements, allowing images to be removed when their placeholder cells are modified.
 
 ## Correctness Properties
 
@@ -813,6 +943,200 @@ Property 74: Connection failure fallback
 *For any* WebSocket connection failure, the terminal should display an error message and optionally fall back to SampleShell
 **Validates: Requirements 25.5**
 
+### Kitty Graphics Protocol Properties
+
+Property 75: Graphics command parsing
+*For any* valid Kitty graphics escape sequence, the parser should extract the action and payload correctly
+**Validates: Requirements 26.1**
+
+Property 76: Image data decoding
+*For any* base64-encoded image data in a supported format, the terminal should decode it to a displayable image
+**Validates: Requirements 26.2, 30.1, 30.2, 30.3**
+
+Property 77: Image storage with ID
+*For any* image transmitted with an ID, the terminal should store it such that it can be retrieved by that ID
+**Validates: Requirements 26.3, 34.1**
+
+Property 78: Placement creation at cursor
+*For any* display command, the terminal should create an image placement at the current cursor position
+**Validates: Requirements 26.4, 26.5**
+
+Property 79: Grid coordinate positioning
+*For any* image placement with specified rows and columns, the image should appear at those exact grid coordinates
+**Validates: Requirements 27.1**
+
+Property 80: Pixel to cell conversion
+*For any* image placement with pixel dimensions, the terminal should convert them to cell dimensions based on cell size
+**Validates: Requirements 27.2**
+
+Property 81: Source rectangle cropping
+*For any* image placement with a source rectangle, only that region of the image should be displayed
+**Validates: Requirements 27.3**
+
+Property 82: Native dimension fallback
+*For any* image placement without specified dimensions, the terminal should use the image's native dimensions
+**Validates: Requirements 27.4**
+
+Property 83: Screen boundary clipping
+*For any* image placement that extends beyond screen boundaries, the image should be clipped at the edges
+**Validates: Requirements 27.5**
+
+Property 84: Image scrolling with content
+*For any* image placement in a scrolled region, the placement should move with the scrolled content
+**Validates: Requirements 28.1**
+
+Property 85: Scrollback buffer image preservation
+*For any* image placement that scrolls off the top, it should be moved to the scrollback buffer
+**Validates: Requirements 28.2**
+
+Property 86: Reverse scroll image removal
+*For any* image placement that scrolls off the bottom during reverse scroll, it should be removed
+**Validates: Requirements 28.3**
+
+Property 87: Scrollback image display
+*For any* scrollback view, image placements in the scrollback buffer should be displayed
+**Validates: Requirements 28.4**
+
+Property 88: Alternate screen no image scrollback
+*For any* image in alternate screen mode, it should not be preserved in scrollback when scrolled
+**Validates: Requirements 28.5**
+
+Property 89: Image deletion by image ID
+*For any* delete command with an image ID, all placements of that image should be removed
+**Validates: Requirements 29.1**
+
+Property 90: Placement deletion by placement ID
+*For any* delete command with a placement ID, only that specific placement should be removed
+**Validates: Requirements 29.2**
+
+Property 91: Delete all visible placements
+*For any* delete command with no IDs, all visible image placements should be removed
+**Validates: Requirements 29.3**
+
+Property 92: Image data memory cleanup
+*For any* deleted image, the associated image data should be freed from memory
+**Validates: Requirements 29.4**
+
+Property 93: Display update on placement deletion
+*For any* deleted placement, the display should be updated to remove the image
+**Validates: Requirements 29.5**
+
+Property 94: Animated GIF support
+*For any* animated GIF image, the terminal should display the animation
+**Validates: Requirements 30.4**
+
+Property 95: Unsupported format error handling
+*For any* image in an unsupported format, the terminal should emit an error event and ignore the image
+**Validates: Requirements 30.5**
+
+Property 96: Chunked transmission accumulation
+*For any* image transmitted in chunks, the terminal should accumulate all chunks until transmission is complete
+**Validates: Requirements 31.1**
+
+Property 97: Non-blocking chunked transmission
+*For any* chunked transmission in progress, the terminal should continue processing other output
+**Validates: Requirements 31.2**
+
+Property 98: Transmission completion finalization
+*For any* transmission marked complete, the terminal should finalize the image and make it available for placement
+**Validates: Requirements 31.3**
+
+Property 99: Transmission failure cleanup
+*For any* failed transmission, the terminal should discard partial data and emit an error event
+**Validates: Requirements 31.4**
+
+Property 100: Concurrent transmission independence
+*For any* multiple concurrent image transmissions, each should be handled independently
+**Validates: Requirements 31.5**
+
+Property 101: Image element creation for placements
+*For any* visible image placement, the renderer should create an image element
+**Validates: Requirements 32.1**
+
+Property 102: Image element positioning
+*For any* rendered image placement, the image element should be positioned at the correct grid coordinates
+**Validates: Requirements 32.2**
+
+Property 103: Image element sizing
+*For any* rendered image placement, the image element should be sized according to placement dimensions
+**Validates: Requirements 32.3**
+
+Property 104: CSS clipping for source rectangle
+*For any* image placement with a source rectangle, CSS clipping should show only that region
+**Validates: Requirements 32.4**
+
+Property 105: Image element removal
+*For any* removed placement, the corresponding image element should be removed from the DOM
+**Validates: Requirements 32.5**
+
+Property 106: Clear screen removes images
+*For any* screen clear operation, all image placements in the cleared region should be removed
+**Validates: Requirements 33.1**
+
+Property 107: Line erase removes images
+*For any* line erase operation, image placements on that line should be removed
+**Validates: Requirements 33.2**
+
+Property 108: Line insertion shifts images
+*For any* line insertion, image placements should shift down accordingly
+**Validates: Requirements 33.3**
+
+Property 109: Line deletion shifts images
+*For any* line deletion, image placements should shift up and those in deleted lines should be removed
+**Validates: Requirements 33.4**
+
+Property 110: Resize repositions images
+*For any* terminal resize, image placements should be repositioned based on new cell dimensions
+**Validates: Requirements 33.5**
+
+Property 111: Image ID reuse replaces data
+*For any* image ID reused, the previous image data should be replaced with new data
+**Validates: Requirements 34.3**
+
+Property 112: Placement ID reuse replaces placement
+*For any* placement ID reused, the previous placement should be replaced with the new placement
+**Validates: Requirements 34.4**
+
+Property 113: Automatic ID generation
+*For any* image or placement without specified ID, the terminal should generate a unique ID automatically
+**Validates: Requirements 34.5**
+
+Property 114: Alpha channel preservation
+*For any* image with alpha channel, the transparency should be preserved
+**Validates: Requirements 35.1**
+
+Property 115: Transparent pixel rendering
+*For any* transparent image, the terminal background should show through transparent pixels
+**Validates: Requirements 35.2**
+
+Property 116: Opaque image handling
+*For any* image without alpha channel, it should be treated as fully opaque
+**Validates: Requirements 35.3**
+
+Property 117: Image text layering
+*For any* transparent image overlapping text, the image should be layered appropriately
+**Validates: Requirements 35.4**
+
+Property 118: Background color change updates transparency
+*For any* terminal background color change, transparent images should update their appearance
+**Validates: Requirements 35.5**
+
+Property 119: Unicode placeholder association
+*For any* image placement with Unicode placeholder, the placeholder character should be written to the grid and associated with the placement
+**Validates: Requirements 36.1, 36.2**
+
+Property 120: Placeholder erase removes image
+*For any* Unicode placeholder that is erased, the associated image placement should be removed
+**Validates: Requirements 36.3**
+
+Property 121: Placeholder scroll moves image
+*For any* Unicode placeholder that scrolls, the image placement should move with it
+**Validates: Requirements 36.4**
+
+Property 122: Placeholder overwrite removes image
+*For any* Unicode placeholder overwritten by text, the associated image placement should be removed
+**Validates: Requirements 36.5**
+
 ## Error Handling
 
 ### Input Validation
@@ -939,11 +1263,14 @@ caTTY-ts/src/ts/terminal/
 
 ### Future Enhancements
 
-1. **Sixel Graphics**: Support for inline images
-2. **True Color**: 24-bit color support
+1. **Sixel Graphics**: Support for alternative inline image protocol
+2. **True Color**: 24-bit color support (may already be supported via libghostty-vt)
 3. **Ligatures**: Font ligature support for programming fonts
 4. **Search**: Text search within terminal content
 5. **Bidirectional Text**: Support for RTL languages
 6. **Reconnection Logic**: Automatic reconnection with exponential backoff for WebSocket failures
 7. **Multiple Sessions**: Support for multiple concurrent terminal sessions with tab management
 8. **Session Persistence**: Save and restore terminal sessions across page reloads
+9. **Image Compression**: Support for additional transmission mediums (file, temporary file, shared memory)
+10. **Image Caching**: Optimize repeated image display with client-side caching
+11. **Image Animations**: Enhanced control over animated image playback (pause, speed control)
