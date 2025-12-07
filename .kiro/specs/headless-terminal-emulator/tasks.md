@@ -735,15 +735,15 @@
     - Document how caTTY-ts connects to this backend
     - _Requirements: 22.1_
 
-- [ ] 16. Implement Kitty Graphics Protocol support
-  - [ ] 16.1 Create image data structures and types
+- [-] 16. Implement Kitty Graphics Protocol support
+  - [x] 16.1 Create image data structures and types
     - Create ImageData interface with id, data (ImageBitmap), width, height, format
     - Create ImagePlacement interface with placementId, imageId, position, dimensions, source rectangle, zIndex, unicodePlaceholder
     - Create TransmissionState interface for tracking chunked transmissions
     - Create GraphicsParams interface for parsed graphics command parameters
     - _Requirements: 26.1, 26.3, 26.4, 26.5_
   
-  - [ ] 16.2 Implement KittyGraphicsParser class
+  - [x] 16.2 Implement KittyGraphicsParser class
     - Create KittyGraphicsParser class that parses ESC_G sequences
     - Implement parseGraphicsCommand() to extract action and parameters
     - Implement handleTransmission() for image data transmission commands
@@ -752,7 +752,7 @@
     - Parse all graphics parameters (action, imageId, placementId, format, dimensions, etc.)
     - _Requirements: 26.1_
   
-  - [ ] 16.3 Write property test for graphics command parsing
+  - [x] 16.3 Write property test for graphics command parsing
     - **Property 75: Graphics command parsing**
     - **Validates: Requirements 26.1**
   

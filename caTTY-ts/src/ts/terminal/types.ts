@@ -166,3 +166,150 @@ export interface Attributes {
   /** Hyperlink URL (OSC 8) */
   url?: string;
 }
+
+/**
+ * Image data stored in the terminal.
+ * Represents a decoded image that can be placed multiple times.
+ */
+export interface ImageData {
+  /** Unique identifier for this image */
+  id: number;
+  
+  /** Decoded image data ready for rendering */
+  data: ImageBitmap | HTMLImageElement;
+  
+  /** Image width in pixels */
+  width: number;
+  
+  /** Image height in pixels */
+  height: number;
+  
+  /** Image format */
+  format: 'png' | 'jpeg' | 'gif';
+}
+
+/**
+ * An image placement on the terminal screen.
+ * Represents a specific instance of an image at a location.
+ */
+export interface ImagePlacement {
+  /** Unique identifier for this placement */
+  placementId: number;
+  
+  /** ID of the image to display */
+  imageId: number;
+  
+  /** Row position in the terminal grid */
+  row: number;
+  
+  /** Column position in the terminal grid */
+  col: number;
+  
+  /** Width in terminal cells */
+  width: number;
+  
+  /** Height in terminal cells */
+  height: number;
+  
+  /** Source rectangle X offset in pixels (for cropping) */
+  sourceX?: number;
+  
+  /** Source rectangle Y offset in pixels (for cropping) */
+  sourceY?: number;
+  
+  /** Source rectangle width in pixels (for cropping) */
+  sourceWidth?: number;
+  
+  /** Source rectangle height in pixels (for cropping) */
+  sourceHeight?: number;
+  
+  /** Z-index for layering (higher values are on top) */
+  zIndex?: number;
+  
+  /** Unicode placeholder character associated with this placement */
+  unicodePlaceholder?: string;
+}
+
+/**
+ * State tracking for chunked image transmission.
+ * Used when an image is transmitted in multiple parts.
+ */
+export interface TransmissionState {
+  /** ID of the image being transmitted */
+  imageId: number;
+  
+  /** Accumulated chunks of image data */
+  chunks: Uint8Array[];
+  
+  /** Image format (png, jpeg, gif) */
+  format: string;
+  
+  /** Expected total size in bytes (if known) */
+  expectedSize?: number;
+  
+  /** Whether transmission is complete */
+  complete: boolean;
+}
+
+/**
+ * Parsed parameters from a Kitty graphics command.
+ * Represents the decoded escape sequence parameters.
+ */
+export interface GraphicsParams {
+  /** Action: 't' = transmit, 'd' = display, 'D' = delete */
+  action: 't' | 'd' | 'D';
+  
+  /** Image ID for storage and reference */
+  imageId?: number;
+  
+  /** Placement ID for specific placement reference */
+  placementId?: number;
+  
+  /** Image format (24 = RGB, 32 = RGBA, 100 = PNG, etc.) */
+  format?: string;
+  
+  /** Width in pixels */
+  width?: number;
+  
+  /** Height in pixels */
+  height?: number;
+  
+  /** X offset in pixels */
+  x?: number;
+  
+  /** Y offset in pixels */
+  y?: number;
+  
+  /** Number of rows to occupy */
+  rows?: number;
+  
+  /** Number of columns to occupy */
+  cols?: number;
+  
+  /** Source rectangle X offset */
+  sourceX?: number;
+  
+  /** Source rectangle Y offset */
+  sourceY?: number;
+  
+  /** Source rectangle width */
+  sourceWidth?: number;
+  
+  /** Source rectangle height */
+  sourceHeight?: number;
+  
+  /** Whether more chunks are coming (for chunked transmission) */
+  more?: boolean;
+  
+  /** Unicode placeholder codepoint */
+  unicodePlaceholder?: number;
+  
+  /** Z-index for layering */
+  zIndex?: number;
+  
+  /** Compression type (0 = none, 1 = zlib) */
+  compression?: number;
+  
+  /** Transmission medium (d = direct, f = file, t = temp file, s = shared memory) */
+  medium?: string;
+}
