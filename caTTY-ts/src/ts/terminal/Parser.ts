@@ -49,6 +49,9 @@ export interface ParserHandlers extends OscEvents {
   
   /** Handle escape sequence */
   onEscape?: (intermediates: string, final: number) => void;
+  
+  /** Handle Kitty Graphics Protocol sequence */
+  onGraphics?: (sequence: string) => void;
 }
 
 /**
@@ -80,6 +83,9 @@ export enum ParserState {
   /** OSC sequence string data */
   OscString,
   
+  /** Kitty Graphics Protocol sequence data (ESC_G) */
+  GraphicsString,
+  
   /** UTF-8 multi-byte sequence in progress */
   Utf8
 }
@@ -106,6 +112,9 @@ export class Parser {
   
   /** OSC command number */
   private oscCommand: number = 0;
+  
+  /** Buffer for collecting Graphics string data */
+  private graphicsData: string = '';
   
   /** Buffer for UTF-8 multi-byte sequence */
   private utf8Buffer: number[] = [];
@@ -180,6 +189,12 @@ export class Parser {
     // Handle OSC state specially - BEL and ESC terminate OSC
     if (this.state === ParserState.OscString) {
       this.handleOscString(byte);
+      return;
+    }
+    
+    // Handle Graphics state specially - BEL and ESC terminate graphics
+    if (this.state === ParserState.GraphicsString) {
+      this.handleGraphicsString(byte);
       return;
     }
     
@@ -297,6 +312,12 @@ export class Parser {
         this.enterOsc();
         break;
         
+      case 0x5F: // _ - Could be start of graphics (ESC_G) or other sequences
+        // Need to check next byte to see if it's 'G' for graphics
+        this.escapeIntermediates = '_';
+        this.state = ParserState.EscapeIntermediate;
+        break;
+        
       case 0x20: // Space through / are intermediates
       case 0x21:
       case 0x22:
@@ -333,9 +354,14 @@ export class Parser {
       // More intermediate bytes
       this.escapeIntermediates += String.fromCharCode(byte);
     } else {
-      // Final byte
-      this.executeEscape(byte);
-      this.state = ParserState.Ground;
+      // Check if this is ESC_G (graphics sequence)
+      if (this.escapeIntermediates === '_' && byte === 0x47) { // 'G'
+        this.enterGraphics();
+      } else {
+        // Final byte - execute escape sequence
+        this.executeEscape(byte);
+        this.state = ParserState.Ground;
+      }
     }
   }
   
@@ -455,6 +481,34 @@ export class Parser {
     } else {
       // Accumulate OSC data
       this.oscData += String.fromCharCode(byte);
+    }
+  }
+  
+  /**
+   * Enter Graphics state (Kitty Graphics Protocol).
+   */
+  private enterGraphics(): void {
+    this.state = ParserState.GraphicsString;
+    this.graphicsData = '';
+  }
+  
+  /**
+   * Handle a byte in GraphicsString state.
+   */
+  private handleGraphicsString(byte: number): void {
+    if (byte === 0x07) {
+      // BEL terminates graphics sequence
+      this.executeGraphics();
+      this.state = ParserState.Ground;
+    } else if (byte === 0x1B) {
+      // ESC might be start of ST (ESC \)
+      // We need to check the next byte
+      // For now, treat as terminator
+      this.executeGraphics();
+      this.state = ParserState.Ground;
+    } else {
+      // Accumulate graphics data
+      this.graphicsData += String.fromCharCode(byte);
     }
   }
   
@@ -584,6 +638,15 @@ export class Parser {
       const command = parseInt(this.oscData, 10);
       this.handlers.onOsc?.(command, '');
     }
+  }
+  
+  /**
+   * Execute a Kitty Graphics Protocol sequence.
+   */
+  private executeGraphics(): void {
+    // Pass the graphics data to the handler
+    // The handler will parse and process the graphics command
+    this.handlers.onGraphics?.(this.graphicsData);
   }
   
   /**

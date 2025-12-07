@@ -901,7 +901,7 @@
     - **Property 122: Placeholder overwrite removes image**
     - **Validates: Requirements 36.1, 36.2, 36.3, 36.4, 36.5**
   
-  - [ ] 16.24 Integrate graphics parser with terminal
+  - [x] 16.24 Integrate graphics parser with terminal
     - Add KittyGraphicsParser instance to Terminal class
     - Route ESC_G sequences to graphics parser
     - Connect parser to ImageManager

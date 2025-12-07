@@ -15,10 +15,13 @@ import type {
   Attributes, 
   Line, 
   Cell,
-  Color 
+  Color,
+  ImagePlacement 
 } from './types.js';
 import { UnderlineStyle } from './types.js';
 import type { GhosttyVtInstance } from '../ghostty-vt.js';
+import { KittyGraphicsParser } from './graphics/KittyGraphicsParser.js';
+import { ImageManager } from './graphics/ImageManager.js';
 
 /**
  * Configuration for terminal initialization.
@@ -98,6 +101,8 @@ export class Terminal {
   private readonly screenManager: AlternateScreenManager;
   private readonly scrollback: ScrollbackBuffer;
   private readonly parser: Parser;
+  private readonly graphicsParser: KittyGraphicsParser;
+  private readonly imageManager: ImageManager;
   
   // Terminal state
   private viewportOffset: number = 0;
@@ -134,6 +139,8 @@ export class Terminal {
     // Initialize core components
     this.screenManager = new AlternateScreenManager(config.cols, config.rows);
     this.scrollback = new ScrollbackBuffer(config.scrollback);
+    this.graphicsParser = new KittyGraphicsParser();
+    this.imageManager = new ImageManager();
     
     // Initialize terminal modes
     this.modes = {
@@ -166,6 +173,7 @@ export class Terminal {
       onClipboard: this.handleClipboard.bind(this),
       onCommand: this.handleOscCommand.bind(this),
       onEscape: this.handleEscape.bind(this),
+      onGraphics: this.handleGraphics.bind(this),
     };
     
     this.parser = new Parser(parserHandlers, wasmInstance);
@@ -223,6 +231,20 @@ export class Terminal {
     const maxOffset = this.scrollback.getSize();
     this.viewportOffset = Math.max(0, Math.min(offset, maxOffset));
     this.emitStateChange();
+  }
+  
+  /**
+   * Gets all visible image placements on the screen.
+   */
+  getVisibleImagePlacements(): ImagePlacement[] {
+    return this.imageManager.getVisiblePlacements();
+  }
+  
+  /**
+   * Gets all image placements in the scrollback buffer.
+   */
+  getScrollbackImagePlacements(): ImagePlacement[] {
+    return this.imageManager.getScrollbackPlacements();
   }
   
 
@@ -1047,6 +1069,141 @@ export class Terminal {
   }
   
   /**
+   * Handle Kitty Graphics Protocol escape sequences.
+   * Processes ESC_G sequences for image transmission, display, and deletion.
+   * @param sequence The graphics command sequence (without ESC_G prefix and ESC\ suffix)
+   */
+  private async handleGraphics(sequence: string): Promise<void> {
+    try {
+      // Parse the graphics command
+      const parsed = this.graphicsParser.parseGraphicsCommand(sequence);
+      if (!parsed) {
+        // Invalid sequence - ignore
+        return;
+      }
+
+      const { params, payload } = parsed;
+
+      // Handle based on action
+      switch (params.action) {
+        case 't': // Transmission
+          await this.handleImageTransmission(params, payload);
+          break;
+
+        case 'd': // Display
+          this.handleImageDisplay(params);
+          break;
+
+        case 'D': // Delete
+          this.handleImageDeletion(params);
+          break;
+
+        default:
+          // Unknown action - ignore
+          break;
+      }
+
+      this.emitStateChange();
+    } catch (error) {
+      // Log error but don't crash the terminal
+      console.error('Graphics command error:', error);
+    }
+  }
+
+  /**
+   * Handle image transmission command.
+   * Decodes and stores image data.
+   */
+  private async handleImageTransmission(params: any, payload: string): Promise<void> {
+    try {
+      // Generate or use provided image ID
+      const imageId = params.imageId ?? this.imageManager.generateImageId();
+
+      // For now, only handle single complete transmissions
+      // Chunked transmission support will be added in a future task
+      if (!params.more) {
+        // Single complete transmission
+        const decoded = await this.graphicsParser.decodeImageData(payload, params.format);
+        this.imageManager.storeImage(
+          imageId,
+          decoded.bitmap,
+          decoded.format,
+          decoded.width,
+          decoded.height,
+          decoded.hasAlpha
+        );
+      }
+      // TODO: Add chunked transmission support when ImageManager implements it
+    } catch (error) {
+      console.error('Image transmission error:', error);
+      // Emit error event if handler is available
+      // For now, just log the error
+    }
+  }
+
+  /**
+   * Handle image display command.
+   * Creates a placement for an image at the current cursor position.
+   */
+  private handleImageDisplay(params: any): void {
+    const cursor = this.screenManager.getCurrentCursor();
+    const imageData = params.imageId !== undefined 
+      ? this.imageManager.getImage(params.imageId)
+      : undefined;
+
+    // Assume cell dimensions (these would ideally come from the renderer)
+    const cellWidth = 10; // pixels
+    const cellHeight = 20; // pixels
+
+    const placement = this.graphicsParser.handleDisplay(
+      params,
+      cursor.row,
+      cursor.col,
+      imageData,
+      cellWidth,
+      cellHeight,
+      this.config.cols,
+      this.config.rows
+    );
+
+    // Create the placement if we have a valid image ID
+    if (placement.imageId !== undefined && placement.placementId !== undefined) {
+      this.imageManager.createPlacement(placement as any);
+
+      // If there's a Unicode placeholder, write it to the screen
+      if (placement.unicodePlaceholder) {
+        this.handlePrintable(placement.unicodePlaceholder);
+      }
+    }
+  }
+
+  /**
+   * Handle image deletion command.
+   * Removes images or placements based on the parameters.
+   */
+  private handleImageDeletion(params: any): void {
+    const deletion = this.graphicsParser.handleDelete(params);
+
+    switch (deletion.type) {
+      case 'image':
+        if (deletion.id !== undefined) {
+          this.imageManager.deleteImage(deletion.id);
+        }
+        break;
+
+      case 'placement':
+        if (deletion.id !== undefined) {
+          this.imageManager.deletePlacement(deletion.id);
+        }
+        break;
+
+      case 'all':
+        this.imageManager.deleteAllPlacements();
+        break;
+    }
+  }
+
+  /**
    * Disposes of the terminal and cleans up resources.
    */
   dispose(): void {
@@ -1056,6 +1213,9 @@ export class Terminal {
     this.scrollback.clear();
     this.screenManager.getPrimaryBuffer().clear();
     this.screenManager.getAlternateBuffer().clear();
+    
+    // Clear image resources
+    this.imageManager.deleteAllPlacements();
     
     // Reset to primary screen
     this.screenManager.switchToPrimary();
