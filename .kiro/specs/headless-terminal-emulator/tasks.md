@@ -836,7 +836,7 @@
     - Update display when placements are removed
     - _Requirements: 29.1, 29.2, 29.3, 29.4, 29.5_
   
-  - [ ] 16.15 Write property tests for deletion
+  - [x] 16.15 Write property tests for deletion
     - **Property 89: Image deletion by image ID**
     - **Property 90: Placement deletion by placement ID**
     - **Property 91: Delete all visible placements**

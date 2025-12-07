@@ -1242,4 +1242,365 @@ describe('ImageManager Property Tests', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 89: Image deletion by image ID
+   * For any image with one or more placements, deleting the image by ID should remove all its placements
+   * Validates: Requirements 29.1
+   */
+  it('Property 89: Image deletion by image ID', () => {
+    fc.assert(
+      fc.property(
+        // Generate an image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate image properties
+        fc.integer({ min: 1, max: 2000 }),
+        fc.integer({ min: 1, max: 2000 }),
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        // Generate multiple placements for that image
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 100 }),
+            height: fc.integer({ min: 1, max: 100 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 10,
+            selector: (item) => item.placementId
+          }
+        ),
+        (imageId, width, height, format, placements) => {
+          const manager = new ImageManager();
+          
+          // Store the image
+          const mockBitmap = new (globalThis as any).ImageBitmap(width, height);
+          manager.storeImage(imageId, mockBitmap, format, width, height);
+          
+          // Verify image is stored
+          expect(manager.getImage(imageId)).toBeDefined();
+          
+          // Create all placements for this image
+          const placementIds: number[] = [];
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+            placementIds.push(p.placementId);
+          }
+          
+          // Verify all placements exist
+          expect(manager.getVisiblePlacements()).toHaveLength(placements.length);
+          for (const placementId of placementIds) {
+            expect(manager.getPlacement(placementId)).toBeDefined();
+          }
+          
+          // Delete the image by ID
+          manager.deleteImage(imageId);
+          
+          // Verify the image is deleted
+          expect(manager.getImage(imageId)).toBeUndefined();
+          
+          // Verify ALL placements of this image are deleted
+          for (const placementId of placementIds) {
+            expect(manager.getPlacement(placementId)).toBeUndefined();
+          }
+          
+          // Verify visible placements list is empty
+          expect(manager.getVisiblePlacements()).toHaveLength(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 90: Placement deletion by placement ID
+   * For any placement, deleting it by placement ID should remove only that specific placement
+   * Validates: Requirements 29.2
+   */
+  it('Property 90: Placement deletion by placement ID', () => {
+    fc.assert(
+      fc.property(
+        // Generate an image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate multiple placements for that image
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 100 }),
+            height: fc.integer({ min: 1, max: 100 })
+          }),
+          {
+            minLength: 2,
+            maxLength: 10,
+            selector: (item) => item.placementId
+          }
+        ),
+        // Select one placement to delete
+        fc.integer({ min: 0, max: 9 }),
+        (imageId, placements, deleteIndex) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Verify all placements exist
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Select a placement to delete (ensure index is valid)
+          const indexToDelete = deleteIndex % placements.length;
+          const placementToDelete = placements[indexToDelete];
+          
+          // Delete the specific placement by ID
+          manager.deletePlacement(placementToDelete.placementId);
+          
+          // Verify the deleted placement is gone
+          expect(manager.getPlacement(placementToDelete.placementId)).toBeUndefined();
+          
+          // Verify all OTHER placements still exist
+          for (let i = 0; i < placements.length; i++) {
+            if (i !== indexToDelete) {
+              const p = placements[i];
+              expect(manager.getPlacement(p.placementId)).toBeDefined();
+            }
+          }
+          
+          // Verify visible placements count decreased by 1
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount - 1);
+          
+          // Verify the deleted placement is not in visible list
+          const visible = manager.getVisiblePlacements();
+          expect(visible.some(p => p.placementId === placementToDelete.placementId)).toBe(false);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 91: Delete all visible placements
+   * For any set of visible placements, deleteAllPlacements should remove all active placements but keep scrollback
+   * Validates: Requirements 29.3
+   */
+  it('Property 91: Delete all visible placements', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple visible placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 100 }),
+            height: fc.integer({ min: 1, max: 100 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 20,
+            selector: (item) => item.placementId
+          }
+        ),
+        (placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Verify all placements are visible
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Delete all visible placements
+          manager.deleteAllPlacements();
+          
+          // Verify all visible placements are removed
+          expect(manager.getVisiblePlacements()).toHaveLength(0);
+          
+          // Verify all placements are deleted from the map
+          for (const p of placements) {
+            expect(manager.getPlacement(p.placementId)).toBeUndefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 92: Image data memory cleanup
+   * For any image deleted, the image data should be freed from memory
+   * Validates: Requirements 29.4
+   */
+  it('Property 92: Image data memory cleanup', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple images
+        fc.uniqueArray(
+          fc.record({
+            id: fc.integer({ min: 1, max: 10000 }),
+            width: fc.integer({ min: 1, max: 2000 }),
+            height: fc.integer({ min: 1, max: 2000 }),
+            format: fc.constantFrom('png', 'jpeg', 'gif')
+          }),
+          {
+            minLength: 2,
+            maxLength: 10,
+            selector: (item) => item.id
+          }
+        ),
+        // Select one image to delete
+        fc.integer({ min: 0, max: 9 }),
+        (images, deleteIndex) => {
+          const manager = new ImageManager();
+          const bitmaps = new Map<number, any>();
+          
+          // Store all images
+          for (const img of images) {
+            const mockBitmap = new (globalThis as any).ImageBitmap(img.width, img.height);
+            bitmaps.set(img.id, mockBitmap);
+            manager.storeImage(img.id, mockBitmap, img.format, img.width, img.height);
+          }
+          
+          // Verify all images are stored
+          for (const img of images) {
+            expect(manager.getImage(img.id)).toBeDefined();
+          }
+          
+          // Select an image to delete (ensure index is valid)
+          const indexToDelete = deleteIndex % images.length;
+          const imageToDelete = images[indexToDelete];
+          
+          // Delete the image
+          manager.deleteImage(imageToDelete.id);
+          
+          // Verify the deleted image is gone
+          expect(manager.getImage(imageToDelete.id)).toBeUndefined();
+          
+          // Verify all OTHER images still exist
+          for (let i = 0; i < images.length; i++) {
+            if (i !== indexToDelete) {
+              const img = images[i];
+              expect(manager.getImage(img.id)).toBeDefined();
+              expect(manager.getImage(img.id)?.data).toBe(bitmaps.get(img.id));
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 93: Display update on placement deletion
+   * For any placement deletion, the visible placements list should be updated immediately
+   * Validates: Requirements 29.5
+   */
+  it('Property 93: Display update on placement deletion', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 100 }),
+            height: fc.integer({ min: 1, max: 100 })
+          }),
+          {
+            minLength: 3,
+            maxLength: 15,
+            selector: (item) => item.placementId
+          }
+        ),
+        // Select placements to delete
+        fc.array(fc.integer({ min: 0, max: 14 }), { minLength: 1, maxLength: 5 }),
+        (placements, deleteIndices) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Get initial visible placements
+          const initialVisible = manager.getVisiblePlacements();
+          expect(initialVisible).toHaveLength(placements.length);
+          
+          // Delete some placements
+          const uniqueIndices = [...new Set(deleteIndices.map(i => i % placements.length))];
+          const deletedIds = new Set<number>();
+          
+          for (const index of uniqueIndices) {
+            const placementToDelete = placements[index];
+            manager.deletePlacement(placementToDelete.placementId);
+            deletedIds.add(placementToDelete.placementId);
+            
+            // Verify visible placements list is updated immediately after each deletion
+            const currentVisible = manager.getVisiblePlacements();
+            expect(currentVisible.some(p => p.placementId === placementToDelete.placementId)).toBe(false);
+          }
+          
+          // Verify final visible placements list
+          const finalVisible = manager.getVisiblePlacements();
+          expect(finalVisible).toHaveLength(placements.length - uniqueIndices.length);
+          
+          // Verify deleted placements are not in visible list
+          for (const id of deletedIds) {
+            expect(finalVisible.some(p => p.placementId === id)).toBe(false);
+          }
+          
+          // Verify remaining placements are still in visible list
+          for (const p of placements) {
+            if (!deletedIds.has(p.placementId)) {
+              expect(finalVisible.some(vp => vp.placementId === p.placementId)).toBe(true);
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });
