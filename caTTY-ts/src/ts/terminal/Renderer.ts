@@ -64,12 +64,21 @@ export class Renderer {
   /**
    * Renders the current terminal state to the display element.
    * Uses incremental rendering to only update changed cells.
+   * Uses dirty row tracking to only render rows that have changed.
    * @param terminal The terminal instance to render
    */
   render(terminal: Terminal): void {
     // Get terminal configuration
     const config = terminal.getConfig();
     const cursor = terminal.getCursor();
+    
+    // Get dirty rows from terminal
+    const dirtyRows = terminal.getDirtyRows();
+    
+    // Early return if no rows are dirty and cursor hasn't changed
+    if (dirtyRows.size === 0 && !this.cursorHasChanged(cursor)) {
+      return;
+    }
     
     // Use document fragment for batching DOM updates
     const fragment = document.createDocumentFragment();
@@ -78,8 +87,13 @@ export class Renderer {
     // Track which cells have been updated
     const updatedCells = new Set<string>();
     
-    // Render each line incrementally
-    for (let row = 0; row < config.rows; row++) {
+    // Render only dirty rows
+    for (const row of dirtyRows) {
+      // Skip invalid row indices
+      if (row < 0 || row >= config.rows) {
+        continue;
+      }
+      
       const line = terminal.getLine(row);
       
       // Get or create line element
@@ -127,9 +141,13 @@ export class Renderer {
       }
     }
     
-    // Remove cells that no longer exist
+    // Remove cells from dirty rows that no longer exist
     for (const [key, element] of this.cellElements.entries()) {
-      if (!updatedCells.has(key)) {
+      const [rowStr] = key.split(',');
+      const row = parseInt(rowStr, 10);
+      
+      // Only remove cells from dirty rows
+      if (dirtyRows.has(row) && !updatedCells.has(key)) {
         element.remove();
         this.cellElements.delete(key);
         this.cellCache.delete(key);
@@ -150,6 +168,9 @@ export class Renderer {
       this.displayElement.appendChild(this.cursorElement);
       this.lastCursorPosition = { row: cursor.row, col: cursor.col, visible: cursor.visible };
     }
+    
+    // Clear dirty rows after rendering
+    terminal.clearDirtyRows();
   }
   
   /**

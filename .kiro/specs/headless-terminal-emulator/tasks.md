@@ -739,7 +739,7 @@
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 17. Performance Optimizations
-  - [ ] 17.1 Implement dirty row tracking (HIGHEST PRIORITY)
+  - [x] 17.1 Implement dirty row tracking (HIGHEST PRIORITY)
     - **Impact:** Massive (20-50x faster for typical terminal usage)
     - **Effort:** Low
     - **Problem:** Currently, every state change triggers a full screen render of all 1,920 cells (80×24), even when only 1-2 rows changed
