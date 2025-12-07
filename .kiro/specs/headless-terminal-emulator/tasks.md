@@ -756,14 +756,14 @@
     - **Property 75: Graphics command parsing**
     - **Validates: Requirements 26.1**
   
-  - [ ] 16.4 Implement image decoding
+  - [x] 16.4 Implement image decoding
     - Implement decodeImageData() method to decode base64 image data
     - Support PNG, JPEG, and GIF formats
     - Convert decoded data to ImageBitmap for efficient rendering
     - Handle decoding errors gracefully
     - _Requirements: 26.2, 30.1, 30.2, 30.3_
   
-  - [ ] 16.5 Write property test for image decoding
+  - [x] 16.5 Write property test for image decoding
     - **Property 76: Image data decoding**
     - **Validates: Requirements 26.2, 30.1, 30.2, 30.3**
   

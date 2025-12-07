@@ -222,6 +222,130 @@ export class KittyGraphicsParser {
   }
 
   /**
+   * Decode base64-encoded image data to ImageBitmap.
+   * Supports PNG, JPEG, and GIF formats.
+   * 
+   * @param payload - Base64-encoded image data
+   * @param format - Image format identifier (100=PNG, 24=RGB, 32=RGBA, etc.)
+   * @returns Promise resolving to decoded ImageBitmap and format
+   * @throws Error if decoding fails or format is unsupported
+   */
+  async decodeImageData(
+    payload: string,
+    format?: string
+  ): Promise<{ bitmap: ImageBitmap; format: 'png' | 'jpeg' | 'gif'; width: number; height: number }> {
+    try {
+      // Validate payload is not empty
+      if (!payload || payload.length === 0) {
+        throw new Error('Empty image payload');
+      }
+
+      // Decode base64 to binary data
+      const binaryString = atob(payload);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Validate we have some data
+      if (bytes.length === 0) {
+        throw new Error('Empty image data after decoding');
+      }
+
+      // Detect format from magic bytes
+      let detectedFormat: 'png' | 'jpeg' | 'gif' | null = null;
+      
+      if (this.isPNG(bytes)) {
+        detectedFormat = 'png';
+      } else if (this.isJPEG(bytes)) {
+        detectedFormat = 'jpeg';
+      } else if (this.isGIF(bytes)) {
+        detectedFormat = 'gif';
+      }
+
+      // If format was specified but doesn't match detected format, throw error
+      if (format && format !== '100' && format !== '24' && format !== '32') {
+        // Unknown format code
+        throw new Error(`Unsupported image format: ${format}`);
+      }
+
+      // If we couldn't detect format and no valid format was specified, error
+      if (!detectedFormat) {
+        throw new Error('Unable to detect image format from data');
+      }
+
+      // Create a Blob from the binary data
+      const mimeType = this.getMimeType(detectedFormat);
+      const blob = new Blob([bytes], { type: mimeType });
+
+      // Decode to ImageBitmap for efficient rendering
+      const bitmap = await createImageBitmap(blob);
+
+      return {
+        bitmap,
+        format: detectedFormat,
+        width: bitmap.width,
+        height: bitmap.height
+      };
+    } catch (error) {
+      // Provide more context in error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to decode image data: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Check if binary data is PNG format.
+   * PNG files start with: 89 50 4E 47 0D 0A 1A 0A
+   */
+  private isPNG(bytes: Uint8Array): boolean {
+    if (bytes.length < 8) return false;
+    return (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
+  }
+
+  /**
+   * Check if binary data is JPEG format.
+   * JPEG files start with: FF D8 FF
+   */
+  private isJPEG(bytes: Uint8Array): boolean {
+    if (bytes.length < 3) return false;
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  /**
+   * Check if binary data is GIF format.
+   * GIF files start with: "GIF87a" or "GIF89a"
+   */
+  private isGIF(bytes: Uint8Array): boolean {
+    if (bytes.length < 6) return false;
+    const header = String.fromCharCode(...bytes.slice(0, 6));
+    return header === 'GIF87a' || header === 'GIF89a';
+  }
+
+  /**
+   * Get MIME type for image format.
+   */
+  private getMimeType(format: 'png' | 'jpeg' | 'gif'): string {
+    switch (format) {
+      case 'png':
+        return 'image/png';
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+    }
+  }
+
+  /**
    * Reset ID generators (useful for testing).
    */
   reset(): void {
