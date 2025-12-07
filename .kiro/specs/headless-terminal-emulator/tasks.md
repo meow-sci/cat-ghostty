@@ -776,7 +776,7 @@
     - Track active placements (visible on screen) separately from scrollback placements
     - _Requirements: 26.3, 26.4, 29.1, 29.2, 29.3, 34.1, 34.2_
   
-  - [ ] 16.7 Write property tests for image storage
+  - [x] 16.7 Write property tests for image storage
     - **Property 77: Image storage with ID**
     - **Property 78: Placement creation at cursor**
     - **Validates: Requirements 26.3, 26.4, 26.5, 34.1**
