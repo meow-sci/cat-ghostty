@@ -10,29 +10,13 @@ import type { Line, Cell, CursorState, Color } from './types.js';
 import { UnderlineStyle } from './types.js';
 
 /**
- * Cached cell data for incremental rendering.
- */
-interface CachedCell {
-  char: string;
-  fg: Color;
-  bg: Color;
-  bold: boolean;
-  italic: boolean;
-  underline: UnderlineStyle;
-  inverse: boolean;
-  strikethrough: boolean;
-  url?: string;
-  width: number;
-}
-
-/**
  * Renderer class for converting terminal state to HTML.
  */
 export class Renderer {
   private readonly displayElement: HTMLElement;
   
-  // Cache for incremental rendering
-  private cellCache: Map<string, CachedCell> = new Map();
+  // Simple string-based cache for detecting row changes
+  private rowSignatures: Map<number, string> = new Map();
   private lastCursorPosition: { row: number; col: number; visible: boolean } | null = null;
   private lineElements: Map<number, HTMLElement> = new Map();
   private cursorElement: HTMLElement | null = null;
@@ -62,8 +46,7 @@ export class Renderer {
   
   /**
    * Renders the current terminal state to the display element.
-   * Uses incremental rendering to only update changed cells.
-   * Uses dirty row tracking to only render rows that have changed.
+   * Uses string-based comparison to detect and render only changed rows.
    * @param terminal The terminal instance to render
    */
   render(terminal: Terminal): void {
@@ -71,62 +54,30 @@ export class Renderer {
     const config = terminal.getConfig();
     const cursor = terminal.getCursor();
     
-    // Get dirty rows from terminal
-    const dirtyRows = terminal.getDirtyRows();
-    
-    // Early return if no rows are dirty and cursor hasn't changed
-    if (dirtyRows.size === 0 && !this.cursorHasChanged(cursor)) {
-      return;
-    }
-    
-    // If all rows are dirty (screen clear), clear the entire cache and DOM
-    // This handles the case where the screen is cleared (e.g., after htop exits)
-    const shouldClearCache = dirtyRows.size === config.rows;
-    if (shouldClearCache) {
-      this.clearCache();
-    }
-    
     // Use document fragment for batching DOM updates
     const fragment = document.createDocumentFragment();
     
-    // Determine which rows to render
-    // If we cleared the cache, render ALL rows to ensure nothing is missing
-    // Otherwise, only render dirty rows
-    const rowsToRender = shouldClearCache 
-      ? Array.from({ length: config.rows }, (_, i) => i)
-      : Array.from(dirtyRows);
-    
-    // Render rows
-    // With cell batching, we re-render entire lines when they're dirty
-    for (const row of rowsToRender) {
-      // Skip invalid row indices
-      if (row < 0 || row >= config.rows) {
-        continue;
-      }
-      
+    // Check all rows for changes using signature comparison
+    for (let row = 0; row < config.rows; row++) {
       const line = terminal.getLine(row);
+      const signature = this.generateRowSignature(line);
+      const previousSignature = this.rowSignatures.get(row);
       
-      // Remove old line element if it exists and is still in the DOM
-      const oldLineElement = this.lineElements.get(row);
-      if (oldLineElement) {
-        // Check if element is still in the DOM before trying to remove it
-        if (oldLineElement.parentNode === this.displayElement) {
+      // Only render if the row has changed
+      if (signature !== previousSignature) {
+        // Remove old line element if it exists
+        const oldLineElement = this.lineElements.get(row);
+        if (oldLineElement && oldLineElement.parentNode === this.displayElement) {
           this.displayElement.removeChild(oldLineElement);
         }
-        // Remove from map regardless
-        this.lineElements.delete(row);
-      }
-      
-      // Render new line with batched cells
-      const lineElement = this.renderLine(line, row);
-      this.lineElements.set(row, lineElement);
-      fragment.appendChild(lineElement);
-      
-      // Update cache for all cells in this line
-      for (let col = 0; col < line.cells.length; col++) {
-        const cell = line.cells[col];
-        const cellKey = `${row},${col}`;
-        this.cellCache.set(cellKey, this.cloneCell(cell));
+        
+        // Render new line
+        const lineElement = this.renderLine(line, row);
+        this.lineElements.set(row, lineElement);
+        fragment.appendChild(lineElement);
+        
+        // Update signature cache
+        this.rowSignatures.set(row, signature);
       }
     }
     
@@ -144,40 +95,65 @@ export class Renderer {
       this.displayElement.appendChild(this.cursorElement);
       this.lastCursorPosition = { row: cursor.row, col: cursor.col, visible: cursor.visible };
     }
+  }
+  
+  /**
+   * Generates a unique string signature for a row that includes both content and styling.
+   * This signature is used to detect if a row has changed and needs re-rendering.
+   * Format: "{style_code}text{style_code}text..."
+   * Example: "{fg(255,0,0)}red {fg(0,0,255)}blue"
+   */
+  private generateRowSignature(line: Line): string {
+    let signature = '';
     
-    // Clear dirty rows after rendering
-    terminal.clearDirtyRows();
+    for (const cell of line.cells) {
+      // Skip continuation cells (width === 0)
+      if (cell.width === 0) {
+        continue;
+      }
+      
+      // Build style code
+      const styleCode = this.generateCellStyleCode(cell);
+      signature += styleCode;
+      
+      // Add character
+      signature += cell.char || ' ';
+    }
+    
+    return signature;
   }
   
   /**
-   * Creates a line element container.
+   * Generates a compact style code for a cell.
+   * This encodes all visual attributes into a short string.
    */
-  private createLineElement(row: number): HTMLElement {
-    const lineElement = document.createElement('div');
-    lineElement.style.position = 'absolute';
-    lineElement.style.top = `${row}em`;
-    lineElement.style.left = '0';
-    lineElement.style.height = '1em';
-    lineElement.style.whiteSpace = 'pre';
-    return lineElement;
-  }
-  
-  /**
-   * Checks if two cells are equal.
-   */
-  private cellsEqual(a: CachedCell, b: Cell): boolean {
-    return (
-      a.char === b.char &&
-      a.width === b.width &&
-      a.bold === b.bold &&
-      a.italic === b.italic &&
-      a.underline === b.underline &&
-      a.inverse === b.inverse &&
-      a.strikethrough === b.strikethrough &&
-      a.url === b.url &&
-      this.colorsEqual(a.fg, b.fg) &&
-      this.colorsEqual(a.bg, b.bg)
-    );
+  private generateCellStyleCode(cell: Cell): string {
+    const parts: string[] = [];
+    
+    // Foreground color
+    if (cell.fg.type === 'indexed') {
+      parts.push(`f${cell.fg.index}`);
+    } else if (cell.fg.type === 'rgb') {
+      parts.push(`f(${cell.fg.r},${cell.fg.g},${cell.fg.b})`);
+    }
+    
+    // Background color
+    if (cell.bg.type === 'indexed') {
+      parts.push(`b${cell.bg.index}`);
+    } else if (cell.bg.type === 'rgb') {
+      parts.push(`b(${cell.bg.r},${cell.bg.g},${cell.bg.b})`);
+    }
+    
+    // Text attributes
+    if (cell.bold) parts.push('B');
+    if (cell.italic) parts.push('I');
+    if (cell.underline !== UnderlineStyle.None) parts.push(`U${cell.underline}`);
+    if (cell.inverse) parts.push('V');
+    if (cell.strikethrough) parts.push('S');
+    if (cell.url) parts.push(`L${cell.url}`);
+    if (cell.width === 2) parts.push('W');
+    
+    return parts.length > 0 ? `{${parts.join(',')}}` : '';
   }
   
   /**
@@ -214,32 +190,6 @@ export class Renderer {
   }
   
   /**
-   * Clones a cell for caching.
-   */
-  private cloneCell(cell: Cell): CachedCell {
-    return {
-      char: cell.char,
-      width: cell.width,
-      fg: { ...cell.fg } as Color,
-      bg: { ...cell.bg } as Color,
-      bold: cell.bold,
-      italic: cell.italic,
-      underline: cell.underline,
-      inverse: cell.inverse,
-      strikethrough: cell.strikethrough,
-      url: cell.url,
-    };
-  }
-  
-  /**
-   * Updates an existing cell element with new cell data.
-   */
-  private updateCellElement(element: HTMLElement, cell: Cell): void {
-    element.textContent = cell.char || ' ';
-    this.applyStyles(element, cell);
-  }
-  
-  /**
    * Checks if the cursor has changed since last render.
    */
   private cursorHasChanged(cursor: CursorState): boolean {
@@ -257,7 +207,7 @@ export class Renderer {
    * Call this when the terminal is resized or cleared.
    */
   clearCache(): void {
-    this.cellCache.clear();
+    this.rowSignatures.clear();
     this.lastCursorPosition = null;
     this.lineElements.clear();
     this.cursorElement = null;
@@ -330,7 +280,7 @@ export class Renderer {
     
     // Ensure line element always has at least one child for proper rendering
     // This handles edge cases where no spans were created
-    if (lineElement.childNodes.length === 0) {
+    if (lineElement.childNodes && lineElement.childNodes.length === 0) {
       const emptySpan = document.createElement('span');
       emptySpan.textContent = '\u00A0'; // Non-breaking space to ensure visibility
       emptySpan.style.display = 'inline-block';
@@ -339,26 +289,6 @@ export class Renderer {
     }
     
     return lineElement;
-  }
-  
-  /**
-   * Renders a single cell to an HTML element.
-   * @param cell The cell to render
-   * @param col The column index
-   * @returns The HTML element representing the cell
-   */
-  private renderCell(cell: Cell, col: number): HTMLElement {
-    const span = document.createElement('span');
-    span.style.position = 'absolute';
-    span.style.left = `${col}ch`;
-    
-    // Set character content (use space for empty cells)
-    span.textContent = cell.char || ' ';
-    
-    // Apply cell styling
-    this.applyStyles(span, cell);
-    
-    return span;
   }
   
   /**
@@ -397,7 +327,9 @@ export class Renderer {
     element.style.textDecoration = '';
     element.style.cursor = '';
     element.style.width = '';
-    element.removeAttribute('data-url');
+    if (element.hasAttribute && element.hasAttribute('data-url')) {
+      element.removeAttribute('data-url');
+    }
     
     // Apply foreground color
     let fgColor = this.colorToCSS(cell.fg);

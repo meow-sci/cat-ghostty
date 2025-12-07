@@ -105,10 +105,6 @@ export class Terminal {
   private scrollRegion?: ScrollRegion;
   private tabStops: Set<number>;
   
-  // Dirty row tracking for optimized rendering
-  private dirtyRows: Set<number> = new Set();
-  private lastCursorRow: number = 0;
-  
   /**
    * Creates a new terminal instance.
    * @param config Terminal configuration
@@ -229,22 +225,7 @@ export class Terminal {
     this.emitStateChange();
   }
   
-  /**
-   * Gets the set of rows that have been modified since the last render.
-   * Used by the renderer for optimized incremental rendering.
-   * @returns Set of dirty row indices
-   */
-  getDirtyRows(): Set<number> {
-    return new Set(this.dirtyRows);
-  }
-  
-  /**
-   * Clears the dirty row tracking.
-   * Should be called by the renderer after rendering dirty rows.
-   */
-  clearDirtyRows(): void {
-    this.dirtyRows.clear();
-  }
+
   
   // Placeholder methods for parser handlers - will be implemented in subsequent tasks
   
@@ -356,9 +337,6 @@ export class Terminal {
     // Advance cursor
     this.advanceCursor(charWidth);
     
-    // Mark row as dirty for rendering
-    this.dirtyRows.add(newCursor.row);
-    
     this.emitStateChange();
   }
   
@@ -408,11 +386,6 @@ export class Terminal {
     // Scroll the buffer
     const region = this.scrollRegion;
     buffer.scrollUp(lines, region);
-    
-    // Mark all visible rows as dirty (scrolling affects entire screen)
-    for (let row = 0; row < this.config.rows; row++) {
-      this.dirtyRows.add(row);
-    }
   }
   
   private handleLineFeed(): void {
@@ -426,10 +399,6 @@ export class Terminal {
       cursor.row = this.config.rows - 1;
     }
     
-    // Mark both old and new cursor rows as dirty
-    this.dirtyRows.add(oldRow);
-    this.dirtyRows.add(cursor.row);
-    
     this.screenManager.setCurrentCursor(cursor);
     this.emitStateChange();
   }
@@ -438,8 +407,6 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     cursor.col = 0;
     this.screenManager.setCurrentCursor(cursor);
-    // Mark current row as dirty (cursor moved within row)
-    this.dirtyRows.add(cursor.row);
     this.emitStateChange();
   }
   
@@ -448,8 +415,6 @@ export class Terminal {
     if (cursor.col > 0) {
       cursor.col--;
       this.screenManager.setCurrentCursor(cursor);
-      // Mark current row as dirty (cursor moved within row)
-      this.dirtyRows.add(cursor.row);
     }
     this.emitStateChange();
   }
@@ -473,8 +438,6 @@ export class Terminal {
     // Move cursor to tab stop
     cursor.col = nextTabStop;
     this.screenManager.setCurrentCursor(cursor);
-    // Mark current row as dirty (cursor moved within row)
-    this.dirtyRows.add(cursor.row);
     this.emitStateChange();
   }
   
@@ -635,12 +598,6 @@ export class Terminal {
     cursor.row = newRow;
     cursor.col = newCol;
     this.screenManager.setCurrentCursor(cursor);
-    
-    // Mark both old and new cursor rows as dirty if cursor moved between rows
-    if (oldRow !== newRow) {
-      this.dirtyRows.add(oldRow);
-      this.dirtyRows.add(newRow);
-    }
   }
   
   /**
@@ -650,16 +607,9 @@ export class Terminal {
    */
   private setCursorPosition(row: number, col: number): void {
     const cursor = this.screenManager.getCurrentCursor();
-    const oldRow = cursor.row;
     cursor.row = Math.max(0, Math.min(row, this.config.rows - 1));
     cursor.col = Math.max(0, Math.min(col, this.config.cols - 1));
     this.screenManager.setCurrentCursor(cursor);
-    
-    // Mark both old and new cursor rows as dirty if cursor moved between rows
-    if (oldRow !== cursor.row) {
-      this.dirtyRows.add(oldRow);
-      this.dirtyRows.add(cursor.row);
-    }
   }
   
   /**
@@ -678,10 +628,6 @@ export class Terminal {
         if (cursor.row + 1 < this.config.rows) {
           buffer.clearRegion(cursor.row + 1, this.config.rows - 1, 0, this.config.cols - 1);
         }
-        // Mark affected rows as dirty
-        for (let row = cursor.row; row < this.config.rows; row++) {
-          this.dirtyRows.add(row);
-        }
         break;
         
       case 1: // Start of screen to cursor
@@ -691,18 +637,10 @@ export class Terminal {
         }
         // Clear from start of current line to cursor
         buffer.clearRegion(cursor.row, cursor.row, 0, cursor.col);
-        // Mark affected rows as dirty
-        for (let row = 0; row <= cursor.row; row++) {
-          this.dirtyRows.add(row);
-        }
         break;
         
       case 2: // Entire screen
         buffer.clear();
-        // Mark all rows as dirty
-        for (let row = 0; row < this.config.rows; row++) {
-          this.dirtyRows.add(row);
-        }
         break;
     }
   }
@@ -728,9 +666,6 @@ export class Terminal {
         buffer.clearRegion(cursor.row, cursor.row, 0, this.config.cols - 1);
         break;
     }
-    
-    // Mark current row as dirty
-    this.dirtyRows.add(cursor.row);
   }
   
   /**
@@ -740,11 +675,6 @@ export class Terminal {
     const buffer = this.screenManager.getCurrentBuffer();
     const region = this.scrollRegion;
     buffer.scrollDown(lines, region);
-    
-    // Mark all visible rows as dirty (scrolling affects entire screen)
-    for (let row = 0; row < this.config.rows; row++) {
-      this.dirtyRows.add(row);
-    }
   }
   
   /**
@@ -767,9 +697,6 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     const buffer = this.screenManager.getCurrentBuffer();
     buffer.insertCells(cursor.row, cursor.col, count);
-    
-    // Mark current row as dirty
-    this.dirtyRows.add(cursor.row);
   }
   
   /**
@@ -780,9 +707,6 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     const buffer = this.screenManager.getCurrentBuffer();
     buffer.deleteCells(cursor.row, cursor.col, count);
-    
-    // Mark current row as dirty
-    this.dirtyRows.add(cursor.row);
   }
   
   /**
@@ -793,11 +717,6 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     const buffer = this.screenManager.getCurrentBuffer();
     buffer.insertLines(cursor.row, count);
-    
-    // Mark affected rows as dirty (from cursor row to end of screen)
-    for (let row = cursor.row; row < this.config.rows; row++) {
-      this.dirtyRows.add(row);
-    }
   }
   
   /**
@@ -808,11 +727,6 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     const buffer = this.screenManager.getCurrentBuffer();
     buffer.deleteLines(cursor.row, count);
-    
-    // Mark affected rows as dirty (from cursor row to end of screen)
-    for (let row = cursor.row; row < this.config.rows; row++) {
-      this.dirtyRows.add(row);
-    }
   }
   
   private handleSgrAttributes(attributes: Attributes): void {
@@ -915,16 +829,8 @@ export class Terminal {
       case '1049': // Alternate screen (with cursor save/restore)
         if (enabled) {
           this.screenManager.switchToAlternate();
-          // Mark all rows as dirty since we switched screens
-          for (let row = 0; row < this.config.rows; row++) {
-            this.dirtyRows.add(row);
-          }
         } else {
           this.screenManager.switchToPrimary();
-          // Mark all rows as dirty since we switched screens
-          for (let row = 0; row < this.config.rows; row++) {
-            this.dirtyRows.add(row);
-          }
         }
         break;
     }
