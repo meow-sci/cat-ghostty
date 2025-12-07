@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test htop Simulation</title>
+  <style>
+    body {
+      margin: 20px;
+      font-family: monospace;
+      background: #000;
+      color: #fff;
+    }
+    #output {
+      white-space: pre;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      background: #111;
+      padding: 10px;
+      border: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>htop Simulation Test</h1>
+  <div id="output"></div>
+
+  <script>
+    const output = document.getElementById('output');
+    
+    // Simulate what htop does:
+    // 1. Switch to alternate screen: CSI ? 1049 h
+    // 2. Clear screen: CSI 2 J
+    // 3. Draw UI multiple times with updates
+    // 4. Switch back to primary: CSI ? 1049 l
+    
+    const sequences = [
+      // Switch to alternate screen
+      '\x1b[?1049h',
+      
+      // Clear screen
+      '\x1b[2J',
+      
+      // Move to home
+      '\x1b[H',
+      
+      // Draw some content (simulating htop UI)
+      'htop - 1.0.0\n',
+      'CPU: 10%\n',
+      'Mem: 2048M\n',
+      '\n',
+      'PID  USER  CPU%  MEM%  COMMAND\n',
+      '1    root  0.0   0.1   init\n',
+      '2    root  0.0   0.0   kthreadd\n',
+      '3    root  0.0   0.0   ksoftirqd/0\n',
+      
+      // Simulate update (move cursor and redraw some lines)
+      '\x1b[2;1H',  // Move to row 2
+      'CPU: 15%\n',  // Update CPU line
+      
+      '\x1b[3;1H',  // Move to row 3
+      'Mem: 2100M\n',  // Update Mem line
+      
+      // Another update
+      '\x1b[2;1H',
+      'CPU: 20%\n',
+      
+      '\x1b[3;1H',
+      'Mem: 2150M\n',
+      
+      // Switch back to primary screen
+      '\x1b[?1049l',
+      
+      // Now run ls
+      'bash-3.2$ ls -lah\n',
+      'total 392\n',
+      'drwxr-xr-x  65 user  staff  2.0K Dec  6 21:46 .\n',
+      'drwxr-xr-x   3 user  staff  160B Nov 17 21:30 ..\n',
+      '-rw-r--r--@  1 user  staff  22K Dec  2 21:18 .DS_Store\n',
+    ];
+    
+    output.textContent = 'Escape sequences:\n' + sequences.join('').replace(/\x1b/g, '\\x1b');
+  </script>
+</body>
+</html>

@@ -81,16 +81,24 @@ export class Renderer {
     
     // If all rows are dirty (screen clear), clear the entire cache and DOM
     // This handles the case where the screen is cleared (e.g., after htop exits)
-    if (dirtyRows.size === config.rows) {
+    const shouldClearCache = dirtyRows.size === config.rows;
+    if (shouldClearCache) {
       this.clearCache();
     }
     
     // Use document fragment for batching DOM updates
     const fragment = document.createDocumentFragment();
     
-    // Render only dirty rows
+    // Determine which rows to render
+    // If we cleared the cache, render ALL rows to ensure nothing is missing
+    // Otherwise, only render dirty rows
+    const rowsToRender = shouldClearCache 
+      ? Array.from({ length: config.rows }, (_, i) => i)
+      : Array.from(dirtyRows);
+    
+    // Render rows
     // With cell batching, we re-render entire lines when they're dirty
-    for (const row of dirtyRows) {
+    for (const row of rowsToRender) {
       // Skip invalid row indices
       if (row < 0 || row >= config.rows) {
         continue;
@@ -98,10 +106,15 @@ export class Renderer {
       
       const line = terminal.getLine(row);
       
-      // Remove old line element if it exists
+      // Remove old line element if it exists and is still in the DOM
       const oldLineElement = this.lineElements.get(row);
       if (oldLineElement) {
-        oldLineElement.remove();
+        // Check if element is still in the DOM before trying to remove it
+        if (oldLineElement.parentNode === this.displayElement) {
+          this.displayElement.removeChild(oldLineElement);
+        }
+        // Remove from map regardless
+        this.lineElements.delete(row);
       }
       
       // Render new line with batched cells
@@ -313,11 +326,15 @@ export class Renderer {
     if (runCell !== null) {
       const runSpan = this.createRunSpan(runCell, runStart, runText);
       lineElement.appendChild(runSpan);
-    } else if (line.cells.length > 0) {
-      // If we have cells but no run was created (e.g., all cells have width 0),
-      // create an empty span to ensure the line has proper height
+    }
+    
+    // Ensure line element always has at least one child for proper rendering
+    // This handles edge cases where no spans were created
+    if (lineElement.childNodes.length === 0) {
       const emptySpan = document.createElement('span');
-      emptySpan.textContent = ' ';
+      emptySpan.textContent = '\u00A0'; // Non-breaking space to ensure visibility
+      emptySpan.style.display = 'inline-block';
+      emptySpan.style.width = '1ch';
       lineElement.appendChild(emptySpan);
     }
     
