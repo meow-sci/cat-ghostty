@@ -2741,3 +2741,671 @@ describe('ImageManager Transparency Property Tests', () => {
     );
   });
 });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 119: Unicode placeholder association
+   * For any image placement with Unicode placeholder, the placeholder character should be written to the grid and associated with the placement
+   * Validates: Requirements 36.1, 36.2
+   */
+  it('Property 119: Unicode placeholder association', () => {
+    fc.assert(
+      fc.property(
+        // Generate random placement parameters
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 0, max: 200 }),   // row
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 100 }),   // width
+        fc.integer({ min: 1, max: 100 }),   // height
+        fc.string({ minLength: 1, maxLength: 1 }), // unicodePlaceholder (single character)
+        (placementId, imageId, row, col, width, height, unicodePlaceholder) => {
+          const manager = new ImageManager();
+          
+          // Create a placement with Unicode placeholder
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width,
+            height,
+            unicodePlaceholder
+          };
+          
+          manager.createPlacement(placement);
+          
+          // Verify the placement was created
+          const retrieved = manager.getPlacement(placementId);
+          expect(retrieved).toBeDefined();
+          expect(retrieved?.unicodePlaceholder).toBe(unicodePlaceholder);
+          
+          // Verify the placeholder is associated with the cell position
+          const associatedPlacementId = manager.getPlacementAtCell(row, col);
+          expect(associatedPlacementId).toBe(placementId);
+          
+          // Verify the association is bidirectional - we can find the placement from the cell
+          expect(associatedPlacementId).toBeDefined();
+          const placementFromCell = manager.getPlacement(associatedPlacementId!);
+          expect(placementFromCell).toEqual(placement);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 119: Multiple placements with placeholders
+   * For any set of placements with Unicode placeholders at different positions, each should be independently associated
+   * Validates: Requirements 36.1, 36.2
+   */
+  it('Property 119: Multiple placements with placeholders', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple unique placements with placeholders
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 100 }),
+            height: fc.integer({ min: 1, max: 100 }),
+            unicodePlaceholder: fc.string({ minLength: 1, maxLength: 1 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 20,
+            selector: (item) => item.placementId // Ensure unique placement IDs
+          }
+        ),
+        (placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height,
+              unicodePlaceholder: p.unicodePlaceholder
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Verify each placeholder is independently associated
+          for (const p of placements) {
+            const associatedPlacementId = manager.getPlacementAtCell(p.row, p.col);
+            expect(associatedPlacementId).toBe(p.placementId);
+            
+            const retrieved = manager.getPlacement(associatedPlacementId!);
+            expect(retrieved?.unicodePlaceholder).toBe(p.unicodePlaceholder);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 120: Placeholder erase removes image
+   * For any Unicode placeholder that is erased, the associated image placement should be removed
+   * Validates: Requirements 36.3
+   */
+  it('Property 120: Placeholder erase removes image', () => {
+    fc.assert(
+      fc.property(
+        // Generate random placement parameters
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 0, max: 200 }),   // row
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 100 }),   // width
+        fc.integer({ min: 1, max: 100 }),   // height
+        fc.string({ minLength: 1, maxLength: 1 }), // unicodePlaceholder
+        (placementId, imageId, row, col, width, height, unicodePlaceholder) => {
+          const manager = new ImageManager();
+          
+          // Create a placement with Unicode placeholder
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width,
+            height,
+            unicodePlaceholder
+          };
+          
+          manager.createPlacement(placement);
+          
+          // Verify the placement exists
+          expect(manager.getPlacement(placementId)).toBeDefined();
+          expect(manager.getPlacementAtCell(row, col)).toBe(placementId);
+          
+          // Erase the cell containing the placeholder
+          manager.handleCellOverwrite(row, col);
+          
+          // Verify the placement was removed
+          expect(manager.getPlacement(placementId)).toBeUndefined();
+          
+          // Verify the placeholder association was removed
+          expect(manager.getPlacementAtCell(row, col)).toBeUndefined();
+          
+          // Verify the placement is no longer in visible placements
+          const visible = manager.getVisiblePlacements();
+          expect(visible.find(p => p.placementId === placementId)).toBeUndefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 120: Region erase removes multiple placeholders
+   * For any region containing multiple Unicode placeholders, erasing the region should remove all associated placements
+   * Validates: Requirements 36.3
+   */
+  it('Property 120: Region erase removes multiple placeholders', () => {
+    fc.assert(
+      fc.property(
+        // Generate a region to erase
+        fc.integer({ min: 0, max: 100 }), // startRow
+        fc.integer({ min: 0, max: 100 }), // startCol
+        fc.integer({ min: 1, max: 50 }),  // regionHeight
+        fc.integer({ min: 1, max: 50 }),  // regionWidth
+        // Generate placements within and outside the region
+        fc.array(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 10 }),
+            height: fc.integer({ min: 1, max: 10 }),
+            unicodePlaceholder: fc.string({ minLength: 1, maxLength: 1 })
+          }),
+          { minLength: 1, maxLength: 20 }
+        ),
+        (startRow, startCol, regionHeight, regionWidth, placements) => {
+          const manager = new ImageManager();
+          const endRow = startRow + regionHeight - 1;
+          const endCol = startCol + regionWidth - 1;
+          
+          // Create all placements
+          const placementsInRegion: number[] = [];
+          const placementsOutsideRegion: number[] = [];
+          
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height,
+              unicodePlaceholder: p.unicodePlaceholder
+            };
+            manager.createPlacement(placement);
+            
+            // Determine if this placement is in the erase region
+            if (p.row >= startRow && p.row <= endRow && p.col >= startCol && p.col <= endCol) {
+              placementsInRegion.push(p.placementId);
+            } else {
+              placementsOutsideRegion.push(p.placementId);
+            }
+          }
+          
+          // Erase the region
+          manager.handleRegionOverwrite(startRow, endRow, startCol, endCol);
+          
+          // Verify placements in the region were removed
+          for (const placementId of placementsInRegion) {
+            expect(manager.getPlacement(placementId)).toBeUndefined();
+          }
+          
+          // Verify placements outside the region still exist
+          for (const placementId of placementsOutsideRegion) {
+            expect(manager.getPlacement(placementId)).toBeDefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 121: Placeholder scroll moves image
+   * For any Unicode placeholder that scrolls, the image placement should move with it
+   * Validates: Requirements 36.4
+   */
+  it('Property 121: Placeholder scroll moves image (scroll up)', () => {
+    fc.assert(
+      fc.property(
+        // Generate random placement parameters
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 5, max: 50 }),    // row (start above bottom to allow scrolling)
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 10 }),    // width
+        fc.integer({ min: 1, max: 10 }),    // height
+        fc.string({ minLength: 1, maxLength: 1 }), // unicodePlaceholder
+        fc.integer({ min: 1, max: 5 }),     // lines to scroll
+        fc.integer({ min: 60, max: 100 }),  // screenRows
+        (placementId, imageId, row, col, width, height, unicodePlaceholder, scrollLines, screenRows) => {
+          const manager = new ImageManager();
+          
+          // Create a placement with Unicode placeholder
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width,
+            height,
+            unicodePlaceholder
+          };
+          
+          manager.createPlacement(placement);
+          
+          // Verify initial state
+          expect(manager.getPlacementAtCell(row, col)).toBe(placementId);
+          
+          // Scroll up
+          manager.handleScroll('up', scrollLines, screenRows, false);
+          
+          const newRow = row - scrollLines;
+          
+          if (newRow >= 0) {
+            // Placement should still be on screen at new position
+            const retrieved = manager.getPlacement(placementId);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.row).toBe(newRow);
+            
+            // Placeholder association should have moved
+            expect(manager.getPlacementAtCell(newRow, col)).toBe(placementId);
+            expect(manager.getPlacementAtCell(row, col)).toBeUndefined();
+          } else {
+            // Placement scrolled off top - should be in scrollback (not alternate screen)
+            const scrollbackPlacements = manager.getScrollbackPlacements();
+            const inScrollback = scrollbackPlacements.find(p => p.placementId === placementId);
+            expect(inScrollback).toBeDefined();
+            
+            // Should not be in visible placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.find(p => p.placementId === placementId)).toBeUndefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 121: Placeholder scroll down moves image
+   * For any Unicode placeholder that scrolls down, the image placement should move with it
+   * Validates: Requirements 36.4
+   */
+  it('Property 121: Placeholder scroll down moves image', () => {
+    fc.assert(
+      fc.property(
+        // Generate random placement parameters
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 0, max: 40 }),    // row (start near top)
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 10 }),    // width
+        fc.integer({ min: 1, max: 10 }),    // height
+        fc.string({ minLength: 1, maxLength: 1 }), // unicodePlaceholder
+        fc.integer({ min: 1, max: 5 }),     // lines to scroll
+        fc.integer({ min: 50, max: 100 }),  // screenRows
+        (placementId, imageId, row, col, width, height, unicodePlaceholder, scrollLines, screenRows) => {
+          const manager = new ImageManager();
+          
+          // Create a placement with Unicode placeholder
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width,
+            height,
+            unicodePlaceholder
+          };
+          
+          manager.createPlacement(placement);
+          
+          // Verify initial state
+          expect(manager.getPlacementAtCell(row, col)).toBe(placementId);
+          
+          // Scroll down (reverse scroll)
+          manager.handleScroll('down', scrollLines, screenRows, false);
+          
+          const newRow = row + scrollLines;
+          
+          if (newRow < screenRows) {
+            // Placement should still be on screen at new position
+            const retrieved = manager.getPlacement(placementId);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.row).toBe(newRow);
+            
+            // Placeholder association should have moved
+            expect(manager.getPlacementAtCell(newRow, col)).toBe(placementId);
+            expect(manager.getPlacementAtCell(row, col)).toBeUndefined();
+          } else {
+            // Placement scrolled off bottom - should be removed
+            expect(manager.getPlacement(placementId)).toBeUndefined();
+            
+            // Should not be in visible placements
+            const visible = manager.getVisiblePlacements();
+            expect(visible.find(p => p.placementId === placementId)).toBeUndefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 121: Multiple placeholders scroll together
+   * For any set of Unicode placeholders that scroll, all should move together maintaining relative positions
+   * Validates: Requirements 36.4
+   */
+  it('Property 121: Multiple placeholders scroll together', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple placements with unique IDs and positions
+        fc.array(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 5, max: 40 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 10 }),
+            height: fc.integer({ min: 1, max: 10 }),
+            unicodePlaceholder: fc.string({ minLength: 1, maxLength: 1 })
+          }),
+          { minLength: 2, maxLength: 10 }
+        ).map(arr => {
+          // Ensure unique placement IDs and positions
+          const seen = new Set<string>();
+          const unique: typeof arr = [];
+          let nextId = 1;
+          
+          for (const item of arr) {
+            const posKey = `${item.row},${item.col}`;
+            if (!seen.has(posKey)) {
+              seen.add(posKey);
+              unique.push({ ...item, placementId: nextId++ });
+            }
+          }
+          
+          return unique.length >= 2 ? unique : [
+            { placementId: 1, imageId: 1, row: 10, col: 0, width: 1, height: 1, unicodePlaceholder: 'A' },
+            { placementId: 2, imageId: 1, row: 11, col: 0, width: 1, height: 1, unicodePlaceholder: 'B' }
+          ];
+        }),
+        fc.integer({ min: 1, max: 3 }),     // lines to scroll
+        fc.integer({ min: 50, max: 100 }),  // screenRows
+        (placements, scrollLines, screenRows) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height,
+              unicodePlaceholder: p.unicodePlaceholder
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Scroll up
+          manager.handleScroll('up', scrollLines, screenRows, false);
+          
+          // Verify all placements moved together
+          for (const p of placements) {
+            const newRow = p.row - scrollLines;
+            
+            if (newRow >= 0) {
+              // Should be at new position
+              const retrieved = manager.getPlacement(p.placementId);
+              expect(retrieved?.row).toBe(newRow);
+              expect(manager.getPlacementAtCell(newRow, p.col)).toBe(p.placementId);
+            } else {
+              // Should be in scrollback
+              const scrollbackPlacements = manager.getScrollbackPlacements();
+              const inScrollback = scrollbackPlacements.find(pl => pl.placementId === p.placementId);
+              expect(inScrollback).toBeDefined();
+            }
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 122: Placeholder overwrite removes image
+   * For any Unicode placeholder overwritten by text, the associated image placement should be removed
+   * Validates: Requirements 36.5
+   */
+  it('Property 122: Placeholder overwrite removes image', () => {
+    fc.assert(
+      fc.property(
+        // Generate random placement parameters
+        fc.integer({ min: 1, max: 10000 }), // placementId
+        fc.integer({ min: 1, max: 10000 }), // imageId
+        fc.integer({ min: 0, max: 200 }),   // row
+        fc.integer({ min: 0, max: 200 }),   // col
+        fc.integer({ min: 1, max: 100 }),   // width
+        fc.integer({ min: 1, max: 100 }),   // height
+        fc.string({ minLength: 1, maxLength: 1 }), // unicodePlaceholder
+        (placementId, imageId, row, col, width, height, unicodePlaceholder) => {
+          const manager = new ImageManager();
+          
+          // Create a placement with Unicode placeholder
+          const placement: ImagePlacement = {
+            placementId,
+            imageId,
+            row,
+            col,
+            width,
+            height,
+            unicodePlaceholder
+          };
+          
+          manager.createPlacement(placement);
+          
+          // Verify the placement exists
+          expect(manager.getPlacement(placementId)).toBeDefined();
+          expect(manager.getPlacementAtCell(row, col)).toBe(placementId);
+          
+          // Overwrite the cell (simulating text being written over the placeholder)
+          manager.handleCellOverwrite(row, col);
+          
+          // Verify the placement was removed
+          expect(manager.getPlacement(placementId)).toBeUndefined();
+          
+          // Verify the placeholder association was removed
+          expect(manager.getPlacementAtCell(row, col)).toBeUndefined();
+          
+          // Verify the placement is no longer in visible placements
+          const visible = manager.getVisiblePlacements();
+          expect(visible.find(p => p.placementId === placementId)).toBeUndefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 122: Multiple placeholder overwrites
+   * For any set of Unicode placeholders that are overwritten, all associated placements should be removed
+   * Validates: Requirements 36.5
+   */
+  it('Property 122: Multiple placeholder overwrites', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple placements with unique IDs and positions
+        fc.array(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 200 }),
+            col: fc.integer({ min: 0, max: 200 }),
+            width: fc.integer({ min: 1, max: 10 }),
+            height: fc.integer({ min: 1, max: 10 }),
+            unicodePlaceholder: fc.string({ minLength: 1, maxLength: 1 })
+          }),
+          { minLength: 2, maxLength: 20 }
+        ).map(arr => {
+          // Ensure unique placement IDs and positions
+          const seen = new Set<string>();
+          const unique: typeof arr = [];
+          let nextId = 1;
+          
+          for (const item of arr) {
+            const posKey = `${item.row},${item.col}`;
+            if (!seen.has(posKey)) {
+              seen.add(posKey);
+              unique.push({ ...item, placementId: nextId++ });
+            }
+          }
+          
+          return unique.length >= 2 ? unique : [
+            { placementId: 1, imageId: 1, row: 0, col: 0, width: 1, height: 1, unicodePlaceholder: 'A' },
+            { placementId: 2, imageId: 1, row: 0, col: 1, width: 1, height: 1, unicodePlaceholder: 'B' }
+          ];
+        }),
+        // Select which placements to overwrite
+        fc.integer({ min: 0, max: 100 }), // percentage to overwrite
+        (placements, overwritePercentage) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height,
+              unicodePlaceholder: p.unicodePlaceholder
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Determine which placements to overwrite
+          const numToOverwrite = Math.floor(placements.length * overwritePercentage / 100);
+          const toOverwrite = placements.slice(0, numToOverwrite);
+          const toKeep = placements.slice(numToOverwrite);
+          
+          // Overwrite selected placements
+          for (const p of toOverwrite) {
+            manager.handleCellOverwrite(p.row, p.col);
+          }
+          
+          // Verify overwritten placements were removed
+          for (const p of toOverwrite) {
+            expect(manager.getPlacement(p.placementId)).toBeUndefined();
+            expect(manager.getPlacementAtCell(p.row, p.col)).toBeUndefined();
+          }
+          
+          // Verify kept placements still exist
+          for (const p of toKeep) {
+            expect(manager.getPlacement(p.placementId)).toBeDefined();
+            expect(manager.getPlacementAtCell(p.row, p.col)).toBe(p.placementId);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 122: Placeholder overwrite is independent
+   * For any placement without a Unicode placeholder, cell overwrites should not affect it
+   * Validates: Requirements 36.5
+   */
+  it('Property 122: Placeholder overwrite is independent', () => {
+    fc.assert(
+      fc.property(
+        // Generate two placements: one with placeholder, one without
+        fc.record({
+          placementId: fc.integer({ min: 1, max: 10000 }),
+          imageId: fc.integer({ min: 1, max: 10000 }),
+          row: fc.integer({ min: 0, max: 200 }),
+          col: fc.integer({ min: 0, max: 200 }),
+          width: fc.integer({ min: 1, max: 10 }),
+          height: fc.integer({ min: 1, max: 10 }),
+          unicodePlaceholder: fc.string({ minLength: 1, maxLength: 1 })
+        }),
+        fc.record({
+          placementId: fc.integer({ min: 1, max: 10000 }),
+          imageId: fc.integer({ min: 1, max: 10000 }),
+          row: fc.integer({ min: 0, max: 200 }),
+          col: fc.integer({ min: 0, max: 200 }),
+          width: fc.integer({ min: 1, max: 10 }),
+          height: fc.integer({ min: 1, max: 10 })
+        }),
+        (withPlaceholder, withoutPlaceholder) => {
+          // Ensure different placement IDs and positions
+          if (withPlaceholder.placementId === withoutPlaceholder.placementId) {
+            return; // Skip this test case
+          }
+          if (withPlaceholder.row === withoutPlaceholder.row && withPlaceholder.col === withoutPlaceholder.col) {
+            return; // Skip this test case
+          }
+          
+          const manager = new ImageManager();
+          
+          // Create placement with placeholder
+          const placement1: ImagePlacement = {
+            placementId: withPlaceholder.placementId,
+            imageId: withPlaceholder.imageId,
+            row: withPlaceholder.row,
+            col: withPlaceholder.col,
+            width: withPlaceholder.width,
+            height: withPlaceholder.height,
+            unicodePlaceholder: withPlaceholder.unicodePlaceholder
+          };
+          manager.createPlacement(placement1);
+          
+          // Create placement without placeholder
+          const placement2: ImagePlacement = {
+            placementId: withoutPlaceholder.placementId,
+            imageId: withoutPlaceholder.imageId,
+            row: withoutPlaceholder.row,
+            col: withoutPlaceholder.col,
+            width: withoutPlaceholder.width,
+            height: withoutPlaceholder.height
+          };
+          manager.createPlacement(placement2);
+          
+          // Overwrite the cell with the placeholder
+          manager.handleCellOverwrite(withPlaceholder.row, withPlaceholder.col);
+          
+          // Verify placement with placeholder was removed
+          expect(manager.getPlacement(withPlaceholder.placementId)).toBeUndefined();
+          
+          // Verify placement without placeholder still exists
+          expect(manager.getPlacement(withoutPlaceholder.placementId)).toBeDefined();
+          
+          // Overwrite the cell without placeholder - should have no effect
+          manager.handleCellOverwrite(withoutPlaceholder.row, withoutPlaceholder.col);
+          
+          // Verify placement without placeholder still exists (not affected by cell overwrite)
+          expect(manager.getPlacement(withoutPlaceholder.placementId)).toBeDefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });

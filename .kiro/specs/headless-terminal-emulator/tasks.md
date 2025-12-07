@@ -894,7 +894,7 @@
     - Remove placement when placeholder is overwritten
     - _Requirements: 36.1, 36.2, 36.3, 36.4, 36.5_
   
-  - [ ] 16.23 Write property tests for Unicode placeholders
+  - [x] 16.23 Write property tests for Unicode placeholders
     - **Property 119: Unicode placeholder association**
     - **Property 120: Placeholder erase removes image**
     - **Property 121: Placeholder scroll moves image**
