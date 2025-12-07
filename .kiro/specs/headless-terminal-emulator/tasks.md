@@ -859,13 +859,13 @@
     - **Property 110: Resize repositions images**
     - **Validates: Requirements 33.1, 33.2, 33.3, 33.4, 33.5**
   
-  - [-] 16.18 Implement ID management
+  - [x] 16.18 Implement ID management
     - Handle image ID reuse (replace previous data)
     - Handle placement ID reuse (replace previous placement)
     - Implement automatic ID generation when not specified
     - _Requirements: 34.3, 34.4, 34.5_
   
-  - [ ] 16.19 Write property tests for ID management
+  - [-] 16.19 Write property tests for ID management
     - **Property 111: Image ID reuse replaces data**
     - **Property 112: Placement ID reuse replaces placement**
     - **Property 113: Automatic ID generation**

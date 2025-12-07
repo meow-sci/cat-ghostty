@@ -31,6 +31,36 @@ export class ImageManager {
   
   /** Map of image ID to transmission state for chunked transfers */
   private transmissions: Map<number, TransmissionState> = new Map();
+  
+  /** Counter for automatic image ID generation */
+  private nextImageId: number = 1;
+  
+  /** Counter for automatic placement ID generation */
+  private nextPlacementId: number = 1;
+
+  /**
+   * Generate a unique image ID.
+   * Automatically increments the internal counter to ensure uniqueness.
+   * 
+   * @returns A unique image ID
+   */
+  generateImageId(): number {
+    const id = this.nextImageId;
+    this.nextImageId++;
+    return id;
+  }
+
+  /**
+   * Generate a unique placement ID.
+   * Automatically increments the internal counter to ensure uniqueness.
+   * 
+   * @returns A unique placement ID
+   */
+  generatePlacementId(): number {
+    const id = this.nextPlacementId;
+    this.nextPlacementId++;
+    return id;
+  }
 
   /**
    * Store a decoded image by ID.
@@ -56,6 +86,12 @@ export class ImageManager {
       height,
       format
     });
+    
+    // Update next ID counter if this ID is >= current counter
+    // This ensures we don't reuse IDs that were explicitly provided
+    if (id >= this.nextImageId) {
+      this.nextImageId = id + 1;
+    }
   }
 
   /**
@@ -116,6 +152,12 @@ export class ImageManager {
       p => p.placementId !== placement.placementId
     );
     this.activePlacements.push(placement);
+    
+    // Update next ID counter if this ID is >= current counter
+    // This ensures we don't reuse IDs that were explicitly provided
+    if (placement.placementId >= this.nextPlacementId) {
+      this.nextPlacementId = placement.placementId + 1;
+    }
   }
 
   /**
