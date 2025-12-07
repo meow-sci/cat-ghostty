@@ -159,19 +159,73 @@ export class KittyGraphicsParser {
    * @param params - Parsed graphics parameters
    * @param cursorRow - Current cursor row position
    * @param cursorCol - Current cursor column position
+   * @param imageData - Optional image data for dimension calculations
+   * @param cellWidth - Width of a terminal cell in pixels (for pixel-to-cell conversion)
+   * @param cellHeight - Height of a terminal cell in pixels (for pixel-to-cell conversion)
+   * @param screenCols - Number of columns on screen (for boundary clipping)
+   * @param screenRows - Number of rows on screen (for boundary clipping)
    * @returns Placement configuration
    */
   handleDisplay(
     params: GraphicsParams,
     cursorRow: number,
-    cursorCol: number
+    cursorCol: number,
+    imageData?: ImageData,
+    cellWidth?: number,
+    cellHeight?: number,
+    screenCols?: number,
+    screenRows?: number
   ): Partial<ImagePlacement> {
     // Generate placement ID if not provided
     const placementId = params.placementId ?? this.nextPlacementId++;
     
-    // Use cursor position if not specified
+    // Use cursor position if not specified (grid coordinate positioning)
     const row = params.y !== undefined ? params.y : cursorRow;
     const col = params.x !== undefined ? params.x : cursorCol;
+    
+    // Calculate dimensions
+    let width = 0;
+    let height = 0;
+    
+    if (params.cols !== undefined && params.cols > 0) {
+      // Explicit cell dimensions provided
+      width = params.cols;
+    } else if (params.width !== undefined && params.width > 0 && cellWidth && cellWidth > 0) {
+      // Pixel width provided - convert to cells
+      width = this.pixelsToCells(params.width, cellWidth);
+    } else if (imageData) {
+      // Native dimension fallback - use image's native dimensions
+      width = cellWidth && cellWidth > 0 
+        ? this.pixelsToCells(imageData.width, cellWidth)
+        : Math.ceil(imageData.width / 10); // Fallback: assume 10px per cell
+    }
+    
+    if (params.rows !== undefined && params.rows > 0) {
+      // Explicit cell dimensions provided
+      height = params.rows;
+    } else if (params.height !== undefined && params.height > 0 && cellHeight && cellHeight > 0) {
+      // Pixel height provided - convert to cells
+      height = this.pixelsToCells(params.height, cellHeight);
+    } else if (imageData) {
+      // Native dimension fallback - use image's native dimensions
+      height = cellHeight && cellHeight > 0
+        ? this.pixelsToCells(imageData.height, cellHeight)
+        : Math.ceil(imageData.height / 20); // Fallback: assume 20px per cell
+    }
+    
+    // Apply screen boundary clipping
+    if (screenCols !== undefined && screenRows !== undefined) {
+      // Ensure placement doesn't extend beyond screen boundaries
+      const maxWidth = screenCols - col;
+      const maxHeight = screenRows - row;
+      
+      if (width > maxWidth) {
+        width = Math.max(0, maxWidth);
+      }
+      if (height > maxHeight) {
+        height = Math.max(0, maxHeight);
+      }
+    }
     
     // Build placement configuration
     const placement: Partial<ImagePlacement> = {
@@ -179,11 +233,11 @@ export class KittyGraphicsParser {
       imageId: params.imageId,
       row,
       col,
-      width: params.cols ?? 0, // Will be calculated from image if 0
-      height: params.rows ?? 0, // Will be calculated from image if 0
+      width,
+      height,
     };
 
-    // Add optional parameters
+    // Add optional parameters (source rectangle cropping)
     if (params.sourceX !== undefined) placement.sourceX = params.sourceX;
     if (params.sourceY !== undefined) placement.sourceY = params.sourceY;
     if (params.sourceWidth !== undefined) placement.sourceWidth = params.sourceWidth;
@@ -194,6 +248,19 @@ export class KittyGraphicsParser {
     }
 
     return placement;
+  }
+
+  /**
+   * Convert pixel dimensions to cell dimensions.
+   * Rounds up to ensure the entire image is visible.
+   * 
+   * @param pixels - Dimension in pixels
+   * @param cellSize - Size of one cell in pixels
+   * @returns Dimension in cells
+   */
+  private pixelsToCells(pixels: number, cellSize: number): number {
+    if (cellSize <= 0) return 0;
+    return Math.ceil(pixels / cellSize);
   }
 
   /**

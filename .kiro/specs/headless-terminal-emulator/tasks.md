@@ -781,7 +781,7 @@
     - **Property 78: Placement creation at cursor**
     - **Validates: Requirements 26.3, 26.4, 26.5, 34.1**
   
-  - [ ] 16.8 Implement chunked transmission support
+  - [x] 16.8 Implement chunked transmission support
     - Implement startTransmission() to begin chunked transmission
     - Implement addChunk() to accumulate image data chunks
     - Implement completeTransmission() to finalize and decode image
@@ -789,7 +789,7 @@
     - Track multiple concurrent transmissions independently
     - _Requirements: 31.1, 31.2, 31.3, 31.4, 31.5_
   
-  - [ ] 16.9 Write property tests for chunked transmission
+  - [x] 16.9 Write property tests for chunked transmission
     - **Property 96: Chunked transmission accumulation**
     - **Property 97: Non-blocking chunked transmission**
     - **Property 98: Transmission completion finalization**
@@ -797,7 +797,7 @@
     - **Property 100: Concurrent transmission independence**
     - **Validates: Requirements 31.1, 31.2, 31.3, 31.4, 31.5**
   
-  - [ ] 16.10 Implement image placement positioning
+  - [x] 16.10 Implement image placement positioning
     - Implement grid coordinate positioning (row/col)
     - Implement pixel to cell dimension conversion
     - Implement source rectangle cropping logic
@@ -805,7 +805,7 @@
     - Implement screen boundary clipping
     - _Requirements: 27.1, 27.2, 27.3, 27.4, 27.5_
   
-  - [ ] 16.11 Write property tests for positioning
+  - [x] 16.11 Write property tests for positioning
     - **Property 79: Grid coordinate positioning**
     - **Property 80: Pixel to cell conversion**
     - **Property 81: Source rectangle cropping**

@@ -467,4 +467,353 @@ describe('ImageManager Property Tests', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 96: Chunked transmission accumulation
+   * For any image transmitted in chunks, the terminal should accumulate all chunks until transmission is complete
+   * Validates: Requirements 31.1
+   */
+  it('Property 96: Chunked transmission accumulation', () => {
+    fc.assert(
+      fc.property(
+        // Generate an image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate a format
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        // Generate multiple chunks of data
+        fc.array(
+          fc.uint8Array({ minLength: 1, maxLength: 1000 }),
+          { minLength: 1, maxLength: 20 }
+        ),
+        (imageId, format, chunks) => {
+          const manager = new ImageManager();
+          
+          // Start transmission
+          manager.startTransmission(imageId, format);
+          
+          // Add all chunks
+          for (const chunk of chunks) {
+            manager.addChunk(imageId, chunk);
+          }
+          
+          // Verify transmission is tracked
+          const transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeDefined();
+          expect(transmission?.imageId).toBe(imageId);
+          expect(transmission?.format).toBe(format);
+          expect(transmission?.chunks).toHaveLength(chunks.length);
+          expect(transmission?.complete).toBe(false);
+          
+          // Complete transmission
+          const combined = manager.completeTransmission(imageId);
+          
+          // Verify all chunks were accumulated
+          expect(combined).toBeDefined();
+          
+          // Calculate expected total length
+          const expectedLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+          expect(combined?.length).toBe(expectedLength);
+          
+          // Verify data is correctly combined
+          let offset = 0;
+          for (const chunk of chunks) {
+            for (let i = 0; i < chunk.length; i++) {
+              expect(combined![offset + i]).toBe(chunk[i]);
+            }
+            offset += chunk.length;
+          }
+          
+          // Verify transmission is cleaned up after completion
+          expect(manager.getTransmission(imageId)).toBeUndefined();
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 97: Non-blocking chunked transmission
+   * For any chunked transmission in progress, the terminal should continue processing other output
+   * Validates: Requirements 31.2
+   */
+  it('Property 97: Non-blocking chunked transmission', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple image IDs for concurrent operations
+        fc.uniqueArray(
+          fc.integer({ min: 1, max: 10000 }),
+          { minLength: 2, maxLength: 5 }
+        ),
+        // Generate chunks for first transmission
+        fc.array(
+          fc.uint8Array({ minLength: 1, maxLength: 100 }),
+          { minLength: 1, maxLength: 5 }
+        ),
+        // Generate format
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        (imageIds, chunks, format) => {
+          const manager = new ImageManager();
+          
+          // Start transmission for first image
+          const transmissionId = imageIds[0];
+          manager.startTransmission(transmissionId, format);
+          
+          // Add some chunks but don't complete
+          for (let i = 0; i < Math.floor(chunks.length / 2); i++) {
+            manager.addChunk(transmissionId, chunks[i]);
+          }
+          
+          // Verify transmission is in progress
+          const transmission = manager.getTransmission(transmissionId);
+          expect(transmission).toBeDefined();
+          expect(transmission?.complete).toBe(false);
+          
+          // Perform other operations while transmission is in progress
+          // Store other images
+          for (let i = 1; i < imageIds.length; i++) {
+            const mockBitmap = new (globalThis as any).ImageBitmap(100, 100);
+            manager.storeImage(imageIds[i], mockBitmap, format, 100, 100);
+          }
+          
+          // Verify other images were stored successfully
+          for (let i = 1; i < imageIds.length; i++) {
+            const retrieved = manager.getImage(imageIds[i]);
+            expect(retrieved).toBeDefined();
+            expect(retrieved?.id).toBe(imageIds[i]);
+          }
+          
+          // Verify transmission is still in progress
+          const stillInProgress = manager.getTransmission(transmissionId);
+          expect(stillInProgress).toBeDefined();
+          expect(stillInProgress?.complete).toBe(false);
+          
+          // Complete the transmission
+          for (let i = Math.floor(chunks.length / 2); i < chunks.length; i++) {
+            manager.addChunk(transmissionId, chunks[i]);
+          }
+          const combined = manager.completeTransmission(transmissionId);
+          
+          // Verify transmission completed successfully
+          expect(combined).toBeDefined();
+          
+          // Verify other images are still accessible
+          for (let i = 1; i < imageIds.length; i++) {
+            const retrieved = manager.getImage(imageIds[i]);
+            expect(retrieved).toBeDefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 98: Transmission completion finalization
+   * For any transmission marked complete, the terminal should finalize the image and make it available for placement
+   * Validates: Requirements 31.3
+   */
+  it('Property 98: Transmission completion finalization', () => {
+    fc.assert(
+      fc.property(
+        // Generate an image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate a format
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        // Generate chunks
+        fc.array(
+          fc.uint8Array({ minLength: 1, maxLength: 500 }),
+          { minLength: 1, maxLength: 10 }
+        ),
+        (imageId, format, chunks) => {
+          const manager = new ImageManager();
+          
+          // Start transmission
+          manager.startTransmission(imageId, format);
+          
+          // Verify transmission exists but is not complete
+          let transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeDefined();
+          expect(transmission?.complete).toBe(false);
+          
+          // Add all chunks
+          for (const chunk of chunks) {
+            manager.addChunk(imageId, chunk);
+          }
+          
+          // Complete transmission
+          const combined = manager.completeTransmission(imageId);
+          
+          // Verify combined data is returned
+          expect(combined).toBeDefined();
+          expect(combined).toBeInstanceOf(Uint8Array);
+          
+          // Verify transmission is cleaned up (no longer tracked)
+          transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeUndefined();
+          
+          // Verify the combined data has correct length
+          const expectedLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+          expect(combined?.length).toBe(expectedLength);
+          
+          // The combined data should now be available for decoding and storage
+          // (In real usage, this would be passed to decodeImageData and then storeImage)
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 99: Transmission failure cleanup
+   * For any failed transmission, the terminal should discard partial data and emit an error event
+   * Validates: Requirements 31.4
+   */
+  it('Property 99: Transmission failure cleanup', () => {
+    fc.assert(
+      fc.property(
+        // Generate an image ID
+        fc.integer({ min: 1, max: 10000 }),
+        // Generate a format
+        fc.constantFrom('png', 'jpeg', 'gif'),
+        // Generate some chunks
+        fc.array(
+          fc.uint8Array({ minLength: 1, maxLength: 500 }),
+          { minLength: 1, maxLength: 10 }
+        ),
+        (imageId, format, chunks) => {
+          const manager = new ImageManager();
+          
+          // Start transmission
+          manager.startTransmission(imageId, format);
+          
+          // Add some chunks
+          for (const chunk of chunks) {
+            manager.addChunk(imageId, chunk);
+          }
+          
+          // Verify transmission exists with accumulated chunks
+          let transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeDefined();
+          expect(transmission?.chunks.length).toBe(chunks.length);
+          
+          // Cancel the transmission (simulating a failure)
+          manager.cancelTransmission(imageId);
+          
+          // Verify transmission is completely removed
+          transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeUndefined();
+          
+          // Verify attempting to complete a cancelled transmission returns undefined
+          const result = manager.completeTransmission(imageId);
+          expect(result).toBeUndefined();
+          
+          // Verify we can start a new transmission with the same ID after cancellation
+          manager.startTransmission(imageId, format);
+          transmission = manager.getTransmission(imageId);
+          expect(transmission).toBeDefined();
+          expect(transmission?.chunks).toHaveLength(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 100: Concurrent transmission independence
+   * For any multiple concurrent image transmissions, each should be handled independently
+   * Validates: Requirements 31.5
+   */
+  it('Property 100: Concurrent transmission independence', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple unique image IDs
+        fc.uniqueArray(
+          fc.integer({ min: 1, max: 10000 }),
+          { minLength: 2, maxLength: 5 }
+        ),
+        // Generate chunks for each transmission
+        fc.array(
+          fc.record({
+            format: fc.constantFrom('png', 'jpeg', 'gif'),
+            chunks: fc.array(
+              fc.uint8Array({ minLength: 1, maxLength: 200 }),
+              { minLength: 1, maxLength: 5 }
+            )
+          }),
+          { minLength: 2, maxLength: 5 }
+        ),
+        (imageIds, transmissionData) => {
+          // Ensure we have matching data for each image ID
+          const numTransmissions = Math.min(imageIds.length, transmissionData.length);
+          const manager = new ImageManager();
+          
+          // Start all transmissions
+          for (let i = 0; i < numTransmissions; i++) {
+            manager.startTransmission(imageIds[i], transmissionData[i].format);
+          }
+          
+          // Verify all transmissions are tracked independently
+          for (let i = 0; i < numTransmissions; i++) {
+            const transmission = manager.getTransmission(imageIds[i]);
+            expect(transmission).toBeDefined();
+            expect(transmission?.imageId).toBe(imageIds[i]);
+            expect(transmission?.format).toBe(transmissionData[i].format);
+            expect(transmission?.chunks).toHaveLength(0);
+          }
+          
+          // Add chunks to each transmission in interleaved fashion
+          const maxChunks = Math.max(...transmissionData.slice(0, numTransmissions).map(t => t.chunks.length));
+          for (let chunkIndex = 0; chunkIndex < maxChunks; chunkIndex++) {
+            for (let i = 0; i < numTransmissions; i++) {
+              if (chunkIndex < transmissionData[i].chunks.length) {
+                manager.addChunk(imageIds[i], transmissionData[i].chunks[chunkIndex]);
+              }
+            }
+          }
+          
+          // Verify each transmission has accumulated its own chunks independently
+          for (let i = 0; i < numTransmissions; i++) {
+            const transmission = manager.getTransmission(imageIds[i]);
+            expect(transmission).toBeDefined();
+            expect(transmission?.chunks.length).toBe(transmissionData[i].chunks.length);
+          }
+          
+          // Complete transmissions in different order
+          const completionOrder = [...Array(numTransmissions).keys()].reverse();
+          const results: (Uint8Array | undefined)[] = [];
+          
+          for (const i of completionOrder) {
+            const combined = manager.completeTransmission(imageIds[i]);
+            results[i] = combined;
+            
+            // Verify this transmission is cleaned up
+            expect(manager.getTransmission(imageIds[i])).toBeUndefined();
+            
+            // Verify other transmissions are still tracked (if not yet completed)
+            for (let j = 0; j < numTransmissions; j++) {
+              if (!completionOrder.slice(0, completionOrder.indexOf(i) + 1).includes(j)) {
+                expect(manager.getTransmission(imageIds[j])).toBeDefined();
+              }
+            }
+          }
+          
+          // Verify each result has correct data
+          for (let i = 0; i < numTransmissions; i++) {
+            expect(results[i]).toBeDefined();
+            const expectedLength = transmissionData[i].chunks.reduce(
+              (sum, chunk) => sum + chunk.length,
+              0
+            );
+            expect(results[i]?.length).toBe(expectedLength);
+          }
+          
+          // Verify all transmissions are cleaned up
+          for (let i = 0; i < numTransmissions; i++) {
+            expect(manager.getTransmission(imageIds[i])).toBeUndefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });
