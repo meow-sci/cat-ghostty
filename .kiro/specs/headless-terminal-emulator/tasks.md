@@ -851,7 +851,7 @@
     - Reposition images on terminal resize
     - _Requirements: 33.1, 33.2, 33.3, 33.4, 33.5_
   
-  - [-] 16.17 Write property tests for terminal operations
+  - [x] 16.17 Write property tests for terminal operations
     - **Property 106: Clear screen removes images**
     - **Property 107: Line erase removes images**
     - **Property 108: Line insertion shifts images**
@@ -859,7 +859,7 @@
     - **Property 110: Resize repositions images**
     - **Validates: Requirements 33.1, 33.2, 33.3, 33.4, 33.5**
   
-  - [ ] 16.18 Implement ID management
+  - [-] 16.18 Implement ID management
     - Handle image ID reuse (replace previous data)
     - Handle placement ID reuse (replace previous placement)
     - Implement automatic ID generation when not specified

@@ -368,7 +368,14 @@ export class ImageManager {
   handleResize(oldCols: number, oldRows: number, newCols: number, newRows: number): void {
     // Remove placements that are now out of bounds
     this.activePlacements = this.activePlacements.filter(placement => {
-      return placement.row < newRows && placement.col < newCols;
+      const inBounds = placement.row < newRows && placement.col < newCols;
+      
+      // If out of bounds, remove from placements map
+      if (!inBounds) {
+        this.placements.delete(placement.placementId);
+      }
+      
+      return inBounds;
     });
   }
 

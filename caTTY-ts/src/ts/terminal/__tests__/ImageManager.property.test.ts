@@ -1603,4 +1603,515 @@ describe('ImageManager Property Tests', () => {
       { numRuns: 100 }
     );
   });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 106: Clear screen removes images
+   * For any screen clear operation, all image placements in the cleared region should be removed
+   * Validates: Requirements 33.1
+   */
+  it('Property 106: Clear screen removes images', () => {
+    fc.assert(
+      fc.property(
+        // Generate multiple placements at various positions
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 50 }),
+            col: fc.integer({ min: 0, max: 80 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 10,
+            selector: (item) => item.placementId
+          }
+        ),
+        (placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          // Verify all placements are visible
+          expect(manager.getVisiblePlacements()).toHaveLength(placements.length);
+          
+          // Clear the screen
+          manager.handleClear('screen');
+          
+          // Verify all placements are removed
+          expect(manager.getVisiblePlacements()).toHaveLength(0);
+          
+          // Verify all placements are deleted from the map
+          for (const p of placements) {
+            expect(manager.getPlacement(p.placementId)).toBeUndefined();
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 107: Line erase removes images
+   * For any line erase operation, image placements on that line should be removed
+   * Validates: Requirements 33.2
+   */
+  it('Property 107: Line erase removes images', () => {
+    fc.assert(
+      fc.property(
+        // Generate a target row to erase
+        fc.integer({ min: 0, max: 50 }),
+        // Generate multiple placements, some on the target row, some not
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 50 }),
+            col: fc.integer({ min: 0, max: 80 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 3,
+            maxLength: 15,
+            selector: (item) => item.placementId
+          }
+        ),
+        (targetRow, placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Erase the target line
+          manager.handleClear('line', targetRow);
+          
+          // Count how many placements should be removed
+          // A placement overlaps with the line if targetRow is within [placement.row, placement.row + placement.height - 1]
+          const shouldBeRemoved = placements.filter(p => {
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            return targetRow >= placementStartRow && targetRow <= placementEndRow;
+          });
+          
+          const shouldRemain = placements.filter(p => {
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            return targetRow < placementStartRow || targetRow > placementEndRow;
+          });
+          
+          // Verify removed placements are gone
+          for (const p of shouldBeRemoved) {
+            expect(manager.getPlacement(p.placementId)).toBeUndefined();
+          }
+          
+          // Verify remaining placements still exist
+          for (const p of shouldRemain) {
+            expect(manager.getPlacement(p.placementId)).toBeDefined();
+          }
+          
+          // Verify visible placements count
+          expect(manager.getVisiblePlacements()).toHaveLength(shouldRemain.length);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 107: Line erase with column range removes images
+   * For any line erase with column range, only placements overlapping that range should be removed
+   * Validates: Requirements 33.2
+   */
+  it('Property 107: Line erase with column range removes images', () => {
+    fc.assert(
+      fc.property(
+        // Generate a target row to erase
+        fc.integer({ min: 0, max: 50 }),
+        // Generate column range
+        fc.integer({ min: 0, max: 40 }), // startCol
+        fc.integer({ min: 41, max: 80 }), // endCol
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 50 }),
+            col: fc.integer({ min: 0, max: 80 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 3,
+            maxLength: 15,
+            selector: (item) => item.placementId
+          }
+        ),
+        (targetRow, startCol, endCol, placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Erase the target line with column range
+          manager.handleClear('line', targetRow, startCol, endCol);
+          
+          // Count how many placements should be removed
+          // A placement should be removed if:
+          // 1. It overlaps with the target row
+          // 2. It overlaps with the column range
+          const shouldBeRemoved = placements.filter(p => {
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            const placementStartCol = p.col;
+            const placementEndCol = p.col + p.width - 1;
+            
+            const rowOverlap = targetRow >= placementStartRow && targetRow <= placementEndRow;
+            const colOverlap = !(endCol < placementStartCol || startCol > placementEndCol);
+            
+            return rowOverlap && colOverlap;
+          });
+          
+          const shouldRemain = placements.filter(p => {
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            const placementStartCol = p.col;
+            const placementEndCol = p.col + p.width - 1;
+            
+            const rowOverlap = targetRow >= placementStartRow && targetRow <= placementEndRow;
+            const colOverlap = !(endCol < placementStartCol || startCol > placementEndCol);
+            
+            return !(rowOverlap && colOverlap);
+          });
+          
+          // Verify removed placements are gone
+          for (const p of shouldBeRemoved) {
+            expect(manager.getPlacement(p.placementId)).toBeUndefined();
+          }
+          
+          // Verify remaining placements still exist
+          for (const p of shouldRemain) {
+            expect(manager.getPlacement(p.placementId)).toBeDefined();
+          }
+          
+          // Verify visible placements count
+          expect(manager.getVisiblePlacements()).toHaveLength(shouldRemain.length);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 108: Line insertion shifts images
+   * For any line insertion, image placements should shift down accordingly
+   * Validates: Requirements 33.3
+   */
+  it('Property 108: Line insertion shifts images', () => {
+    fc.assert(
+      fc.property(
+        // Generate screen dimensions
+        fc.integer({ min: 20, max: 100 }), // screenRows
+        // Generate insertion parameters
+        fc.integer({ min: 0, max: 50 }), // insertRow
+        fc.integer({ min: 1, max: 10 }), // count (number of lines to insert)
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 50 }),
+            col: fc.integer({ min: 0, max: 80 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 10,
+            selector: (item) => item.placementId
+          }
+        ),
+        (screenRows, insertRow, count, placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Insert lines
+          manager.handleLineInsertion(insertRow, count, screenRows);
+          
+          // Verify placements are shifted correctly
+          for (const p of placements) {
+            const retrieved = manager.getPlacement(p.placementId);
+            
+            if (p.row >= insertRow) {
+              // Placement should be shifted down
+              const newRow = p.row + count;
+              
+              if (newRow >= screenRows) {
+                // Placement went off the bottom, should be removed
+                expect(retrieved).toBeUndefined();
+              } else {
+                // Placement should still exist at new position
+                expect(retrieved).toBeDefined();
+                expect(retrieved?.row).toBe(newRow);
+                expect(retrieved?.col).toBe(p.col);
+                expect(retrieved?.width).toBe(p.width);
+                expect(retrieved?.height).toBe(p.height);
+              }
+            } else {
+              // Placement above insertion point should not move
+              expect(retrieved).toBeDefined();
+              expect(retrieved?.row).toBe(p.row);
+              expect(retrieved?.col).toBe(p.col);
+            }
+          }
+          
+          // Count how many should remain
+          const shouldRemain = placements.filter(p => {
+            if (p.row >= insertRow) {
+              return p.row + count < screenRows;
+            }
+            return true;
+          });
+          
+          expect(manager.getVisiblePlacements()).toHaveLength(shouldRemain.length);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 109: Line deletion shifts images
+   * For any line deletion, image placements should shift up and those in deleted lines should be removed
+   * Validates: Requirements 33.4
+   */
+  it('Property 109: Line deletion shifts images', () => {
+    fc.assert(
+      fc.property(
+        // Generate deletion parameters
+        fc.integer({ min: 0, max: 50 }), // deleteRow
+        fc.integer({ min: 1, max: 10 }), // count (number of lines to delete)
+        // Generate multiple placements
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 60 }),
+            col: fc.integer({ min: 0, max: 80 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 15,
+            selector: (item) => item.placementId
+          }
+        ),
+        (deleteRow, count, placements) => {
+          const manager = new ImageManager();
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Delete lines
+          manager.handleLineDeletion(deleteRow, count);
+          
+          const deleteEndRow = deleteRow + count - 1;
+          
+          // Verify placements are handled correctly
+          for (const p of placements) {
+            const retrieved = manager.getPlacement(p.placementId);
+            
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            
+            // Check if placement overlaps with deleted lines
+            if (placementStartRow <= deleteEndRow && placementEndRow >= deleteRow) {
+              // Placement is in the deleted region - should be removed
+              expect(retrieved).toBeUndefined();
+            } else if (placementStartRow > deleteEndRow) {
+              // Placement is below the deleted region - should be shifted up
+              expect(retrieved).toBeDefined();
+              expect(retrieved?.row).toBe(p.row - count);
+              expect(retrieved?.col).toBe(p.col);
+              expect(retrieved?.width).toBe(p.width);
+              expect(retrieved?.height).toBe(p.height);
+            } else {
+              // Placement is above the deleted region - should not move
+              expect(retrieved).toBeDefined();
+              expect(retrieved?.row).toBe(p.row);
+              expect(retrieved?.col).toBe(p.col);
+            }
+          }
+          
+          // Count how many should remain
+          const shouldRemain = placements.filter(p => {
+            const placementStartRow = p.row;
+            const placementEndRow = p.row + p.height - 1;
+            
+            // Not in deleted region
+            return !(placementStartRow <= deleteEndRow && placementEndRow >= deleteRow);
+          });
+          
+          expect(manager.getVisiblePlacements()).toHaveLength(shouldRemain.length);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  /**
+   * Feature: headless-terminal-emulator, Property 110: Resize repositions images
+   * For any terminal resize, image placements should be repositioned based on new cell dimensions
+   * Validates: Requirements 33.5
+   */
+  it('Property 110: Resize repositions images', () => {
+    fc.assert(
+      fc.property(
+        // Generate old dimensions
+        fc.integer({ min: 20, max: 100 }), // oldCols
+        fc.integer({ min: 20, max: 100 }), // oldRows
+        // Generate new dimensions
+        fc.integer({ min: 20, max: 100 }), // newCols
+        fc.integer({ min: 20, max: 100 }), // newRows
+        // Generate multiple placements (constrained to old dimensions)
+        fc.uniqueArray(
+          fc.record({
+            placementId: fc.integer({ min: 1, max: 10000 }),
+            imageId: fc.integer({ min: 1, max: 10000 }),
+            row: fc.integer({ min: 0, max: 50 }),
+            col: fc.integer({ min: 0, max: 50 }),
+            width: fc.integer({ min: 1, max: 20 }),
+            height: fc.integer({ min: 1, max: 10 })
+          }),
+          {
+            minLength: 1,
+            maxLength: 15,
+            selector: (item) => item.placementId
+          }
+        ),
+        (oldCols, oldRows, newCols, newRows, rawPlacements) => {
+          const manager = new ImageManager();
+          
+          // Filter placements to only include those within old bounds
+          const placements = rawPlacements.filter(p => p.row < oldRows && p.col < oldCols);
+          
+          // Skip test if no valid placements
+          if (placements.length === 0) {
+            return true;
+          }
+          
+          // Create all placements
+          for (const p of placements) {
+            const placement: ImagePlacement = {
+              placementId: p.placementId,
+              imageId: p.imageId,
+              row: p.row,
+              col: p.col,
+              width: p.width,
+              height: p.height
+            };
+            manager.createPlacement(placement);
+          }
+          
+          const initialCount = placements.length;
+          expect(manager.getVisiblePlacements()).toHaveLength(initialCount);
+          
+          // Resize terminal
+          manager.handleResize(oldCols, oldRows, newCols, newRows);
+          
+          // Verify placements are handled correctly
+          for (const p of placements) {
+            const retrieved = manager.getPlacement(p.placementId);
+            
+            if (p.row >= newRows || p.col >= newCols) {
+              // Placement is now out of bounds - should be removed
+              expect(retrieved).toBeUndefined();
+            } else {
+              // Placement is still within bounds - should still exist
+              expect(retrieved).toBeDefined();
+              expect(retrieved?.row).toBe(p.row);
+              expect(retrieved?.col).toBe(p.col);
+              expect(retrieved?.width).toBe(p.width);
+              expect(retrieved?.height).toBe(p.height);
+            }
+          }
+          
+          // Count how many should remain
+          const shouldRemain = placements.filter(p => {
+            return p.row < newRows && p.col < newCols;
+          });
+          
+          expect(manager.getVisiblePlacements()).toHaveLength(shouldRemain.length);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
 });
