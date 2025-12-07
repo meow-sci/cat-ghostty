@@ -737,3 +737,202 @@
 
 - [ ] 16. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 17. Performance Optimizations
+  - [ ] 17.1 Implement dirty row tracking (HIGHEST PRIORITY)
+    - **Impact:** Massive (20-50x faster for typical terminal usage)
+    - **Effort:** Low
+    - **Problem:** Currently, every state change triggers a full screen render of all 1,920 cells (80×24), even when only 1-2 rows changed
+    - **Solution:** Track which rows have been modified and only render those rows
+    - **Implementation Steps:**
+      1. Add `private dirtyRows: Set<number> = new Set()` to Terminal class (caTTY-ts/src/ts/terminal/Terminal.ts)
+      2. Mark rows as dirty in all methods that modify buffer content:
+         - `handlePrintable()`: Add `this.dirtyRows.add(cursor.row)` after writing character
+         - `handleLineFeed()`: Add `this.dirtyRows.add(cursor.row)` when moving to new row
+         - `scrollUp()`: Add all visible rows to dirty set (0 to config.rows-1)
+         - `scrollDown()`: Add all visible rows to dirty set
+         - `eraseInDisplay()`: Add affected rows based on erase mode (0/1/2)
+         - `eraseInLine()`: Add `this.dirtyRows.add(cursor.row)`
+         - `insertLines()`, `deleteLines()`: Add affected row range
+         - `clearRegion()`: Add all rows in the cleared region
+      3. Add public method `getDirtyRows(): Set<number>` to Terminal class
+      4. Add public method `clearDirtyRows(): void` to Terminal class
+      5. Modify `Renderer.render()` method (caTTY-ts/src/ts/terminal/Renderer.ts):
+         - Call `const dirtyRows = terminal.getDirtyRows()` at start
+         - Add early return if `dirtyRows.size === 0`
+         - Change main loop from `for (let row = 0; row < config.rows; row++)` to `for (const row of dirtyRows)`
+         - Call `terminal.clearDirtyRows()` at end of render
+      6. Handle cursor separately since it may move without dirtying rows
+      7. Add special case: when cursor moves between rows, mark both old and new cursor rows as dirty
+    - **Testing:**
+      - Write property test verifying only dirty rows are rendered
+      - Test that typing a character only marks one row as dirty
+      - Test that scrolling marks all rows as dirty
+      - Test that cursor movement marks appropriate rows as dirty
+    - **Property 75: Dirty row tracking correctness**
+    - **Validates: Performance requirement - minimize unnecessary rendering**
+  
+  - [ ] 17.2 Implement cell batching for consecutive same-styled cells (HIGH PRIORITY)
+    - **Impact:** High (70-90% reduction in DOM elements, 2-3x faster rendering)
+    - **Effort:** Medium
+    - **Problem:** Each character is rendered as an individual `<span>` element with absolute positioning. For 80×24 terminal = 1,920 DOM elements
+    - **Solution:** Batch consecutive cells with identical styling into single span elements
+    - **Implementation Steps:**
+      1. Create helper method `cellStylesEqual(a: Cell, b: Cell): boolean` in Renderer class
+         - Compare fg, bg, bold, italic, underline, inverse, strikethrough, url
+         - Return true only if all style properties match
+         - Ignore char and width in comparison
+      2. Modify `renderLine()` method in Renderer class:
+         - Track `runStart` index at beginning of line
+         - Iterate through cells, checking if next cell has same style
+         - When style changes or line ends, create single span for the run
+         - Span should contain concatenated text from all cells in run
+         - Position span at `runStart` column using `left: ${runStart}ch`
+         - Set span width to run length if needed
+      3. Create `createRunSpan(cell: Cell, col: number, text: string): HTMLElement` method:
+         - Create span element with absolute positioning
+         - Set `left: ${col}ch`
+         - Set `textContent` to the concatenated text
+         - Apply styles using existing `applyStyles()` method
+         - Return the span element
+      4. Update incremental rendering cache to track runs instead of individual cells:
+         - Cache key should include run start position and length
+         - Compare cached run with current run to detect changes
+         - Only recreate span if run content or style changed
+      5. Handle wide characters carefully:
+         - Wide characters (width=2) should not break runs unnecessarily
+         - Skip continuation cells (width=0) when building run text
+      6. Handle empty cells (spaces) in runs:
+         - Include spaces in run text to maintain positioning
+         - Don't break runs just because cell.char is empty
+    - **Testing:**
+      - Write property test verifying consecutive same-styled cells are batched
+      - Test that style changes create new spans
+      - Test that wide characters are handled correctly in runs
+      - Measure DOM element count before/after optimization
+    - **Property 76: Cell batching reduces DOM elements**
+    - **Property 77: Cell batching preserves visual output**
+    - **Validates: Performance requirement - minimize DOM element count**
+  
+  - [ ] 17.3 Optimize cursor rendering (MEDIUM PRIORITY)
+    - **Impact:** Medium (eliminates unnecessary DOM thrashing on every render)
+    - **Effort:** Very Low
+    - **Problem:** Cursor element is removed and recreated on every render, even when it hasn't moved
+    - **Solution:** Update cursor position via CSS properties instead of recreating element
+    - **Implementation Steps:**
+      1. Modify `render()` method in Renderer class:
+         - Change cursor update logic from remove/recreate to update-in-place
+         - Only create cursor element if it doesn't exist (`this.cursorElement === null`)
+      2. Create new method `updateCursor(cursor: CursorState): void`:
+         - If `this.cursorElement` is null, call `renderCursor()` and append to display
+         - Otherwise, update existing element properties:
+           - `this.cursorElement.style.left = \`${cursor.col}ch\``
+           - `this.cursorElement.style.top = \`${cursor.row}em\``
+           - `this.cursorElement.style.opacity = cursor.visible ? '0.5' : '0'`
+           - Update animation if blinking state changed
+      3. Replace cursor rendering block in `render()` with call to `updateCursor()`
+      4. Ensure cursor element is properly cleaned up in `clearCache()` method
+    - **Testing:**
+      - Write property test verifying cursor element is reused
+      - Test that cursor position updates correctly
+      - Test that cursor visibility updates correctly
+      - Verify no memory leaks from cursor element
+    - **Property 78: Cursor element reuse**
+    - **Validates: Performance requirement - minimize DOM manipulation**
+  
+  - [ ] 17.4 Implement conditional style application (MEDIUM PRIORITY)
+    - **Impact:** Medium (reduces browser style recalculation overhead)
+    - **Effort:** Low
+    - **Problem:** `applyStyles()` resets ALL styles first, then reapplies them, forcing browser recalculation even when nothing changed
+    - **Solution:** Only set styles that differ from current element state
+    - **Implementation Steps:**
+      1. Create `WeakMap<HTMLElement, CachedCell>` to track last applied styles per element
+      2. Modify `applyStyles(element: HTMLElement, cell: Cell)` method:
+         - Look up cached styles for this element
+         - If no cache entry, apply all styles (first time)
+         - If cache exists, compare each style property:
+           - Only set `element.style.color` if `cell.fg` differs from cached fg
+           - Only set `element.style.backgroundColor` if `cell.bg` differs from cached bg
+           - Only set `element.style.fontWeight` if `cell.bold` differs from cached bold
+           - Only set `element.style.fontStyle` if `cell.italic` differs from cached italic
+           - Only set `element.style.textDecoration` if underline/strikethrough changed
+           - Only set `element.style.cursor` if url changed
+         - Update cache entry after applying changes
+      3. Alternative simpler approach (if WeakMap overhead is concern):
+         - Store last applied styles as data attributes on element
+         - Compare data attributes before setting styles
+         - Example: `element.dataset.fgColor`, `element.dataset.bold`, etc.
+      4. Clear style cache when element is removed or reused for different cell
+      5. Ensure cache is cleared in `clearCache()` method
+    - **Testing:**
+      - Write property test verifying styles are only set when changed
+      - Measure style recalculation count before/after optimization
+      - Test that visual output remains correct
+      - Verify cache is properly maintained and cleared
+    - **Property 79: Conditional style application correctness**
+    - **Validates: Performance requirement - minimize style recalculation**
+  
+  - [ ] 17.5 Add performance monitoring and metrics (LOW PRIORITY)
+    - **Impact:** Low (enables measurement and future optimization)
+    - **Effort:** Low
+    - **Problem:** No visibility into actual performance characteristics
+    - **Solution:** Add optional performance monitoring
+    - **Implementation Steps:**
+      1. Create `PerformanceMonitor` class in `caTTY-ts/src/ts/terminal/PerformanceMonitor.ts`:
+         - Track render count, render time, cells rendered, DOM operations
+         - Use `performance.now()` for timing measurements
+         - Provide `getMetrics()` method returning statistics
+         - Provide `reset()` method to clear metrics
+      2. Add optional `performanceMonitor?: PerformanceMonitor` to Renderer constructor
+      3. Instrument `render()` method:
+         - Record start time at beginning
+         - Count dirty rows processed
+         - Count cells updated
+         - Count DOM elements created/updated
+         - Record end time and calculate duration
+         - Report metrics to monitor if present
+      4. Add development-only UI to display metrics:
+         - Show FPS (frames per second)
+         - Show average render time
+         - Show cells rendered per frame
+         - Show DOM element count
+         - Toggle visibility with keyboard shortcut (e.g., Ctrl+Shift+P)
+      5. Add `?debug=performance` query parameter to enable monitoring in production
+    - **Testing:**
+      - Verify metrics are accurately recorded
+      - Test that monitoring has minimal performance overhead
+      - Verify metrics UI displays correctly
+    - **Property 80: Performance metrics accuracy**
+    - **Validates: Performance requirement - measurable performance characteristics**
+  
+  - [ ] 17.6 Write comprehensive performance benchmarks
+    - **Impact:** Low (validation and regression prevention)
+    - **Effort:** Medium
+    - **Problem:** No automated way to detect performance regressions
+    - **Solution:** Create benchmark suite for common terminal operations
+    - **Implementation Steps:**
+      1. Create `caTTY-ts/src/ts/terminal/__tests__/performance.bench.ts`
+      2. Use Vitest's `bench()` API for benchmarking
+      3. Create benchmarks for:
+         - Writing 1000 characters to terminal
+         - Scrolling 100 lines
+         - Rendering full screen (80×24)
+         - Rendering single line update
+         - Cursor movement across screen
+         - SGR attribute changes
+         - Wide character rendering
+      4. Set performance baselines:
+         - Single character write: < 0.1ms
+         - Full screen render: < 5ms
+         - Single line render: < 0.5ms
+         - Scroll operation: < 2ms
+      5. Add benchmark script to package.json: `"bench": "vitest bench"`
+      6. Document expected performance characteristics in README
+      7. Add CI job to run benchmarks and detect regressions
+    - **Testing:**
+      - Run benchmarks before and after optimizations
+      - Verify optimizations meet performance targets
+      - Document performance improvements in commit messages
+    - **Property 81: Performance benchmarks establish baselines**
+    - **Validates: Performance requirement - measurable performance improvements**
+
