@@ -79,13 +79,21 @@ export class BackendServer {
       // Determine the appropriate shell for the OS
       const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
       
+      // Create environment with Kitty graphics support indicators
+      const env = {
+        ...process.env,
+        TERM: 'xterm-256color',
+        TERM_PROGRAM: 'caTTY',
+        COLORTERM: 'truecolor'
+      } as { [key: string]: string };
+      
       // Spawn PTY process with default dimensions
       const pty = spawn(shell, [], {
         name: 'xterm-color',
         cols: 80,
         rows: 40,
         cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
-        env: process.env as { [key: string]: string }
+        env: env
       });
 
       // Store the connection

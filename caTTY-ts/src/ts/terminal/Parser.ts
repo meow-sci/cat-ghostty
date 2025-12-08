@@ -39,7 +39,7 @@ export interface ParserHandlers extends OscEvents {
   onShiftOut?: () => void;
   
   /** Handle CSI sequence */
-  onCsi?: (params: number[], intermediates: string, final: number) => void;
+  onCsi?: (params: number[], intermediates: string, final: number, privateMarker?: string) => void;
   
   /** Handle SGR attribute update */
   onSgrAttributes?: (attributes: Attributes) => void;
@@ -106,6 +106,9 @@ export class Parser {
   
   /** Buffer for collecting CSI intermediate characters */
   private csiIntermediates: string = '';
+  
+  /** Buffer for collecting CSI private marker (?, >, =, <) */
+  private csiPrivateMarker: string = '';
   
   /** Buffer for collecting OSC string data */
   private oscData: string = '';
@@ -373,6 +376,7 @@ export class Parser {
     this.csiParams = [];
     this.csiSeparators = [];
     this.csiIntermediates = '';
+    this.csiPrivateMarker = '';
   }
   
   /**
@@ -389,8 +393,14 @@ export class Parser {
       this.csiSeparators.push(String.fromCharCode(byte));
       this.state = ParserState.CsiParam;
     } else if (byte >= 0x3C && byte <= 0x3F) {
-      // Private marker - ignore sequence
-      this.state = ParserState.CsiIgnore;
+      // Private marker - handle '>' and '?' for capability queries
+      if (byte === 0x3E || byte === 0x3F) { // '>' or '?'
+        this.csiPrivateMarker = String.fromCharCode(byte);
+        // Stay in CsiEntry to handle next byte
+      } else {
+        // Ignore other private markers (=, <)
+        this.state = ParserState.CsiIgnore;
+      }
     } else if (byte >= 0x20 && byte <= 0x2F) {
       // Intermediate byte
       this.csiIntermediates += String.fromCharCode(byte);
@@ -610,7 +620,7 @@ export class Parser {
       }
     }
     
-    this.handlers.onCsi?.(params, this.csiIntermediates, final);
+    this.handlers.onCsi?.(params, this.csiIntermediates, final, this.csiPrivateMarker);
   }
   
   /**

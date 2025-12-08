@@ -178,7 +178,7 @@ describe('Parser', () => {
       // ESC [ 5 A (cursor up 5 lines)
       const data = new Uint8Array([0x1B, 0x5B, 0x35, 0x41]);
       parser.parse(data);
-      expect(onCsi).toHaveBeenCalledWith([5], '', 0x41);
+      expect(onCsi).toHaveBeenCalledWith([5], '', 0x41, '');
     });
     
     it('should parse CSI with multiple parameters', () => {
@@ -187,7 +187,7 @@ describe('Parser', () => {
       // ESC [ 10 ; 20 H (cursor position row 10, col 20)
       const data = new Uint8Array([0x1B, 0x5B, 0x31, 0x30, 0x3B, 0x32, 0x30, 0x48]);
       parser.parse(data);
-      expect(onCsi).toHaveBeenCalledWith([10, 20], '', 0x48);
+      expect(onCsi).toHaveBeenCalledWith([10, 20], '', 0x48, '');
     });
     
     it('should parse CSI with no parameters', () => {
@@ -196,17 +196,17 @@ describe('Parser', () => {
       // ESC [ A (cursor up 1 line)
       const data = new Uint8Array([0x1B, 0x5B, 0x41]);
       parser.parse(data);
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x41);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x41, '');
     });
     
     it('should parse CSI with intermediate bytes', () => {
       const onCsi = vi.fn();
       const parser = new Parser({ onCsi });
-      // ESC [ ? 25 h (show cursor - private sequence)
+      // ESC [ ? 25 h (show cursor - private sequence with '?')
       const data = new Uint8Array([0x1B, 0x5B, 0x3F, 0x32, 0x35, 0x68]);
       parser.parse(data);
-      // Private sequences are ignored in CsiEntry state, so onCsi should not be called
-      expect(onCsi).not.toHaveBeenCalled();
+      // Private marker '?' is now handled and passed to onCsi
+      expect(onCsi).toHaveBeenCalledWith([25], '', 0x68, '?');
     });
     
     it('should call onCsi handler for cursor movement sequences', () => {
@@ -228,11 +228,11 @@ describe('Parser', () => {
       
       // ESC [ J (erase in display)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x4A]));
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x4A);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x4A, '');
       
       // ESC [ K (erase in line)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x4B]));
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x4B);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x4B, '');
     });
     
     it('should call onCsi handler for scroll sequences', () => {
@@ -241,11 +241,11 @@ describe('Parser', () => {
       
       // ESC [ 3 S (scroll up 3 lines)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x33, 0x53]));
-      expect(onCsi).toHaveBeenCalledWith([3], '', 0x53);
+      expect(onCsi).toHaveBeenCalledWith([3], '', 0x53, '');
       
       // ESC [ 2 T (scroll down 2 lines)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x32, 0x54]));
-      expect(onCsi).toHaveBeenCalledWith([2], '', 0x54);
+      expect(onCsi).toHaveBeenCalledWith([2], '', 0x54, '');
     });
     
     it('should call onCsi handler for character/line operations', () => {
@@ -254,19 +254,19 @@ describe('Parser', () => {
       
       // ESC [ 5 @ (insert 5 characters)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x35, 0x40]));
-      expect(onCsi).toHaveBeenCalledWith([5], '', 0x40);
+      expect(onCsi).toHaveBeenCalledWith([5], '', 0x40, '');
       
       // ESC [ 3 P (delete 3 characters)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x33, 0x50]));
-      expect(onCsi).toHaveBeenCalledWith([3], '', 0x50);
+      expect(onCsi).toHaveBeenCalledWith([3], '', 0x50, '');
       
       // ESC [ 2 L (insert 2 lines)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x32, 0x4C]));
-      expect(onCsi).toHaveBeenCalledWith([2], '', 0x4C);
+      expect(onCsi).toHaveBeenCalledWith([2], '', 0x4C, '');
       
       // ESC [ 1 M (delete 1 line)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x31, 0x4D]));
-      expect(onCsi).toHaveBeenCalledWith([1], '', 0x4D);
+      expect(onCsi).toHaveBeenCalledWith([1], '', 0x4D, '');
     });
     
     it('should call onCsi handler for scroll region', () => {
@@ -275,7 +275,7 @@ describe('Parser', () => {
       
       // ESC [ 5 ; 20 r (set scroll region from row 5 to 20)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x35, 0x3B, 0x32, 0x30, 0x72]));
-      expect(onCsi).toHaveBeenCalledWith([5, 20], '', 0x72);
+      expect(onCsi).toHaveBeenCalledWith([5, 20], '', 0x72, '');
     });
     
     it('should call onCsi handler for tab operations', () => {
@@ -284,15 +284,15 @@ describe('Parser', () => {
       
       // ESC [ I (forward tab)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x49]));
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x49);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x49, '');
       
       // ESC [ Z (backward tab)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x5A]));
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x5A);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x5A, '');
       
       // ESC [ g (clear tab)
       parser.parse(new Uint8Array([0x1B, 0x5B, 0x67]));
-      expect(onCsi).toHaveBeenCalledWith([0], '', 0x67);
+      expect(onCsi).toHaveBeenCalledWith([0], '', 0x67, '');
     });
   });
   

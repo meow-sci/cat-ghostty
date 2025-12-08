@@ -477,7 +477,7 @@ export class Terminal {
     this.emitStateChange();
   }
   
-  private handleCsi(params: number[], intermediates: string, final: number): void {
+  private handleCsi(params: number[], intermediates: string, final: number, privateMarker?: string): void {
     // Ensure at least one parameter (default to 1 for most sequences, 0 for some)
     const param1 = params.length > 0 ? Math.max(1, params[0]) : 1;
     const param2 = params.length > 1 ? Math.max(1, params[1]) : 1;
@@ -563,13 +563,9 @@ export class Terminal {
         break;
         
       case 0x68: // h - Set Mode
-        if (intermediates === '?') {
-          // DEC Private Mode Set
-          params.forEach(param => {
-            this.setMode(param.toString(), true);
-          });
-        } else {
-          // ANSI Mode Set
+        // Ignore DEC private modes (privateMarker === '?') for now
+        // Only handle ANSI modes
+        if (!privateMarker || privateMarker === '') {
           params.forEach(param => {
             this.setMode(param.toString(), true);
           });
@@ -577,13 +573,9 @@ export class Terminal {
         break;
         
       case 0x6C: // l - Reset Mode
-        if (intermediates === '?') {
-          // DEC Private Mode Reset
-          params.forEach(param => {
-            this.setMode(param.toString(), false);
-          });
-        } else {
-          // ANSI Mode Reset
+        // Ignore DEC private modes (privateMarker === '?') for now
+        // Only handle ANSI modes
+        if (!privateMarker || privateMarker === '') {
           params.forEach(param => {
             this.setMode(param.toString(), false);
           });
@@ -594,6 +586,14 @@ export class Terminal {
         
       case 0x67: // g - Tab Clear
         this.clearTabStop(params.length > 0 ? params[0] : 0);
+        break;
+        
+      case 0x6E: // n - Device Status Report (DSR)
+        this.handleDeviceStatusReport(params.length > 0 ? params[0] : 0);
+        break;
+        
+      case 0x63: // c - Device Attributes (DA)
+        this.handleDeviceAttributes(privateMarker || '', params);
         break;
         
       // Note: SGR (m) is handled separately in the parser
@@ -739,6 +739,57 @@ export class Terminal {
     const cursor = this.screenManager.getCurrentCursor();
     const buffer = this.screenManager.getCurrentBuffer();
     buffer.insertLines(cursor.row, count);
+  }
+  
+  /**
+   * Handle Device Status Report (DSR) queries.
+   * Sends responses back to the client for terminal capability queries.
+   * @param param The DSR parameter (5 = status, 6 = cursor position)
+   */
+  private handleDeviceStatusReport(param: number): void {
+    let response: string;
+    
+    switch (param) {
+      case 5: // Status Report
+        response = '\x1B[0n';
+        break;
+        
+      case 6: // Cursor Position Report (CPR)
+        const cursor = this.screenManager.getCurrentCursor();
+        response = `\x1B[${cursor.row + 1};${cursor.col + 1}R`;
+        break;
+        
+      default:
+        return;
+    }
+    
+    if (this.events.onDataOutput) {
+      const encoder = new TextEncoder();
+      this.events.onDataOutput(encoder.encode(response));
+    }
+  }
+  
+  /**
+   * Handle Device Attributes (DA) queries.
+   * Responds to terminal capability queries from applications.
+   * @param privateMarker Private marker character ('>' for secondary DA)
+   * @param params Parameters for the query
+   */
+  private handleDeviceAttributes(privateMarker: string, params: number[]): void {
+    let response: string;
+    
+    if (privateMarker === '>') {
+      // Secondary Device Attributes (DA2)
+      response = '\x1B[>41;0;0c';
+    } else {
+      // Primary Device Attributes (DA1)
+      response = '\x1B[?1;2;6;22c';
+    }
+    
+    if (this.events.onDataOutput) {
+      const encoder = new TextEncoder();
+      this.events.onDataOutput(encoder.encode(response));
+    }
   }
   
   /**
@@ -1098,6 +1149,10 @@ export class Terminal {
           this.handleImageDeletion(params);
           break;
 
+        case 'q': // Query
+          this.handleGraphicsQuery(params);
+          break;
+
         default:
           // Unknown action - ignore
           break;
@@ -1200,6 +1255,25 @@ export class Terminal {
       case 'all':
         this.imageManager.deleteAllPlacements();
         break;
+    }
+  }
+
+  /**
+   * Handle graphics capability query.
+   * Responds to Kitty graphics protocol capability queries.
+   */
+  private handleGraphicsQuery(params: any): void {
+    let response = '\x1B_G';
+    
+    if (params.imageId !== undefined) {
+      response += `i=${params.imageId};`;
+    }
+    
+    response += 'OK\x1B\\';
+    
+    if (this.events.onDataOutput) {
+      const encoder = new TextEncoder();
+      this.events.onDataOutput(encoder.encode(response));
     }
   }
 

@@ -66,7 +66,7 @@ export class KittyGraphicsParser {
       // Parse based on key
       switch (key) {
         case 'a': // action
-          if (value === 't' || value === 'd' || value === 'D') {
+          if (value === 't' || value === 'd' || value === 'D' || value === 'q') {
             params.action = value;
           }
           break;

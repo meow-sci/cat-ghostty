@@ -259,8 +259,8 @@ export interface TransmissionState {
  * Represents the decoded escape sequence parameters.
  */
 export interface GraphicsParams {
-  /** Action: 't' = transmit, 'd' = display, 'D' = delete */
-  action: 't' | 'd' | 'D';
+  /** Action: 't' = transmit, 'd' = display, 'D' = delete, 'q' = query */
+  action: 't' | 'd' | 'D' | 'q';
   
   /** Image ID for storage and reference */
   imageId?: number;
