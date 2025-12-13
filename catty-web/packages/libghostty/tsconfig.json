@@ -1,0 +1,9 @@
+{
+  "extends": "@catty/tsconfig/tsconfig.lib.json",
+  "include": [
+    "src"
+  ],
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}
