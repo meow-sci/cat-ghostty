@@ -1,4 +1,5 @@
 ---
+import { WithLogger } from "../components/WithLogger";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
 import { ABC, type XYZ } from "@catty/state";
@@ -6,5 +7,5 @@ const o1: XYZ = "a";
 ---
 
 <BaseLayout>
-  hi : {JSON.stringify(ABC)}
+  <WithLogger client:only="react" />
 </BaseLayout>
