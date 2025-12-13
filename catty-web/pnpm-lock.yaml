@@ -23,6 +23,15 @@ importers:
       '@astrojs/react':
         specifier: 4.4.2
         version: 4.4.2(@types/node@25.0.1)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yaml@2.8.2)
+      '@catty/controller':
+        specifier: workspace:*
+        version: link:../packages/controller
+      '@catty/libghostty':
+        specifier: workspace:*
+        version: link:../packages/libghostty
+      '@catty/state':
+        specifier: workspace:*
+        version: link:../packages/state
       '@fontsource-variable/inter':
         specifier: 5.2.8
         version: 5.2.8
