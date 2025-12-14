@@ -1,3 +1,4 @@
+import { getLogger } from "@catty/log";
 import { GhosttyVtInstance } from "../ghostty-vt";
 import { Attributes, SgrAttributeTags, UnderlineStyle } from "./SgrTypes";
 
@@ -6,7 +7,7 @@ import { Attributes, SgrAttributeTags, UnderlineStyle } from "./SgrTypes";
    * This delegates all SGR parsing to libghostty-vt without validating separator format.
    * libghostty-vt accepts both semicolon ';' and colon ':' separators for compatibility.
    */
-export function parseSgrWithWasm(wasm: GhosttyVtInstance, params: number[], separators: string[] = []): Attributes | null {
+export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: GhosttyVtInstance, params: number[], separators: string[] = []): Attributes | null {
 
 
   const attributes: Attributes = {
@@ -212,9 +213,10 @@ export function parseSgrWithWasm(wasm: GhosttyVtInstance, params: number[], sepa
     wasm.exports.ghostty_sgr_free(parserPtr);
     wasm.exports.ghostty_wasm_free_opaque(ptrPtr);
 
-  } catch (error) {
+  } catch (e) {
     // If parsing fails, return null to indicate failure
-    console.warn('SGR parsing failed:', error);
+    log.warn(`SGR parsing failed: ${(e as Error).message}`);
+    console.warn(e);
     return null;
   }
 
