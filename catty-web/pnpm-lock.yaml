@@ -107,6 +107,10 @@ importers:
         version: 7.2.7(@types/node@25.0.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/libghostty:
+    dependencies:
+      '@catty/log':
+        specifier: workspace:*
+        version: link:../log
     devDependencies:
       '@catty/tsconfig':
         specifier: workspace:*

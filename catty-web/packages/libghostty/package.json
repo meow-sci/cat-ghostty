@@ -21,6 +21,9 @@
     "test": "vitest run",
     "test-watch": "vitest"
   },
+  "dependencies": {
+    "@catty/log": "workspace:*"
+  },
   "devDependencies": {
     "@catty/tsconfig": "workspace:*",
     "@types/node": "catalog:",
