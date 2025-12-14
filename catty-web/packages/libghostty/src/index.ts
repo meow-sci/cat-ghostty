@@ -1,2 +1,2 @@
 export { loadWasmFromURL } from "./wasm/loadWasmFromURL";
-export { loadWasmForTest } from "./__tests__/loadWasmForTest";
+export { loadWasmForTest } from "./__tests__/util/loadWasmForTest";

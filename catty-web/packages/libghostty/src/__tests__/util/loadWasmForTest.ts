@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { GhosttyVtInstance } from '../ghostty-vt';
+import { GhosttyVtInstance } from '../../ghostty-vt';
 
 
 export async function loadWasmForTest(): Promise<GhosttyVtInstance> {
 
   // Load WASM file from filesystem
-  const wasmPath = join(__dirname, '../../../../public/ghostty-vt.wasm');
+  const wasmPath = join(__dirname, '../../../public/ghostty-vt.wasm');
   const wasmBytes = await readFile(wasmPath);
 
   // Instantiate the WASM module
@@ -24,5 +24,4 @@ export async function loadWasmForTest(): Promise<GhosttyVtInstance> {
 
   const wasmInstance: GhosttyVtInstance = wasmModule.instance as unknown as any;
   return wasmInstance;
-
 };

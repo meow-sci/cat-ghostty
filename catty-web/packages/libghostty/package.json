@@ -17,12 +17,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "test": "vitest run",
+    "test-watch": "vitest"
   },
   "devDependencies": {
     "@catty/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }
