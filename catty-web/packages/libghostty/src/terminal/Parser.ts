@@ -62,6 +62,12 @@ export class Parser {
 
   private processByte(byte: number): void {
 
+    if (byte < 0 || byte > 255) {
+      // TODO: FIXME: what about utf-8 ... ? are those just multi byte sequences?
+      this.log.warn(`Ignoring out-of-range byte: ${byte}`);
+      return;
+    }
+
     switch (this.state) {
 
       case "normal": {
@@ -87,29 +93,18 @@ export class Parser {
         return this.handleEscapeByte(byte);
       }
 
-      case "osc": {
-
-        // Optional: still execute C0 controls while parsing CSI (common terminal behavior).
-        if (byte < 0x20 && byte !== 0x1b && this.processC0ControlsDuringEscapeSequence && this.handleC0ExceptEscape(byte)) {
-          return;
-        }
-
-
-        // Important: OSC can be terminated by BEL, so don't globally treat BEL as "ring bell".
-        return this.handleOscByte(byte);
-      }
-
       case "csi": {
         // Optional: still execute C0 controls while parsing CSI (common terminal behavior).
         if (byte < 0x20 && byte !== 0x1b && this.processC0ControlsDuringEscapeSequence && this.handleC0ExceptEscape(byte)) {
           return;
         }
 
-        if (byte === 0x1b) {
-          return this.startEscapeSequence(byte);
-        }
-
         return this.handleCsiByte(byte);
+      }
+
+      case "osc": {
+        // cannot process C0 controls inside OSC except for BEL (0x07) and ESC (0x1b) which are terminators
+        return this.handleOscByte(byte);
       }
     }
 
@@ -124,7 +119,8 @@ export class Parser {
   private handleOscByte(byte: number): void {
 
     // guard against bytes outside the allowed OSC byte range (0x20 - 0x7E)
-    if (byte < 0x20 || byte > 0x7e) {
+    // special allowances for BEL (0x07) and ESC (0x1b) must be allowed, these are valid terminators for OSC sequences
+    if (byte !== 0x07 && byte !== 0x1b && (byte < 0x20 || byte > 0x7e)) {
       this.log.warn(`OSC: byte out of range 0x${byte.toString(16)}`);
       return this.maybeEmitNormalByteDuringEscapeSequence(byte);
     }
