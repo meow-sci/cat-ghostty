@@ -42,6 +42,8 @@ export interface Attributes {
   /** Underline style */
   underline: UnderlineStyle;
 
+  underlineColor: Color;
+
   /** Inverse/reverse video attribute */
   inverse: boolean;
 
@@ -51,6 +53,41 @@ export interface Attributes {
   /** Hyperlink URL (OSC 8) */
   url?: string;
 }
+
+// export const SgrAttributeTags: Record<string, number> = {
+//   UNSET: 0,
+//   UNKNOWN: 1,
+//   BOLD: 2,
+//   RESET_BOLD: 3,
+//   ITALIC: 4,
+//   RESET_ITALIC: 5,
+//   FAINT: 6,
+//   UNDERLINE: 7,
+//   RESET_UNDERLINE: 8,
+//   UNDERLINE_COLOR: 9,
+//   UNDERLINE_COLOR_256: 10,
+//   RESET_UNDERLINE_COLOR: 11,
+//   OVERLINE: 12,
+//   RESET_OVERLINE: 13,
+//   BLINK: 14,
+//   RESET_BLINK: 15,
+//   INVERSE: 16,
+//   RESET_INVERSE: 17,
+//   INVISIBLE: 18,
+//   RESET_INVISIBLE: 19,
+//   STRIKETHROUGH: 20,
+//   RESET_STRIKETHROUGH: 21,
+//   DIRECT_COLOR_FG: 22,
+//   DIRECT_COLOR_BG: 23,
+//   BG_8: 24,
+//   FG_8: 25,
+//   RESET_FG: 26,
+//   RESET_BG: 27,
+//   BRIGHT_BG_8: 28,
+//   BRIGHT_FG_8: 29,
+//   BG_256: 30,
+//   FG_256: 31,
+// };
 
 export const SgrAttributeTags: Record<string, number> = {
   UNSET: 0,
@@ -84,7 +121,7 @@ export const SgrAttributeTags: Record<string, number> = {
   BRIGHT_BG_8: 28,
   BRIGHT_FG_8: 29,
   BG_256: 30,
-  FG_256: 31
+  FG_256: 31,
 };
 
 export type SgrAttributeTags = typeof SgrAttributeTags;

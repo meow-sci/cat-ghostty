@@ -2,13 +2,52 @@ import { getLogger } from "@catty/log";
 import { GhosttyVtInstance } from "../ghostty-vt";
 import { Attributes, SgrAttributeTags, UnderlineStyle } from "./SgrTypes";
 
+const DEFAULT_SEPARATORS = [";", ":"];
+
 /**
    * Parse SGR parameters using libghostty-vt WASM and return attributes.
    * This delegates all SGR parsing to libghostty-vt without validating separator format.
-   * libghostty-vt accepts both semicolon ';' and colon ':' separators for compatibility.
+   * 
+   * @param rawSgrSequence SGR sequence string (e.g. "38;5;11" or "4:3;38;5;11")
    */
-export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: GhosttyVtInstance, params: number[], separators: string[] = []): Attributes | null {
+export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: GhosttyVtInstance, rawSgrSequence: string): Attributes | null {
 
+  // rawSgrSequence must be turned into two arrays
+  // params: number[] = the numbers in the sequence
+  // separators: string[] = the separators between each number. will be either ';' or ':' characters for each entry.  will be one less than params.length
+
+  const params: number[] = [];
+  const separators: string[] = [];
+  let currentNum: string = ''; // string based buffer to build up a number by character
+
+  for (let i = 0; i < rawSgrSequence.length; i++) {
+    const char = rawSgrSequence[i];
+
+    if (char === ':' || char === ';') {
+      if (currentNum) {
+        const num = parseInt(currentNum, 10);
+        if (isNaN(num) || num < 0 || num > 65535) {
+          log.error(`Invalid parameter: ${currentNum}`);
+        }
+        params.push(num);
+        separators.push(char);
+        currentNum = '';
+      }
+    } else if (char >= '0' && char <= '9') {
+      currentNum += char;
+    } else if (char !== ' ' && char !== '\t' && char !== '\n') {
+      log.error(`Invalid character in sequence: '${char}'`);
+    }
+  }
+
+  // handle final number
+  if (currentNum) {
+    const num = parseInt(currentNum, 10);
+    if (isNaN(num) || num < 0 || num > 65535) {
+      throw new Error(`Invalid parameter: ${currentNum}`);
+    }
+    params.push(num);
+  }
 
   const attributes: Attributes = {
     fg: { type: 'default' },
@@ -16,6 +55,7 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
     bold: false,
     italic: false,
     underline: UnderlineStyle.None,
+    underlineColor: { type: 'default' },
     inverse: false,
     strikethrough: false
   };
@@ -34,14 +74,20 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
     // Allocate and set parameters
     const paramsPtr = wasm.exports.ghostty_wasm_alloc_u16_array(params.length);
     const paramsView = new Uint16Array(wasm.exports.memory.buffer, paramsPtr, params.length);
-    params.forEach((p, i) => paramsView[i] = p);
+    params.forEach((p, i) => {
+      paramsView[i] = p;
+      console.log(`paramsView[${i}] = ${p}`);
+    });
 
     // Allocate and set separators
     let sepsPtr = 0;
     if (separators.length > 0) {
       sepsPtr = wasm.exports.ghostty_wasm_alloc_u8_array(separators.length);
       const sepsView = new Uint8Array(wasm.exports.memory.buffer, sepsPtr, separators.length);
-      separators.forEach((s, i) => sepsView[i] = s.charCodeAt(0));
+      separators.forEach((s, i) => {
+        sepsView[i] = s.charCodeAt(0);
+        console.log(`sepsView[${i}] = ${s.charCodeAt(0)}`);
+      });
     }
 
     // Set parameters in parser
@@ -60,8 +106,11 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
     const attrPtr = wasm.exports.ghostty_wasm_alloc_sgr_attribute();
 
     while (wasm.exports.ghostty_sgr_next(parserPtr, attrPtr)) {
-      const tag: number = wasm.exports.ghostty_sgr_attribute_tag(attrPtr);
+      let tag: number = wasm.exports.ghostty_sgr_attribute_tag(attrPtr);
+
       const valuePtr = wasm.exports.ghostty_sgr_attribute_value(attrPtr);
+
+      console.log(`tag [${tag}]`)
 
       switch (tag) {
         case SgrAttributeTags.BOLD:
@@ -105,6 +154,36 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
           break;
         }
 
+        case SgrAttributeTags.UNDERLINE_COLOR_256: {
+
+          const rPtr = wasm.exports.ghostty_wasm_alloc_u8();
+          const gPtr = wasm.exports.ghostty_wasm_alloc_u8();
+          const bPtr = wasm.exports.ghostty_wasm_alloc_u8();
+
+          wasm.exports.ghostty_color_rgb_get(valuePtr, rPtr, gPtr, bPtr);
+
+          const wasmBuffer = wasm.exports.memory.buffer;
+
+          const r = new Uint8Array(wasmBuffer, rPtr, 1)[0];
+          const g = new Uint8Array(wasmBuffer, gPtr, 1)[0];
+          const b = new Uint8Array(wasmBuffer, bPtr, 1)[0];
+
+          const output = `Foreground RGB = (${r}, ${g}, ${b})`;
+          console.log(`output [${output}]`);
+
+          wasm.exports.ghostty_wasm_free_u8(rPtr);
+          wasm.exports.ghostty_wasm_free_u8(gPtr);
+          wasm.exports.ghostty_wasm_free_u8(bPtr);
+
+
+          const view = new DataView(wasm.exports.memory.buffer, valuePtr, 4);
+          const style = view.getUint32(0, true);
+          if (style >= 0 && style <= 5) {
+            attributes.underline = style as UnderlineStyle;
+          }
+          break;
+        }
+
         case SgrAttributeTags.RESET_UNDERLINE:
           attributes.underline = UnderlineStyle.None;
           break;
@@ -115,7 +194,7 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
           const color = view.getUint8(0);
           // WORKAROUND: WASM library appears to swap FG/BG tags for 8-color mode
           // This is likely a bug in the WASM build. Swap them back here.
-          attributes.bg = { type: 'indexed', index: color };
+          attributes.fg = { type: 'indexed', index: color };
           break;
         }
 
@@ -125,7 +204,7 @@ export function parseSgrWithWasm(log: ReturnType<typeof getLogger>, wasm: Ghostt
           const color = view.getUint8(0);
           // WORKAROUND: WASM library appears to swap FG/BG tags for 8-color mode
           // This is likely a bug in the WASM build. Swap them back here.
-          attributes.fg = { type: 'indexed', index: color };
+          attributes.bg = { type: 'indexed', index: color };
           break;
         }
 

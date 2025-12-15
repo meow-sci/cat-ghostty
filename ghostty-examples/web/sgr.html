@@ -266,6 +266,9 @@
                     const sepsView = new Uint8Array(getBuffer(), sepsPtr, separators.length);
                     separators.forEach((s, i) => sepsView[i] = s.charCodeAt(0));
                 }
+
+                console.log("params", params);
+                console.log("separators", separators);
                 
                 // Set parameters in parser
                 const setResult = wasmInstance.exports.ghostty_sgr_set_params(

@@ -15,8 +15,10 @@ export interface ParserHandlers {
   /** Non-SGR CSI handler hook */
   handleCsi: HandleCsi;
 
-  /** Opaque stubs (buffered, not parsed) */
+  /** Opaque stub (buffered, not parsed) */
   handleOsc: HandleOsc;
+
+  /** Parsed SGR attributes (delegated to libghostty-vt via WASM) */
   handleSgr: HandleSgr;
 }
 

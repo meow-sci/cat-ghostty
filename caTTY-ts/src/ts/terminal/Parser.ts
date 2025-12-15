@@ -731,7 +731,7 @@ export class Parser {
    * This delegates all SGR parsing to libghostty-vt without validating separator format.
    * libghostty-vt accepts both semicolon ';' and colon ':' separators for compatibility.
    */
-  private parseSgrWithWasm(params: number[], separators: string[] = []): Attributes | null {
+  private parseSgrWithWasm(sequence: number[], separators: string[] = []): Attributes | null {
     if (!this.wasmInstance) {
       return null;
     }

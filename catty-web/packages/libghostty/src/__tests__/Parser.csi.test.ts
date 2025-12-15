@@ -5,6 +5,7 @@ import { Parser } from '../terminal/Parser';
 import { ParserHandlers } from '../terminal/ParserOptions';
 import { type CsiMessage } from '../terminal/TerminalEmulationTypes';
 import { getLogger } from '@catty/log';
+import { Attributes } from '../terminal/SgrTypes';
 
 
 const NOOP_HANDLERS: ParserHandlers = {
@@ -15,10 +16,10 @@ const NOOP_HANDLERS: ParserHandlers = {
   handleLineFeed: () => { },
   handleFormFeed: () => { },
   handleCarriageReturn: () => { },
-  handleNormalByte: (byte: number) => { },
-  handleCsi: (msg: CsiMessage) => { },
-  handleOsc: (raw: string) => { },
-  handleSgr: (raw: string) => { },
+  handleNormalByte: (_byte: number) => { },
+  handleCsi: (_msg: CsiMessage) => { },
+  handleOsc: (_raw: string) => { },
+  handleSgr: (_attrs: Attributes) => { },
 };
 
 describe('Parser', () => {
@@ -40,8 +41,8 @@ describe('Parser', () => {
           handleCsi: (msg: CsiMessage) => {
             console.log(`CSI Message: ${msg._type}`);
           },
-          handleSgr: (raw: string) => {
-            console.log(`SGR sequence received: ${raw}`);
+          handleSgr: (attrs: Attributes) => {
+            console.log(`SGR attrs received: ${JSON.stringify(attrs)}`);
           },
         },
         log: getLogger(),

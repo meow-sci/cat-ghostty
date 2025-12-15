@@ -3,6 +3,7 @@ import { getLogger } from "@catty/log";
 import { GhosttyVtInstance } from "../ghostty-vt";
 import { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown } from "./TerminalEmulationTypes";
 import { ParserOptions } from "./ParserOptions";
+import { parseSgrWithWasm } from "./sgr";
 
 
 type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
@@ -19,6 +20,7 @@ export class Parser {
 
   private state: State = "normal";
   private escapeSequence: number[] = [];
+  private csiSequence: string = "";
 
   constructor(options: ParserOptions) {
     this.wasm = options.wasm;
@@ -152,13 +154,15 @@ export class Parser {
       return this.maybeEmitNormalByteDuringEscapeSequence(byte);
     }
 
-    this.escapeSequence.push(byte);
 
     // CSI final bytes are 0x40-0x7E.
     if (byte >= 0x40 && byte <= 0x7e) {
       this.finishCsiSequence();
       return;
     }
+
+    this.csiSequence += String.fromCharCode(byte);
+    this.escapeSequence.push(byte);
 
     return;
   }
@@ -176,6 +180,7 @@ export class Parser {
     if (this.escapeSequence.length === 1) {
       if (byte === 0x5b) {
         this.escapeSequence.push(byte);
+        this.csiSequence = "";
         this.state = "csi";
         return;
       }
@@ -250,10 +255,16 @@ export class Parser {
     const raw = this.bytesToString(this.escapeSequence);
     const finalByte = this.escapeSequence[this.escapeSequence.length - 1];
 
-    // CSI SGR: keep opaque, delegate later.
+    // CSI SGR: parse via libghostty-vt (WASM), then emit attributes.
     if (finalByte === 0x6d) {
-      this.log.debug(`CSI SGR (opaque): ${raw}`);
-      this.handlers.handleSgr(raw);
+
+      const { params, separators } = this.parseSgrParamsAndSeparators(raw);
+
+      // const attrs = parseSgrWithWasm(this.log, this.wasm, this.csiSequence);
+      // if (attrs) {
+      //   this.handlers.handleSgr(attrs);
+      // }
+      
       this.resetEscapeState();
       return;
     }
@@ -264,9 +275,54 @@ export class Parser {
     return;
   }
 
+  private parseSgrParamsAndSeparators(raw: string): { params: number[]; separators: string[] } {
+    // raw: ESC [ ... m
+    // We track separators (';' or ':') and parameters similarly to caTTY-ts:
+    // - Empty parameters default to 0
+    // - A trailing separator before 'm' yields an extra trailing 0 param
+    // - If there are no parameters at all, default is [0]
+    const paramsText = raw.length >= 3 ? raw.slice(2, -1) : "";
+
+    const params: number[] = [];
+    const separators: string[] = [];
+
+    let current = "";
+    for (let i = 0; i < paramsText.length; i++) {
+      const ch = paramsText[i];
+
+      if (ch >= "0" && ch <= "9") {
+        current += ch;
+        continue;
+      }
+
+      if (ch === ";" || ch === ":") {
+        params.push(current.length > 0 ? Number.parseInt(current, 10) : 0);
+        separators.push(ch);
+        current = "";
+        continue;
+      }
+
+      // Ignore any unexpected characters (private markers / intermediates);
+      // SGR params are expected to be digits + ';' / ':' only.
+    }
+
+    if (current.length > 0) {
+      params.push(Number.parseInt(current, 10));
+    } else if (paramsText.endsWith(";") || paramsText.endsWith(":")) {
+      params.push(0);
+    }
+
+    if (params.length === 0) {
+      params.push(0);
+    }
+
+    return { params, separators };
+  }
+
   private resetEscapeState(): void {
     this.state = "normal";
     this.escapeSequence = [];
+    this.csiSequence = "";
     return;
   }
 
