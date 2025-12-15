@@ -2099,4 +2099,439 @@ describe("Parser", () => {
       expect(captured.sgrMessages[0][0]._type).toBe("sgr.unknown");
     });
   });
+
+  // =============================================================================
+  // Comprehensive OSC Tests
+  // =============================================================================
+  describe("OSC sequences - comprehensive", () => {
+    // OSC 0: Set icon name and window title
+    it("should parse OSC 0 - set icon name and window title (BEL terminator)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;My Terminal Title\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x07");
+    });
+
+    it("should parse OSC 0 - set icon name and window title (ST terminator)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;My Terminal Title\x1b\\"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x1b\\");
+    });
+
+    it("should parse OSC 0 with empty title", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;\x07");
+    });
+
+    // OSC 1: Set icon name only
+    it("should parse OSC 1 - set icon name only", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]1;IconName\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]1;IconName\x07");
+    });
+
+    // OSC 2: Set window title only
+    it("should parse OSC 2 - set window title only", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]2;Window Title\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]2;Window Title\x07");
+    });
+
+    // OSC 4: Set/query color palette
+    it("should parse OSC 4 - set color palette entry", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]4;1;rgb:ff/00/00\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]4;1;rgb:ff/00/00\x07");
+    });
+
+    it("should parse OSC 4 - query color palette entry", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]4;1;?\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]4;1;?\x07");
+    });
+
+    // OSC 7: Set current working directory
+    it("should parse OSC 7 - set current working directory", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]7;file:///Users/user/projects\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]7;file:///Users/user/projects\x07");
+    });
+
+    it("should parse OSC 7 with encoded spaces", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]7;file:///Users/user/My%20Projects\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]7;file:///Users/user/My%20Projects\x07");
+    });
+
+    // OSC 8: Hyperlinks
+    it("should parse OSC 8 - hyperlink with URL", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]8;;https://example.com\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]8;;https://example.com\x07");
+    });
+
+    it("should parse OSC 8 - hyperlink with id parameter", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]8;id=link1;https://example.com\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]8;id=link1;https://example.com\x07");
+    });
+
+    it("should parse OSC 8 - hyperlink close (empty URL)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]8;;\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]8;;\x07");
+    });
+
+    it("should parse OSC 8 - hyperlink with multiple parameters", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]8;id=mylink:title=Click me;https://example.com/page\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]8;id=mylink:title=Click me;https://example.com/page\x07");
+    });
+
+    // OSC 9: iTerm2 growl notification (legacy)
+    it("should parse OSC 9 - notification", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]9;Build completed!\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]9;Build completed!\x07");
+    });
+
+    // OSC 10: Set/query foreground color
+    it("should parse OSC 10 - set foreground color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]10;rgb:ff/ff/ff\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]10;rgb:ff/ff/ff\x07");
+    });
+
+    it("should parse OSC 10 - query foreground color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]10;?\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]10;?\x07");
+    });
+
+    // OSC 11: Set/query background color
+    it("should parse OSC 11 - set background color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]11;rgb:00/00/00\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]11;rgb:00/00/00\x07");
+    });
+
+    it("should parse OSC 11 - query background color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]11;?\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]11;?\x07");
+    });
+
+    // OSC 12: Set/query cursor color
+    it("should parse OSC 12 - set cursor color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]12;rgb:00/ff/00\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]12;rgb:00/ff/00\x07");
+    });
+
+    // OSC 52: Clipboard operations
+    it("should parse OSC 52 - clipboard with base64 data", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      const base64Data = Buffer.from("Hello World").toString("base64");
+      parser.pushBytes(Buffer.from(`\x1b]52;c;${base64Data}\x07`));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe(`\x1b]52;c;${base64Data}\x07`);
+    });
+
+    it("should parse OSC 52 - clipboard query", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]52;c;?\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]52;c;?\x07");
+    });
+
+    it("should parse OSC 52 - primary selection (p)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      const base64Data = Buffer.from("Selected text").toString("base64");
+      parser.pushBytes(Buffer.from(`\x1b]52;p;${base64Data}\x07`));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe(`\x1b]52;p;${base64Data}\x07`);
+    });
+
+    it("should parse OSC 52 - multiple selections (pc)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      const base64Data = Buffer.from("Data").toString("base64");
+      parser.pushBytes(Buffer.from(`\x1b]52;pc;${base64Data}\x07`));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe(`\x1b]52;pc;${base64Data}\x07`);
+    });
+
+    // OSC 104: Reset color palette
+    it("should parse OSC 104 - reset all colors", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]104\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]104\x07");
+    });
+
+    it("should parse OSC 104 - reset specific color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]104;1\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]104;1\x07");
+    });
+
+    // OSC 110: Reset foreground color
+    it("should parse OSC 110 - reset foreground color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]110\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]110\x07");
+    });
+
+    // OSC 111: Reset background color
+    it("should parse OSC 111 - reset background color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]111\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]111\x07");
+    });
+
+    // OSC 112: Reset cursor color
+    it("should parse OSC 112 - reset cursor color", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]112\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]112\x07");
+    });
+
+    // OSC 133: Shell integration / semantic prompts (FinalTerm)
+    it("should parse OSC 133 - prompt start (A)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]133;A\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]133;A\x07");
+    });
+
+    it("should parse OSC 133 - command start (B)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]133;B\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]133;B\x07");
+    });
+
+    it("should parse OSC 133 - command executed (C)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]133;C\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]133;C\x07");
+    });
+
+    it("should parse OSC 133 - command finished (D)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]133;D;0\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]133;D;0\x07");
+    });
+
+    // OSC 1337: iTerm2 proprietary sequences
+    it("should parse OSC 1337 - iTerm2 set user var", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      const base64Value = Buffer.from("value").toString("base64");
+      parser.pushBytes(Buffer.from(`\x1b]1337;SetUserVar=myvar=${base64Value}\x07`));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe(`\x1b]1337;SetUserVar=myvar=${base64Value}\x07`);
+    });
+
+    it("should parse OSC 1337 - iTerm2 report cell size", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]1337;ReportCellSize\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]1337;ReportCellSize\x07");
+    });
+
+    // Edge cases
+    it("should handle OSC with special characters in title", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;user@host:~/path/to/dir$\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;user@host:~/path/to/dir$\x07");
+    });
+
+    it("should handle multiple consecutive OSC sequences", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;Title1\x07\x1b]0;Title2\x07\x1b]0;Title3\x07"));
+
+      expect(captured.oscSequences).toHaveLength(3);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;Title1\x07");
+      expect(captured.oscSequences[1]).toBe("\x1b]0;Title2\x07");
+      expect(captured.oscSequences[2]).toBe("\x1b]0;Title3\x07");
+    });
+
+    it("should handle OSC followed by text", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;Title\x07Hello World"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;Title\x07");
+      // "Hello World" should be received as normal bytes
+      expect(captured.normalBytes.length).toBeGreaterThan(0);
+    });
+
+    it("should handle OSC with very long content", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      const longTitle = "A".repeat(1000);
+      parser.pushBytes(Buffer.from(`\x1b]0;${longTitle}\x07`));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe(`\x1b]0;${longTitle}\x07`);
+    });
+
+    it("should handle OSC split across multiple pushes", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;My "));
+      parser.pushBytes(Buffer.from("Terminal "));
+      parser.pushBytes(Buffer.from("Title\x07"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x07");
+    });
+
+    it("should handle OSC with ST split across pushes", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b]0;Title\x1b"));
+      parser.pushBytes(Buffer.from("\\"));
+
+      expect(captured.oscSequences).toHaveLength(1);
+      expect(captured.oscSequences[0]).toBe("\x1b]0;Title\x1b\\");
+    });
+  });
 });
