@@ -1,5 +1,4 @@
-import { CsiMessage } from "./TerminalEmulationTypes";
-import { Attributes } from "./SgrTypes";
+import { CsiMessage, SgrMessage } from "./TerminalEmulationTypes";
 
 export type HandleBell = () => void;
 export type HandleBackspace = () => void;
@@ -10,4 +9,4 @@ export type HandleCarriageReturn = () => void;
 export type HandleNormalByte = (byte: number) => void;
 export type HandleCsi = (msg: CsiMessage) => void;
 export type HandleOsc = (raw: string) => void;
-export type HandleSgr = (attrs: Attributes) => void;
+export type HandleSgr = (messages: SgrMessage[]) => void;

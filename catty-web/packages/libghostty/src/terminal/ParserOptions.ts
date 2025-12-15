@@ -18,7 +18,7 @@ export interface ParserHandlers {
   /** Opaque stub (buffered, not parsed) */
   handleOsc: HandleOsc;
 
-  /** Parsed SGR attributes (delegated to libghostty-vt via WASM) */
+  /** Parsed SGR messages from the new stateless parser */
   handleSgr: HandleSgr;
 }
 

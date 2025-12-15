@@ -1,9 +1,32 @@
 import { getLogger } from "@catty/log";
 
 import { GhosttyVtInstance } from "../ghostty-vt";
-import { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown } from "./TerminalEmulationTypes";
+import {
+  CsiMessage,
+  CsiSetCursorStyle,
+  CsiDecModeSet,
+  CsiDecModeReset,
+  CsiCursorUp,
+  CsiCursorDown,
+  CsiCursorForward,
+  CsiCursorBackward,
+  CsiCursorNextLine,
+  CsiCursorPrevLine,
+  CsiCursorHorizontalAbsolute,
+  CsiCursorPosition,
+  CsiEraseInDisplayMode,
+  CsiEraseInDisplay,
+  CsiEraseInLineMode,
+  CsiEraseInLine,
+  CsiScrollUp,
+  CsiScrollDown,
+  CsiSetScrollRegion,
+  CsiSaveCursorPosition,
+  CsiRestoreCursorPosition,
+  CsiUnknown,
+} from "./TerminalEmulationTypes";
 import { ParserOptions } from "./ParserOptions";
-import { parseSgrWithWasm } from "./sgr";
+import { parseSgr } from "./ParseSgr";
 
 
 type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
@@ -255,16 +278,11 @@ export class Parser {
     const raw = this.bytesToString(this.escapeSequence);
     const finalByte = this.escapeSequence[this.escapeSequence.length - 1];
 
-    // CSI SGR: parse via libghostty-vt (WASM), then emit attributes.
+    // CSI SGR: parse using the standalone SGR parser
     if (finalByte === 0x6d) {
-
       const { params, separators } = this.parseSgrParamsAndSeparators(raw);
-
-      // const attrs = parseSgrWithWasm(this.log, this.wasm, this.csiSequence);
-      // if (attrs) {
-      //   this.handlers.handleSgr(attrs);
-      // }
-      
+      const sgrMessages = parseSgr(params, separators);
+      this.handlers.handleSgr(sgrMessages);
       this.resetEscapeState();
       return;
     }
@@ -513,3 +531,5 @@ export class Parser {
     return v;
   }
 }
+
+

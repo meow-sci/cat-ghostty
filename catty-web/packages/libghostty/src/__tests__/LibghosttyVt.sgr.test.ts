@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { loadWasmForTest } from './util/loadWasmForTest';
 import { getLogger } from '@catty/log';
-import { parseSgrWithWasm } from '../terminal/sgr';
+import { parseSgrWithWasm } from '../terminal/SgrWasmNotWorking';
 
 
 describe('libghostty-vt', () => {
