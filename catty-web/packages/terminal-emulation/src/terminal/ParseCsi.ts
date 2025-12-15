@@ -1,4 +1,4 @@
-import { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final

@@ -1,6 +1,6 @@
 import { getLogger } from "@catty/log";
 
-import { ParserOptions } from "./ParserOptions";
+import type { ParserOptions } from "./ParserOptions";
 import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
 

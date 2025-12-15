@@ -1,6 +1,6 @@
 import { getLogger } from "@catty/log";
 
-import { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleOsc, HandleSgr } from "./ParserHandlers";
+import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleOsc, HandleSgr } from "./ParserHandlers";
 
 export interface ParserHandlers {
   handleBell: HandleBell;

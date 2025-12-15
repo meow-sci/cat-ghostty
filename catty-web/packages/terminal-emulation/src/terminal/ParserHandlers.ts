@@ -1,4 +1,4 @@
-import { CsiMessage, SgrMessage } from "./TerminalEmulationTypes";
+import type { CsiMessage, SgrMessage } from "./TerminalEmulationTypes";
 
 export type HandleBell = () => void;
 export type HandleBackspace = () => void;
