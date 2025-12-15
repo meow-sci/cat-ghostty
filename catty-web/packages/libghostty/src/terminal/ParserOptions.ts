@@ -1,6 +1,5 @@
 import { getLogger } from "@catty/log";
 
-import { GhosttyVtInstance } from "../ghostty-vt";
 import { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleOsc, HandleSgr } from "./ParserHandlers";
 
 export interface ParserHandlers {
@@ -23,7 +22,6 @@ export interface ParserHandlers {
 }
 
 export interface ParserOptions {
-  wasm: GhosttyVtInstance;
 
   log: ReturnType<typeof getLogger>;
 

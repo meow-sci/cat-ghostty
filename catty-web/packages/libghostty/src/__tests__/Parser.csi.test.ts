@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
+import { getLogger } from '@catty/log';
 
-import { loadWasmForTest } from './util/loadWasmForTest';
 import { Parser } from '../terminal/Parser';
 import { ParserHandlers } from '../terminal/ParserOptions';
-import { type CsiMessage } from '../terminal/TerminalEmulationTypes';
-import { getLogger } from '@catty/log';
-import { Attributes } from '../terminal/SgrTypes';
+import { SgrMessage, type CsiMessage } from '../terminal/TerminalEmulationTypes';
 
 
 const NOOP_HANDLERS: ParserHandlers = {
@@ -19,17 +17,14 @@ const NOOP_HANDLERS: ParserHandlers = {
   handleNormalByte: (_byte: number) => { },
   handleCsi: (_msg: CsiMessage) => { },
   handleOsc: (_raw: string) => { },
-  handleSgr: (_attrs: Attributes) => { },
+  handleSgr: (_messages: SgrMessage[]) => { },
 };
 
 describe('Parser', () => {
   describe('CSI SGR', () => {
     it('foreground color ', async () => {
 
-
-      const wasm = await loadWasmForTest();
       const parser = new Parser({
-        wasm,
         handlers: {
           ...NOOP_HANDLERS,
           handleNormalByte: (byte: number) => {
@@ -41,8 +36,8 @@ describe('Parser', () => {
           handleCsi: (msg: CsiMessage) => {
             console.log(`CSI Message: ${msg._type}`);
           },
-          handleSgr: (attrs: Attributes) => {
-            console.log(`SGR attrs received: ${JSON.stringify(attrs)}`);
+          handleSgr: (messages: SgrMessage[]) => {
+            console.log(`SGR attrs received: ${JSON.stringify(messages)}`);
           },
         },
         log: getLogger(),

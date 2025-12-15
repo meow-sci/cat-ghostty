@@ -1,6 +1,5 @@
 import { getLogger } from "@catty/log";
 
-import { GhosttyVtInstance } from "../ghostty-vt";
 import {
   CsiMessage,
   CsiSetCursorStyle,
@@ -34,8 +33,6 @@ type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
 
 export class Parser {
 
-  // @ts-ignore
-  private wasm: GhosttyVtInstance;
   private handlers: ParserOptions["handlers"];
   private log: ReturnType<typeof getLogger>;
   private emitNormalBytesDuringEscapeSequence: boolean;
@@ -46,7 +43,6 @@ export class Parser {
   private csiSequence: string = "";
 
   constructor(options: ParserOptions) {
-    this.wasm = options.wasm;
     this.handlers = options.handlers;
     this.log = options.log;
     this.emitNormalBytesDuringEscapeSequence = options.emitNormalBytesDuringEscapeSequence ?? false;

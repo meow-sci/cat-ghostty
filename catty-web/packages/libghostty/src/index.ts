@@ -1,8 +1,5 @@
-export { loadWasmFromURL } from "./wasm/loadWasmFromURL";
-export { loadWasmForTest } from "./__tests__/util/loadWasmForTest";
-
 // Parser exports
-export { Parser, parseSgr } from "./terminal/Parser";
+export { Parser } from "./terminal/Parser";
 export type { ParserOptions } from "./terminal/ParserOptions";
 export type { ParserHandlers } from "./terminal/ParserOptions";
 
