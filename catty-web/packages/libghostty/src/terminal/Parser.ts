@@ -177,15 +177,15 @@ export class Parser {
       return this.maybeEmitNormalByteDuringEscapeSequence(byte);
     }
 
+    // Always add byte to the escape sequence and csi sequence
+    this.csiSequence += String.fromCharCode(byte);
+    this.escapeSequence.push(byte);
 
     // CSI final bytes are 0x40-0x7E.
     if (byte >= 0x40 && byte <= 0x7e) {
       this.finishCsiSequence();
       return;
     }
-
-    this.csiSequence += String.fromCharCode(byte);
-    this.escapeSequence.push(byte);
 
     return;
   }
