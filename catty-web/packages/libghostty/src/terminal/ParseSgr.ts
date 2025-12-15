@@ -165,11 +165,7 @@ function parseUnderlineStyle(style: number): SgrUnderlineStyle {
 }
 
 export function parseSgrParamsAndSeparators(raw: string): { params: number[]; separators: string[] } {
-  // raw: ESC [ ... m
-  // We track separators (';' or ':') and parameters similarly to caTTY-ts:
-  // - Empty parameters default to 0
-  // - A trailing separator before 'm' yields an extra trailing 0 param
-  // - If there are no parameters at all, default is [0]
+  // track separators between params because some use a colon for special color handling like "\x1b[4:3m"
   const paramsText = raw.length >= 3 ? raw.slice(2, -1) : "";
 
   const params: number[] = [];
