@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@catty/controller": "workspace:*",
-    "@catty/libghostty": "workspace:*",
+    "@catty/terminal-emulation": "workspace:*",
     "@catty/log": "workspace:*",
     "@catty/state": "workspace:*",
     "@astrojs/react": "4.4.2",

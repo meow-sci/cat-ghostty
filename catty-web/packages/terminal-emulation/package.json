@@ -1,5 +1,5 @@
 {
-  "name": "@catty/libghostty",
+  "name": "@catty/terminal-emulation",
   "private": true,
   "version": "0.0.0",
   "type": "module",
