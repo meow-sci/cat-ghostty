@@ -1,7 +1,7 @@
 import { getLogger } from "@catty/log";
 
 import { ParserOptions } from "./ParserOptions";
-import { parseSgr } from "./ParseSgr";
+import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
 
 
@@ -192,7 +192,7 @@ export class Parser {
 
     // Basic ESC sequence: intermediates 0x20-0x2F, final 0x30-0x7E.
     if (byte >= 0x30 && byte <= 0x7e) {
-      const raw = this.bytesToString(this.escapeSequence);
+      const raw = bytesToString(this.escapeSequence);
       this.log.debug(`ESC (opaque): ${raw}`);
       this.resetEscapeState();
       return;
@@ -237,7 +237,7 @@ export class Parser {
   }
 
   private finishOscSequence(terminator: "BEL" | "ST"): void {
-    const raw = this.bytesToString(this.escapeSequence);
+    const raw = bytesToString(this.escapeSequence);
 
     // Stub only (no OSC parsing here).
     this.log.debug(`OSC (opaque, ${terminator}): ${raw}`);
@@ -248,12 +248,12 @@ export class Parser {
   }
 
   private finishCsiSequence(): void {
-    const raw = this.bytesToString(this.escapeSequence);
+    const raw = bytesToString(this.escapeSequence);
     const finalByte = this.escapeSequence[this.escapeSequence.length - 1];
 
     // CSI SGR: parse using the standalone SGR parser
     if (finalByte === 0x6d) {
-      const { params, separators } = this.parseSgrParamsAndSeparators(raw);
+      const { params, separators } = parseSgrParamsAndSeparators(raw);
       const sgrMessages = parseSgr(params, separators);
       this.handlers.handleSgr(sgrMessages);
       this.resetEscapeState();
@@ -266,50 +266,6 @@ export class Parser {
     return;
   }
 
-  private parseSgrParamsAndSeparators(raw: string): { params: number[]; separators: string[] } {
-    // raw: ESC [ ... m
-    // We track separators (';' or ':') and parameters similarly to caTTY-ts:
-    // - Empty parameters default to 0
-    // - A trailing separator before 'm' yields an extra trailing 0 param
-    // - If there are no parameters at all, default is [0]
-    const paramsText = raw.length >= 3 ? raw.slice(2, -1) : "";
-
-    const params: number[] = [];
-    const separators: string[] = [];
-
-    let current = "";
-    for (let i = 0; i < paramsText.length; i++) {
-      const ch = paramsText[i];
-
-      if (ch >= "0" && ch <= "9") {
-        current += ch;
-        continue;
-      }
-
-      if (ch === ";" || ch === ":") {
-        params.push(current.length > 0 ? Number.parseInt(current, 10) : 0);
-        separators.push(ch);
-        current = "";
-        continue;
-      }
-
-      // Ignore any unexpected characters (private markers / intermediates);
-      // SGR params are expected to be digits + ';' / ':' only.
-    }
-
-    if (current.length > 0) {
-      params.push(Number.parseInt(current, 10));
-    } else if (paramsText.endsWith(";") || paramsText.endsWith(":")) {
-      params.push(0);
-    }
-
-    if (params.length === 0) {
-      params.push(0);
-    }
-
-    return { params, separators };
-  }
-
   private resetEscapeState(): void {
     this.state = "normal";
     this.escapeSequence = [];
@@ -317,17 +273,14 @@ export class Parser {
     return;
   }
 
-  private bytesToString(bytes: number[]): string {
-    let out = "";
-    for (let i = 0; i < bytes.length; i++) {
-      out += String.fromCharCode(bytes[i]);
-    }
-    return out;
-  }
-
-
-
-
 }
 
 
+
+function bytesToString(bytes: number[]): string {
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) {
+    out += String.fromCharCode(bytes[i]);
+  }
+  return out;
+}
