@@ -170,7 +170,7 @@ export class TerminalController {
         span.textContent = cell.ch;
         span.style.position = "absolute";
         span.style.left = `${x}ch`;
-        span.style.top = `${y}ch`;
+        span.style.top = `${y}lh`;
 
         frag.appendChild(span);
       }
