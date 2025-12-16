@@ -2,6 +2,12 @@ import { getLogger } from "@catty/log";
 import type { CsiMessage, SgrMessage } from "@catty/terminal-emulation";
 import { Parser } from "@catty/terminal-emulation";
 
+export type DecModeEvent = {
+  action: "set" | "reset";
+  raw: string;
+  modes: number[];
+};
+
 export interface ScreenCell {
   ch: string;
 }
@@ -21,6 +27,7 @@ export interface StatefulTerminalOptions {
 }
 
 type UpdateListener = (snapshot: ScreenSnapshot) => void;
+type DecModeListener = (ev: DecModeEvent) => void;
 
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
@@ -43,6 +50,7 @@ export class StatefulTerminal {
 
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
+  private readonly decModeListeners = new Set<DecModeListener>();
 
   constructor(options: StatefulTerminalOptions) {
 
@@ -106,6 +114,11 @@ export class StatefulTerminal {
     return () => this.updateListeners.delete(listener);
   }
 
+  public onDecMode(listener: DecModeListener): () => void {
+    this.decModeListeners.add(listener);
+    return () => this.decModeListeners.delete(listener);
+  }
+
   public getSnapshot(): ScreenSnapshot {
     return {
       cols: this.cols,
@@ -133,6 +146,12 @@ export class StatefulTerminal {
     const snapshot = this.getSnapshot();
     for (const listener of this.updateListeners) {
       listener(snapshot);
+    }
+  }
+
+  private emitDecMode(ev: DecModeEvent): void {
+    for (const listener of this.decModeListeners) {
+      listener(ev);
     }
   }
 
@@ -330,11 +349,17 @@ export class StatefulTerminal {
         }
         return;
 
+      case "csi.decModeSet":
+        this.emitDecMode({ action: "set", raw: msg.raw, modes: msg.modes });
+        return;
+
+      case "csi.decModeReset":
+        this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
+        return;
+
       // ignored (for MVP)
       case "csi.scrollDown":
       case "csi.setScrollRegion":
-      case "csi.decModeSet":
-      case "csi.decModeReset":
       case "csi.setCursorStyle":
       case "csi.unknown":
         return;
