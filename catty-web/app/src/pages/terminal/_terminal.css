@@ -22,6 +22,8 @@
   border: solid 1px hotpink;
   background-color: black;
   color: white;
+
+  cursor: text;
 }
 
 .terminal-cell {
@@ -29,8 +31,24 @@
   white-space: pre;
 }
 
+.terminal-echo {
+  position: absolute;
+  white-space: pre;
+}
+
+.terminal-cursor {
+  position: absolute;
+  width: 1ch;
+  height: 1lh;
+  outline: 1px solid currentColor;
+  pointer-events: none;
+}
+
 #input {
-  width: calc(var(--terminal-width) * 1ch);
-  font-family: 'Source Code Pro Variable', monospace;
-  font-size: 16px;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  left: -10000px;
+  top: 0;
 }

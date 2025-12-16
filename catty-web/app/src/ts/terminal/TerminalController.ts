@@ -23,6 +23,10 @@ export class TerminalController {
   private inputMode: InputMode = "cooked";
   private applicationCursorKeys = false;
 
+  private cookedLine = "";
+  private cookedCursorIndex = 0;
+  private suppressCookedEchoRemaining: string | null = null;
+
   private readonly removeListeners: Array<() => void> = [];
 
   constructor(options: TerminalControllerOptions) {
@@ -96,6 +100,12 @@ export class TerminalController {
     this.inputMode = mode;
     // Prevent stale buffered input when switching modes.
     this.inputElement.value = "";
+
+    // Reset local cooked editor state on transitions.
+    this.cookedLine = "";
+    this.cookedCursorIndex = 0;
+    this.suppressCookedEchoRemaining = null;
+    this.scheduleRepaint();
   }
 
   private connect(url: string, cols: number, rows: number): void {
@@ -111,13 +121,19 @@ export class TerminalController {
 
     this.websocket.onmessage = (ev) => {
       if (typeof ev.data === "string") {
-        this.terminal.pushPtyText(ev.data);
+        const text = this.applyCookedEchoSuppression(ev.data);
+        if (text.length > 0) {
+          this.terminal.pushPtyText(text);
+        }
         return;
       }
 
       if (ev.data instanceof ArrayBuffer) {
         const text = new TextDecoder().decode(new Uint8Array(ev.data));
-        this.terminal.pushPtyText(text);
+        const filtered = this.applyCookedEchoSuppression(text);
+        if (filtered.length > 0) {
+          this.terminal.pushPtyText(filtered);
+        }
         return;
       }
 
@@ -125,12 +141,40 @@ export class TerminalController {
       if (ev.data instanceof Blob) {
         ev.data.arrayBuffer().then((buf) => {
           const text = new TextDecoder().decode(new Uint8Array(buf));
-          this.terminal.pushPtyText(text);
+          const filtered = this.applyCookedEchoSuppression(text);
+          if (filtered.length > 0) {
+            this.terminal.pushPtyText(filtered);
+          }
         }).catch(() => {
           // ignore
         });
       }
     };
+  }
+
+  private applyCookedEchoSuppression(text: string): string {
+    const remaining = this.suppressCookedEchoRemaining;
+    if (!remaining || remaining.length === 0) {
+      return text;
+    }
+
+    // Best-effort: suppress an exact prefix match of the last cooked line we sent.
+    // This avoids local-echo overlay + driver echo duplicating characters.
+    let i = 0;
+    const n = Math.min(text.length, remaining.length);
+    while (i < n && text[i] === remaining[i]) {
+      i++;
+    }
+
+    if (i === 0) {
+      // If the next output doesn't look like the echo, stop trying.
+      this.suppressCookedEchoRemaining = null;
+      return text;
+    }
+
+    const nextRemaining = remaining.slice(i);
+    this.suppressCookedEchoRemaining = nextRemaining.length > 0 ? nextRemaining : null;
+    return text.slice(i);
   }
 
   private setupInputHandlers(): void {
@@ -150,7 +194,6 @@ export class TerminalController {
       }
 
       // Cooked (default): local line buffer in the <input>, send only on Enter.
-      // Minimal MVP: we rely on the <input> for local editing/echo.
       if (this.inputMode === "cooked") {
 
         // Allow Ctrl+C / Ctrl+D to be sent immediately.
@@ -163,15 +206,95 @@ export class TerminalController {
           return;
         }
 
-        if (e.key !== "Enter") {
+        // Local editor keys
+        if (e.key === "Enter") {
+          e.preventDefault();
+
+          const line = this.cookedLine;
+          this.cookedLine = "";
+          this.cookedCursorIndex = 0;
+          this.inputElement.value = "";
+
+          // Suppress the PTY's echo of the line we are about to send.
+          this.suppressCookedEchoRemaining = line;
+          this.websocket.send(line + "\r");
+          this.scheduleRepaint();
           return;
         }
 
-        e.preventDefault();
+        if (e.key === "Backspace") {
+          if (this.cookedCursorIndex > 0) {
+            const before = this.cookedLine.slice(0, this.cookedCursorIndex - 1);
+            const after = this.cookedLine.slice(this.cookedCursorIndex);
+            this.cookedLine = before + after;
+            this.cookedCursorIndex -= 1;
+            this.scheduleRepaint();
+          }
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
 
-        const line = this.inputElement.value;
-        this.inputElement.value = "";
-        this.websocket.send(line + "\r");
+        if (e.key === "Delete") {
+          if (this.cookedCursorIndex < this.cookedLine.length) {
+            const before = this.cookedLine.slice(0, this.cookedCursorIndex);
+            const after = this.cookedLine.slice(this.cookedCursorIndex + 1);
+            this.cookedLine = before + after;
+            this.scheduleRepaint();
+          }
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (e.key === "ArrowLeft") {
+          this.cookedCursorIndex = Math.max(0, this.cookedCursorIndex - 1);
+          this.scheduleRepaint();
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (e.key === "ArrowRight") {
+          this.cookedCursorIndex = Math.min(this.cookedLine.length, this.cookedCursorIndex + 1);
+          this.scheduleRepaint();
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (e.key === "Home") {
+          this.cookedCursorIndex = 0;
+          this.scheduleRepaint();
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (e.key === "End") {
+          this.cookedCursorIndex = this.cookedLine.length;
+          this.scheduleRepaint();
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (e.key === "Tab") {
+          // Keep it simple: insert a literal tab.
+          this.insertCookedText("\t");
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        if (!e.metaKey && !e.ctrlKey && e.key.length === 1) {
+          this.insertCookedText(e.key);
+          e.preventDefault();
+          this.inputElement.value = "";
+          return;
+        }
+
+        // Ignore other keys in cooked mode.
         return;
       }
 
@@ -191,9 +314,20 @@ export class TerminalController {
     this.removeListeners.push(() => this.inputElement.removeEventListener("keydown", onKeyDown));
 
     const onPaste = (e: ClipboardEvent) => {
-      if (this.inputMode !== "raw") {
+      if (this.inputMode === "cooked") {
+        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        const text = e.clipboardData?.getData("text/plain");
+        if (!text) {
+          return;
+        }
+        e.preventDefault();
+        this.insertCookedText(text);
+        this.inputElement.value = "";
         return;
       }
+
       if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
         return;
       }
@@ -211,6 +345,17 @@ export class TerminalController {
 
     // Autofocus on mount
     queueMicrotask(() => this.inputElement.focus());
+  }
+
+  private insertCookedText(text: string): void {
+    if (text.length === 0) {
+      return;
+    }
+    const before = this.cookedLine.slice(0, this.cookedCursorIndex);
+    const after = this.cookedLine.slice(this.cookedCursorIndex);
+    this.cookedLine = before + text + after;
+    this.cookedCursorIndex += text.length;
+    this.scheduleRepaint();
   }
 
   private scheduleRepaint(): void {
@@ -255,8 +400,57 @@ export class TerminalController {
       }
     }
 
+    // Cooked-mode local echo overlay.
+    if (this.inputMode === "cooked" && this.cookedLine.length > 0) {
+      const startX = snapshot.cursorX;
+      const startY = snapshot.cursorY;
+
+      for (let i = 0; i < this.cookedLine.length; i++) {
+        const ch = this.cookedLine[i];
+        const pos = addOffset(startX, startY, i, snapshot.cols);
+        if (!pos) {
+          break;
+        }
+        const [x, y] = pos;
+        if (y >= snapshot.rows) {
+          break;
+        }
+
+        const span = document.createElement("span");
+        span.className = "terminal-echo";
+        span.textContent = ch;
+        span.style.left = `${x}ch`;
+        span.style.top = `${y}lh`;
+        frag.appendChild(span);
+      }
+    }
+
+    // Cursor overlay
+    const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;
+    const cursorPos = addOffset(snapshot.cursorX, snapshot.cursorY, cursorOffset, snapshot.cols);
+    if (cursorPos) {
+      const [cx, cy] = cursorPos;
+      if (cy >= 0 && cy < snapshot.rows) {
+        const cursor = document.createElement("div");
+        cursor.className = "terminal-cursor";
+        cursor.style.left = `${cx}ch`;
+        cursor.style.top = `${cy}lh`;
+        frag.appendChild(cursor);
+      }
+    }
+
     this.displayElement.appendChild(frag);
   }
+}
+
+function addOffset(startX: number, startY: number, offset: number, cols: number): [number, number] | null {
+  if (cols <= 0) {
+    return null;
+  }
+  const total = startX + offset;
+  const x = ((total % cols) + cols) % cols;
+  const y = startY + Math.floor(total / cols);
+  return [x, y];
 }
 
 function encodeCtrlKey(e: KeyboardEvent): string | null {
