@@ -6,21 +6,16 @@
  row-gap: 1rem;
 }
 
-:root {
-  --terminal-width: 80ch;
-  --terminal-height: 40ch;
-}
-
 #terminal {
 
   position: relative;
 
   font-family: 'Source Code Pro Variable', monospace;
   font-size: 16px;
-  line-height: 1.2;
+  line-height: 1.1;
 
-  width: var(--terminal-width);
-  height: var(--terminal-height);
+  width: calc(var(--terminal-width) * 1ch);
+  height: calc(var(--terminal-height) * 1lh);
 
   overflow: hidden;
   
@@ -35,7 +30,7 @@
 }
 
 #input {
-  width: var(--terminal-width);
+  width: calc(var(--terminal-width) * 1ch);
   font-family: 'Source Code Pro Variable', monospace;
   font-size: 16px;
 }

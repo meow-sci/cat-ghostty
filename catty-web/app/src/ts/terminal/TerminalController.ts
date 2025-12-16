@@ -63,7 +63,7 @@ export class TerminalController {
 
   private defaultWebsocketUrl(): string {
     const host = window.location.hostname || "localhost";
-    return `ws://${host}:4444`;
+    return `ws://${host}:4444?cols=80&rows=25`;
   }
 
   private connect(url: string, cols: number, rows: number): void {

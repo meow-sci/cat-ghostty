@@ -31,8 +31,9 @@ export class BackendServer {
           reject(error);
         });
 
-        this.wss.on('connection', (ws) => {
-          this.handleConnection(ws);
+        this.wss.on('connection', (ws, request) => {
+          console.log(`request.url ${request.url}`);
+          this.handleConnection(ws, new URL(`http://localhost${request.url ?? ""}`));
         });
       } catch (error) {
         reject(error);
@@ -69,16 +70,21 @@ export class BackendServer {
     });
   }
 
-  private handleConnection(ws: WebSocket): void {
+  private handleConnection(ws: WebSocket, url: URL): void {
+
+    const cols = parseInt(url.searchParams.get('cols') ?? "80");
+    const rows = parseInt(url.searchParams.get('rows') ?? "25");
+
     const connectionId = Math.random().toString(36).substring(7);
     const timestamp = new Date().toISOString();
+    console.log(`Requested terminal size: ${cols} cols, ${rows} rows`);
     console.log(`[${timestamp}] New WebSocket connection (ID: ${connectionId})`);
     console.log(`[${timestamp}] Active connections before: ${this.connections.size}`);
 
     try {
       // Determine the appropriate shell for the OS
       const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
-      
+
       // Create environment with Kitty graphics support indicators
       const env = {
         ...process.env,
@@ -86,12 +92,12 @@ export class BackendServer {
         TERM_PROGRAM: 'caTTY',
         COLORTERM: 'truecolor'
       } as { [key: string]: string };
-      
+
       // Spawn PTY process with default dimensions
       const pty = spawn(shell, [], {
         name: 'xterm-color',
-        cols: 80,
-        rows: 40,
+        cols,
+        rows,
         cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
         env: env
       });
@@ -108,19 +114,19 @@ export class BackendServer {
 
     } catch (error) {
       console.error(`[${timestamp}] Error spawning PTY (Connection ID: ${connectionId}):`, error);
-      
+
       // Send error message to client if possible
       try {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ 
-            type: 'error', 
-            message: 'Failed to spawn shell process' 
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Failed to spawn shell process'
           }));
         }
       } catch (sendError) {
         console.error('Error sending error message to client:', sendError);
       }
-      
+
       // Close the WebSocket
       ws.close();
     }
@@ -142,7 +148,7 @@ export class BackendServer {
     pty.onExit(({ exitCode, signal }) => {
       const timestamp = new Date().toISOString();
       console.log(`[${timestamp}] PTY exited with code ${exitCode}, signal ${signal} (Connection ID: ${_connectionId})`);
-      
+
       // Close the associated WebSocket connection
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         try {
@@ -152,7 +158,7 @@ export class BackendServer {
           console.error(`[${timestamp}] Error closing WebSocket on PTY exit:`, error);
         }
       }
-      
+
       // Remove from connection map
       this.connections.delete(ws);
       console.log(`[${timestamp}] Active connections after PTY exit: ${this.connections.size}`);
@@ -164,7 +170,7 @@ export class BackendServer {
     ws.on('message', (data: Buffer | string) => {
       try {
         const message = typeof data === 'string' ? data : data.toString();
-        
+
         // Check if this is a resize message
         try {
           const parsed = JSON.parse(message);
@@ -182,7 +188,7 @@ export class BackendServer {
         } catch (e) {
           // Not JSON or not a resize message, treat as regular data
         }
-        
+
         // Regular data - forward to PTY
         pty.write(message);
       } catch (error) {
@@ -194,7 +200,7 @@ export class BackendServer {
     ws.on('close', () => {
       const timestamp = new Date().toISOString();
       console.log(`[${timestamp}] WebSocket connection closed (Connection ID: ${connectionId})`);
-      
+
       // Get the associated PTY
       const pty = this.connections.get(ws);
       if (pty) {
@@ -205,7 +211,7 @@ export class BackendServer {
         } catch (error) {
           console.error(`[${timestamp}] Error terminating PTY on close (Connection ID: ${connectionId}):`, error);
         }
-        
+
         // Remove from connection map
         this.connections.delete(ws);
         console.log(`[${timestamp}] Active connections after close: ${this.connections.size}`);
@@ -215,7 +221,7 @@ export class BackendServer {
     // Handle WebSocket errors
     ws.on('error', (error) => {
       console.error(`WebSocket error (Connection ID: ${connectionId}):`, error);
-      
+
       // Clean up resources on error
       const pty = this.connections.get(ws);
       if (pty) {
@@ -225,10 +231,10 @@ export class BackendServer {
         } catch (cleanupError) {
           console.error(`Error cleaning up PTY on WebSocket error (Connection ID: ${connectionId}):`, cleanupError);
         }
-        
+
         this.connections.delete(ws);
       }
-      
+
       // Close the WebSocket if still open
       if (ws.readyState === WebSocket.OPEN) {
         try {

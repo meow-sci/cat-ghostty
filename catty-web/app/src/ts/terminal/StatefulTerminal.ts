@@ -15,10 +15,20 @@ export interface ScreenSnapshot {
 }
 
 export interface StatefulTerminalOptions {
-  cols?: number;
-  rows?: number;
+  cols: number;
+  rows: number;
   onUpdate?: (snapshot: ScreenSnapshot) => void;
 }
+
+type UpdateListener = (snapshot: ScreenSnapshot) => void;
+
+function createCellGrid(cols: number, rows: number): ScreenCell[][] {
+  return Array.from({ length: rows }, () =>
+    Array.from({ length: cols }, () => ({ ch: " " })),
+  );
+}
+
+type XY = [number, number];
 
 export class StatefulTerminal {
   public readonly cols: number;
@@ -29,18 +39,17 @@ export class StatefulTerminal {
 
   private cursorX = 0;
   private cursorY = 0;
-  private savedCursor: { x: number; y: number } | null = null;
+  private savedCursor: XY | null = null;
 
   private readonly cells: ScreenCell[][];
-  private readonly updateListeners = new Set<(snapshot: ScreenSnapshot) => void>();
+  private readonly updateListeners = new Set<UpdateListener>();
 
-  constructor(options: StatefulTerminalOptions = {}) {
-    this.cols = options.cols ?? 80;
-    this.rows = options.rows ?? 40;
+  constructor(options: StatefulTerminalOptions) {
 
-    this.cells = Array.from({ length: this.rows }, () =>
-      Array.from({ length: this.cols }, () => ({ ch: " " })),
-    );
+    this.cols = options.cols;
+    this.rows = options.rows;
+
+    this.cells = createCellGrid(this.cols, this.rows);
 
     if (options.onUpdate) {
       this.updateListeners.add(options.onUpdate);
@@ -92,7 +101,7 @@ export class StatefulTerminal {
     });
   }
 
-  public onUpdate(listener: (snapshot: ScreenSnapshot) => void): () => void {
+  public onUpdate(listener: UpdateListener): () => void {
     this.updateListeners.add(listener);
     return () => this.updateListeners.delete(listener);
   }
@@ -148,6 +157,7 @@ export class StatefulTerminal {
     if (this.cursorX >= this.cols) {
       this.cursorX = 0;
       this.cursorY += 1;
+      
       if (this.cursorY >= this.rows) {
         this.scrollUp(1);
         this.cursorY = this.rows - 1;
@@ -310,12 +320,12 @@ export class StatefulTerminal {
         this.scrollUp(msg.lines);
         return;
       case "csi.saveCursorPosition":
-        this.savedCursor = { x: this.cursorX, y: this.cursorY };
+        this.savedCursor = [this.cursorX, this.cursorY];
         return;
       case "csi.restoreCursorPosition":
         if (this.savedCursor) {
-          this.cursorX = this.savedCursor.x;
-          this.cursorY = this.savedCursor.y;
+          this.cursorX = this.savedCursor[0];
+          this.cursorY = this.savedCursor[1];
           this.clampCursor();
         }
         return;
