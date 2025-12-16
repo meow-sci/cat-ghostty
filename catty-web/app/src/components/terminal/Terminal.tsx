@@ -7,7 +7,7 @@ export function Terminal() {
 
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [size, setSize] = useState<[number, number]>(() => [80, 22]);
+  const [size, setSize] = useState<[number, number]>(() => [85, 24]);
 
   useEffect(() => {
 

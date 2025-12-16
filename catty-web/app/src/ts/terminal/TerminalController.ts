@@ -26,6 +26,7 @@ export class TerminalController {
   private cookedLine = "";
   private cookedCursorIndex = 0;
   private suppressCookedEchoRemaining: string | null = null;
+  private readonly debugEsc: boolean;
 
   private readonly removeListeners: Array<() => void> = [];
 
@@ -33,6 +34,8 @@ export class TerminalController {
     this.terminal = options.terminal;
     this.displayElement = options.displayElement;
     this.inputElement = options.inputElement;
+
+    this.debugEsc = new URLSearchParams(window.location.search).has("debugEsc");
 
     // Ensure display container is positioned for absolute cell spans
     this.displayElement.style.position = this.displayElement.style.position || "relative";
@@ -121,6 +124,9 @@ export class TerminalController {
 
     this.websocket.onmessage = (ev) => {
       if (typeof ev.data === "string") {
+        if (this.debugEsc) {
+          debugLogIncoming(ev.data);
+        }
         const text = this.applyCookedEchoSuppression(ev.data);
         if (text.length > 0) {
           this.terminal.pushPtyText(text);
@@ -130,6 +136,9 @@ export class TerminalController {
 
       if (ev.data instanceof ArrayBuffer) {
         const text = new TextDecoder().decode(new Uint8Array(ev.data));
+        if (this.debugEsc) {
+          debugLogIncoming(text);
+        }
         const filtered = this.applyCookedEchoSuppression(text);
         if (filtered.length > 0) {
           this.terminal.pushPtyText(filtered);
@@ -141,6 +150,9 @@ export class TerminalController {
       if (ev.data instanceof Blob) {
         ev.data.arrayBuffer().then((buf) => {
           const text = new TextDecoder().decode(new Uint8Array(buf));
+          if (this.debugEsc) {
+            debugLogIncoming(text);
+          }
           const filtered = this.applyCookedEchoSuppression(text);
           if (filtered.length > 0) {
             this.terminal.pushPtyText(filtered);
@@ -151,6 +163,7 @@ export class TerminalController {
       }
     };
   }
+
 
   private applyCookedEchoSuppression(text: string): string {
     const remaining = this.suppressCookedEchoRemaining;
@@ -183,7 +196,7 @@ export class TerminalController {
     const focusOnClick = () => {
       this.inputElement.focus();
     };
-    
+
     this.displayElement.addEventListener("mousedown", focusOnClick);
     this.removeListeners.push(() => this.displayElement.removeEventListener("mousedown", focusOnClick));
 
@@ -425,22 +438,33 @@ export class TerminalController {
       }
     }
 
-    // Cursor overlay
-    const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;
-    const cursorPos = addOffset(snapshot.cursorX, snapshot.cursorY, cursorOffset, snapshot.cols);
-    if (cursorPos) {
-      const [cx, cy] = cursorPos;
-      if (cy >= 0 && cy < snapshot.rows) {
-        const cursor = document.createElement("div");
-        cursor.className = cursorClassNameForStyle(snapshot.cursorStyle);
-        cursor.style.left = `${cx}ch`;
-        cursor.style.top = `${cy}lh`;
-        frag.appendChild(cursor);
+    // Cursor overlay (respects DECTCEM cursor visibility)
+    if (snapshot.cursorVisible) {
+      const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;
+      const cursorPos = addOffset(snapshot.cursorX, snapshot.cursorY, cursorOffset, snapshot.cols);
+      if (cursorPos) {
+        const [cx, cy] = cursorPos;
+        if (cy >= 0 && cy < snapshot.rows) {
+          const cursor = document.createElement("div");
+          cursor.className = cursorClassNameForStyle(snapshot.cursorStyle);
+          cursor.style.left = `${cx}ch`;
+          cursor.style.top = `${cy}lh`;
+          frag.appendChild(cursor);
+        }
       }
     }
 
     this.displayElement.appendChild(frag);
   }
+}
+
+function makeControlCharsVisible(text: string): string {
+  return text
+    .replaceAll("\x1b", "<ESC>")
+    .replaceAll("\r", "<CR>")
+    .replaceAll("\n", "<LF>\n")
+    .replaceAll("\t", "<TAB>")
+    .replaceAll("\x07", "<BEL>");
 }
 
 function addOffset(startX: number, startY: number, offset: number, cols: number): [number, number] | null {
@@ -568,4 +592,46 @@ function encodeKeyDownToTerminalBytes(e: KeyboardEvent, opts: EncodeKeyOptions):
   }
 
   return e.key;
+}
+
+
+
+function debugLogIncoming(text: string): void {
+
+  // Only log if something interesting is present to keep noise down.
+  if (!text.includes("\x1b[?")) {
+    return;
+  }
+
+  // Focus on the sequences relevant to cursor visibility + alt screen.
+  const interesting = [
+    "\x1b[?25l",
+    "\x1b[?25h",
+    "\x1b[?1049h",
+    "\x1b[?1049l",
+    "\x1b[?1047h",
+    "\x1b[?1047l",
+    "\x1b[?47h",
+    "\x1b[?47l",
+    "\x1b[?1h",
+    "\x1b[?1l",
+  ];
+
+  let found = true;
+
+  // let found = false;
+  // for (const seq of interesting) {
+  //   if (text.includes(seq)) {
+  //     found = true;
+  //     break;
+  //   }
+  // }
+
+  if (!found) {
+    return;
+  }
+
+  // Make control bytes visible in console output.
+  const visible = makeControlCharsVisible(text);
+  console.log("[catty debugEsc] incoming:", visible);
 }

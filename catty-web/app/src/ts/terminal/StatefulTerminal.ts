@@ -1,5 +1,5 @@
 import { getLogger } from "@catty/log";
-import type { CsiMessage, SgrMessage } from "@catty/terminal-emulation";
+import type { CsiMessage, EscMessage, SgrMessage } from "@catty/terminal-emulation";
 import { Parser } from "@catty/terminal-emulation";
 
 export type DecModeEvent = {
@@ -18,6 +18,7 @@ export interface ScreenSnapshot {
   cursorX: number;
   cursorY: number;
   cursorStyle: number;
+  cursorVisible: boolean;
   cells: ReadonlyArray<ReadonlyArray<ScreenCell>>;
 }
 
@@ -49,6 +50,7 @@ export class StatefulTerminal {
   private cursorY = 0;
   private savedCursor: XY | null = null;
   private cursorStyle = 1;
+  private cursorVisible = true;
 
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
@@ -97,7 +99,12 @@ export class StatefulTerminal {
           this.writePrintableByte(byte);
           this.emitUpdate();
         },
+        handleEsc: (msg: EscMessage) => {
+          this.handleEsc(msg);
+          this.emitUpdate();
+        },
         handleCsi: (msg: CsiMessage) => {
+          console.log(`csi: ${JSON.stringify(msg)}`);
           this.handleCsi(msg);
           this.emitUpdate();
         },
@@ -105,6 +112,7 @@ export class StatefulTerminal {
           // noop (opaque)
         },
         handleSgr: (_messages: SgrMessage[]) => {
+          console.log(`sgr: ${JSON.stringify(_messages)}`);
           // ignore styling for MVP
         },
       },
@@ -128,6 +136,7 @@ export class StatefulTerminal {
       cursorX: this.cursorX,
       cursorY: this.cursorY,
       cursorStyle: this.cursorStyle,
+      cursorVisible: this.cursorVisible,
       cells: this.cells,
     };
   }
@@ -353,10 +362,18 @@ export class StatefulTerminal {
         return;
 
       case "csi.decModeSet":
+        // DECTCEM (CSI ? 25 h): show cursor
+        if (msg.modes.includes(25)) {
+          this.cursorVisible = true;
+        }
         this.emitDecMode({ action: "set", raw: msg.raw, modes: msg.modes });
         return;
 
       case "csi.decModeReset":
+        // DECTCEM (CSI ? 25 l): hide cursor
+        if (msg.modes.includes(25)) {
+          this.cursorVisible = false;
+        }
         this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
         return;
 
@@ -376,6 +393,21 @@ export class StatefulTerminal {
       case "csi.scrollDown":
       case "csi.setScrollRegion":
       case "csi.unknown":
+        return;
+    }
+  }
+
+  private handleEsc(msg: EscMessage): void {
+    switch (msg._type) {
+      case "esc.saveCursor":
+        this.savedCursor = [this.cursorX, this.cursorY];
+        return;
+      case "esc.restoreCursor":
+        if (this.savedCursor) {
+          this.cursorX = this.savedCursor[0];
+          this.cursorY = this.savedCursor[1];
+          this.clampCursor();
+        }
         return;
     }
   }

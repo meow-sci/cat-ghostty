@@ -86,16 +86,17 @@ export class BackendServer {
       const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
 
       // Create environment with Kitty graphics support indicators
+      const term = 'xterm-256color';
       const env = {
         ...process.env,
-        TERM: 'xterm-256color',
+        TERM: term,
         TERM_PROGRAM: 'caTTY',
         COLORTERM: 'truecolor'
       } as { [key: string]: string };
 
       // Spawn PTY process with default dimensions
       const pty = spawn(shell, [], {
-        name: 'xterm-color',
+        name: term,
         cols,
         rows,
         cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
@@ -185,7 +186,7 @@ export class BackendServer {
               return;
             }
           }
-        } catch (e) {
+        } catch {
           // Not JSON or not a resize message, treat as regular data
         }
 

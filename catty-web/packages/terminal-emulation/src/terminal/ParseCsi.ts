@@ -38,6 +38,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       const msg: CsiDecModeSet = { _type: "csi.decModeSet", raw, modes };
       return msg;
     }
+    console.log("DEC mode reset", modes);
     const msg: CsiDecModeReset = { _type: "csi.decModeReset", raw, modes };
     return msg;
   }

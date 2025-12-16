@@ -6,6 +6,31 @@ export interface CsiBase {
   raw: string;
 }
 
+// =============================================================================
+// ESC Types (non-CSI)
+// =============================================================================
+
+export interface EscBase {
+  _type: string;
+  raw: string;
+}
+
+/**
+ * DECSC (ESC 7): Save cursor.
+ */
+export interface EscSaveCursor extends EscBase {
+  _type: "esc.saveCursor";
+}
+
+/**
+ * DECRC (ESC 8): Restore cursor.
+ */
+export interface EscRestoreCursor extends EscBase {
+  _type: "esc.restoreCursor";
+}
+
+export type EscMessage = EscSaveCursor | EscRestoreCursor;
+
 export interface CsiCursorUp extends CsiBase {
   _type: "csi.cursorUp";
   count: number;

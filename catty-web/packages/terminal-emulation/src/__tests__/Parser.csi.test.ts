@@ -3,7 +3,7 @@ import { getLogger } from '@catty/log';
 
 import { Parser } from '../terminal/Parser';
 import { ParserHandlers } from '../terminal/ParserOptions';
-import { SgrMessage, type CsiMessage } from '../terminal/TerminalEmulationTypes';
+import { SgrMessage, type CsiMessage, type EscMessage } from '../terminal/TerminalEmulationTypes';
 
 
 const NOOP_HANDLERS: ParserHandlers = {
@@ -15,6 +15,7 @@ const NOOP_HANDLERS: ParserHandlers = {
   handleFormFeed: () => { },
   handleCarriageReturn: () => { },
   handleNormalByte: (_byte: number) => { },
+  handleEsc: (_msg: EscMessage) => { },
   handleCsi: (_msg: CsiMessage) => { },
   handleOsc: (_raw: string) => { },
   handleSgr: (_messages: SgrMessage[]) => { },

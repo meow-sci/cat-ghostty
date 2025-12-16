@@ -5,6 +5,11 @@ export type { ParserHandlers } from "./terminal/ParserOptions";
 
 // Terminal emulation types
 export type {
+  // ESC types
+  EscBase,
+  EscMessage,
+  EscSaveCursor,
+  EscRestoreCursor,
   // CSI types
   CsiBase,
   CsiMessage,

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { Parser } from "../terminal/Parser";
 import { ParserHandlers } from "../terminal/ParserOptions";
-import { type CsiMessage, type SgrMessage } from "../terminal/TerminalEmulationTypes";
+import { type CsiMessage, type EscMessage, type SgrMessage } from "../terminal/TerminalEmulationTypes";
 import { getLogger } from "@catty/log";
 
 /**
@@ -11,6 +11,7 @@ import { getLogger } from "@catty/log";
 interface CapturedEvents {
   normalBytes: number[];
   normalText: string;
+  escMessages: EscMessage[];
   csiMessages: CsiMessage[];
   sgrMessages: SgrMessage[][];
   oscSequences: string[];
@@ -26,6 +27,7 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
   const captured: CapturedEvents = {
     normalBytes: [],
     normalText: "",
+    escMessages: [],
     csiMessages: [],
     sgrMessages: [],
     oscSequences: [],
@@ -68,6 +70,9 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
         captured.normalText += `[0x${byte.toString(16)}]`;
       }
     },
+    handleEsc: (msg: EscMessage) => {
+      captured.escMessages.push(msg);
+    },
     handleCsi: (msg: CsiMessage) => {
       captured.csiMessages.push(msg);
     },
@@ -83,6 +88,30 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
 }
 
 describe("Parser", () => {
+
+  describe("ESC sequences", () => {
+    it("should emit DECSC (ESC 7) as esc.saveCursor", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b7"));
+
+      expect(captured.escMessages).toHaveLength(1);
+      expect(captured.escMessages[0]._type).toBe("esc.saveCursor");
+      expect(captured.escMessages[0].raw).toBe("\x1b7");
+    });
+
+    it("should emit DECRC (ESC 8) as esc.restoreCursor", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b8"));
+
+      expect(captured.escMessages).toHaveLength(1);
+      expect(captured.escMessages[0]._type).toBe("esc.restoreCursor");
+      expect(captured.escMessages[0].raw).toBe("\x1b8");
+    });
+  });
 
   describe("plain text", () => {
     it("should parse simple ASCII text", async () => {

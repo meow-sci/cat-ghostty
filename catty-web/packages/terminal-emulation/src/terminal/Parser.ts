@@ -3,6 +3,7 @@ import { getLogger } from "@catty/log";
 import type { ParserOptions } from "./ParserOptions";
 import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
+import type { EscMessage } from "./TerminalEmulationTypes";
 
 
 type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
@@ -184,6 +185,18 @@ export class Parser {
       if (byte === 0x5d) {
         this.escapeSequence.push(byte);
         this.state = "osc";
+        return;
+      }
+
+      // DECSC / DECRC
+      if (byte === 0x37 || byte === 0x38) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = byte === 0x37
+          ? { _type: "esc.saveCursor", raw }
+          : { _type: "esc.restoreCursor", raw };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
         return;
       }
     }
