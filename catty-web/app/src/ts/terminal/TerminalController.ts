@@ -432,7 +432,7 @@ export class TerminalController {
       const [cx, cy] = cursorPos;
       if (cy >= 0 && cy < snapshot.rows) {
         const cursor = document.createElement("div");
-        cursor.className = "terminal-cursor";
+        cursor.className = cursorClassNameForStyle(snapshot.cursorStyle);
         cursor.style.left = `${cx}ch`;
         cursor.style.top = `${cy}lh`;
         frag.appendChild(cursor);
@@ -451,6 +451,28 @@ function addOffset(startX: number, startY: number, offset: number, cols: number)
   const x = ((total % cols) + cols) % cols;
   const y = startY + Math.floor(total / cols);
   return [x, y];
+}
+
+function cursorClassNameForStyle(style: number): string {
+  // DECSCUSR mapping (CSI Ps SP q)
+  // 0 or 1 = blinking block
+  // 2 = steady block
+  // 3 = blinking underline
+  // 4 = steady underline
+  // 5 = blinking bar
+  // 6 = steady bar
+  const normalized = style === 0 ? 1 : style;
+
+  const base = "terminal-cursor";
+
+  if (normalized === 1) return `${base} terminal-cursor--block terminal-cursor--blink`;
+  if (normalized === 2) return `${base} terminal-cursor--block`;
+  if (normalized === 3) return `${base} terminal-cursor--underline terminal-cursor--blink`;
+  if (normalized === 4) return `${base} terminal-cursor--underline`;
+  if (normalized === 5) return `${base} terminal-cursor--bar terminal-cursor--blink`;
+  if (normalized === 6) return `${base} terminal-cursor--bar`;
+
+  return `${base} terminal-cursor--block terminal-cursor--blink`;
 }
 
 function encodeCtrlKey(e: KeyboardEvent): string | null {

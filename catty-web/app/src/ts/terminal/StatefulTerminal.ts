@@ -17,6 +17,7 @@ export interface ScreenSnapshot {
   rows: number;
   cursorX: number;
   cursorY: number;
+  cursorStyle: number;
   cells: ReadonlyArray<ReadonlyArray<ScreenCell>>;
 }
 
@@ -47,6 +48,7 @@ export class StatefulTerminal {
   private cursorX = 0;
   private cursorY = 0;
   private savedCursor: XY | null = null;
+  private cursorStyle = 1;
 
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
@@ -125,6 +127,7 @@ export class StatefulTerminal {
       rows: this.rows,
       cursorX: this.cursorX,
       cursorY: this.cursorY,
+      cursorStyle: this.cursorStyle,
       cells: this.cells,
     };
   }
@@ -357,10 +360,21 @@ export class StatefulTerminal {
         this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
         return;
 
+      case "csi.setCursorStyle":
+        // DECSCUSR (CSI Ps SP q)
+        // Ps:
+        // 0 or 1 = blinking block
+        // 2 = steady block
+        // 3 = blinking underline
+        // 4 = steady underline
+        // 5 = blinking bar
+        // 6 = steady bar
+        this.cursorStyle = msg.style;
+        return;
+
       // ignored (for MVP)
       case "csi.scrollDown":
       case "csi.setScrollRegion":
-      case "csi.setCursorStyle":
       case "csi.unknown":
         return;
     }

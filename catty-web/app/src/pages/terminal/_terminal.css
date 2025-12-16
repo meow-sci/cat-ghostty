@@ -40,8 +40,32 @@
   position: absolute;
   width: 1ch;
   height: 1lh;
-  outline: 1px solid currentColor;
   pointer-events: none;
+}
+
+.terminal-cursor--block {
+  background: currentColor;
+  opacity: 0.25;
+}
+
+.terminal-cursor--underline {
+  background: currentColor;
+  height: 0.15lh;
+  transform: translateY(calc(1lh - 0.15lh));
+}
+
+.terminal-cursor--bar {
+  background: currentColor;
+  width: 0.15ch;
+}
+
+@keyframes terminal-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.terminal-cursor--blink {
+  animation: terminal-cursor-blink 1s steps(1, end) infinite;
 }
 
 #input {
