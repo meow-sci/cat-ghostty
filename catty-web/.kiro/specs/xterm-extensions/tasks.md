@@ -143,25 +143,25 @@
   - Update screen clearing to affect current buffer only
   - _Requirements: 2.7_
 
-- [ ] 7. Implement TerminalController extensions for UI integration
+- [x] 7. Implement TerminalController extensions for UI integration
   - Add window title management to TerminalController
   - Implement cursor appearance updates in display layer
   - Add keyboard input handling for application cursor keys
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 3.3, 4.1, 4.2, 4.3_
 
-- [ ] 7.1 Add window management to TerminalController
+- [x] 7.1 Add window management to TerminalController
   - Implement setTitle and setIconName methods
   - Add DOM title updates when window properties change
   - Implement title query response generation
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 7.2 Add cursor appearance management
+- [x] 7.2 Add cursor appearance management
   - Update cursor rendering to use style information
   - Implement cursor visibility toggling in display
   - Add cursor style CSS classes for different appearances
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 7.3 Implement application cursor key handling
+- [x] 7.3 Implement application cursor key handling
   - Modify keyboard input encoding for application mode
   - Add SS3 sequence generation for arrow keys
   - Update key event handlers to check cursor key mode

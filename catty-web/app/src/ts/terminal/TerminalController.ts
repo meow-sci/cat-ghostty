@@ -37,6 +37,7 @@ export class TerminalController {
   private readonly debugEsc: boolean;
 
   private readonly removeListeners: Array<() => void> = [];
+  private lastWindowTitle = "";
 
   constructor(options: TerminalControllerOptions) {
     this.terminal = options.terminal;
@@ -52,6 +53,9 @@ export class TerminalController {
     const unsubscribe = this.terminal.onUpdate((snapshot) => {
       this.lastSnapshot = snapshot;
       this.scheduleRepaint();
+      
+      // Update DOM title when window properties change
+      this.updateDomTitle(snapshot.windowProperties.title);
     });
     this.removeListeners.push(unsubscribe);
 
@@ -116,6 +120,66 @@ export class TerminalController {
         // ignore
       }
       this.websocket = null;
+    }
+  }
+
+  // Window management methods
+
+  /**
+   * Set the window title (OSC 2)
+   */
+  public setTitle(title: string): void {
+    this.terminal.setWindowTitle(title);
+  }
+
+  /**
+   * Set the icon name (OSC 1)
+   */
+  public setIconName(name: string): void {
+    this.terminal.setIconName(name);
+  }
+
+  /**
+   * Get the current window title
+   */
+  public getTitle(): string {
+    return this.terminal.getWindowTitle();
+  }
+
+  /**
+   * Get the current icon name
+   */
+  public getIconName(): string {
+    return this.terminal.getIconName();
+  }
+
+  /**
+   * Generate title query response (OSC 21)
+   * Returns the response string that should be sent back to the application
+   */
+  public generateTitleQueryResponse(titleType: "window" | "icon"): string {
+    const title = titleType === "window" 
+      ? this.terminal.getWindowTitle() 
+      : this.terminal.getIconName();
+    
+    // OSC 21 response format: OSC L <title> ST
+    // where L is the title type identifier
+    // ST is String Terminator (ESC \)
+    return `\x1b]L${title}\x1b\\`;
+  }
+
+  /**
+   * Update the DOM document title when terminal window title changes
+   */
+  private updateDomTitle(title: string): void {
+    // Only update if the title has actually changed to avoid unnecessary DOM updates
+    if (title !== this.lastWindowTitle) {
+      this.lastWindowTitle = title;
+      
+      // Update the browser document title
+      if (title && title.length > 0) {
+        document.title = title;
+      }
     }
   }
 
