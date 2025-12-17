@@ -92,6 +92,19 @@ export class TerminalController {
     this.renderTrace();
   }
 
+  public clearTrace(): void {
+    this.traceChunks.length = 0;
+    this.traceRenderedCount = 0;
+    this.traceScheduled = false;
+    if (this.traceElement) {
+      this.traceElement.textContent = "";
+    }
+  }
+
+  public getTraceChunks(): ReadonlyArray<TerminalTraceChunk> {
+    return this.traceChunks;
+  }
+
   public dispose(): void {
     for (const fn of this.removeListeners) fn();
     this.removeListeners.length = 0;
@@ -208,13 +221,24 @@ export class TerminalController {
 
   private setupInputHandlers(): void {
 
-    // Keep focus on the input so keyboard works.
-    const focusOnClick = () => {
-      this.inputElement.focus();
+    // Keep focus on the input so keyboard works (click anywhere in display).
+    const focusInput = (e?: Event) => {
+      // Avoid text selection / focus oddities when clicking rendered spans.
+      e?.preventDefault?.();
+      try {
+        // TS lib typing for preventScroll can vary; keep it best-effort.
+        (this.inputElement as any).focus?.({ preventScroll: true });
+      } catch {
+        this.inputElement.focus();
+      }
     };
 
-    this.displayElement.addEventListener("mousedown", focusOnClick);
-    this.removeListeners.push(() => this.displayElement.removeEventListener("mousedown", focusOnClick));
+    // Use click (explicit requirement) + pointerdown (more reliable on some platforms).
+    this.displayElement.addEventListener("click", focusInput);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("click", focusInput));
+
+    this.displayElement.addEventListener("pointerdown", focusInput);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", focusInput));
 
     const onKeyDown = (e: KeyboardEvent) => {
 

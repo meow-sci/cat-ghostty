@@ -1,6 +1,6 @@
 #page {
  display: grid;
- grid-template-rows: max-content max-content; 
+ grid-template-rows: max-content max-content max-content;
  justify-content: center;
  margin-top: 1rem;
  row-gap: 1rem;
@@ -39,6 +39,25 @@
   background-color: black;
   color: white;
   padding: 0.5rem;
+}
+
+#trace-controls {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+
+  width: calc(var(--terminal-width) * 1ch);
+  box-sizing: border-box;
+
+  border: solid 1px hotpink;
+  background-color: black;
+  color: white;
+  padding: 0.5rem;
+}
+
+#trace-controls button {
+  font: inherit;
 }
 
 .terminal-cell {
