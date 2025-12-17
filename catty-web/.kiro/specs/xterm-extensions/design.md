@@ -30,6 +30,19 @@ The xterm extensions integrate into the existing three-layer architecture:
 - Manages cursor appearance updates in the display
 - Coordinates between terminal state and DOM updates
 
+### SGR styling applicationwith CSS
+- generate raw CSS strings for current
+- hash the raw CSS strings using xxh3 hash from xxh3-ts package, example:
+    ```typescript
+    import { XXH64 } from 'xxh3-ts';
+    import { Buffer } from 'buffer';
+    let hash: bigint = XXH64(Buffer.from("color: #00ffff;\ncursor:pointer;"));
+    ```
+- use DOM manipulation (with a in-memory JS object cache which is caching known style blocks to avoid having to check if it exists using DOM APIs) manage `<style>` tags in the page where each <style> tag will contain a single CSS class whose name is the result of the xxh3 hash.
+- each cell's class will be updated to match the hash ids of the SGR styles that should be applied to that cell
+- ensure that cell classes are reset when needed
+
+
 ## Components and Interfaces
 
 ### Enhanced Parser Components
@@ -320,6 +333,14 @@ Based on the prework analysis, the following correctness properties have been id
 **Property 15: State integrity during operations**
 *For any* sequence of save/restore operations, the terminal state should maintain integrity without corruption
 **Validates: Requirements 10.4**
+
+**Property 16: SGR color application consistency**
+*For any* valid SGR color sequence, the generated CSS should correctly represent the specified color values
+**Validates: Requirements 3.4, 4.1**
+
+**Property 17: CSS hash generation determinism**
+*For any* identical CSS string, the xxh3 hash should always generate the same class name
+**Validates: Requirements 4.1, 4.2**
 
 ## Error Handling
 

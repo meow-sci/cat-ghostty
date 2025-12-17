@@ -1,5 +1,6 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type Plugin } from 'vitest/config';
 import path from 'path';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   test: {
@@ -14,4 +15,7 @@ export default defineConfig({
       '@catty/state': path.resolve(__dirname, '../packages/state/src'),
     },
   },
+  plugins: [
+    nodePolyfills() as Plugin,
+  ],
 });

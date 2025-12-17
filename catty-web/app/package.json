@@ -22,10 +22,12 @@
     "@nanostores/logger": "1.0.0",
     "@nanostores/persistent": "1.2.0",
     "@nanostores/react": "1.0.0",
-    "astro": "5.16.5",
+    "astro": "5.16.6",
+    "buffer": "6.0.3",
     "nanostores": "1.1.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "xxh3-ts": "2.0.1"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.6",
@@ -35,6 +37,7 @@
     "fast-check": "4.4.0",
     "jsdom": "27.3.0",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vite-plugin-node-polyfills": "0.24.0"
   }
 }
