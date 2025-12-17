@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { Parser } from "../terminal/Parser";
 import { ParserHandlers } from "../terminal/ParserOptions";
-import { type CsiMessage, type EscMessage, type SgrMessage } from "../terminal/TerminalEmulationTypes";
+import { type CsiMessage, type EscMessage, type OscMessage, type SgrMessage, type SgrSequence } from "../terminal/TerminalEmulationTypes";
 import { getLogger } from "@catty/log";
 
 /**
@@ -14,7 +14,7 @@ interface CapturedEvents {
   escMessages: EscMessage[];
   csiMessages: CsiMessage[];
   sgrMessages: SgrMessage[][];
-  oscSequences: string[];
+  oscSequences: OscMessage[];
   bells: number;
   backspaces: number;
   tabs: number;
@@ -76,11 +76,11 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     handleCsi: (msg: CsiMessage) => {
       captured.csiMessages.push(msg);
     },
-    handleOsc: (raw: string) => {
-      captured.oscSequences.push(raw);
+    handleOsc: (msg: OscMessage) => {
+      captured.oscSequences.push(msg);
     },
-    handleSgr: (messages: SgrMessage[]) => {
-      captured.sgrMessages.push(messages);
+    handleSgr: (seq: SgrSequence) => {
+      captured.sgrMessages.push(seq.messages);
     },
   };
 
@@ -648,7 +648,8 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;My Window Title\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toContain("0;My Window Title");
+      expect(captured.oscSequences[0].terminator).toBe("BEL");
+      expect(captured.oscSequences[0].raw).toContain("0;My Window Title");
     });
 
     it("should parse OSC with ST terminator (ESC]0;titleESC\\)", async () => {
@@ -658,7 +659,8 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;My Window Title\x1b\\"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toContain("0;My Window Title");
+      expect(captured.oscSequences[0].terminator).toBe("ST");
+      expect(captured.oscSequences[0].raw).toContain("0;My Window Title");
     });
 
     it("should parse OSC 52 clipboard (ESC]52;c;base64BEL)", async () => {
@@ -668,7 +670,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]52;c;SGVsbG8=\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toContain("52;c;SGVsbG8=");
+      expect(captured.oscSequences[0].raw).toContain("52;c;SGVsbG8=");
     });
 
     it("should parse OSC 8 hyperlink (ESC]8;;urlBEL)", async () => {
@@ -678,7 +680,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]8;;https://example.com\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toContain("8;;https://example.com");
+      expect(captured.oscSequences[0].raw).toContain("8;;https://example.com");
     });
   });
 
@@ -2141,7 +2143,8 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;My Terminal Title\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x07");
+      expect(captured.oscSequences[0].terminator).toBe("BEL");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;My Terminal Title\x07");
     });
 
     it("should parse OSC 0 - set icon name and window title (ST terminator)", async () => {
@@ -2151,7 +2154,8 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;My Terminal Title\x1b\\"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x1b\\");
+      expect(captured.oscSequences[0].terminator).toBe("ST");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;My Terminal Title\x1b\\");
     });
 
     it("should parse OSC 0 with empty title", async () => {
@@ -2161,7 +2165,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;\x07");
     });
 
     // OSC 1: Set icon name only
@@ -2172,7 +2176,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]1;IconName\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]1;IconName\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]1;IconName\x07");
     });
 
     // OSC 2: Set window title only
@@ -2183,7 +2187,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]2;Window Title\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]2;Window Title\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]2;Window Title\x07");
     });
 
     // OSC 4: Set/query color palette
@@ -2194,7 +2198,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]4;1;rgb:ff/00/00\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]4;1;rgb:ff/00/00\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]4;1;rgb:ff/00/00\x07");
     });
 
     it("should parse OSC 4 - query color palette entry", async () => {
@@ -2204,7 +2208,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]4;1;?\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]4;1;?\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]4;1;?\x07");
     });
 
     // OSC 7: Set current working directory
@@ -2215,7 +2219,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]7;file:///Users/user/projects\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]7;file:///Users/user/projects\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]7;file:///Users/user/projects\x07");
     });
 
     it("should parse OSC 7 with encoded spaces", async () => {
@@ -2225,7 +2229,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]7;file:///Users/user/My%20Projects\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]7;file:///Users/user/My%20Projects\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]7;file:///Users/user/My%20Projects\x07");
     });
 
     // OSC 8: Hyperlinks
@@ -2236,7 +2240,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]8;;https://example.com\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]8;;https://example.com\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]8;;https://example.com\x07");
     });
 
     it("should parse OSC 8 - hyperlink with id parameter", async () => {
@@ -2246,7 +2250,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]8;id=link1;https://example.com\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]8;id=link1;https://example.com\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]8;id=link1;https://example.com\x07");
     });
 
     it("should parse OSC 8 - hyperlink close (empty URL)", async () => {
@@ -2256,7 +2260,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]8;;\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]8;;\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]8;;\x07");
     });
 
     it("should parse OSC 8 - hyperlink with multiple parameters", async () => {
@@ -2266,7 +2270,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]8;id=mylink:title=Click me;https://example.com/page\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]8;id=mylink:title=Click me;https://example.com/page\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]8;id=mylink:title=Click me;https://example.com/page\x07");
     });
 
     // OSC 9: iTerm2 growl notification (legacy)
@@ -2277,7 +2281,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]9;Build completed!\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]9;Build completed!\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]9;Build completed!\x07");
     });
 
     // OSC 10: Set/query foreground color
@@ -2288,7 +2292,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]10;rgb:ff/ff/ff\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]10;rgb:ff/ff/ff\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]10;rgb:ff/ff/ff\x07");
     });
 
     it("should parse OSC 10 - query foreground color", async () => {
@@ -2298,7 +2302,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]10;?\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]10;?\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]10;?\x07");
     });
 
     // OSC 11: Set/query background color
@@ -2309,7 +2313,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]11;rgb:00/00/00\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]11;rgb:00/00/00\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]11;rgb:00/00/00\x07");
     });
 
     it("should parse OSC 11 - query background color", async () => {
@@ -2319,7 +2323,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]11;?\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]11;?\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]11;?\x07");
     });
 
     // OSC 12: Set/query cursor color
@@ -2330,7 +2334,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]12;rgb:00/ff/00\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]12;rgb:00/ff/00\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]12;rgb:00/ff/00\x07");
     });
 
     // OSC 52: Clipboard operations
@@ -2342,7 +2346,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from(`\x1b]52;c;${base64Data}\x07`));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe(`\x1b]52;c;${base64Data}\x07`);
+      expect(captured.oscSequences[0].raw).toBe(`\x1b]52;c;${base64Data}\x07`);
     });
 
     it("should parse OSC 52 - clipboard query", async () => {
@@ -2352,7 +2356,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]52;c;?\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]52;c;?\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]52;c;?\x07");
     });
 
     it("should parse OSC 52 - primary selection (p)", async () => {
@@ -2363,7 +2367,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from(`\x1b]52;p;${base64Data}\x07`));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe(`\x1b]52;p;${base64Data}\x07`);
+      expect(captured.oscSequences[0].raw).toBe(`\x1b]52;p;${base64Data}\x07`);
     });
 
     it("should parse OSC 52 - multiple selections (pc)", async () => {
@@ -2374,7 +2378,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from(`\x1b]52;pc;${base64Data}\x07`));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe(`\x1b]52;pc;${base64Data}\x07`);
+      expect(captured.oscSequences[0].raw).toBe(`\x1b]52;pc;${base64Data}\x07`);
     });
 
     // OSC 104: Reset color palette
@@ -2385,7 +2389,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]104\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]104\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]104\x07");
     });
 
     it("should parse OSC 104 - reset specific color", async () => {
@@ -2395,7 +2399,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]104;1\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]104;1\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]104;1\x07");
     });
 
     // OSC 110: Reset foreground color
@@ -2406,7 +2410,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]110\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]110\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]110\x07");
     });
 
     // OSC 111: Reset background color
@@ -2417,7 +2421,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]111\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]111\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]111\x07");
     });
 
     // OSC 112: Reset cursor color
@@ -2428,7 +2432,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]112\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]112\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]112\x07");
     });
 
     // OSC 133: Shell integration / semantic prompts (FinalTerm)
@@ -2439,7 +2443,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]133;A\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]133;A\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]133;A\x07");
     });
 
     it("should parse OSC 133 - command start (B)", async () => {
@@ -2449,7 +2453,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]133;B\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]133;B\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]133;B\x07");
     });
 
     it("should parse OSC 133 - command executed (C)", async () => {
@@ -2459,7 +2463,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]133;C\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]133;C\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]133;C\x07");
     });
 
     it("should parse OSC 133 - command finished (D)", async () => {
@@ -2469,7 +2473,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]133;D;0\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]133;D;0\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]133;D;0\x07");
     });
 
     // OSC 1337: iTerm2 proprietary sequences
@@ -2481,7 +2485,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from(`\x1b]1337;SetUserVar=myvar=${base64Value}\x07`));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe(`\x1b]1337;SetUserVar=myvar=${base64Value}\x07`);
+      expect(captured.oscSequences[0].raw).toBe(`\x1b]1337;SetUserVar=myvar=${base64Value}\x07`);
     });
 
     it("should parse OSC 1337 - iTerm2 report cell size", async () => {
@@ -2491,7 +2495,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]1337;ReportCellSize\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]1337;ReportCellSize\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]1337;ReportCellSize\x07");
     });
 
     // Edge cases
@@ -2502,7 +2506,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;user@host:~/path/to/dir$\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;user@host:~/path/to/dir$\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;user@host:~/path/to/dir$\x07");
     });
 
     it("should handle multiple consecutive OSC sequences", async () => {
@@ -2512,9 +2516,9 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;Title1\x07\x1b]0;Title2\x07\x1b]0;Title3\x07"));
 
       expect(captured.oscSequences).toHaveLength(3);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;Title1\x07");
-      expect(captured.oscSequences[1]).toBe("\x1b]0;Title2\x07");
-      expect(captured.oscSequences[2]).toBe("\x1b]0;Title3\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;Title1\x07");
+      expect(captured.oscSequences[1].raw).toBe("\x1b]0;Title2\x07");
+      expect(captured.oscSequences[2].raw).toBe("\x1b]0;Title3\x07");
     });
 
     it("should handle OSC followed by text", async () => {
@@ -2524,7 +2528,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\x1b]0;Title\x07Hello World"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;Title\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;Title\x07");
       // "Hello World" should be received as normal bytes
       expect(captured.normalBytes.length).toBeGreaterThan(0);
     });
@@ -2537,7 +2541,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from(`\x1b]0;${longTitle}\x07`));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe(`\x1b]0;${longTitle}\x07`);
+      expect(captured.oscSequences[0].raw).toBe(`\x1b]0;${longTitle}\x07`);
     });
 
     it("should handle OSC split across multiple pushes", async () => {
@@ -2549,7 +2553,7 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("Title\x07"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;My Terminal Title\x07");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;My Terminal Title\x07");
     });
 
     it("should handle OSC with ST split across pushes", async () => {
@@ -2560,7 +2564,8 @@ describe("Parser", () => {
       parser.pushBytes(Buffer.from("\\"));
 
       expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0]).toBe("\x1b]0;Title\x1b\\");
+      expect(captured.oscSequences[0].terminator).toBe("ST");
+      expect(captured.oscSequences[0].raw).toBe("\x1b]0;Title\x1b\\");
     });
   });
 });

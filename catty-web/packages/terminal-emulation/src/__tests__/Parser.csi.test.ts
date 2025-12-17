@@ -3,7 +3,7 @@ import { getLogger } from '@catty/log';
 
 import { Parser } from '../terminal/Parser';
 import { ParserHandlers } from '../terminal/ParserOptions';
-import { SgrMessage, type CsiMessage, type EscMessage } from '../terminal/TerminalEmulationTypes';
+import { OscMessage, SgrSequence, type CsiMessage, type EscMessage } from '../terminal/TerminalEmulationTypes';
 
 
 const NOOP_HANDLERS: ParserHandlers = {
@@ -17,8 +17,8 @@ const NOOP_HANDLERS: ParserHandlers = {
   handleNormalByte: (_byte: number) => { },
   handleEsc: (_msg: EscMessage) => { },
   handleCsi: (_msg: CsiMessage) => { },
-  handleOsc: (_raw: string) => { },
-  handleSgr: (_messages: SgrMessage[]) => { },
+  handleOsc: (_msg: OscMessage) => { },
+  handleSgr: (_msg: SgrSequence) => { },
 };
 
 describe('Parser', () => {
@@ -37,7 +37,7 @@ describe('Parser', () => {
           handleCsi: (msg: CsiMessage) => {
             console.log(`CSI Message: ${msg._type}`);
           },
-          handleSgr: (messages: SgrMessage[]) => {
+          handleSgr: (messages: SgrSequence) => {
             console.log(`SGR attrs received: ${JSON.stringify(messages)}`);
           },
         },
