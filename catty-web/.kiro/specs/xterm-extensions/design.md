@@ -30,6 +30,73 @@ The xterm extensions integrate into the existing three-layer architecture:
 - Manages cursor appearance updates in the display
 - Coordinates between terminal state and DOM updates
 
+### Terminal Theme System
+The terminal theme system provides a structured approach to color management using CSS custom properties:
+
+#### Theme Data Structure
+```typescript
+interface TerminalTheme {
+  name: string;
+  type: "dark" | "light";
+  colors: {
+    // Standard 16 ANSI colors
+    black: string;
+    red: string;
+    green: string;
+    yellow: string;
+    blue: string;
+    magenta: string;
+    cyan: string;
+    white: string;
+    brightBlack: string;
+    brightRed: string;
+    brightGreen: string;
+    brightYellow: string;
+    brightBlue: string;
+    brightMagenta: string;
+    brightCyan: string;
+    brightWhite: string;
+    
+    // Terminal UI colors
+    foreground: string;
+    background: string;
+    cursor: string;
+    selection: string;
+  };
+}
+```
+
+#### Default Dark Theme
+The system will include a default dark theme using standard terminal colors:
+- Black: #000000, Bright Black: #555555
+- Red: #AA0000, Bright Red: #FF5555
+- Green: #00AA00, Bright Green: #55FF55
+- Yellow: #AA5500, Bright Yellow: #FFFF55
+- Blue: #0000AA, Bright Blue: #5555FF
+- Magenta: #AA00AA, Bright Magenta: #FF55FF
+- Cyan: #00AAAA, Bright Cyan: #55FFFF
+- White: #AAAAAA, Bright White: #FFFFFF
+
+#### CSS Variable Integration
+Themes are applied using CSS custom properties:
+```css
+:root {
+  --terminal-color-black: #000000;
+  --terminal-color-red: #AA0000;
+  --terminal-color-green: #00AA00;
+  /* ... additional color variables */
+  --terminal-foreground: #AAAAAA;
+  --terminal-background: #000000;
+}
+```
+
+#### SGR Color Resolution
+SGR styling references CSS variables for theme-aware colors:
+- Standard colors (30-37, 40-47): Map to CSS variables
+- Bright colors (90-97, 100-107): Map to bright CSS variables
+- 256-color palette: Use predefined color values
+- 24-bit RGB: Use direct color values
+
 ### SGR styling applicationwith CSS
 - generate raw CSS strings for current
 - hash the raw CSS strings using xxh3 hash from xxh3-ts package, example:
@@ -262,6 +329,48 @@ interface MouseEventData {
 }
 ```
 
+### Terminal Theme Model
+```typescript
+interface TerminalTheme {
+  name: string;
+  type: "dark" | "light";
+  colors: TerminalColorPalette;
+}
+
+interface TerminalColorPalette {
+  // Standard 16 ANSI colors
+  black: string;
+  red: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+  brightBlack: string;
+  brightRed: string;
+  brightGreen: string;
+  brightYellow: string;
+  brightBlue: string;
+  brightMagenta: string;
+  brightCyan: string;
+  brightWhite: string;
+  
+  // Terminal UI colors
+  foreground: string;
+  background: string;
+  cursor: string;
+  selection: string;
+}
+
+interface ThemeManager {
+  currentTheme: TerminalTheme;
+  applyTheme(theme: TerminalTheme): void;
+  generateCssVariables(theme: TerminalTheme): string;
+  resolveColor(colorCode: number, isBright: boolean): string;
+}
+```
+
 Now I need to use the prework tool before writing the Correctness Properties section:
 
 <function_calls>
@@ -341,6 +450,10 @@ Based on the prework analysis, the following correctness properties have been id
 **Property 17: CSS hash generation determinism**
 *For any* identical CSS string, the xxh3 hash should always generate the same class name
 **Validates: Requirements 4.1, 4.2**
+
+**Property 18: Theme color resolution consistency**
+*For any* standard ANSI color code (0-15), the resolved color should match the corresponding CSS variable from the current theme
+**Validates: Requirements 3.4, 4.1**
 
 ## Error Handling
 

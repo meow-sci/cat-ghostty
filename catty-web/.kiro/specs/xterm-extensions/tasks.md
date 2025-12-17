@@ -307,55 +307,73 @@
   - Optimize critical paths if performance degradation detected
   - _Requirements: 9.5_
 
-- [ ] 14. Implement SGR styling system with CSS generation
-  - Set up CSS-based styling system using xxh3 hashing for style management
+- [ ] 14. Implement terminal theme system and SGR styling with CSS generation
+  - Create terminal theme system with CSS variable-based color management
+  - Set up CSS-based SGR styling system using xxh3 hashing for style management
   - Implement foreground and background color support as initial MVP
   - Create DOM manipulation system for dynamic style injection
   - _Requirements: 3.4, 4.1, 4.2_
 
-- [ ] 14.1 Set up SGR styling infrastructure
+- [ ] 14.1 Create terminal theme system foundation
+  - Define TerminalTheme and TerminalColorPalette interfaces
+  - Create ThemeManager class for theme management and CSS variable generation
+  - Implement default dark theme with standard terminal colors
+  - Add theme application functionality that injects CSS variables into DOM
+  - _Requirements: 3.4, 4.1_
+
+- [ ] 14.2 Set up SGR styling infrastructure
   - Install xxh3-ts package for CSS hash generation
   - Create SgrStyleManager class for CSS generation and caching
   - Implement in-memory cache for known style blocks
+  - Add color resolution system that maps ANSI colors to CSS variables
   - _Requirements: 3.4, 4.1_
 
-- [ ] 14.2 Implement CSS generation for SGR styles
+- [ ] 14.3 Implement CSS generation for SGR styles
   - Create generateCssForSgr function that converts SGR state to CSS strings
   - Implement xxh3 hashing of CSS strings for unique class names
   - Add CSS class generation with hash-based naming
+  - Integrate theme-aware color resolution for standard ANSI colors
   - _Requirements: 3.4, 4.1, 4.2_
 
-- [ ] 14.3 Create DOM style management system
+- [ ] 14.4 Create DOM style management system
   - Implement dynamic <style> tag creation and management
   - Add in-memory cache to avoid DOM queries for existing styles
   - Create updateCellClasses function for applying styles to terminal cells
+  - Add CSS variable injection system for theme application
   - _Requirements: 4.1, 4.2_
 
-- [ ] 14.4 Implement foreground color support
-  - Add support for standard 16 ANSI colors (30-37, 90-97)
-  - Implement 256-color palette support (38;5;n)
-  - Add 24-bit RGB color support (38;2;r;g;b)
+- [ ] 14.5 Implement foreground color support
+  - Add support for standard 16 ANSI colors (30-37, 90-97) using CSS variables
+  - Implement 256-color palette support (38;5;n) with direct color values
+  - Add 24-bit RGB color support (38;2;r;g;b) with direct color values
+  - Create color resolution logic that chooses between CSS variables and direct values
   - _Requirements: 3.4, 4.1_
 
-- [ ] 14.5 Implement background color support
-  - Add support for standard 16 ANSI background colors (40-47, 100-107)
-  - Implement 256-color background palette support (48;5;n)
-  - Add 24-bit RGB background color support (48;2;r;g;b)
+- [ ] 14.6 Implement background color support
+  - Add support for standard 16 ANSI background colors (40-47, 100-107) using CSS variables
+  - Implement 256-color background palette support (48;5;n) with direct color values
+  - Add 24-bit RGB background color support (48;2;r;g;b) with direct color values
+  - Ensure background colors work consistently with theme system
   - _Requirements: 3.4, 4.2_
 
-- [ ] 14.6 Integrate SGR styling with terminal rendering
+- [ ] 14.7 Integrate SGR styling with terminal rendering
   - Update TerminalController to use SgrStyleManager for cell styling
   - Modify cell rendering to apply generated CSS classes
   - Implement style reset functionality when SGR attributes change
+  - Add theme switching capability that updates existing styled cells
   - _Requirements: 4.1, 4.2_
 
-- [ ] 14.7 Write property test for SGR color consistency
+- [ ] 14.8 Write property test for SGR color consistency
   - **Property 16: SGR color application consistency**
   - **Validates: Requirements 3.4, 4.1**
 
-- [ ] 14.8 Write property test for CSS generation determinism
+- [ ] 14.9 Write property test for CSS generation determinism
   - **Property 17: CSS hash generation determinism**
   - **Validates: Requirements 4.1, 4.2**
+
+- [ ] 14.10 Write property test for theme color resolution
+  - **Property 18: Theme color resolution consistency**
+  - **Validates: Requirements 3.4, 4.1**
 
 - [ ] 15. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
