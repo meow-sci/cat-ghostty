@@ -3,7 +3,7 @@ import { getLogger } from "@catty/log";
 import type { ParserOptions } from "./ParserOptions";
 import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
-import type { EscMessage } from "./TerminalEmulationTypes";
+import type { EscMessage, OscMessage, SgrSequence } from "./TerminalEmulationTypes";
 
 
 type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
@@ -254,7 +254,8 @@ export class Parser {
 
     // Stub only (no OSC parsing here).
     this.log.debug(`OSC (opaque, ${terminator}): ${raw}`);
-    this.handlers.handleOsc(raw);
+    const msg: OscMessage = { _type: "osc", raw, terminator };
+    this.handlers.handleOsc(msg);
 
     this.resetEscapeState();
     return;
@@ -268,7 +269,8 @@ export class Parser {
     if (finalByte === 0x6d) {
       const { params, separators } = parseSgrParamsAndSeparators(raw);
       const sgrMessages = parseSgr(params, separators);
-      this.handlers.handleSgr(sgrMessages);
+      const sgr: SgrSequence = { _type: "sgr", raw, messages: sgrMessages };
+      this.handlers.handleSgr(sgr);
       this.resetEscapeState();
       return;
     }

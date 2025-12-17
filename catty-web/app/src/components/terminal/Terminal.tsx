@@ -7,12 +7,14 @@ export function Terminal() {
 
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [size, setSize] = useState<[number, number]>(() => [85, 24]);
+  const traceRef = useRef<HTMLPreElement | null>(null);
+  const [size, _setSize] = useState<[number, number]>(() => [85, 24]);
 
   useEffect(() => {
 
     const displayElement = terminalRef.current;
     const inputElement = inputRef.current;
+    const traceElement = traceRef.current;
 
     if (!displayElement || !inputElement) {
       return;
@@ -23,6 +25,7 @@ export function Terminal() {
       terminal,
       displayElement,
       inputElement,
+      traceElement: traceElement ?? undefined,
       cols: size[0],
       rows: size[1],
     });
@@ -40,6 +43,7 @@ export function Terminal() {
   return (
     <>
       <div id="terminal" ref={terminalRef} style={style} />
+      <pre id="trace" ref={traceRef} style={style} />
       <input
 
         id="input"

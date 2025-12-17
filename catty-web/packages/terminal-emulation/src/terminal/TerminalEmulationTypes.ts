@@ -7,6 +7,16 @@ export interface CsiBase {
 }
 
 // =============================================================================
+// OSC Types (opaque)
+// =============================================================================
+
+export interface OscMessage {
+  _type: "osc";
+  raw: string;
+  terminator: "BEL" | "ST";
+}
+
+// =============================================================================
 // ESC Types (non-CSI)
 // =============================================================================
 
@@ -514,3 +524,13 @@ export type SgrMessage =
   | SgrSubscript
   | SgrNotSuperscriptSubscript
   | SgrUnknown;
+
+/**
+ * Wrapper for a complete SGR escape sequence (CSI ... m) including the original raw bytes.
+ * The individual SGR messages remain stateless; the raw sequence is attached here.
+ */
+export interface SgrSequence {
+  _type: "sgr";
+  raw: string;
+  messages: SgrMessage[];
+}

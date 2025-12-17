@@ -26,6 +26,21 @@
   cursor: text;
 }
 
+#trace {
+  font-family: 'Source Code Pro Variable', monospace;
+  font-size: 16px;
+  line-height: 1.2;
+  height: calc(20lh);
+  width: calc(var(--terminal-width) * 1ch);
+
+  overflow: auto;
+
+  border: solid 1px hotpink;
+  background-color: black;
+  color: white;
+  padding: 0.5rem;
+}
+
 .terminal-cell {
   position: absolute;
   white-space: pre;

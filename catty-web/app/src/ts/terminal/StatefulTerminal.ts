@@ -1,6 +1,8 @@
 import { getLogger } from "@catty/log";
-import type { CsiMessage, EscMessage, SgrMessage } from "@catty/terminal-emulation";
+import type { CsiMessage, EscMessage, OscMessage, SgrSequence } from "@catty/terminal-emulation";
 import { Parser } from "@catty/terminal-emulation";
+
+import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
 
 export type DecModeEvent = {
   action: "set" | "reset";
@@ -26,10 +28,12 @@ export interface StatefulTerminalOptions {
   cols: number;
   rows: number;
   onUpdate?: (snapshot: ScreenSnapshot) => void;
+  onChunk?: (chunk: TerminalTraceChunk) => void;
 }
 
 type UpdateListener = (snapshot: ScreenSnapshot) => void;
 type DecModeListener = (ev: DecModeEvent) => void;
+type ChunkListener = (chunk: TerminalTraceChunk) => void;
 
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
@@ -55,6 +59,7 @@ export class StatefulTerminal {
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
   private readonly decModeListeners = new Set<DecModeListener>();
+  private readonly chunkListeners = new Set<ChunkListener>();
 
   constructor(options: StatefulTerminalOptions) {
 
@@ -67,52 +72,68 @@ export class StatefulTerminal {
       this.updateListeners.add(options.onUpdate);
     }
 
+    if (options.onChunk) {
+      this.chunkListeners.add(options.onChunk);
+    }
+
     this.parser = new Parser({
       log: this.log,
       emitNormalBytesDuringEscapeSequence: false,
       processC0ControlsDuringEscapeSequence: true,
       handlers: {
         handleBell: () => {
-          // noop
+          this.emitControlChunk("BEL", 0x07);
         },
         handleBackspace: () => {
+          this.emitControlChunk("BS", 0x08);
           this.backspace();
           this.emitUpdate();
         },
         handleTab: () => {
+          this.emitControlChunk("TAB", 0x09);
           this.tab();
           this.emitUpdate();
         },
         handleLineFeed: () => {
+          this.emitControlChunk("LF", 0x0a);
           this.lineFeed();
           this.emitUpdate();
         },
         handleFormFeed: () => {
+          this.emitControlChunk("FF", 0x0c);
           this.clear();
           this.emitUpdate();
         },
         handleCarriageReturn: () => {
+          this.emitControlChunk("CR", 0x0d);
           this.carriageReturn();
           this.emitUpdate();
         },
         handleNormalByte: (byte: number) => {
+          this.emitChunk({
+            _type: "trace.normalByte",
+            cursorX: this.cursorX,
+            cursorY: this.cursorY,
+            byte,
+          });
           this.writePrintableByte(byte);
           this.emitUpdate();
         },
         handleEsc: (msg: EscMessage) => {
+          this.emitChunk({ _type: "trace.esc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleEsc(msg);
           this.emitUpdate();
         },
         handleCsi: (msg: CsiMessage) => {
-          console.log(`csi: ${JSON.stringify(msg)}`);
+          this.emitChunk({ _type: "trace.csi", cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleCsi(msg);
           this.emitUpdate();
         },
-        handleOsc: (_raw: string) => {
-          // noop (opaque)
+        handleOsc: (msg: OscMessage) => {
+          this.emitChunk({ _type: "trace.osc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
         },
-        handleSgr: (_messages: SgrMessage[]) => {
-          console.log(`sgr: ${JSON.stringify(_messages)}`);
+        handleSgr: (msg: SgrSequence) => {
+          this.emitChunk({ _type: "trace.sgr", cursorX: this.cursorX, cursorY: this.cursorY, msg });
           // ignore styling for MVP
         },
       },
@@ -127,6 +148,11 @@ export class StatefulTerminal {
   public onDecMode(listener: DecModeListener): () => void {
     this.decModeListeners.add(listener);
     return () => this.decModeListeners.delete(listener);
+  }
+
+  public onChunk(listener: ChunkListener): () => void {
+    this.chunkListeners.add(listener);
+    return () => this.chunkListeners.delete(listener);
   }
 
   public getSnapshot(): ScreenSnapshot {
@@ -165,6 +191,16 @@ export class StatefulTerminal {
     for (const listener of this.decModeListeners) {
       listener(ev);
     }
+  }
+
+  private emitChunk(chunk: TerminalTraceChunk): void {
+    for (const listener of this.chunkListeners) {
+      listener(chunk);
+    }
+  }
+
+  private emitControlChunk(name: TraceControlName, byte: number): void {
+    this.emitChunk({ _type: "trace.control", cursorX: this.cursorX, cursorY: this.cursorY, name, byte });
   }
 
   private writePrintableByte(byte: number): void {

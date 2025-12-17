@@ -17,10 +17,10 @@ export interface ParserHandlers {
   /** Non-SGR CSI handler hook */
   handleCsi: HandleCsi;
 
-  /** Opaque stub (buffered, not parsed) */
+  /** Opaque OSC sequence (buffered, not parsed), includes raw */
   handleOsc: HandleOsc;
 
-  /** Parsed SGR messages from the new stateless parser */
+  /** Parsed SGR messages (stateless) wrapped with raw sequence */
   handleSgr: HandleSgr;
 }
 

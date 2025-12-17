@@ -36,6 +36,7 @@ export type {
   CsiUnknown,
   // SGR types
   SgrBase,
+  SgrSequence,
   SgrMessage,
   SgrReset,
   SgrBold,
@@ -78,4 +79,7 @@ export type {
   SgrSubscript,
   SgrNotSuperscriptSubscript,
   SgrUnknown,
+
+  // OSC types
+  OscMessage,
 } from "./terminal/TerminalEmulationTypes";

@@ -1,4 +1,6 @@
 import { StatefulTerminal, type ScreenSnapshot } from "./StatefulTerminal";
+import type { TerminalTraceChunk } from "./TerminalTrace";
+import { formatTerminalTraceLine } from "./TerminalTrace";
 
 type InputMode = "cooked" | "raw";
 
@@ -6,6 +8,7 @@ export interface TerminalControllerOptions {
   terminal: StatefulTerminal;
   displayElement: HTMLElement;
   inputElement: HTMLInputElement;
+  traceElement?: HTMLPreElement;
   cols?: number;
   rows?: number;
   websocketUrl?: string;
@@ -15,10 +18,15 @@ export class TerminalController {
   private readonly terminal: StatefulTerminal;
   private readonly displayElement: HTMLElement;
   private readonly inputElement: HTMLInputElement;
+  private readonly traceElement: HTMLPreElement | null;
 
   private websocket: WebSocket | null = null;
   private repaintScheduled = false;
   private lastSnapshot: ScreenSnapshot | null = null;
+
+  private traceScheduled = false;
+  private readonly traceChunks: TerminalTraceChunk[] = [];
+  private traceRenderedCount = 0;
 
   private inputMode: InputMode = "cooked";
   private applicationCursorKeys = false;
@@ -34,6 +42,7 @@ export class TerminalController {
     this.terminal = options.terminal;
     this.displayElement = options.displayElement;
     this.inputElement = options.inputElement;
+    this.traceElement = options.traceElement ?? null;
 
     this.debugEsc = new URLSearchParams(window.location.search).has("debugEsc");
 
@@ -45,6 +54,12 @@ export class TerminalController {
       this.scheduleRepaint();
     });
     this.removeListeners.push(unsubscribe);
+
+    const unsubscribeChunks = this.terminal.onChunk((chunk) => {
+      this.traceChunks.push(chunk);
+      this.scheduleTraceRender();
+    });
+    this.removeListeners.push(unsubscribeChunks);
 
     const unsubscribeDecModes = this.terminal.onDecMode((ev) => {
       // These are "real world" sequences apps send to terminals.
@@ -74,6 +89,7 @@ export class TerminalController {
     // Initial paint
     this.lastSnapshot = this.terminal.getSnapshot();
     this.repaint();
+    this.renderTrace();
   }
 
   public dispose(): void {
@@ -383,6 +399,41 @@ export class TerminalController {
     });
   }
 
+  private scheduleTraceRender(): void {
+    if (!this.traceElement) {
+      return;
+    }
+    if (this.traceScheduled) {
+      return;
+    }
+    this.traceScheduled = true;
+
+    requestAnimationFrame(() => {
+      this.traceScheduled = false;
+      this.renderTrace();
+    });
+  }
+
+  private renderTrace(): void {
+    const el = this.traceElement;
+    if (!el) {
+      return;
+    }
+
+    const start = this.traceRenderedCount;
+    if (start >= this.traceChunks.length) {
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < this.traceChunks.length; i++) {
+      const line = formatTerminalTraceLine(this.traceChunks[i], i);
+      frag.appendChild(document.createTextNode(line + "\n"));
+    }
+    el.appendChild(frag);
+    this.traceRenderedCount = this.traceChunks.length;
+  }
+
   private repaint(): void {
     const snapshot = this.lastSnapshot;
     if (!snapshot) {
@@ -604,7 +655,7 @@ function debugLogIncoming(text: string): void {
   }
 
   // Focus on the sequences relevant to cursor visibility + alt screen.
-  const interesting = [
+  const _interesting = [
     "\x1b[?25l",
     "\x1b[?25h",
     "\x1b[?1049h",
