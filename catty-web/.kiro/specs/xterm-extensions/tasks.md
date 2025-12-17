@@ -104,7 +104,7 @@
   - Add handleCursorStyle method for DECSCUSR processing
   - _Requirements: 1.1, 1.2, 1.3, 3.1, 3.2, 4.1, 4.2, 4.3_
 
-- [ ] 5. Checkpoint - Ensure all tests pass for window and cursor management
+- [x] 5. Checkpoint - Ensure all tests pass for window and cursor management
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Implement alternate screen buffer support
