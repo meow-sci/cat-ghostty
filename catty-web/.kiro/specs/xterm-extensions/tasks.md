@@ -12,7 +12,7 @@
   - Write TypeScript interfaces for device query/response messages
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 3.1, 3.2_
 
-- [ ]* 1.2 Write property test for message type validation
+- [x] 1.2 Write property test for message type validation
   - **Property 15: State integrity during operations**
   - **Validates: Requirements 10.4**
 
@@ -34,15 +34,15 @@
   - Implement parsing for OSC 2 (set window title)
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ]* 2.2 Write property test for OSC title parsing
+- [x] 2.2 Write property test for OSC title parsing
   - **Property 1: OSC title setting consistency**
   - **Validates: Requirements 1.1**
 
-- [ ]* 2.3 Write property test for OSC icon name isolation
+- [x] 2.3 Write property test for OSC icon name isolation
   - **Property 2: OSC icon name isolation**
   - **Validates: Requirements 1.2**
 
-- [ ]* 2.4 Write property test for OSC window title isolation
+- [x] 2.4 Write property test for OSC window title isolation
   - **Property 3: OSC window title isolation**
   - **Validates: Requirements 1.3**
 
@@ -51,7 +51,7 @@
   - Add response formatting for title queries
   - _Requirements: 1.4_
 
-- [ ]* 2.6 Write property test for title query round-trip
+- [x] 2.6 Write property test for title query round-trip
   - **Property 4: Title query round-trip**
   - **Validates: Requirements 1.4**
 
