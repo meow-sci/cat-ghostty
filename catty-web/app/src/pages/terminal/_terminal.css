@@ -10,7 +10,8 @@
 
   position: relative;
 
-  font-family: 'Source Code Pro Variable', monospace;
+  /* font-family: 'Source Code Pro Variable', monospace; */
+  font-family: 'Hack Nerd Font Mono', monospace;
   font-size: 16px;
   line-height: 1.1;
 
@@ -27,7 +28,8 @@
 }
 
 #trace {
-  font-family: 'Source Code Pro Variable', monospace;
+  /* font-family: 'Source Code Pro Variable', monospace; */
+  font-family: 'Hack Nerd Font Mono', monospace;
   font-size: 16px;
   line-height: 1.2;
   height: calc(20lh);
