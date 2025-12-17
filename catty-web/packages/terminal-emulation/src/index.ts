@@ -2,7 +2,7 @@
 export { Parser } from "./terminal/Parser";
 export { parseOsc, validateOscParameters } from "./terminal/ParseOsc";
 export type { ParserOptions } from "./terminal/ParserOptions";
-export type { 
+export type {
   HandleBell,
   HandleBackspace,
   HandleTab,
@@ -97,7 +97,7 @@ export type {
 
   // OSC types
   OscMessage,
-  
+
   // Xterm extension types
   OscBase,
   OscSetTitleAndIcon,
@@ -115,3 +115,6 @@ export type {
   DcsMessage,
   XtermDcsMessage,
 } from "./terminal/TerminalEmulationTypes";
+
+export { StatefulTerminal, type ScreenSnapshot } from "./terminal/StatefulTerminal";
+export { type TerminalTraceChunk, formatTerminalTraceLine } from "./terminal/TerminalTrace";

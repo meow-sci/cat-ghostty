@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { StatefulTerminal } from "../StatefulTerminal";
+import { StatefulTerminal } from "../terminal/StatefulTerminal";
 import { fc } from "./setup";
 
 describe("Alternate Screen Buffer", () => {

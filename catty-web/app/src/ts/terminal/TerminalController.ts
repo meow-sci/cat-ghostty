@@ -1,6 +1,9 @@
-import { StatefulTerminal, type ScreenSnapshot } from "./StatefulTerminal";
-import type { TerminalTraceChunk } from "./TerminalTrace";
-import { formatTerminalTraceLine } from "./TerminalTrace";
+import {
+  type StatefulTerminal,
+  type ScreenSnapshot,
+  type TerminalTraceChunk,
+  formatTerminalTraceLine
+} from "@catty/terminal-emulation";
 
 type InputMode = "cooked" | "raw";
 
@@ -53,7 +56,7 @@ export class TerminalController {
     const unsubscribe = this.terminal.onUpdate((snapshot) => {
       this.lastSnapshot = snapshot;
       this.scheduleRepaint();
-      
+
       // Update DOM title when window properties change
       this.updateDomTitle(snapshot.windowProperties.title);
     });
@@ -164,10 +167,10 @@ export class TerminalController {
    * Returns the response string that should be sent back to the application
    */
   public generateTitleQueryResponse(titleType: "window" | "icon"): string {
-    const title = titleType === "window" 
-      ? this.terminal.getWindowTitle() 
+    const title = titleType === "window"
+      ? this.terminal.getWindowTitle()
       : this.terminal.getIconName();
-    
+
     // OSC 21 response format: OSC L <title> ST
     // where L is the title type identifier
     // ST is String Terminator (ESC \)
@@ -181,7 +184,7 @@ export class TerminalController {
     // Only update if the title has actually changed to avoid unnecessary DOM updates
     if (title !== this.lastWindowTitle) {
       this.lastWindowTitle = title;
-      
+
       // Update the browser document title
       if (title && title.length > 0) {
         document.title = title;

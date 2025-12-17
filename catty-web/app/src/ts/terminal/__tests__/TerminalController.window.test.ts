@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { TerminalController } from "../TerminalController";
-import { StatefulTerminal } from "../StatefulTerminal";
+import { StatefulTerminal } from "@catty/terminal-emulation";
 
 describe("TerminalController Window Management", () => {
   let terminal: StatefulTerminal;
@@ -12,7 +12,7 @@ describe("TerminalController Window Management", () => {
     // Create DOM elements
     displayElement = document.createElement("div");
     inputElement = document.createElement("input");
-    
+
     // Create terminal and controller
     terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     controller = new TerminalController({
@@ -35,13 +35,13 @@ describe("TerminalController Window Management", () => {
 
   it("should update DOM title when terminal title changes", () => {
     const originalTitle = document.title;
-    
+
     // Set title via terminal
     terminal.setWindowTitle("New Terminal Title");
-    
+
     // Give time for update to propagate
     expect(document.title).toBe("New Terminal Title");
-    
+
     // Restore original title
     document.title = originalTitle;
   });
@@ -49,7 +49,7 @@ describe("TerminalController Window Management", () => {
   it("should generate title query response for window title", () => {
     controller.setTitle("Query Test");
     const response = controller.generateTitleQueryResponse("window");
-    
+
     // OSC 21 response format: ESC ] L <title> ESC \
     expect(response).toBe("\x1b]LQuery Test\x1b\\");
   });
@@ -57,7 +57,7 @@ describe("TerminalController Window Management", () => {
   it("should generate title query response for icon name", () => {
     controller.setIconName("Icon Query Test");
     const response = controller.generateTitleQueryResponse("icon");
-    
+
     expect(response).toBe("\x1b]LIcon Query Test\x1b\\");
   });
 });

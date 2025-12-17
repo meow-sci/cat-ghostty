@@ -1,8 +1,8 @@
 import { getLogger } from "@catty/log";
-import type { CsiMessage, EscMessage, OscMessage, SgrSequence, XtermOscMessage } from "@catty/terminal-emulation";
-import { Parser } from "@catty/terminal-emulation";
 
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
+import { Parser } from "./Parser";
+import type { EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage } from "./TerminalEmulationTypes";
 
 export type DecModeEvent = {
   action: "set" | "reset";
@@ -167,10 +167,6 @@ export class StatefulTerminal {
 
   // UTF-8 mode state (DECSET/DECRST 2027)
   private utf8Mode = true; // Modern terminals default to UTF-8
-
-  // UTF-8 decoding state for multi-byte sequences
-  private utf8Buffer: number[] = [];
-  private utf8ExpectedBytes = 0;
 
   // Alternate screen buffer management
   private readonly alternateScreenManager: AlternateScreenManager;
@@ -470,148 +466,6 @@ export class StatefulTerminal {
   }
 
   /**
-   * Validate and decode a UTF-8 byte sequence.
-   * Returns the decoded character or null if the sequence is invalid.
-   * 
-   * UTF-8 encoding rules:
-   * - 1-byte: 0xxxxxxx (0x00-0x7F)
-   * - 2-byte: 110xxxxx 10xxxxxx (0xC0-0xDF, 0x80-0xBF)
-   * - 3-byte: 1110xxxx 10xxxxxx 10xxxxxx (0xE0-0xEF, 0x80-0xBF, 0x80-0xBF)
-   * - 4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx (0xF0-0xF7, 0x80-0xBF, 0x80-0xBF, 0x80-0xBF)
-   */
-  private validateAndDecodeUtf8(bytes: number[]): string | null {
-    if (bytes.length === 0) {
-      return null;
-    }
-
-    const firstByte = bytes[0];
-
-    // 1-byte sequence (ASCII)
-    if (firstByte <= 0x7F) {
-      if (bytes.length === 1) {
-        return String.fromCharCode(firstByte);
-      }
-      return null; // Invalid: too many bytes for ASCII
-    }
-
-    // 2-byte sequence
-    if (firstByte >= 0xC0 && firstByte <= 0xDF) {
-      if (bytes.length !== 2) {
-        return null; // Invalid: wrong number of bytes
-      }
-      if (bytes[1] < 0x80 || bytes[1] > 0xBF) {
-        return null; // Invalid: continuation byte out of range
-      }
-      const codePoint = ((firstByte & 0x1F) << 6) | (bytes[1] & 0x3F);
-      // Check for overlong encoding
-      if (codePoint < 0x80) {
-        return null; // Invalid: overlong encoding
-      }
-      return String.fromCodePoint(codePoint);
-    }
-
-    // 3-byte sequence
-    if (firstByte >= 0xE0 && firstByte <= 0xEF) {
-      if (bytes.length !== 3) {
-        return null; // Invalid: wrong number of bytes
-      }
-      if (bytes[1] < 0x80 || bytes[1] > 0xBF || bytes[2] < 0x80 || bytes[2] > 0xBF) {
-        return null; // Invalid: continuation bytes out of range
-      }
-      const codePoint = ((firstByte & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F);
-      // Check for overlong encoding and surrogate pairs
-      if (codePoint < 0x800 || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
-        return null; // Invalid: overlong encoding or surrogate pair
-      }
-      return String.fromCodePoint(codePoint);
-    }
-
-    // 4-byte sequence
-    if (firstByte >= 0xF0 && firstByte <= 0xF7) {
-      if (bytes.length !== 4) {
-        return null; // Invalid: wrong number of bytes
-      }
-      if (bytes[1] < 0x80 || bytes[1] > 0xBF || bytes[2] < 0x80 || bytes[2] > 0xBF || bytes[3] < 0x80 || bytes[3] > 0xBF) {
-        return null; // Invalid: continuation bytes out of range
-      }
-      const codePoint = ((firstByte & 0x07) << 18) | ((bytes[1] & 0x3F) << 12) | ((bytes[2] & 0x3F) << 6) | (bytes[3] & 0x3F);
-      // Check for overlong encoding and valid Unicode range
-      if (codePoint < 0x10000 || codePoint > 0x10FFFF) {
-        return null; // Invalid: overlong encoding or out of Unicode range
-      }
-      return String.fromCodePoint(codePoint);
-    }
-
-    // Invalid first byte
-    return null;
-  }
-
-  /**
-   * Determine the expected number of bytes for a UTF-8 sequence based on the first byte.
-   * Returns 0 if the first byte is invalid.
-   */
-  private getUtf8SequenceLength(firstByte: number): number {
-    if (firstByte <= 0x7F) return 1; // ASCII
-    if (firstByte >= 0xC0 && firstByte <= 0xDF) return 2; // 2-byte sequence
-    if (firstByte >= 0xE0 && firstByte <= 0xEF) return 3; // 3-byte sequence
-    if (firstByte >= 0xF0 && firstByte <= 0xF7) return 4; // 4-byte sequence
-    return 0; // Invalid
-  }
-
-  /**
-   * Process a byte with UTF-8 decoding.
-   * Accumulates bytes until a complete UTF-8 sequence is received.
-   * Returns the decoded character or null if the sequence is incomplete or invalid.
-   */
-  private processUtf8Byte(byte: number): string | null {
-    // If we're not expecting continuation bytes, this is a new sequence
-    if (this.utf8ExpectedBytes === 0) {
-      this.utf8Buffer = [byte];
-      this.utf8ExpectedBytes = this.getUtf8SequenceLength(byte);
-
-      if (this.utf8ExpectedBytes === 0) {
-        // Invalid first byte - reset and return replacement character
-        this.utf8Buffer = [];
-        return "\uFFFD"; // Unicode replacement character
-      }
-
-      if (this.utf8ExpectedBytes === 1) {
-        // Complete ASCII character
-        const result = this.validateAndDecodeUtf8(this.utf8Buffer);
-        this.utf8Buffer = [];
-        this.utf8ExpectedBytes = 0;
-        return result || "\uFFFD";
-      }
-
-      // Multi-byte sequence - need more bytes
-      return null;
-    }
-
-    // We're expecting continuation bytes
-    this.utf8Buffer.push(byte);
-
-    // Check if we have all expected bytes
-    if (this.utf8Buffer.length === this.utf8ExpectedBytes) {
-      const result = this.validateAndDecodeUtf8(this.utf8Buffer);
-      this.utf8Buffer = [];
-      this.utf8ExpectedBytes = 0;
-      return result || "\uFFFD"; // Return replacement character if invalid
-    }
-
-    // Still need more bytes
-    return null;
-  }
-
-  /**
-   * Reset UTF-8 decoding state.
-   * Called when switching character sets or when an error occurs.
-   */
-  private resetUtf8State(): void {
-    this.utf8Buffer = [];
-    this.utf8ExpectedBytes = 0;
-  }
-
-  /**
    * Translate a character according to the current character set.
    * Handles special character sets like DEC Special Graphics.
    * 
@@ -812,7 +666,6 @@ export class StatefulTerminal {
       current: "G0",
     };
     this.utf8Mode = true;
-    this.resetUtf8State();
     this.clear();
     this.emitUpdate();
   }

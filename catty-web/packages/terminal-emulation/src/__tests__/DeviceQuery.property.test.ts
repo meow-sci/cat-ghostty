@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fc } from "./setup";
-import { StatefulTerminal } from "../StatefulTerminal";
+import { StatefulTerminal } from "../terminal/StatefulTerminal";
 
 /**
  * Generate valid cursor positions for property-based testing.

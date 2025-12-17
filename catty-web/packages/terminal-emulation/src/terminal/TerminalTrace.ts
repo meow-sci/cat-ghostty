@@ -1,10 +1,4 @@
-import type {
-  CsiMessage,
-  EscMessage,
-  OscMessage,
-  SgrSequence,
-  XtermOscMessage,
-} from "@catty/terminal-emulation";
+import type { EscMessage, CsiMessage, OscMessage, XtermOscMessage, SgrSequence } from "./TerminalEmulationTypes";
 
 export interface TraceCursorPosition {
   /** 0-based cursor column */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { StatefulTerminal } from "../StatefulTerminal";
+import { StatefulTerminal } from "../terminal/StatefulTerminal";
 
 describe("Cursor Positioning", () => {
   it("should handle VPA (Vertical Position Absolute) - ESC[d", () => {

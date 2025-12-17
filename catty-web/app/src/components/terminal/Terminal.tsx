@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { StatefulTerminal } from "../../ts/terminal/StatefulTerminal";
 import { TerminalController } from "../../ts/terminal/TerminalController";
+import { StatefulTerminal } from "@catty/terminal-emulation";
 
 export function Terminal() {
 
