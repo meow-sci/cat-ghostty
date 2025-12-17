@@ -2153,7 +2153,10 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].terminator).toBe("BEL");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;My Terminal Title\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("My Terminal Title");
+      expect(captured.xtermOscMessages[0]._type === "osc.setWindowTitle");
+      if (captured.xtermOscMessages[0]._type === "osc.setWindowTitle") {
+        expect((captured.xtermOscMessages[0]).title).toBe("My Terminal Title");
+      }
     });
 
     it("should parse OSC 0 - set icon name and window title (ST terminator)", async () => {
@@ -2166,7 +2169,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].terminator).toBe("ST");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;My Terminal Title\x1b\\");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("My Terminal Title");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect((captured.xtermOscMessages[0]).title).toBe("My Terminal Title");
+      }
     });
 
     it("should parse OSC 0 with empty title", async () => {
@@ -2178,7 +2183,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect((captured.xtermOscMessages[0]).title).toBe("");
+      }
     });
 
     // OSC 1: Set icon name only
@@ -2191,7 +2198,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setIconName");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]1;IconName\x07");
-      expect((captured.xtermOscMessages[0] as any).iconName).toBe("IconName");
+      if (captured.xtermOscMessages[0]._type === "osc.setIconName") {
+        expect(captured.xtermOscMessages[0].iconName).toBe("IconName");
+      }
     });
 
     // OSC 2: Set window title only
@@ -2204,7 +2213,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setWindowTitle");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]2;Window Title\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("Window Title");
+      if (captured.xtermOscMessages[0]._type === "osc.setWindowTitle") {
+        expect(captured.xtermOscMessages[0].title).toBe("Window Title");
+      }
     });
 
     // OSC 21: Query window title
@@ -2537,7 +2548,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;user@host:~/path/to/dir$\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("user@host:~/path/to/dir$");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe("user@host:~/path/to/dir$");
+      }
     });
 
     it("should handle multiple consecutive OSC sequences", async () => {
@@ -2549,11 +2562,21 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(3);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;Title1\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("Title1");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe("Title1");
+      }
+
+      expect(captured.xtermOscMessages[1]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[1].raw).toBe("\x1b]0;Title2\x07");
-      expect((captured.xtermOscMessages[1] as any).title).toBe("Title2");
+      if (captured.xtermOscMessages[1]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[1].title).toBe("Title2");
+      }
+
+      expect(captured.xtermOscMessages[2]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[2].raw).toBe("\x1b]0;Title3\x07");
-      expect((captured.xtermOscMessages[2] as any).title).toBe("Title3");
+      if (captured.xtermOscMessages[2]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[2].title).toBe("Title3");
+      }
     });
 
     it("should handle OSC followed by text", async () => {
@@ -2565,7 +2588,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;Title\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("Title");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe("Title");
+      }
       // "Hello World" should be received as normal bytes
       expect(captured.normalBytes.length).toBeGreaterThan(0);
     });
@@ -2580,7 +2605,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe(`\x1b]0;${longTitle}\x07`);
-      expect((captured.xtermOscMessages[0] as any).title).toBe(longTitle);
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe(longTitle);
+      }
     });
 
     it("should handle OSC split across multiple pushes", async () => {
@@ -2594,7 +2621,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages).toHaveLength(1);
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;My Terminal Title\x07");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("My Terminal Title");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe("My Terminal Title");
+      }
     });
 
     it("should handle OSC with ST split across pushes", async () => {
@@ -2608,7 +2637,9 @@ describe("Parser", () => {
       expect(captured.xtermOscMessages[0]._type).toBe("osc.setTitleAndIcon");
       expect(captured.xtermOscMessages[0].terminator).toBe("ST");
       expect(captured.xtermOscMessages[0].raw).toBe("\x1b]0;Title\x1b\\");
-      expect((captured.xtermOscMessages[0] as any).title).toBe("Title");
+      if (captured.xtermOscMessages[0]._type === "osc.setTitleAndIcon") {
+        expect(captured.xtermOscMessages[0].title).toBe("Title");
+      }
     });
   });
 });
