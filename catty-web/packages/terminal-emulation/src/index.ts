@@ -1,6 +1,22 @@
 // Parser exports
 export { Parser } from "./terminal/Parser";
 export type { ParserOptions } from "./terminal/ParserOptions";
+export type { 
+  HandleBell,
+  HandleBackspace,
+  HandleTab,
+  HandleLineFeed,
+  HandleFormFeed,
+  HandleCarriageReturn,
+  HandleNormalByte,
+  HandleCsi,
+  HandleEsc,
+  HandleOsc,
+  HandleSgr,
+  HandleXtermOsc,
+  HandleXtermCsi,
+  HandleXtermDcs,
+} from "./terminal/ParserHandlers";
 export type { ParserHandlers } from "./terminal/ParserOptions";
 
 // Terminal emulation types
@@ -82,4 +98,21 @@ export type {
 
   // OSC types
   OscMessage,
+  
+  // Xterm extension types
+  OscBase,
+  OscSetTitleAndIcon,
+  OscSetIconName,
+  OscSetWindowTitle,
+  OscQueryWindowTitle,
+  XtermOscMessage,
+  CsiDeviceAttributesPrimary,
+  CsiDeviceAttributesSecondary,
+  CsiCursorPositionReport,
+  CsiTerminalSizeQuery,
+  CsiMouseReportingMode,
+  XtermCsiMessage,
+  DcsBase,
+  DcsMessage,
+  XtermDcsMessage,
 } from "./terminal/TerminalEmulationTypes";

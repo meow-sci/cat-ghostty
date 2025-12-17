@@ -17,6 +17,53 @@ export interface OscMessage {
 }
 
 // =============================================================================
+// Xterm OSC Extension Types
+// =============================================================================
+
+export interface OscBase {
+  _type: string;
+  raw: string;
+  terminator: "BEL" | "ST";
+}
+
+/**
+ * OSC 0: Set window title and icon name
+ */
+export interface OscSetTitleAndIcon extends OscBase {
+  _type: "osc.setTitleAndIcon";
+  title: string;
+}
+
+/**
+ * OSC 1: Set icon name
+ */
+export interface OscSetIconName extends OscBase {
+  _type: "osc.setIconName";
+  iconName: string;
+}
+
+/**
+ * OSC 2: Set window title
+ */
+export interface OscSetWindowTitle extends OscBase {
+  _type: "osc.setWindowTitle";
+  title: string;
+}
+
+/**
+ * OSC 21: Query window title
+ */
+export interface OscQueryWindowTitle extends OscBase {
+  _type: "osc.queryWindowTitle";
+}
+
+export type XtermOscMessage = 
+  | OscSetTitleAndIcon
+  | OscSetIconName
+  | OscSetWindowTitle
+  | OscQueryWindowTitle;
+
+// =============================================================================
 // ESC Types (non-CSI)
 // =============================================================================
 
@@ -40,6 +87,27 @@ export interface EscRestoreCursor extends EscBase {
 }
 
 export type EscMessage = EscSaveCursor | EscRestoreCursor;
+
+// =============================================================================
+// DCS Types (Device Control String)
+// =============================================================================
+
+export interface DcsBase {
+  _type: string;
+  raw: string;
+  terminator: "ST" | "ESC\\";
+}
+
+/**
+ * Generic DCS message for device-specific control
+ */
+export interface DcsMessage extends DcsBase {
+  _type: "dcs";
+  command: string;
+  parameters: string[];
+}
+
+export type XtermDcsMessage = DcsMessage;
 
 export interface CsiCursorUp extends CsiBase {
   _type: "csi.cursorUp";
@@ -143,6 +211,54 @@ export interface CsiUnknown extends CsiBase {
   final: string;
 }
 
+// =============================================================================
+// Xterm Device Query/Response Types
+// =============================================================================
+
+/**
+ * Device Attributes Query (Primary DA)
+ */
+export interface CsiDeviceAttributesPrimary extends CsiBase {
+  _type: "csi.deviceAttributesPrimary";
+}
+
+/**
+ * Device Attributes Query (Secondary DA)
+ */
+export interface CsiDeviceAttributesSecondary extends CsiBase {
+  _type: "csi.deviceAttributesSecondary";
+}
+
+/**
+ * Cursor Position Report Request
+ */
+export interface CsiCursorPositionReport extends CsiBase {
+  _type: "csi.cursorPositionReport";
+}
+
+/**
+ * Terminal Size Query
+ */
+export interface CsiTerminalSizeQuery extends CsiBase {
+  _type: "csi.terminalSizeQuery";
+}
+
+/**
+ * Mouse Reporting Mode Control
+ */
+export interface CsiMouseReportingMode extends CsiBase {
+  _type: "csi.mouseReportingMode";
+  mode: number; // 1000, 1002, 1003, etc.
+  enable: boolean; // true for DECSET, false for DECRST
+}
+
+export type XtermCsiMessage =
+  | CsiDeviceAttributesPrimary
+  | CsiDeviceAttributesSecondary
+  | CsiCursorPositionReport
+  | CsiTerminalSizeQuery
+  | CsiMouseReportingMode;
+
 export type CsiMessage =
   | CsiCursorUp
   | CsiCursorDown
@@ -162,7 +278,8 @@ export type CsiMessage =
   | CsiDecModeSet
   | CsiDecModeReset
   | CsiSetCursorStyle
-  | CsiUnknown;
+  | CsiUnknown
+  | XtermCsiMessage;
 
 // =============================================================================
 // SGR (Select Graphic Rendition) Types

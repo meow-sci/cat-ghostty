@@ -27,6 +27,7 @@
   "devDependencies": {
     "@catty/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "fast-check": "4.4.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
