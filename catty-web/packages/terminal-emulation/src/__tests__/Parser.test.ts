@@ -1179,6 +1179,33 @@ describe("Parser", () => {
       }
     });
 
+    // Vertical position absolute
+    it("should parse vertical position absolute (ESC[d)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[d"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.verticalPositionAbsolute");
+      if (captured.csiMessages[0]._type === "csi.verticalPositionAbsolute") {
+        expect(captured.csiMessages[0].row).toBe(1);
+      }
+    });
+
+    it("should parse vertical position absolute with row (ESC[11d)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[11d"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.verticalPositionAbsolute");
+      if (captured.csiMessages[0]._type === "csi.verticalPositionAbsolute") {
+        expect(captured.csiMessages[0].row).toBe(11);
+      }
+    });
+
     // Cursor position variations
     it("should parse cursor position with f final byte (ESC[10;20f)", async () => {
       const { handlers, captured } = createCapturingHandlers();

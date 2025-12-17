@@ -1034,6 +1034,10 @@ export class StatefulTerminal {
         this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
         this.wrapPending = false;
         return;
+      case "csi.verticalPositionAbsolute":
+        this.cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
+        this.wrapPending = false;
+        return;
       case "csi.cursorPosition":
         this.cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
         this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));

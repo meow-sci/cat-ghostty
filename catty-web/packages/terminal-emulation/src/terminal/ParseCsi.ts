@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -75,6 +75,11 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 
   if (final === "G") {
     const msg: CsiCursorHorizontalAbsolute = { _type: "csi.cursorHorizontalAbsolute", raw, column: getParam(params, 0, 1) };
+    return msg;
+  }
+
+  if (final === "d") {
+    const msg: CsiVerticalPositionAbsolute = { _type: "csi.verticalPositionAbsolute", raw, row: getParam(params, 0, 1) };
     return msg;
   }
 

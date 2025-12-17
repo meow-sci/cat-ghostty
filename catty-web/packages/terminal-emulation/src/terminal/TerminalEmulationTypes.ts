@@ -154,6 +154,11 @@ export interface CsiCursorHorizontalAbsolute extends CsiBase {
   column: number;
 }
 
+export interface CsiVerticalPositionAbsolute extends CsiBase {
+  _type: "csi.verticalPositionAbsolute";
+  row: number;
+}
+
 export interface CsiCursorPosition extends CsiBase {
   _type: "csi.cursorPosition";
   row: number;
@@ -286,6 +291,7 @@ export type CsiMessage =
   | CsiCursorNextLine
   | CsiCursorPrevLine
   | CsiCursorHorizontalAbsolute
+  | CsiVerticalPositionAbsolute
   | CsiCursorPosition
   | CsiEraseInDisplay
   | CsiEraseInLine
