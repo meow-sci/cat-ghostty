@@ -119,15 +119,15 @@
   - Add buffer switching state tracking
   - _Requirements: 2.1, 2.2, 2.7_
 
-- [ ]* 6.2 Write property test for alternate screen buffer switching
+- [x] 6.2 Write property test for alternate screen buffer switching
   - **Property 5: Alternate screen buffer switching**
   - **Validates: Requirements 2.1**
 
-- [ ]* 6.3 Write property test for screen buffer round-trip
+- [x] 6.3 Write property test for screen buffer round-trip
   - **Property 6: Screen buffer round-trip**
   - **Validates: Requirements 2.2**
 
-- [ ]* 6.4 Write property test for buffer content preservation
+- [x] 6.4 Write property test for buffer content preservation
   - **Property 7: Buffer content preservation**
   - **Validates: Requirements 2.7**
 
@@ -179,7 +179,7 @@
   - Implement terminal size query parsing
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ]* 8.2 Write property test for cursor position query round-trip
+- [ ] 8.2 Write property test for cursor position query round-trip
   - **Property 11: Cursor position query round-trip**
   - **Validates: Requirements 6.2**
 
@@ -207,7 +207,7 @@
   - Implement scroll region reset functionality
   - _Requirements: 7.1, 7.4, 7.5_
 
-- [ ]* 9.2 Write property test for scroll region containment
+- [ ] 9.2 Write property test for scroll region containment
   - **Property 12: Scroll region containment**
   - **Validates: Requirements 7.1**
 
@@ -229,7 +229,7 @@
   - Add DECSET 1003 (any event tracking) parsing
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ]* 10.2 Write property test for mouse event reporting
+- [ ] 10.2 Write property test for mouse event reporting
   - **Property 10: Mouse event reporting**
   - **Validates: Requirements 5.4**
 
@@ -257,7 +257,7 @@
   - Implement character set query sequences
   - _Requirements: 8.1, 8.5_
 
-- [ ]* 11.2 Write property test for UTF-8 processing
+- [ ] 11.2 Write property test for UTF-8 processing
   - **Property 13: UTF-8 processing correctness**
   - **Validates: Requirements 8.2**
 
@@ -285,7 +285,7 @@
   - Implement resource limit enforcement
   - _Requirements: 10.2, 10.3_
 
-- [ ]* 12.3 Write property test for backward compatibility
+- [ ] 12.3 Write property test for backward compatibility
   - **Property 14: Backward compatibility preservation**
   - **Validates: Requirements 9.4**
 
