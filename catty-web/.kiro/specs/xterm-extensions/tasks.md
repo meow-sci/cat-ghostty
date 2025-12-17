@@ -173,23 +173,23 @@
   - Add terminal size query support
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 8.1 Parse device query sequences
+- [x] 8.1 Parse device query sequences
   - Implement Device Attributes (DA1/DA2) parsing
   - Add Cursor Position Report (CPR) request parsing
   - Implement terminal size query parsing
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 8.2 Write property test for cursor position query round-trip
+- [x] 8.2 Write property test for cursor position query round-trip
   - **Property 11: Cursor position query round-trip**
   - **Validates: Requirements 6.2**
 
-- [ ] 8.3 Implement query response generation
+- [x] 8.3 Implement query response generation
   - Add device attributes response formatting
   - Implement cursor position response generation
   - Add terminal size response formatting
   - _Requirements: 6.1, 6.2, 6.3, 6.5_
 
-- [ ] 8.4 Integrate query responses with TerminalController
+- [x] 8.4 Integrate query responses with TerminalController
   - Add response transmission to application
   - Implement response queuing for multiple queries
   - Add error handling for malformed queries
@@ -245,23 +245,23 @@
   - Implement button state tracking for event generation
   - _Requirements: 5.4, 5.6_
 
-- [ ] 11. Implement UTF-8 and character set support
+- [x] 11. Implement UTF-8 and character set support
   - Add UTF-8 mode state management
   - Implement character set designation parsing
   - Add multi-byte character sequence handling
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 11.1 Parse character set control sequences
+- [x] 11.1 Parse character set control sequences
   - Implement character set designation sequences
   - Add UTF-8 mode enable/disable parsing
   - Implement character set query sequences
   - _Requirements: 8.1, 8.5_
 
-- [ ] 11.2 Write property test for UTF-8 processing
+- [x] 11.2 Write property test for UTF-8 processing
   - **Property 13: UTF-8 processing correctness**
   - **Validates: Requirements 8.2**
 
-- [ ] 11.3 Implement multi-byte character handling
+- [x] 11.3 Implement multi-byte character handling
   - Add UTF-8 sequence validation and decoding
   - Implement character set switching logic
   - Add graceful handling of invalid sequences

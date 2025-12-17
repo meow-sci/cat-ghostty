@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -23,6 +23,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   const parsed = parseCsiParams(paramsText);
   const isPrivate = parsed.private;
   const params = parsed.params;
+  const prefix = parsed.prefix;
 
   // DECSCUSR: CSI Ps SP q
   if (final === "q" && intermediate === " ") {
@@ -128,6 +129,56 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     return msg;
   }
 
+  // Device Attributes queries
+  if (final === "c") {
+    // Secondary DA: CSI > c or CSI > 0 c
+    if (prefix === ">" && (params.length === 0 || (params.length === 1 && params[0] === 0))) {
+      const msg: CsiDeviceAttributesSecondary = { 
+        _type: "csi.deviceAttributesSecondary", 
+        raw 
+      };
+      return msg;
+    }
+    // Primary DA: CSI c or CSI 0 c
+    if (!isPrivate && !prefix && (params.length === 0 || (params.length === 1 && params[0] === 0))) {
+      const msg: CsiDeviceAttributesPrimary = { 
+        _type: "csi.deviceAttributesPrimary", 
+        raw 
+      };
+      return msg;
+    }
+  }
+
+  // Cursor Position Report request: CSI 6 n
+  // Character Set Query: CSI ? 26 n
+  if (final === "n") {
+    if (isPrivate && params.length === 1 && params[0] === 26) {
+      const msg: CsiCharacterSetQuery = { 
+        _type: "csi.characterSetQuery", 
+        raw 
+      };
+      return msg;
+    }
+    if (!isPrivate && !prefix && params.length === 1 && params[0] === 6) {
+      const msg: CsiCursorPositionReport = { 
+        _type: "csi.cursorPositionReport", 
+        raw 
+      };
+      return msg;
+    }
+  }
+
+  // Terminal size query: CSI 18 t (window size in characters)
+  if (final === "t" && !isPrivate && !prefix) {
+    if (params.length === 1 && params[0] === 18) {
+      const msg: CsiTerminalSizeQuery = { 
+        _type: "csi.terminalSizeQuery", 
+        raw 
+      };
+      return msg;
+    }
+  }
+
   const unknown: CsiUnknown = {
     _type: "csi.unknown",
     raw,
@@ -141,19 +192,23 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 }
 
 
-function parseCsiParams(paramText: string): { private: boolean; params: number[] } {
+function parseCsiParams(paramText: string): { private: boolean; params: number[]; prefix?: string } {
   let isPrivate = false;
+  let prefix: string | undefined = undefined;
   let text = paramText;
 
   if (text.startsWith("?")) {
     isPrivate = true;
+    text = text.slice(1);
+  } else if (text.startsWith(">")) {
+    prefix = ">";
     text = text.slice(1);
   }
 
   const params: number[] = [];
 
   if (text.length === 0) {
-    return { private: isPrivate, params };
+    return { private: isPrivate, params, prefix };
   }
 
   const parts = text.split(";");
@@ -169,7 +224,7 @@ function parseCsiParams(paramText: string): { private: boolean; params: number[]
     params.push(n);
   }
 
-  return { private: isPrivate, params };
+  return { private: isPrivate, params, prefix };
 }
 
 function getParam(params: number[], index: number, fallback: number): number {

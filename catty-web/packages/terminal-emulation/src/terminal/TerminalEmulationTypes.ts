@@ -86,7 +86,17 @@ export interface EscRestoreCursor extends EscBase {
   _type: "esc.restoreCursor";
 }
 
-export type EscMessage = EscSaveCursor | EscRestoreCursor;
+/**
+ * Character set designation sequences (ESC ( X, ESC ) X, ESC * X, ESC + X)
+ * where X is the character set identifier
+ */
+export interface EscDesignateCharacterSet extends EscBase {
+  _type: "esc.designateCharacterSet";
+  slot: "G0" | "G1" | "G2" | "G3"; // Which character set slot to designate
+  charset: string; // Character set identifier (e.g., "B" for ASCII, "0" for DEC Special Graphics)
+}
+
+export type EscMessage = EscSaveCursor | EscRestoreCursor | EscDesignateCharacterSet;
 
 // =============================================================================
 // DCS Types (Device Control String)
@@ -252,12 +262,21 @@ export interface CsiMouseReportingMode extends CsiBase {
   enable: boolean; // true for DECSET, false for DECRST
 }
 
+/**
+ * Character Set Query Request
+ * CSI ? 2 6 n - Query character set
+ */
+export interface CsiCharacterSetQuery extends CsiBase {
+  _type: "csi.characterSetQuery";
+}
+
 export type XtermCsiMessage =
   | CsiDeviceAttributesPrimary
   | CsiDeviceAttributesSecondary
   | CsiCursorPositionReport
   | CsiTerminalSizeQuery
-  | CsiMouseReportingMode;
+  | CsiMouseReportingMode
+  | CsiCharacterSetQuery;
 
 export type CsiMessage =
   | CsiCursorUp

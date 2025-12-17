@@ -82,6 +82,12 @@ export class TerminalController {
     });
     this.removeListeners.push(unsubscribeDecModes);
 
+    // Subscribe to terminal responses (device queries, etc.)
+    const unsubscribeResponses = this.terminal.onResponse((response) => {
+      this.sendResponseToApplication(response);
+    });
+    this.removeListeners.push(unsubscribeResponses);
+
     this.setupInputHandlers();
 
     const cols = options.cols ?? this.terminal.cols;
@@ -180,6 +186,25 @@ export class TerminalController {
       if (title && title.length > 0) {
         document.title = title;
       }
+    }
+  }
+
+  /**
+   * Send a response back to the application through the websocket.
+   * Used for device queries (DA, CPR, terminal size, etc.)
+   */
+  private sendResponseToApplication(response: string): void {
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      // Queue responses if websocket is not ready
+      // For now, we just drop them - in a production system you might want to queue
+      console.warn("Cannot send response: websocket not connected", response);
+      return;
+    }
+
+    try {
+      this.websocket.send(response);
+    } catch (error) {
+      console.error("Failed to send response to application:", error);
     }
   }
 

@@ -115,11 +115,13 @@ export interface StatefulTerminalOptions {
   rows: number;
   onUpdate?: (snapshot: ScreenSnapshot) => void;
   onChunk?: (chunk: TerminalTraceChunk) => void;
+  onResponse?: (response: string) => void;
 }
 
 type UpdateListener = (snapshot: ScreenSnapshot) => void;
 type DecModeListener = (ev: DecModeEvent) => void;
 type ChunkListener = (chunk: TerminalTraceChunk) => void;
+type ResponseListener = (response: string) => void;
 
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
@@ -150,12 +152,29 @@ export class StatefulTerminal {
     iconName: ""
   };
 
+  // Character set state
+  private characterSets = {
+    G0: "B", // ASCII (default)
+    G1: "B", // ASCII (default)
+    G2: "B", // ASCII (default)
+    G3: "B", // ASCII (default)
+    current: "G0" as "G0" | "G1" | "G2" | "G3", // Currently active character set
+  };
+  
+  // UTF-8 mode state (DECSET/DECRST 2027)
+  private utf8Mode = true; // Modern terminals default to UTF-8
+
+  // UTF-8 decoding state for multi-byte sequences
+  private utf8Buffer: number[] = [];
+  private utf8ExpectedBytes = 0;
+
   // Alternate screen buffer management
   private readonly alternateScreenManager: AlternateScreenManager;
 
   private readonly updateListeners = new Set<UpdateListener>();
   private readonly decModeListeners = new Set<DecModeListener>();
   private readonly chunkListeners = new Set<ChunkListener>();
+  private readonly responseListeners = new Set<ResponseListener>();
 
   constructor(options: StatefulTerminalOptions) {
 
@@ -171,6 +190,10 @@ export class StatefulTerminal {
 
     if (options.onChunk) {
       this.chunkListeners.add(options.onChunk);
+    }
+
+    if (options.onResponse) {
+      this.responseListeners.add(options.onResponse);
     }
 
     this.parser = new Parser({
@@ -257,6 +280,11 @@ export class StatefulTerminal {
     return () => this.chunkListeners.delete(listener);
   }
 
+  public onResponse(listener: ResponseListener): () => void {
+    this.responseListeners.add(listener);
+    return () => this.responseListeners.delete(listener);
+  }
+
   public getSnapshot(): ScreenSnapshot {
     return {
       cols: this.cols,
@@ -300,6 +328,50 @@ export class StatefulTerminal {
     return { ...this.windowProperties };
   }
 
+  // Device query response generation methods
+
+  /**
+   * Generate Device Attributes (Primary DA) response.
+   * Reports terminal type and supported features.
+   * Format: CSI ? 1 ; 2 c (VT100 with Advanced Video Option)
+   */
+  private generateDeviceAttributesPrimaryResponse(): string {
+    // Report as VT100 with Advanced Video Option
+    // This is a minimal response that most applications will accept
+    return "\x1b[?1;2c";
+  }
+
+  /**
+   * Generate Device Attributes (Secondary DA) response.
+   * Reports terminal version and firmware level.
+   * Format: CSI > 0 ; version ; 0 c
+   */
+  private generateDeviceAttributesSecondaryResponse(): string {
+    // Report as VT100 compatible terminal, version 0
+    return "\x1b[>0;0;0c";
+  }
+
+  /**
+   * Generate Cursor Position Report (CPR) response.
+   * Reports current cursor position to the application.
+   * Format: CSI row ; col R (1-indexed coordinates)
+   */
+  private generateCursorPositionReport(): string {
+    // Convert from 0-indexed to 1-indexed coordinates
+    const row = this.cursorY + 1;
+    const col = this.cursorX + 1;
+    return `\x1b[${row};${col}R`;
+  }
+
+  /**
+   * Generate Terminal Size Query response.
+   * Reports terminal dimensions in characters.
+   * Format: CSI 8 ; rows ; cols t
+   */
+  private generateTerminalSizeResponse(): string {
+    return `\x1b[8;${this.rows};${this.cols}t`;
+  }
+
   // Enhanced cursor state management methods
   public getCursorState(): CursorState {
     return {
@@ -332,6 +404,264 @@ export class StatefulTerminal {
 
   public getApplicationCursorKeys(): boolean {
     return this.applicationCursorKeys;
+  }
+
+  // Character set management methods
+
+  /**
+   * Designate a character set to a specific G slot
+   */
+  public designateCharacterSet(slot: "G0" | "G1" | "G2" | "G3", charset: string): void {
+    this.characterSets[slot] = charset;
+  }
+
+  /**
+   * Get the currently designated character set for a slot
+   */
+  public getCharacterSet(slot: "G0" | "G1" | "G2" | "G3"): string {
+    return this.characterSets[slot];
+  }
+
+  /**
+   * Get the current active character set
+   */
+  public getCurrentCharacterSet(): string {
+    return this.characterSets[this.characterSets.current];
+  }
+
+  /**
+   * Switch to a different character set slot
+   */
+  public switchCharacterSet(slot: "G0" | "G1" | "G2" | "G3"): void {
+    this.characterSets.current = slot;
+  }
+
+  /**
+   * Enable or disable UTF-8 mode
+   */
+  public setUtf8Mode(enabled: boolean): void {
+    this.utf8Mode = enabled;
+  }
+
+  /**
+   * Check if UTF-8 mode is enabled
+   */
+  public isUtf8Mode(): boolean {
+    return this.utf8Mode;
+  }
+
+  /**
+   * Generate character set query response
+   * Format: CSI ? 26 ; charset ST
+   */
+  private generateCharacterSetQueryResponse(): string {
+    // Report current character set
+    // For UTF-8 mode, report "utf-8", otherwise report the current G set
+    const charset = this.utf8Mode ? "utf-8" : this.getCurrentCharacterSet();
+    return `\x1b[?26;${charset}\x1b\\`;
+  }
+
+  /**
+   * Validate and decode a UTF-8 byte sequence.
+   * Returns the decoded character or null if the sequence is invalid.
+   * 
+   * UTF-8 encoding rules:
+   * - 1-byte: 0xxxxxxx (0x00-0x7F)
+   * - 2-byte: 110xxxxx 10xxxxxx (0xC0-0xDF, 0x80-0xBF)
+   * - 3-byte: 1110xxxx 10xxxxxx 10xxxxxx (0xE0-0xEF, 0x80-0xBF, 0x80-0xBF)
+   * - 4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx (0xF0-0xF7, 0x80-0xBF, 0x80-0xBF, 0x80-0xBF)
+   */
+  private validateAndDecodeUtf8(bytes: number[]): string | null {
+    if (bytes.length === 0) {
+      return null;
+    }
+
+    const firstByte = bytes[0];
+
+    // 1-byte sequence (ASCII)
+    if (firstByte <= 0x7F) {
+      if (bytes.length === 1) {
+        return String.fromCharCode(firstByte);
+      }
+      return null; // Invalid: too many bytes for ASCII
+    }
+
+    // 2-byte sequence
+    if (firstByte >= 0xC0 && firstByte <= 0xDF) {
+      if (bytes.length !== 2) {
+        return null; // Invalid: wrong number of bytes
+      }
+      if (bytes[1] < 0x80 || bytes[1] > 0xBF) {
+        return null; // Invalid: continuation byte out of range
+      }
+      const codePoint = ((firstByte & 0x1F) << 6) | (bytes[1] & 0x3F);
+      // Check for overlong encoding
+      if (codePoint < 0x80) {
+        return null; // Invalid: overlong encoding
+      }
+      return String.fromCodePoint(codePoint);
+    }
+
+    // 3-byte sequence
+    if (firstByte >= 0xE0 && firstByte <= 0xEF) {
+      if (bytes.length !== 3) {
+        return null; // Invalid: wrong number of bytes
+      }
+      if (bytes[1] < 0x80 || bytes[1] > 0xBF || bytes[2] < 0x80 || bytes[2] > 0xBF) {
+        return null; // Invalid: continuation bytes out of range
+      }
+      const codePoint = ((firstByte & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F);
+      // Check for overlong encoding and surrogate pairs
+      if (codePoint < 0x800 || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+        return null; // Invalid: overlong encoding or surrogate pair
+      }
+      return String.fromCodePoint(codePoint);
+    }
+
+    // 4-byte sequence
+    if (firstByte >= 0xF0 && firstByte <= 0xF7) {
+      if (bytes.length !== 4) {
+        return null; // Invalid: wrong number of bytes
+      }
+      if (bytes[1] < 0x80 || bytes[1] > 0xBF || bytes[2] < 0x80 || bytes[2] > 0xBF || bytes[3] < 0x80 || bytes[3] > 0xBF) {
+        return null; // Invalid: continuation bytes out of range
+      }
+      const codePoint = ((firstByte & 0x07) << 18) | ((bytes[1] & 0x3F) << 12) | ((bytes[2] & 0x3F) << 6) | (bytes[3] & 0x3F);
+      // Check for overlong encoding and valid Unicode range
+      if (codePoint < 0x10000 || codePoint > 0x10FFFF) {
+        return null; // Invalid: overlong encoding or out of Unicode range
+      }
+      return String.fromCodePoint(codePoint);
+    }
+
+    // Invalid first byte
+    return null;
+  }
+
+  /**
+   * Determine the expected number of bytes for a UTF-8 sequence based on the first byte.
+   * Returns 0 if the first byte is invalid.
+   */
+  private getUtf8SequenceLength(firstByte: number): number {
+    if (firstByte <= 0x7F) return 1; // ASCII
+    if (firstByte >= 0xC0 && firstByte <= 0xDF) return 2; // 2-byte sequence
+    if (firstByte >= 0xE0 && firstByte <= 0xEF) return 3; // 3-byte sequence
+    if (firstByte >= 0xF0 && firstByte <= 0xF7) return 4; // 4-byte sequence
+    return 0; // Invalid
+  }
+
+  /**
+   * Process a byte with UTF-8 decoding.
+   * Accumulates bytes until a complete UTF-8 sequence is received.
+   * Returns the decoded character or null if the sequence is incomplete or invalid.
+   */
+  private processUtf8Byte(byte: number): string | null {
+    // If we're not expecting continuation bytes, this is a new sequence
+    if (this.utf8ExpectedBytes === 0) {
+      this.utf8Buffer = [byte];
+      this.utf8ExpectedBytes = this.getUtf8SequenceLength(byte);
+      
+      if (this.utf8ExpectedBytes === 0) {
+        // Invalid first byte - reset and return replacement character
+        this.utf8Buffer = [];
+        return "\uFFFD"; // Unicode replacement character
+      }
+      
+      if (this.utf8ExpectedBytes === 1) {
+        // Complete ASCII character
+        const result = this.validateAndDecodeUtf8(this.utf8Buffer);
+        this.utf8Buffer = [];
+        this.utf8ExpectedBytes = 0;
+        return result || "\uFFFD";
+      }
+      
+      // Multi-byte sequence - need more bytes
+      return null;
+    }
+
+    // We're expecting continuation bytes
+    this.utf8Buffer.push(byte);
+
+    // Check if we have all expected bytes
+    if (this.utf8Buffer.length === this.utf8ExpectedBytes) {
+      const result = this.validateAndDecodeUtf8(this.utf8Buffer);
+      this.utf8Buffer = [];
+      this.utf8ExpectedBytes = 0;
+      return result || "\uFFFD"; // Return replacement character if invalid
+    }
+
+    // Still need more bytes
+    return null;
+  }
+
+  /**
+   * Reset UTF-8 decoding state.
+   * Called when switching character sets or when an error occurs.
+   */
+  private resetUtf8State(): void {
+    this.utf8Buffer = [];
+    this.utf8ExpectedBytes = 0;
+  }
+
+  /**
+   * Translate a character according to the current character set.
+   * Handles special character sets like DEC Special Graphics.
+   * 
+   * @param ch The input character
+   * @returns The translated character
+   */
+  private translateCharacter(ch: string): string {
+    // If UTF-8 mode is enabled, no translation needed
+    if (this.utf8Mode) {
+      return ch;
+    }
+
+    const currentCharset = this.getCurrentCharacterSet();
+
+    // DEC Special Graphics character set (line drawing characters)
+    if (currentCharset === "0") {
+      const code = ch.charCodeAt(0);
+      // Map ASCII characters to Unicode box drawing characters
+      const decSpecialGraphics: Record<number, string> = {
+        0x60: "\u25C6", // ` -> ◆ (diamond)
+        0x61: "\u2592", // a -> ▒ (checkerboard)
+        0x62: "\u2409", // b -> ␉ (HT symbol)
+        0x63: "\u240C", // c -> ␌ (FF symbol)
+        0x64: "\u240D", // d -> ␍ (CR symbol)
+        0x65: "\u240A", // e -> ␊ (LF symbol)
+        0x66: "\u00B0", // f -> ° (degree)
+        0x67: "\u00B1", // g -> ± (plus-minus)
+        0x68: "\u2424", // h -> ␤ (NL symbol)
+        0x69: "\u240B", // i -> ␋ (VT symbol)
+        0x6A: "\u2518", // j -> ┘ (lower right corner)
+        0x6B: "\u2510", // k -> ┐ (upper right corner)
+        0x6C: "\u250C", // l -> ┌ (upper left corner)
+        0x6D: "\u2514", // m -> └ (lower left corner)
+        0x6E: "\u253C", // n -> ┼ (crossing lines)
+        0x6F: "\u23BA", // o -> ⎺ (scan line 1)
+        0x70: "\u23BB", // p -> ⎻ (scan line 3)
+        0x71: "\u2500", // q -> ─ (horizontal line)
+        0x72: "\u23BC", // r -> ⎼ (scan line 7)
+        0x73: "\u23BD", // s -> ⎽ (scan line 9)
+        0x74: "\u251C", // t -> ├ (left tee)
+        0x75: "\u2524", // u -> ┤ (right tee)
+        0x76: "\u2534", // v -> ┴ (bottom tee)
+        0x77: "\u252C", // w -> ┬ (top tee)
+        0x78: "\u2502", // x -> │ (vertical line)
+        0x79: "\u2264", // y -> ≤ (less than or equal)
+        0x7A: "\u2265", // z -> ≥ (greater than or equal)
+        0x7B: "\u03C0", // { -> π (pi)
+        0x7C: "\u2260", // | -> ≠ (not equal)
+        0x7D: "\u00A3", // } -> £ (pound sterling)
+        0x7E: "\u00B7", // ~ -> · (middle dot)
+      };
+
+      return decSpecialGraphics[code] || ch;
+    }
+
+    // For other character sets, return the character as-is
+    // In a full implementation, we would handle other character sets here
+    return ch;
   }
 
   public saveCursorState(): CursorState {
@@ -466,6 +796,15 @@ export class StatefulTerminal {
       title: "",
       iconName: ""
     };
+    this.characterSets = {
+      G0: "B",
+      G1: "B",
+      G2: "B",
+      G3: "B",
+      current: "G0",
+    };
+    this.utf8Mode = true;
+    this.resetUtf8State();
     this.clear();
     this.emitUpdate();
   }
@@ -493,12 +832,24 @@ export class StatefulTerminal {
     this.emitChunk({ _type: "trace.control", cursorX: this.cursorX, cursorY: this.cursorY, name, byte });
   }
 
+  private emitResponse(response: string): void {
+    for (const listener of this.responseListeners) {
+      listener(response);
+    }
+  }
+
   private writePrintableByte(byte: number): void {
     if (byte < 0x20 || byte === 0x7f) {
       return;
     }
 
-    const ch = String.fromCharCode(byte);
+    let ch = String.fromCharCode(byte);
+    
+    // Apply character set translation if not in UTF-8 mode
+    if (!this.utf8Mode) {
+      ch = this.translateCharacter(ch);
+    }
+    
     this.putChar(ch);
   }
 
@@ -717,6 +1068,10 @@ export class StatefulTerminal {
         if (msg.modes.includes(1)) {
           this.setApplicationCursorKeys(true);
         }
+        // UTF-8 mode (CSI ? 2027 h)
+        if (msg.modes.includes(2027)) {
+          this.setUtf8Mode(true);
+        }
         // Alternate screen buffer modes
         if (msg.modes.includes(47)) {
           // DECSET 47: Switch to alternate screen buffer
@@ -741,6 +1096,10 @@ export class StatefulTerminal {
         // Application cursor keys (CSI ? 1 l)
         if (msg.modes.includes(1)) {
           this.setApplicationCursorKeys(false);
+        }
+        // UTF-8 mode (CSI ? 2027 l)
+        if (msg.modes.includes(2027)) {
+          this.setUtf8Mode(false);
         }
         // Alternate screen buffer modes
         if (msg.modes.includes(47)) {
@@ -770,9 +1129,36 @@ export class StatefulTerminal {
         this.setCursorStyle(msg.style);
         return;
 
+      // Device query handling
+      case "csi.deviceAttributesPrimary":
+        // Primary DA query: respond with device attributes
+        this.emitResponse(this.generateDeviceAttributesPrimaryResponse());
+        return;
+
+      case "csi.deviceAttributesSecondary":
+        // Secondary DA query: respond with terminal version
+        this.emitResponse(this.generateDeviceAttributesSecondaryResponse());
+        return;
+
+      case "csi.cursorPositionReport":
+        // CPR query: respond with current cursor position
+        this.emitResponse(this.generateCursorPositionReport());
+        return;
+
+      case "csi.terminalSizeQuery":
+        // Terminal size query: respond with dimensions
+        this.emitResponse(this.generateTerminalSizeResponse());
+        return;
+
+      case "csi.characterSetQuery":
+        // Character set query: respond with current character set
+        this.emitResponse(this.generateCharacterSetQueryResponse());
+        return;
+
       // ignored (for MVP)
       case "csi.scrollDown":
       case "csi.setScrollRegion":
+      case "csi.mouseReportingMode":
       case "csi.unknown":
         return;
     }
@@ -789,6 +1175,10 @@ export class StatefulTerminal {
           this.cursorY = this.savedCursor[1];
           this.clampCursor();
         }
+        return;
+      case "esc.designateCharacterSet":
+        // Designate character set to the specified G slot
+        this.designateCharacterSet(msg.slot, msg.charset);
         return;
     }
   }

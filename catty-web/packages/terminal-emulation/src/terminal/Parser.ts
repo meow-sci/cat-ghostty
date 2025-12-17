@@ -200,6 +200,41 @@ export class Parser {
         this.resetEscapeState();
         return;
       }
+
+      // Character set designation: ESC ( X, ESC ) X, ESC * X, ESC + X
+      // These are two-byte sequences after ESC
+      if (byte === 0x28 || byte === 0x29 || byte === 0x2a || byte === 0x2b) {
+        this.escapeSequence.push(byte);
+        // Need one more byte for the character set identifier
+        return;
+      }
+    }
+
+    // Second byte after ESC for character set designation
+    if (this.escapeSequence.length === 2) {
+      const firstByte = this.escapeSequence[1];
+      if (firstByte === 0x28 || firstByte === 0x29 || firstByte === 0x2a || firstByte === 0x2b) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        
+        // Determine which G slot is being designated
+        let slot: "G0" | "G1" | "G2" | "G3";
+        if (firstByte === 0x28) slot = "G0";
+        else if (firstByte === 0x29) slot = "G1";
+        else if (firstByte === 0x2a) slot = "G2";
+        else slot = "G3";
+        
+        const charset = String.fromCharCode(byte);
+        const msg: EscMessage = {
+          _type: "esc.designateCharacterSet",
+          raw,
+          slot,
+          charset
+        };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
     }
 
     this.escapeSequence.push(byte);
