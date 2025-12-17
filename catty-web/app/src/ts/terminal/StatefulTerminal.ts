@@ -19,6 +19,76 @@ export interface WindowProperties {
   iconName: string;
 }
 
+export interface ScreenBuffer {
+  cells: ScreenCell[][];
+  cursorX: number;
+  cursorY: number;
+  savedCursor: [number, number] | null;
+  wrapPending: boolean;
+}
+
+export class AlternateScreenManager {
+  private primaryBuffer: ScreenBuffer;
+  private alternateBuffer: ScreenBuffer;
+  private currentBuffer: "primary" | "alternate" = "primary";
+  private readonly cols: number;
+  private readonly rows: number;
+
+  constructor(cols: number, rows: number) {
+    this.cols = cols;
+    this.rows = rows;
+    
+    // Initialize primary buffer with empty cells
+    this.primaryBuffer = {
+      cells: createCellGrid(cols, rows),
+      cursorX: 0,
+      cursorY: 0,
+      savedCursor: null,
+      wrapPending: false,
+    };
+    
+    // Initialize alternate buffer with empty cells
+    this.alternateBuffer = {
+      cells: createCellGrid(cols, rows),
+      cursorX: 0,
+      cursorY: 0,
+      savedCursor: null,
+      wrapPending: false,
+    };
+  }
+
+  public switchToPrimary(): void {
+    this.currentBuffer = "primary";
+  }
+
+  public switchToAlternate(): void {
+    this.currentBuffer = "alternate";
+  }
+
+  public getCurrentBuffer(): ScreenBuffer {
+    return this.currentBuffer === "primary" ? this.primaryBuffer : this.alternateBuffer;
+  }
+
+  public isAlternateActive(): boolean {
+    return this.currentBuffer === "alternate";
+  }
+
+  public getPrimaryBuffer(): ScreenBuffer {
+    return this.primaryBuffer;
+  }
+
+  public getAlternateBuffer(): ScreenBuffer {
+    return this.alternateBuffer;
+  }
+
+  public clearAlternateBuffer(): void {
+    this.alternateBuffer.cells = createCellGrid(this.cols, this.rows);
+    this.alternateBuffer.cursorX = 0;
+    this.alternateBuffer.cursorY = 0;
+    this.alternateBuffer.wrapPending = false;
+  }
+}
+
 export interface CursorState {
   x: number;
   y: number;
@@ -80,7 +150,9 @@ export class StatefulTerminal {
     iconName: ""
   };
 
-  private readonly cells: ScreenCell[][];
+  // Alternate screen buffer management
+  private readonly alternateScreenManager: AlternateScreenManager;
+
   private readonly updateListeners = new Set<UpdateListener>();
   private readonly decModeListeners = new Set<DecModeListener>();
   private readonly chunkListeners = new Set<ChunkListener>();
@@ -89,8 +161,9 @@ export class StatefulTerminal {
 
     this.cols = options.cols;
     this.rows = options.rows;
-
-    this.cells = createCellGrid(this.cols, this.rows);
+    
+    // Initialize alternate screen manager
+    this.alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
 
     if (options.onUpdate) {
       this.updateListeners.add(options.onUpdate);
@@ -276,6 +349,106 @@ export class StatefulTerminal {
     this.emitUpdate();
   }
 
+  // Alternate screen buffer switching methods
+
+  /**
+   * DECSET 47: Switch to alternate screen buffer
+   */
+  private switchToAlternateScreen(): void {
+    if (!this.alternateScreenManager.isAlternateActive()) {
+      // Save current primary buffer state
+      const primaryBuffer = this.alternateScreenManager.getPrimaryBuffer();
+      primaryBuffer.cursorX = this.cursorX;
+      primaryBuffer.cursorY = this.cursorY;
+      primaryBuffer.wrapPending = this.wrapPending;
+      
+      // Switch to alternate buffer
+      this.alternateScreenManager.switchToAlternate();
+      const alternateBuffer = this.alternateScreenManager.getCurrentBuffer();
+      
+      // Load alternate buffer state
+      this.cursorX = alternateBuffer.cursorX;
+      this.cursorY = alternateBuffer.cursorY;
+      this.wrapPending = alternateBuffer.wrapPending;
+    }
+  }
+
+  /**
+   * DECSET 1047: Save cursor and switch to alternate screen buffer
+   */
+  private switchToAlternateScreenWithCursorSave(): void {
+    // Save cursor position
+    this.savedCursor = [this.cursorX, this.cursorY];
+    
+    // Switch to alternate screen
+    this.switchToAlternateScreen();
+  }
+
+  /**
+   * DECSET 1049: Save cursor, switch to alternate screen, and clear it
+   */
+  private switchToAlternateScreenWithCursorSaveAndClear(): void {
+    // Save cursor position
+    this.savedCursor = [this.cursorX, this.cursorY];
+    
+    // Switch to alternate screen
+    this.switchToAlternateScreen();
+    
+    // Clear the alternate screen buffer
+    this.alternateScreenManager.clearAlternateBuffer();
+    this.cursorX = 0;
+    this.cursorY = 0;
+    this.wrapPending = false;
+  }
+
+  /**
+   * DECRST 47: Switch back to normal screen buffer
+   */
+  private switchToPrimaryScreen(): void {
+    if (this.alternateScreenManager.isAlternateActive()) {
+      // Save current alternate buffer state
+      const alternateBuffer = this.alternateScreenManager.getAlternateBuffer();
+      alternateBuffer.cursorX = this.cursorX;
+      alternateBuffer.cursorY = this.cursorY;
+      alternateBuffer.wrapPending = this.wrapPending;
+      
+      // Switch to primary buffer
+      this.alternateScreenManager.switchToPrimary();
+      const primaryBuffer = this.alternateScreenManager.getCurrentBuffer();
+      
+      // Load primary buffer state
+      this.cursorX = primaryBuffer.cursorX;
+      this.cursorY = primaryBuffer.cursorY;
+      this.wrapPending = primaryBuffer.wrapPending;
+    }
+  }
+
+  /**
+   * DECRST 1047/1049: Switch to normal screen and restore cursor
+   */
+  private switchToPrimaryScreenWithCursorRestore(): void {
+    // Switch to primary screen
+    this.switchToPrimaryScreen();
+    
+    // Restore cursor position
+    if (this.savedCursor) {
+      this.cursorX = this.savedCursor[0];
+      this.cursorY = this.savedCursor[1];
+      this.clampCursor();
+    }
+  }
+
+  public isAlternateScreenActive(): boolean {
+    return this.alternateScreenManager.isAlternateActive();
+  }
+
+  /**
+   * Get the current buffer's cells (either primary or alternate)
+   */
+  private get cells(): ScreenCell[][] {
+    return this.alternateScreenManager.getCurrentBuffer().cells;
+  }
+
   public pushPtyText(text: string): void {
     const bytes = new TextEncoder().encode(text);
     this.parser.pushBytes(bytes);
@@ -419,9 +592,10 @@ export class StatefulTerminal {
       return;
     }
 
+    const currentBuffer = this.alternateScreenManager.getCurrentBuffer();
     for (let i = 0; i < n; i++) {
-      this.cells.shift();
-      this.cells.push(Array.from({ length: this.cols }, () => ({ ch: " " })));
+      currentBuffer.cells.shift();
+      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " " })));
     }
   }
 
@@ -543,6 +717,19 @@ export class StatefulTerminal {
         if (msg.modes.includes(1)) {
           this.setApplicationCursorKeys(true);
         }
+        // Alternate screen buffer modes
+        if (msg.modes.includes(47)) {
+          // DECSET 47: Switch to alternate screen buffer
+          this.switchToAlternateScreen();
+        }
+        if (msg.modes.includes(1047)) {
+          // DECSET 1047: Save cursor and switch to alternate screen buffer
+          this.switchToAlternateScreenWithCursorSave();
+        }
+        if (msg.modes.includes(1049)) {
+          // DECSET 1049: Save cursor, switch to alternate screen, and clear it
+          this.switchToAlternateScreenWithCursorSaveAndClear();
+        }
         this.emitDecMode({ action: "set", raw: msg.raw, modes: msg.modes });
         return;
 
@@ -554,6 +741,19 @@ export class StatefulTerminal {
         // Application cursor keys (CSI ? 1 l)
         if (msg.modes.includes(1)) {
           this.setApplicationCursorKeys(false);
+        }
+        // Alternate screen buffer modes
+        if (msg.modes.includes(47)) {
+          // DECRST 47: Switch back to normal screen buffer
+          this.switchToPrimaryScreen();
+        }
+        if (msg.modes.includes(1047)) {
+          // DECRST 1047: Switch to normal screen and restore cursor
+          this.switchToPrimaryScreenWithCursorRestore();
+        }
+        if (msg.modes.includes(1049)) {
+          // DECRST 1049: Switch to normal screen and restore cursor
+          this.switchToPrimaryScreenWithCursorRestore();
         }
         this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
         return;

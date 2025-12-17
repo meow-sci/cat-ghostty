@@ -107,13 +107,13 @@
 - [x] 5. Checkpoint - Ensure all tests pass for window and cursor management
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Implement alternate screen buffer support
+- [x] 6. Implement alternate screen buffer support
   - Create AlternateScreenManager class for buffer management
   - Add screen buffer switching logic (DECSET/DECRST 47, 1047, 1049)
   - Implement buffer content preservation during switches
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
 
-- [ ] 6.1 Create alternate screen buffer data structures
+- [x] 6.1 Create alternate screen buffer data structures
   - Implement ScreenBuffer interface and management
   - Create AlternateScreenManager class
   - Add buffer switching state tracking
@@ -131,13 +131,13 @@
   - **Property 7: Buffer content preservation**
   - **Validates: Requirements 2.7**
 
-- [ ] 6.5 Implement buffer switching logic
+- [x] 6.5 Implement buffer switching logic
   - Add DECSET 47 handler for basic alternate screen
   - Add DECSET 1047 handler with cursor save/restore
   - Add DECSET 1049 handler with cursor save and screen clear
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 6.6 Integrate alternate screen with existing terminal operations
+- [x] 6.6 Integrate alternate screen with existing terminal operations
   - Update cursor movement to work with current buffer
   - Update text output to write to current buffer
   - Update screen clearing to affect current buffer only
