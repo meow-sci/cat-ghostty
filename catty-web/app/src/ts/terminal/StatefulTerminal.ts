@@ -1,5 +1,5 @@
 import { getLogger } from "@catty/log";
-import type { CsiMessage, EscMessage, OscMessage, SgrSequence } from "@catty/terminal-emulation";
+import type { CsiMessage, EscMessage, OscMessage, SgrSequence, XtermOscMessage } from "@catty/terminal-emulation";
 import { Parser } from "@catty/terminal-emulation";
 
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
@@ -14,6 +14,20 @@ export interface ScreenCell {
   ch: string;
 }
 
+export interface WindowProperties {
+  title: string;
+  iconName: string;
+}
+
+export interface CursorState {
+  x: number;
+  y: number;
+  visible: boolean;
+  style: number;
+  applicationMode: boolean;
+  wrapPending: boolean;
+}
+
 export interface ScreenSnapshot {
   cols: number;
   rows: number;
@@ -22,6 +36,8 @@ export interface ScreenSnapshot {
   cursorStyle: number;
   cursorVisible: boolean;
   cells: ReadonlyArray<ReadonlyArray<ScreenCell>>;
+  windowProperties: WindowProperties;
+  cursorState: CursorState;
 }
 
 export interface StatefulTerminalOptions {
@@ -56,6 +72,13 @@ export class StatefulTerminal {
   private cursorStyle = 1;
   private cursorVisible = true;
   private wrapPending = false;
+  private applicationCursorKeys = false;
+
+  // Window properties state
+  private windowProperties: WindowProperties = {
+    title: "",
+    iconName: ""
+  };
 
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
@@ -137,6 +160,11 @@ export class StatefulTerminal {
           this.emitChunk({ _type: "trace.sgr", cursorX: this.cursorX, cursorY: this.cursorY, msg });
           // ignore styling for MVP
         },
+        handleXtermOsc: (msg: XtermOscMessage) => {
+          this.emitChunk({ _type: "trace.osc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.handleXtermOsc(msg);
+          this.emitUpdate();
+        },
       },
     });
   }
@@ -165,7 +193,87 @@ export class StatefulTerminal {
       cursorStyle: this.cursorStyle,
       cursorVisible: this.cursorVisible,
       cells: this.cells,
+      windowProperties: { ...this.windowProperties },
+      cursorState: this.getCursorState(),
     };
+  }
+
+  // Window properties management methods
+  public setWindowTitle(title: string): void {
+    this.windowProperties.title = title;
+    this.emitUpdate();
+  }
+
+  public setIconName(iconName: string): void {
+    this.windowProperties.iconName = iconName;
+    this.emitUpdate();
+  }
+
+  public setTitleAndIcon(title: string): void {
+    this.windowProperties.title = title;
+    this.windowProperties.iconName = title;
+    this.emitUpdate();
+  }
+
+  public getWindowTitle(): string {
+    return this.windowProperties.title;
+  }
+
+  public getIconName(): string {
+    return this.windowProperties.iconName;
+  }
+
+  public getWindowProperties(): WindowProperties {
+    return { ...this.windowProperties };
+  }
+
+  // Enhanced cursor state management methods
+  public getCursorState(): CursorState {
+    return {
+      x: this.cursorX,
+      y: this.cursorY,
+      visible: this.cursorVisible,
+      style: this.cursorStyle,
+      applicationMode: this.applicationCursorKeys,
+      wrapPending: this.wrapPending,
+    };
+  }
+
+  public setCursorVisibility(visible: boolean): void {
+    this.cursorVisible = visible;
+    this.emitUpdate();
+  }
+
+  public setCursorStyle(style: number): void {
+    // Validate cursor style parameter (0-6 are valid DECSCUSR values)
+    if (style >= 0 && style <= 6) {
+      this.cursorStyle = style;
+      this.emitUpdate();
+    }
+  }
+
+  public setApplicationCursorKeys(enabled: boolean): void {
+    this.applicationCursorKeys = enabled;
+    this.emitUpdate();
+  }
+
+  public getApplicationCursorKeys(): boolean {
+    return this.applicationCursorKeys;
+  }
+
+  public saveCursorState(): CursorState {
+    return this.getCursorState();
+  }
+
+  public restoreCursorState(state: CursorState): void {
+    // Validate and clamp coordinates to screen boundaries
+    this.cursorX = Math.max(0, Math.min(this.cols - 1, state.x));
+    this.cursorY = Math.max(0, Math.min(this.rows - 1, state.y));
+    this.cursorVisible = state.visible;
+    this.cursorStyle = state.style;
+    this.applicationCursorKeys = state.applicationMode;
+    this.wrapPending = state.wrapPending;
+    this.emitUpdate();
   }
 
   public pushPtyText(text: string): void {
@@ -178,6 +286,13 @@ export class StatefulTerminal {
     this.cursorY = 0;
     this.savedCursor = null;
     this.wrapPending = false;
+    this.cursorStyle = 1;
+    this.cursorVisible = true;
+    this.applicationCursorKeys = false;
+    this.windowProperties = {
+      title: "",
+      iconName: ""
+    };
     this.clear();
     this.emitUpdate();
   }
@@ -422,7 +537,11 @@ export class StatefulTerminal {
       case "csi.decModeSet":
         // DECTCEM (CSI ? 25 h): show cursor
         if (msg.modes.includes(25)) {
-          this.cursorVisible = true;
+          this.setCursorVisibility(true);
+        }
+        // Application cursor keys (CSI ? 1 h)
+        if (msg.modes.includes(1)) {
+          this.setApplicationCursorKeys(true);
         }
         this.emitDecMode({ action: "set", raw: msg.raw, modes: msg.modes });
         return;
@@ -430,7 +549,11 @@ export class StatefulTerminal {
       case "csi.decModeReset":
         // DECTCEM (CSI ? 25 l): hide cursor
         if (msg.modes.includes(25)) {
-          this.cursorVisible = false;
+          this.setCursorVisibility(false);
+        }
+        // Application cursor keys (CSI ? 1 l)
+        if (msg.modes.includes(1)) {
+          this.setApplicationCursorKeys(false);
         }
         this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
         return;
@@ -444,7 +567,7 @@ export class StatefulTerminal {
         // 4 = steady underline
         // 5 = blinking bar
         // 6 = steady bar
-        this.cursorStyle = msg.style;
+        this.setCursorStyle(msg.style);
         return;
 
       // ignored (for MVP)
@@ -466,6 +589,31 @@ export class StatefulTerminal {
           this.cursorY = this.savedCursor[1];
           this.clampCursor();
         }
+        return;
+    }
+  }
+
+  private handleXtermOsc(msg: XtermOscMessage): void {
+    switch (msg._type) {
+      case "osc.setTitleAndIcon":
+        // OSC 0: Set both window title and icon name
+        this.setTitleAndIcon(msg.title);
+        return;
+      
+      case "osc.setIconName":
+        // OSC 1: Set icon name only
+        this.setIconName(msg.iconName);
+        return;
+      
+      case "osc.setWindowTitle":
+        // OSC 2: Set window title only
+        this.setWindowTitle(msg.title);
+        return;
+      
+      case "osc.queryWindowTitle":
+        // OSC 21: Query window title
+        // This would typically send a response back to the application
+        // For now, we just acknowledge it (response handling would be in TerminalController)
         return;
     }
   }

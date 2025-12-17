@@ -3,6 +3,7 @@ import type {
   EscMessage,
   OscMessage,
   SgrSequence,
+  XtermOscMessage,
 } from "@catty/terminal-emulation";
 
 export interface TraceCursorPosition {
@@ -37,7 +38,7 @@ export interface TraceCsiChunk extends TraceCursorPosition {
 
 export interface TraceOscChunk extends TraceCursorPosition {
   _type: "trace.osc";
-  msg: OscMessage;
+  msg: OscMessage | XtermOscMessage;
 }
 
 export interface TraceSgrChunk extends TraceCursorPosition {
@@ -99,8 +100,11 @@ export function formatTerminalTraceLine(chunk: TerminalTraceChunk, index: number
     case "trace.csi":
       return `${prefix}CSI  ${chunk.msg._type} ${makeControlCharsVisible(chunk.msg.raw)}`;
 
-    case "trace.osc":
-      return `${prefix}OSC  ${chunk.msg.terminator} ${makeControlCharsVisible(chunk.msg.raw)}`;
+    case "trace.osc": {
+      const terminator = 'terminator' in chunk.msg ? chunk.msg.terminator : 'BEL';
+      const msgType = chunk.msg._type !== 'osc' ? ` ${chunk.msg._type}` : '';
+      return `${prefix}OSC ${terminator}${msgType} ${makeControlCharsVisible(chunk.msg.raw)}`;
+    }
 
     case "trace.sgr":
       return `${prefix}SGR  (${chunk.msg.messages.length}) ${makeControlCharsVisible(chunk.msg.raw)}`;

@@ -76,29 +76,29 @@
   - Add validation for cursor style parameters
   - _Requirements: 4.3_
 
-- [ ] 4. Implement StatefulTerminal extensions for window and cursor state
+- [x] 4. Implement StatefulTerminal extensions for window and cursor state
   - Add window properties state management (title, icon name)
   - Add cursor state management (visibility, style, application mode)
   - Implement cursor save/restore with extended state
   - _Requirements: 1.1, 1.2, 1.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 4.1 Add window properties state
+- [x] 4.1 Add window properties state
   - Create WindowProperties interface and state management
   - Implement title and icon name storage and retrieval
   - Add methods for querying current window properties
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 4.2 Add enhanced cursor state management
+- [x] 4.2 Add enhanced cursor state management
   - Extend cursor state to include visibility and style
   - Implement application cursor key mode tracking
   - Add cursor state validation and bounds checking
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3_
 
-- [ ] 4.3 Write property test for cursor state round-trip
+- [x] 4.3 Write property test for cursor state round-trip
   - **Property 9: Cursor state round-trip**
   - **Validates: Requirements 3.4**
 
-- [ ] 4.4 Implement message handlers in StatefulTerminal
+- [x] 4.4 Implement message handlers in StatefulTerminal
   - Add handleOscTitle method for window property updates
   - Add handleDecMode method for cursor mode changes
   - Add handleCursorStyle method for DECSCUSR processing
