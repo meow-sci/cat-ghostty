@@ -3,6 +3,7 @@ import { getLogger } from "@catty/log";
 import type { ParserOptions } from "./ParserOptions";
 import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
+import { parseOsc } from "./ParseOsc";
 import type { EscMessage, OscMessage, SgrSequence } from "./TerminalEmulationTypes";
 
 
@@ -252,10 +253,18 @@ export class Parser {
   private finishOscSequence(terminator: "BEL" | "ST"): void {
     const raw = bytesToString(this.escapeSequence);
 
-    // Stub only (no OSC parsing here).
-    this.log.debug(`OSC (opaque, ${terminator}): ${raw}`);
     const msg: OscMessage = { _type: "osc", raw, terminator };
-    this.handlers.handleOsc(msg);
+    
+    // Try to parse as xterm OSC extension
+    const xtermMsg = parseOsc(msg);
+    if (xtermMsg) {
+      this.log.debug(`OSC (xterm, ${terminator}): ${raw}`);
+      this.handlers.handleXtermOsc(xtermMsg);
+    } else {
+      // Fall back to generic OSC handling
+      this.log.debug(`OSC (opaque, ${terminator}): ${raw}`);
+      this.handlers.handleOsc(msg);
+    }
 
     this.resetEscapeState();
     return;

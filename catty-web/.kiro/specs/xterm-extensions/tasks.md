@@ -22,13 +22,13 @@
   - Add handler methods for device query responses
   - _Requirements: 9.2, 10.1_
 
-- [ ] 2. Implement OSC sequence parsing for window management
+- [x] 2. Implement OSC sequence parsing for window management
   - Extend OSC parser to handle title management sequences (OSC 0, 1, 2, 21)
   - Add validation for OSC parameter parsing
   - Implement UTF-8 handling for title strings
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2.1 Parse OSC title setting sequences
+- [x] 2.1 Parse OSC title setting sequences
   - Implement parsing for OSC 0 (set window title and icon name)
   - Implement parsing for OSC 1 (set icon name)
   - Implement parsing for OSC 2 (set window title)
@@ -46,7 +46,7 @@
   - **Property 3: OSC window title isolation**
   - **Validates: Requirements 1.3**
 
-- [ ] 2.5 Parse OSC title query sequences
+- [x] 2.5 Parse OSC title query sequences
   - Implement parsing for OSC 21 (query window title)
   - Add response formatting for title queries
   - _Requirements: 1.4_

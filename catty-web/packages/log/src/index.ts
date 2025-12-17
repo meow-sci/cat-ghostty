@@ -1,6 +1,6 @@
-import { pino, type Level } from "pino";
+import { pino, type Level, type Logger } from "pino";
 
-const loggersByLevel = new Map<Level, ReturnType<typeof pino>>();
+const loggersByLevel = new Map<Level, Logger<never, boolean>>();
 
 export function getLogger(level: Level = "info") {
   const cached = loggersByLevel.get(level);

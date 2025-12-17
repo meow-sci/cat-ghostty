@@ -1,5 +1,6 @@
 // Parser exports
 export { Parser } from "./terminal/Parser";
+export { parseOsc, validateOscParameters } from "./terminal/ParseOsc";
 export type { ParserOptions } from "./terminal/ParserOptions";
 export type { 
   HandleBell,

@@ -1,6 +1,6 @@
 import { getLogger } from "@catty/log";
 
-import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr } from "./ParserHandlers";
+import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr, HandleXtermOsc } from "./ParserHandlers";
 
 export interface ParserHandlers {
   handleBell: HandleBell;
@@ -22,6 +22,9 @@ export interface ParserHandlers {
 
   /** Parsed SGR messages (stateless) wrapped with raw sequence */
   handleSgr: HandleSgr;
+
+  /** Xterm OSC extension handler */
+  handleXtermOsc: HandleXtermOsc;
 }
 
 export interface ParserOptions {
