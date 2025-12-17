@@ -55,23 +55,23 @@
   - **Property 4: Title query round-trip**
   - **Validates: Requirements 1.4**
 
-- [ ] 3. Implement DEC private mode parsing for cursor management
+- [x] 3. Implement DEC private mode parsing for cursor management
   - Extend CSI parser to handle DECSET/DECRST sequences
   - Add support for cursor visibility modes (25)
   - Add support for application cursor key mode (1)
   - _Requirements: 3.1, 3.2, 4.1, 4.2_
 
-- [ ] 3.1 Parse DEC private mode sequences
+- [x] 3.1 Parse DEC private mode sequences
   - Implement DECSET parsing for mode activation
   - Implement DECRST parsing for mode deactivation
   - Add validation for mode number ranges
   - _Requirements: 3.1, 3.2, 4.1, 4.2_
 
-- [ ]* 3.2 Write property test for application cursor key mode
+- [x] 3.2 Write property test for application cursor key mode
   - **Property 8: Application cursor key mode**
   - **Validates: Requirements 3.3**
 
-- [ ] 3.3 Parse DECSCUSR cursor style sequences
+- [x] 3.3 Parse DECSCUSR cursor style sequences
   - Implement parsing for cursor style control (CSI Ps SP q)
   - Add validation for cursor style parameters
   - _Requirements: 4.3_
@@ -94,7 +94,7 @@
   - Add cursor state validation and bounds checking
   - _Requirements: 3.1, 3.2, 4.1, 4.2, 4.3_
 
-- [ ]* 4.3 Write property test for cursor state round-trip
+- [ ] 4.3 Write property test for cursor state round-trip
   - **Property 9: Cursor state round-trip**
   - **Validates: Requirements 3.4**
 

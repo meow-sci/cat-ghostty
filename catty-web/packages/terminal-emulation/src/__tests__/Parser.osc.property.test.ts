@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { fc } from "./setup";
 import { Parser } from "../terminal/Parser";
 import { ParserHandlers } from "../terminal/ParserOptions";
-import { type OscMessage, type XtermOscMessage } from "../terminal/TerminalEmulationTypes";
+import { type XtermOscMessage } from "../terminal/TerminalEmulationTypes";
 import { getLogger } from "@catty/log";
 
 /**

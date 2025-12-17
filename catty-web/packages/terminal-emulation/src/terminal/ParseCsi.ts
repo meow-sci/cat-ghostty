@@ -26,19 +26,18 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 
   // DECSCUSR: CSI Ps SP q
   if (final === "q" && intermediate === " ") {
-    const style = getParam(params, 0, 0);
+    const style = validateCursorStyle(getParam(params, 0, 0));
     const msg: CsiSetCursorStyle = { _type: "csi.setCursorStyle", raw, style };
     return msg;
   }
 
   // DEC private modes: CSI ? Pm h / l
   if (isPrivate && (final === "h" || final === "l")) {
-    const modes = params.slice();
+    const modes = validateDecModes(params);
     if (final === "h") {
       const msg: CsiDecModeSet = { _type: "csi.decModeSet", raw, modes };
       return msg;
     }
-    console.log("DEC mode reset", modes);
     const msg: CsiDecModeReset = { _type: "csi.decModeReset", raw, modes };
     return msg;
   }
@@ -179,4 +178,65 @@ function getParam(params: number[], index: number, fallback: number): number {
     return fallback;
   }
   return v;
+}
+
+/**
+ * Validates DEC private mode numbers and filters out invalid ones.
+ * Returns only the valid mode numbers within acceptable ranges.
+ */
+function validateDecModes(params: number[]): number[] {
+  const validModes: number[] = [];
+  
+  for (const mode of params) {
+    if (isValidDecModeNumber(mode)) {
+      validModes.push(mode);
+    }
+  }
+  
+  return validModes;
+}
+
+/**
+ * Checks if a DEC private mode number is valid.
+ * Validates that the mode number is within acceptable ranges for DEC private modes.
+ */
+function isValidDecModeNumber(mode: number): boolean {
+  // Validate mode is a positive integer
+  if (!Number.isInteger(mode) || mode < 0) {
+    return false;
+  }
+  
+  // DEC private modes can range from 1 to 65535 (16-bit unsigned integer range)
+  // This covers all standard and extended xterm DEC private modes
+  if (mode > 65535) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Validates and normalizes cursor style parameter for DECSCUSR.
+ * Valid cursor styles are 0-6:
+ * - 0 or 1: Blinking block (default)
+ * - 2: Steady block
+ * - 3: Blinking underline
+ * - 4: Steady underline
+ * - 5: Blinking bar
+ * - 6: Steady bar
+ * 
+ * Invalid values are clamped to 0 (default blinking block).
+ */
+function validateCursorStyle(style: number): number {
+  // Validate style is a non-negative integer
+  if (!Number.isInteger(style) || style < 0) {
+    return 0;
+  }
+  
+  // Valid cursor styles are 0-6
+  if (style > 6) {
+    return 0;
+  }
+  
+  return style;
 }
