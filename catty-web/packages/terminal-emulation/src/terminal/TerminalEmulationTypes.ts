@@ -4,6 +4,7 @@
 export interface CsiBase {
   _type: string;
   raw: string;
+  implemented: boolean;
 }
 
 // =============================================================================
@@ -14,6 +15,7 @@ export interface OscMessage {
   _type: "osc";
   raw: string;
   terminator: "BEL" | "ST";
+  implemented: boolean;
 }
 
 // =============================================================================
@@ -24,6 +26,7 @@ export interface OscBase {
   _type: string;
   raw: string;
   terminator: "BEL" | "ST";
+  implemented: boolean;
 }
 
 /**
@@ -70,6 +73,7 @@ export type XtermOscMessage =
 export interface EscBase {
   _type: string;
   raw: string;
+  implemented: boolean;
 }
 
 /**
@@ -106,6 +110,7 @@ export interface DcsBase {
   _type: string;
   raw: string;
   terminator: "ST" | "ESC\\";
+  implemented: boolean;
 }
 
 /**
@@ -346,6 +351,7 @@ export type CsiMessage =
  */
 export interface SgrBase {
   _type: string;
+  implemented: boolean;
 }
 
 /**
@@ -704,6 +710,7 @@ export type SgrMessage =
  */
 export interface SgrSequence {
   _type: "sgr";
+  implemented: boolean;
   raw: string;
   messages: SgrMessage[];
 }

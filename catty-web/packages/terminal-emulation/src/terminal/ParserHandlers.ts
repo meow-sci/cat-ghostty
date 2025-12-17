@@ -3,9 +3,7 @@ import type {
   EscMessage, 
   OscMessage, 
   SgrSequence,
-  XtermOscMessage,
-  XtermCsiMessage,
-  XtermDcsMessage
+  XtermOscMessage
 } from "./TerminalEmulationTypes";
 
 export type HandleBell = () => void;
@@ -25,5 +23,3 @@ export type HandleSgr = (msg: SgrSequence) => void;
 // =============================================================================
 
 export type HandleXtermOsc = (msg: XtermOscMessage) => void;
-export type HandleXtermCsi = (msg: XtermCsiMessage) => void;
-export type HandleXtermDcs = (msg: XtermDcsMessage) => void;

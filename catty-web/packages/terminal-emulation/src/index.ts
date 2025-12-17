@@ -15,8 +15,6 @@ export type {
   HandleOsc,
   HandleSgr,
   HandleXtermOsc,
-  HandleXtermCsi,
-  HandleXtermDcs,
 } from "./terminal/ParserHandlers";
 export type { ParserHandlers } from "./terminal/ParserOptions";
 

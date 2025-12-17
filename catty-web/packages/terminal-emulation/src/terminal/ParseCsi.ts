@@ -28,7 +28,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // DECSCUSR: CSI Ps SP q
   if (final === "q" && intermediate === " ") {
     const style = validateCursorStyle(getParam(params, 0, 0));
-    const msg: CsiSetCursorStyle = { _type: "csi.setCursorStyle", raw, style };
+    const msg: CsiSetCursorStyle = { _type: "csi.setCursorStyle", raw, style, implemented: true };
     return msg;
   }
 
@@ -36,10 +36,10 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   if (isPrivate && (final === "h" || final === "l")) {
     const modes = validateDecModes(params);
     if (final === "h") {
-      const msg: CsiDecModeSet = { _type: "csi.decModeSet", raw, modes };
+      const msg: CsiDecModeSet = { _type: "csi.decModeSet", raw, modes, implemented: true };
       return msg;
     }
-    const msg: CsiDecModeReset = { _type: "csi.decModeReset", raw, modes };
+    const msg: CsiDecModeReset = { _type: "csi.decModeReset", raw, modes, implemented: true };
     return msg;
   }
 
@@ -50,49 +50,50 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       const msg: CsiInsertMode = { 
         _type: "csi.insertMode", 
         raw, 
-        enable: final === "h" 
+        enable: final === "h",
+        implemented: false
       };
       return msg;
     }
   }
 
   if (final === "A") {
-    const msg: CsiCursorUp = { _type: "csi.cursorUp", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorUp = { _type: "csi.cursorUp", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "B") {
-    const msg: CsiCursorDown = { _type: "csi.cursorDown", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorDown = { _type: "csi.cursorDown", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "C") {
-    const msg: CsiCursorForward = { _type: "csi.cursorForward", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorForward = { _type: "csi.cursorForward", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "D") {
-    const msg: CsiCursorBackward = { _type: "csi.cursorBackward", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorBackward = { _type: "csi.cursorBackward", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "E") {
-    const msg: CsiCursorNextLine = { _type: "csi.cursorNextLine", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorNextLine = { _type: "csi.cursorNextLine", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "F") {
-    const msg: CsiCursorPrevLine = { _type: "csi.cursorPrevLine", raw, count: getParam(params, 0, 1) };
+    const msg: CsiCursorPrevLine = { _type: "csi.cursorPrevLine", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "G") {
-    const msg: CsiCursorHorizontalAbsolute = { _type: "csi.cursorHorizontalAbsolute", raw, column: getParam(params, 0, 1) };
+    const msg: CsiCursorHorizontalAbsolute = { _type: "csi.cursorHorizontalAbsolute", raw, column: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "d") {
-    const msg: CsiVerticalPositionAbsolute = { _type: "csi.verticalPositionAbsolute", raw, row: getParam(params, 0, 1) };
+    const msg: CsiVerticalPositionAbsolute = { _type: "csi.verticalPositionAbsolute", raw, row: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
@@ -102,6 +103,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       raw,
       row: getParam(params, 0, 1),
       column: getParam(params, 1, 1),
+      implemented: true
     };
     return msg;
   }
@@ -109,41 +111,41 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   if (final === "J") {
     const modeValue = getParam(params, 0, 0);
     const mode: CsiEraseInDisplayMode = (modeValue === 0 || modeValue === 1 || modeValue === 2 || modeValue === 3) ? modeValue : 0;
-    const msg: CsiEraseInDisplay = { _type: "csi.eraseInDisplay", raw, mode };
+    const msg: CsiEraseInDisplay = { _type: "csi.eraseInDisplay", raw, mode, implemented: true };
     return msg;
   }
 
   if (final === "K") {
     const modeValue = getParam(params, 0, 0);
     const mode: CsiEraseInLineMode = (modeValue === 0 || modeValue === 1 || modeValue === 2) ? modeValue : 0;
-    const msg: CsiEraseInLine = { _type: "csi.eraseInLine", raw, mode };
+    const msg: CsiEraseInLine = { _type: "csi.eraseInLine", raw, mode, implemented: true };
     return msg;
   }
 
   if (final === "S") {
-    const msg: CsiScrollUp = { _type: "csi.scrollUp", raw, lines: getParam(params, 0, 1) };
+    const msg: CsiScrollUp = { _type: "csi.scrollUp", raw, lines: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 
   if (final === "T" && params.length <= 1 && !isPrivate) {
-    const msg: CsiScrollDown = { _type: "csi.scrollDown", raw, lines: getParam(params, 0, 1) };
+    const msg: CsiScrollDown = { _type: "csi.scrollDown", raw, lines: getParam(params, 0, 1), implemented: false };
     return msg;
   }
 
   if (final === "r") {
     const top = params.length >= 1 ? params[0] : undefined;
     const bottom = params.length >= 2 ? params[1] : undefined;
-    const msg: CsiSetScrollRegion = { _type: "csi.setScrollRegion", raw, top, bottom };
+    const msg: CsiSetScrollRegion = { _type: "csi.setScrollRegion", raw, top, bottom, implemented: true };
     return msg;
   }
 
   if (final === "s") {
-    const msg: CsiSaveCursorPosition = { _type: "csi.saveCursorPosition", raw };
+    const msg: CsiSaveCursorPosition = { _type: "csi.saveCursorPosition", raw, implemented: true };
     return msg;
   }
 
   if (final === "u") {
-    const msg: CsiRestoreCursorPosition = { _type: "csi.restoreCursorPosition", raw };
+    const msg: CsiRestoreCursorPosition = { _type: "csi.restoreCursorPosition", raw, implemented: true };
     return msg;
   }
 
@@ -153,7 +155,8 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     if (prefix === ">" && (params.length === 0 || (params.length === 1 && params[0] === 0))) {
       const msg: CsiDeviceAttributesSecondary = { 
         _type: "csi.deviceAttributesSecondary", 
-        raw 
+        raw,
+        implemented: true
       };
       return msg;
     }
@@ -161,7 +164,8 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     if (!isPrivate && !prefix && (params.length === 0 || (params.length === 1 && params[0] === 0))) {
       const msg: CsiDeviceAttributesPrimary = { 
         _type: "csi.deviceAttributesPrimary", 
-        raw 
+        raw,
+        implemented: true
       };
       return msg;
     }
@@ -173,14 +177,16 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     if (isPrivate && params.length === 1 && params[0] === 26) {
       const msg: CsiCharacterSetQuery = { 
         _type: "csi.characterSetQuery", 
-        raw 
+        raw,
+        implemented: true
       };
       return msg;
     }
     if (!isPrivate && !prefix && params.length === 1 && params[0] === 6) {
       const msg: CsiCursorPositionReport = { 
         _type: "csi.cursorPositionReport", 
-        raw 
+        raw,
+        implemented: true
       };
       return msg;
     }
@@ -191,7 +197,8 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     if (params.length === 1 && params[0] === 18) {
       const msg: CsiTerminalSizeQuery = { 
         _type: "csi.terminalSizeQuery", 
-        raw 
+        raw,
+        implemented: true
       };
       return msg;
     }
@@ -202,7 +209,8 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
         _type: "csi.windowManipulation",
         raw,
         operation: params[0],
-        params: params.slice(1)
+        params: params.slice(1),
+        implemented: false
       };
       return msg;
     }
@@ -213,7 +221,8 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     const msg: CsiEraseCharacter = { 
       _type: "csi.eraseCharacter", 
       raw, 
-      count: getParam(params, 0, 1) 
+      count: getParam(params, 0, 1),
+      implemented: true
     };
     return msg;
   }
@@ -225,6 +234,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     params,
     intermediate,
     final,
+    implemented: false
   };
 
   return unknown;

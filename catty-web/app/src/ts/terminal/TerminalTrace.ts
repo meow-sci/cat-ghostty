@@ -11,6 +11,7 @@ export interface TraceCursorPosition {
   cursorX: number;
   /** 0-based cursor row */
   cursorY: number;
+  implemented: boolean;
 }
 
 export interface TraceNormalByteChunk extends TraceCursorPosition {
@@ -83,7 +84,7 @@ function describePrintableByte(byte: number): string {
 export function formatTerminalTraceLine(chunk: TerminalTraceChunk, index: number): string {
   const row1 = chunk.cursorY + 1;
   const col1 = chunk.cursorX + 1;
-  const prefix = `${index.toString().padStart(6, " ")}  ${row1.toString().padStart(2, " ")},${col1.toString().padEnd(2, " ")}  |  `;
+  const prefix = `${index.toString().padStart(6, " ")}  ${row1.toString().padStart(2, " ")},${col1.toString().padEnd(2, " ")}  | ${chunk.implemented ? 'Y' : 'N'} `;
 
   switch (chunk._type) {
     case "trace.normalByte": {

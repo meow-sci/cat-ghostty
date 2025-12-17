@@ -194,8 +194,8 @@ export class Parser {
         this.escapeSequence.push(byte);
         const raw = bytesToString(this.escapeSequence);
         const msg: EscMessage = byte === 0x37
-          ? { _type: "esc.saveCursor", raw }
-          : { _type: "esc.restoreCursor", raw };
+          ? { _type: "esc.saveCursor", raw, implemented: true }
+          : { _type: "esc.restoreCursor", raw, implemented: true };
         this.handlers.handleEsc(msg);
         this.resetEscapeState();
         return;
@@ -229,7 +229,8 @@ export class Parser {
           _type: "esc.designateCharacterSet",
           raw,
           slot,
-          charset
+          charset,
+          implemented: true
         };
         this.handlers.handleEsc(msg);
         this.resetEscapeState();
@@ -288,7 +289,7 @@ export class Parser {
   private finishOscSequence(terminator: "BEL" | "ST"): void {
     const raw = bytesToString(this.escapeSequence);
 
-    const msg: OscMessage = { _type: "osc", raw, terminator };
+    const msg: OscMessage = { _type: "osc", raw, terminator, implemented: false };
     
     // Try to parse as xterm OSC extension
     const xtermMsg = parseOsc(msg);
@@ -313,7 +314,7 @@ export class Parser {
     if (finalByte === 0x6d) {
       const { params, separators } = parseSgrParamsAndSeparators(raw);
       const sgrMessages = parseSgr(params, separators);
-      const sgr: SgrSequence = { _type: "sgr", raw, messages: sgrMessages };
+      const sgr: SgrSequence = { _type: "sgr", implemented: false, raw, messages: sgrMessages };
       this.handlers.handleSgr(sgr);
       this.resetEscapeState();
       return;

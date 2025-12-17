@@ -37,7 +37,7 @@ export class AlternateScreenManager {
   constructor(cols: number, rows: number) {
     this.cols = cols;
     this.rows = rows;
-    
+
     // Initialize primary buffer with empty cells
     this.primaryBuffer = {
       cells: createCellGrid(cols, rows),
@@ -46,7 +46,7 @@ export class AlternateScreenManager {
       savedCursor: null,
       wrapPending: false,
     };
-    
+
     // Initialize alternate buffer with empty cells
     this.alternateBuffer = {
       cells: createCellGrid(cols, rows),
@@ -164,7 +164,7 @@ export class StatefulTerminal {
     G3: "B", // ASCII (default)
     current: "G0" as "G0" | "G1" | "G2" | "G3", // Currently active character set
   };
-  
+
   // UTF-8 mode state (DECSET/DECRST 2027)
   private utf8Mode = true; // Modern terminals default to UTF-8
 
@@ -184,10 +184,10 @@ export class StatefulTerminal {
 
     this.cols = options.cols;
     this.rows = options.rows;
-    
+
     // Initialize scroll region to full screen
     this.scrollBottom = this.rows - 1;
-    
+
     // Initialize alternate screen manager
     this.alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
 
@@ -239,6 +239,7 @@ export class StatefulTerminal {
         handleNormalByte: (byte: number) => {
           this.emitChunk({
             _type: "trace.normalByte",
+            implemented: true,
             cursorX: this.cursorX,
             cursorY: this.cursorY,
             byte,
@@ -247,24 +248,24 @@ export class StatefulTerminal {
           this.emitUpdate();
         },
         handleEsc: (msg: EscMessage) => {
-          this.emitChunk({ _type: "trace.esc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleEsc(msg);
           this.emitUpdate();
         },
         handleCsi: (msg: CsiMessage) => {
-          this.emitChunk({ _type: "trace.csi", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleCsi(msg);
           this.emitUpdate();
         },
         handleOsc: (msg: OscMessage) => {
-          this.emitChunk({ _type: "trace.osc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
         },
         handleSgr: (msg: SgrSequence) => {
-          this.emitChunk({ _type: "trace.sgr", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           // ignore styling for MVP
         },
         handleXtermOsc: (msg: XtermOscMessage) => {
-          this.emitChunk({ _type: "trace.osc", cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleXtermOsc(msg);
           this.emitUpdate();
         },
@@ -567,13 +568,13 @@ export class StatefulTerminal {
     if (this.utf8ExpectedBytes === 0) {
       this.utf8Buffer = [byte];
       this.utf8ExpectedBytes = this.getUtf8SequenceLength(byte);
-      
+
       if (this.utf8ExpectedBytes === 0) {
         // Invalid first byte - reset and return replacement character
         this.utf8Buffer = [];
         return "\uFFFD"; // Unicode replacement character
       }
-      
+
       if (this.utf8ExpectedBytes === 1) {
         // Complete ASCII character
         const result = this.validateAndDecodeUtf8(this.utf8Buffer);
@@ -581,7 +582,7 @@ export class StatefulTerminal {
         this.utf8ExpectedBytes = 0;
         return result || "\uFFFD";
       }
-      
+
       // Multi-byte sequence - need more bytes
       return null;
     }
@@ -698,11 +699,11 @@ export class StatefulTerminal {
       primaryBuffer.cursorX = this.cursorX;
       primaryBuffer.cursorY = this.cursorY;
       primaryBuffer.wrapPending = this.wrapPending;
-      
+
       // Switch to alternate buffer
       this.alternateScreenManager.switchToAlternate();
       const alternateBuffer = this.alternateScreenManager.getCurrentBuffer();
-      
+
       // Load alternate buffer state
       this.cursorX = alternateBuffer.cursorX;
       this.cursorY = alternateBuffer.cursorY;
@@ -716,7 +717,7 @@ export class StatefulTerminal {
   private switchToAlternateScreenWithCursorSave(): void {
     // Save cursor position
     this.savedCursor = [this.cursorX, this.cursorY];
-    
+
     // Switch to alternate screen
     this.switchToAlternateScreen();
   }
@@ -727,10 +728,10 @@ export class StatefulTerminal {
   private switchToAlternateScreenWithCursorSaveAndClear(): void {
     // Save cursor position
     this.savedCursor = [this.cursorX, this.cursorY];
-    
+
     // Switch to alternate screen
     this.switchToAlternateScreen();
-    
+
     // Clear the alternate screen buffer
     this.alternateScreenManager.clearAlternateBuffer();
     this.cursorX = 0;
@@ -748,11 +749,11 @@ export class StatefulTerminal {
       alternateBuffer.cursorX = this.cursorX;
       alternateBuffer.cursorY = this.cursorY;
       alternateBuffer.wrapPending = this.wrapPending;
-      
+
       // Switch to primary buffer
       this.alternateScreenManager.switchToPrimary();
       const primaryBuffer = this.alternateScreenManager.getCurrentBuffer();
-      
+
       // Load primary buffer state
       this.cursorX = primaryBuffer.cursorX;
       this.cursorY = primaryBuffer.cursorY;
@@ -766,7 +767,7 @@ export class StatefulTerminal {
   private switchToPrimaryScreenWithCursorRestore(): void {
     // Switch to primary screen
     this.switchToPrimaryScreen();
-    
+
     // Restore cursor position
     if (this.savedCursor) {
       this.cursorX = this.savedCursor[0];
@@ -836,7 +837,7 @@ export class StatefulTerminal {
   }
 
   private emitControlChunk(name: TraceControlName, byte: number): void {
-    this.emitChunk({ _type: "trace.control", cursorX: this.cursorX, cursorY: this.cursorY, name, byte });
+    this.emitChunk({ _type: "trace.control", implemented: true, cursorX: this.cursorX, cursorY: this.cursorY, name, byte });
   }
 
   private emitResponse(response: string): void {
@@ -851,12 +852,12 @@ export class StatefulTerminal {
     }
 
     let ch = String.fromCharCode(byte);
-    
+
     // Apply character set translation if not in UTF-8 mode
     if (!this.utf8Mode) {
       ch = this.translateCharacter(ch);
     }
-    
+
     this.putChar(ch);
   }
 
@@ -908,14 +909,14 @@ export class StatefulTerminal {
 
   private lineFeed(): void {
     this.cursorY += 1;
-    
+
     // Check if we've moved past the bottom of the scroll region
     if (this.cursorY > this.scrollBottom) {
       // Scroll only within the scroll region
       this.scrollUpInRegion(1);
       this.cursorY = this.scrollBottom;
     }
-    
+
     this.wrapPending = false;
   }
 
@@ -1011,14 +1012,14 @@ export class StatefulTerminal {
       // Convert from 1-indexed to 0-indexed and validate bounds
       const newTop = top ? Math.max(0, Math.min(this.rows - 1, top - 1)) : 0;
       const newBottom = bottom ? Math.max(0, Math.min(this.rows - 1, bottom - 1)) : this.rows - 1;
-      
+
       // Ensure top < bottom
       if (newTop < newBottom) {
         this.scrollTop = newTop;
         this.scrollBottom = newBottom;
       }
     }
-    
+
     // Move cursor to home position within scroll region
     this.cursorX = 0;
     this.cursorY = this.scrollTop;
@@ -1034,7 +1035,7 @@ export class StatefulTerminal {
           this.cells[y][x] = { ...this.cells[y + 1][x] };
         }
       }
-      
+
       // Clear the bottom line of the scroll region
       for (let x = 0; x < this.cols; x++) {
         this.cells[this.scrollBottom][x].ch = " ";
@@ -1276,17 +1277,17 @@ export class StatefulTerminal {
         // OSC 0: Set both window title and icon name
         this.setTitleAndIcon(msg.title);
         return;
-      
+
       case "osc.setIconName":
         // OSC 1: Set icon name only
         this.setIconName(msg.iconName);
         return;
-      
+
       case "osc.setWindowTitle":
         // OSC 2: Set window title only
         this.setWindowTitle(msg.title);
         return;
-      
+
       case "osc.queryWindowTitle":
         // OSC 21: Query window title
         // This would typically send a response back to the application

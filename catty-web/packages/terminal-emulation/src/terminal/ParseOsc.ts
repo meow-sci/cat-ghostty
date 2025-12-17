@@ -40,7 +40,8 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
         return {
           _type: "osc.queryWindowTitle",
           raw,
-          terminator
+          terminator,
+          implemented: true
         };
       default:
         return null;
@@ -66,7 +67,8 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
         _type: "osc.setTitleAndIcon",
         title: decodedText,
         raw,
-        terminator
+        terminator,
+        implemented: true
       };
     
     case 1:
@@ -74,7 +76,8 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
         _type: "osc.setIconName",
         iconName: decodedText,
         raw,
-        terminator
+        terminator,
+        implemented: true
       };
     
     case 2:
@@ -82,7 +85,8 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
         _type: "osc.setWindowTitle",
         title: decodedText,
         raw,
-        terminator
+        terminator,
+        implemented: true
       };
     
     default:
