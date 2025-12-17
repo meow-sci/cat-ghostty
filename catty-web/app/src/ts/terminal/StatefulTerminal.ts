@@ -55,6 +55,7 @@ export class StatefulTerminal {
   private savedCursor: XY | null = null;
   private cursorStyle = 1;
   private cursorVisible = true;
+  private wrapPending = false;
 
   private readonly cells: ScreenCell[][];
   private readonly updateListeners = new Set<UpdateListener>();
@@ -176,6 +177,7 @@ export class StatefulTerminal {
     this.cursorX = 0;
     this.cursorY = 0;
     this.savedCursor = null;
+    this.wrapPending = false;
     this.clear();
     this.emitUpdate();
   }
@@ -213,6 +215,10 @@ export class StatefulTerminal {
   }
 
   private putChar(ch: string): void {
+    if (this.cols <= 0 || this.rows <= 0) {
+      return;
+    }
+
     if (this.cursorY < 0 || this.cursorY >= this.rows) {
       return;
     }
@@ -221,31 +227,37 @@ export class StatefulTerminal {
       this.cursorX = 0;
     }
 
-    if (this.cursorX >= this.cols) {
+    // Common terminal behavior (DECAWM autowrap): writing a printable char in
+    // the last column sets a pending-wrap flag. The *next* printable char
+    // triggers the wrap to column 0 of the next row (with scrolling).
+    if (this.wrapPending) {
       this.cursorX = 0;
       this.cursorY += 1;
-      
       if (this.cursorY >= this.rows) {
         this.scrollUp(1);
         this.cursorY = this.rows - 1;
       }
+      this.wrapPending = false;
+    }
+
+    if (this.cursorX >= this.cols) {
+      // Best-effort clamp; cursorX should normally remain in-bounds.
+      this.cursorX = this.cols - 1;
     }
 
     this.cells[this.cursorY][this.cursorX].ch = ch;
 
-    this.cursorX += 1;
-    if (this.cursorX >= this.cols) {
-      this.cursorX = 0;
-      this.cursorY += 1;
-      if (this.cursorY >= this.rows) {
-        this.scrollUp(1);
-        this.cursorY = this.rows - 1;
-      }
+    if (this.cursorX === this.cols - 1) {
+      this.wrapPending = true;
+      return;
     }
+
+    this.cursorX += 1;
   }
 
   private carriageReturn(): void {
     this.cursorX = 0;
+    this.wrapPending = false;
   }
 
   private lineFeed(): void {
@@ -254,9 +266,11 @@ export class StatefulTerminal {
       this.scrollUp(1);
       this.cursorY = this.rows - 1;
     }
+    this.wrapPending = false;
   }
 
   private backspace(): void {
+    this.wrapPending = false;
     if (this.cursorX > 0) {
       this.cursorX -= 1;
       this.cells[this.cursorY][this.cursorX].ch = " ";
@@ -265,6 +279,7 @@ export class StatefulTerminal {
   }
 
   private tab(): void {
+    this.wrapPending = false;
     const next = Math.min(this.cols - 1, ((Math.floor(this.cursorX / 8) + 1) * 8));
     while (this.cursorX < next) {
       this.putChar(" ");
@@ -279,9 +294,11 @@ export class StatefulTerminal {
     }
     this.cursorX = 0;
     this.cursorY = 0;
+    this.wrapPending = false;
   }
 
   private scrollUp(lines: number): void {
+    this.wrapPending = false;
     const n = Math.max(0, Math.min(lines, this.rows));
     if (n === 0) {
       return;
@@ -296,9 +313,11 @@ export class StatefulTerminal {
   private clampCursor(): void {
     this.cursorX = Math.max(0, Math.min(this.cols - 1, this.cursorX));
     this.cursorY = Math.max(0, Math.min(this.rows - 1, this.cursorY));
+    this.wrapPending = false;
   }
 
   private clearLine(mode: 0 | 1 | 2): void {
+    this.wrapPending = false;
     const y = this.cursorY;
     if (y < 0 || y >= this.rows) {
       return;
@@ -318,6 +337,7 @@ export class StatefulTerminal {
   }
 
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
+    this.wrapPending = false;
     if (mode === 2 || mode === 3) {
       this.clear();
       return;
@@ -372,10 +392,12 @@ export class StatefulTerminal {
         return;
       case "csi.cursorHorizontalAbsolute":
         this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
+        this.wrapPending = false;
         return;
       case "csi.cursorPosition":
         this.cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
         this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
+        this.wrapPending = false;
         return;
       case "csi.eraseInLine":
         this.clearLine(msg.mode);
