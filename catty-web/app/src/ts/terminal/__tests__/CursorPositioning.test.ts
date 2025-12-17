@@ -78,4 +78,113 @@ describe("Cursor Positioning", () => {
     const snapshot = terminal.getSnapshot();
     expect(snapshot.cells[14][39].ch).toBe("X");
   });
+
+  it("should handle erase character (ECH) - ESC[X", () => {
+    const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
+    
+    // Write some text
+    terminal.pushPtyText("Hello World");
+    expect(terminal.getSnapshot().cells[0][0].ch).toBe("H");
+    expect(terminal.getSnapshot().cells[0][5].ch).toBe(" ");
+    expect(terminal.getSnapshot().cells[0][6].ch).toBe("W");
+    
+    // Move cursor back to position 6 (the 'W')
+    terminal.pushPtyText("\x1b[7G");
+    expect(terminal.getSnapshot().cursorX).toBe(6);
+    
+    // Erase 5 characters starting from cursor position
+    terminal.pushPtyText("\x1b[5X");
+    
+    const snapshot = terminal.getSnapshot();
+    // Characters at positions 6-10 should be erased (spaces)
+    expect(snapshot.cells[0][6].ch).toBe(" ");
+    expect(snapshot.cells[0][7].ch).toBe(" ");
+    expect(snapshot.cells[0][8].ch).toBe(" ");
+    expect(snapshot.cells[0][9].ch).toBe(" ");
+    expect(snapshot.cells[0][10].ch).toBe(" ");
+    
+    // Characters before position 6 should be unchanged
+    expect(snapshot.cells[0][0].ch).toBe("H");
+    expect(snapshot.cells[0][5].ch).toBe(" ");
+  });
+
+  it("should handle erase character with bounds checking", () => {
+    const terminal = new StatefulTerminal({ cols: 10, rows: 5 });
+    
+    // Write text and move to near end of line
+    terminal.pushPtyText("1234567890");
+    terminal.pushPtyText("\x1b[8G"); // Move to column 8
+    
+    // Try to erase 10 characters (should be clamped to line end)
+    terminal.pushPtyText("\x1b[10X");
+    
+    const snapshot = terminal.getSnapshot();
+    // Positions 7-9 should be erased (0-indexed)
+    expect(snapshot.cells[0][7].ch).toBe(" ");
+    expect(snapshot.cells[0][8].ch).toBe(" ");
+    expect(snapshot.cells[0][9].ch).toBe(" ");
+    
+    // Positions before cursor should be unchanged
+    expect(snapshot.cells[0][6].ch).toBe("7");
+  });
+
+  it("should handle scroll region (DECSTBM) - ESC[r", () => {
+    const terminal = new StatefulTerminal({ cols: 10, rows: 10 });
+    
+    // Set scroll region from row 3 to row 7 (1-indexed)
+    terminal.pushPtyText("\x1b[3;7r");
+    
+    // Cursor should move to top of scroll region
+    expect(terminal.getSnapshot().cursorY).toBe(2); // Row 3 (0-indexed)
+    expect(terminal.getSnapshot().cursorX).toBe(0);
+    
+    // Write some text at the current position
+    terminal.pushPtyText("Test");
+    
+    // The text should be at row 2 (top of scroll region)
+    expect(terminal.getSnapshot().cells[2][0].ch).toBe("T");
+    expect(terminal.getSnapshot().cells[2][1].ch).toBe("e");
+    expect(terminal.getSnapshot().cells[2][2].ch).toBe("s");
+    expect(terminal.getSnapshot().cells[2][3].ch).toBe("t");
+  });
+
+  it("should reset scroll region with ESC[r (no parameters)", () => {
+    const terminal = new StatefulTerminal({ cols: 10, rows: 10 });
+    
+    // Set a limited scroll region first
+    terminal.pushPtyText("\x1b[3;7r");
+    expect(terminal.getSnapshot().cursorY).toBe(2);
+    
+    // Reset to full screen
+    terminal.pushPtyText("\x1b[r");
+    expect(terminal.getSnapshot().cursorY).toBe(0); // Should move to top of screen
+    expect(terminal.getSnapshot().cursorX).toBe(0);
+  });
+
+  it("should handle scroll up within region (SU) - ESC[S", () => {
+    const terminal = new StatefulTerminal({ cols: 10, rows: 10 });
+    
+    // Set scroll region from row 3 to row 7
+    terminal.pushPtyText("\x1b[3;7r");
+    
+    // Write some simple content
+    terminal.pushPtyText("ABC");
+    
+    // Move to next line in scroll region
+    terminal.pushPtyText("\x1b[4;1H");
+    terminal.pushPtyText("DEF");
+    
+    // Scroll up by 1 line
+    terminal.pushPtyText("\x1b[1S");
+    
+    const snapshot = terminal.getSnapshot();
+    
+    // After scrolling up 1 line, "DEF" should move to row 2 (0-indexed)
+    expect(snapshot.cells[2][0].ch).toBe("D");
+    expect(snapshot.cells[2][1].ch).toBe("E");
+    expect(snapshot.cells[2][2].ch).toBe("F");
+    
+    // Row 3 should be cleared
+    expect(snapshot.cells[3][0].ch).toBe(" ");
+  });
 });

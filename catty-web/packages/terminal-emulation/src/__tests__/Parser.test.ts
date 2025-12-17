@@ -1206,6 +1206,89 @@ describe("Parser", () => {
       }
     });
 
+    // Erase Character
+    it("should parse erase character (ESC[X)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[X"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.eraseCharacter");
+      if (captured.csiMessages[0]._type === "csi.eraseCharacter") {
+        expect(captured.csiMessages[0].count).toBe(1);
+      }
+    });
+
+    it("should parse erase character with count (ESC[30X)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[30X"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.eraseCharacter");
+      if (captured.csiMessages[0]._type === "csi.eraseCharacter") {
+        expect(captured.csiMessages[0].count).toBe(30);
+      }
+    });
+
+    // Insert Mode
+    it("should parse insert mode set (ESC[4h)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[4h"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.insertMode");
+      if (captured.csiMessages[0]._type === "csi.insertMode") {
+        expect(captured.csiMessages[0].enable).toBe(true);
+      }
+    });
+
+    it("should parse insert mode reset (ESC[4l)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[4l"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.insertMode");
+      if (captured.csiMessages[0]._type === "csi.insertMode") {
+        expect(captured.csiMessages[0].enable).toBe(false);
+      }
+    });
+
+    // Window Manipulation
+    it("should parse window manipulation (ESC[22;0;0t)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[22;0;0t"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.windowManipulation");
+      if (captured.csiMessages[0]._type === "csi.windowManipulation") {
+        expect(captured.csiMessages[0].operation).toBe(22);
+        expect(captured.csiMessages[0].params).toEqual([0, 0]);
+      }
+    });
+
+    it("should parse window manipulation (ESC[23;0;0t)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[23;0;0t"));
+
+      expect(captured.csiMessages).toHaveLength(1);
+      expect(captured.csiMessages[0]._type).toBe("csi.windowManipulation");
+      if (captured.csiMessages[0]._type === "csi.windowManipulation") {
+        expect(captured.csiMessages[0].operation).toBe(23);
+        expect(captured.csiMessages[0].params).toEqual([0, 0]);
+      }
+    });
+
     // Cursor position variations
     it("should parse cursor position with f final byte (ESC[10;20f)", async () => {
       const { handlers, captured } = createCapturingHandlers();

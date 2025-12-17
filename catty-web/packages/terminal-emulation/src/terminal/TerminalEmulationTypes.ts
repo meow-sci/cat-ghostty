@@ -275,13 +275,44 @@ export interface CsiCharacterSetQuery extends CsiBase {
   _type: "csi.characterSetQuery";
 }
 
+/**
+ * Window Manipulation Commands
+ * CSI Ps ; Ps ; Ps t
+ */
+export interface CsiWindowManipulation extends CsiBase {
+  _type: "csi.windowManipulation";
+  operation: number;
+  params: number[];
+}
+
+/**
+ * Insert/Replace Mode Control
+ * CSI 4 h/l - Set/Reset Insert Mode
+ */
+export interface CsiInsertMode extends CsiBase {
+  _type: "csi.insertMode";
+  enable: boolean;
+}
+
+/**
+ * Erase Character
+ * CSI Ps X - Erase Ps characters from cursor position
+ */
+export interface CsiEraseCharacter extends CsiBase {
+  _type: "csi.eraseCharacter";
+  count: number;
+}
+
 export type XtermCsiMessage =
   | CsiDeviceAttributesPrimary
   | CsiDeviceAttributesSecondary
   | CsiCursorPositionReport
   | CsiTerminalSizeQuery
   | CsiMouseReportingMode
-  | CsiCharacterSetQuery;
+  | CsiCharacterSetQuery
+  | CsiWindowManipulation
+  | CsiInsertMode
+  | CsiEraseCharacter;
 
 export type CsiMessage =
   | CsiCursorUp

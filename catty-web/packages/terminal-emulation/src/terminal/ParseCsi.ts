@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -41,6 +41,19 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     }
     const msg: CsiDecModeReset = { _type: "csi.decModeReset", raw, modes };
     return msg;
+  }
+
+  // Standard modes: CSI Pm h / l (non-private)
+  if (!isPrivate && !prefix && (final === "h" || final === "l")) {
+    // IRM (Insert/Replace Mode): CSI 4 h/l
+    if (params.length === 1 && params[0] === 4) {
+      const msg: CsiInsertMode = { 
+        _type: "csi.insertMode", 
+        raw, 
+        enable: final === "h" 
+      };
+      return msg;
+    }
   }
 
   if (final === "A") {
@@ -173,7 +186,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     }
   }
 
-  // Terminal size query: CSI 18 t (window size in characters)
+  // Window manipulation and queries: CSI Ps t or CSI Ps ; Ps ; Ps t
   if (final === "t" && !isPrivate && !prefix) {
     if (params.length === 1 && params[0] === 18) {
       const msg: CsiTerminalSizeQuery = { 
@@ -182,6 +195,27 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       };
       return msg;
     }
+    
+    // Window manipulation commands
+    if (params.length >= 1) {
+      const msg: CsiWindowManipulation = {
+        _type: "csi.windowManipulation",
+        raw,
+        operation: params[0],
+        params: params.slice(1)
+      };
+      return msg;
+    }
+  }
+
+  // Erase Character: CSI Ps X
+  if (final === "X") {
+    const msg: CsiEraseCharacter = { 
+      _type: "csi.eraseCharacter", 
+      raw, 
+      count: getParam(params, 0, 1) 
+    };
+    return msg;
   }
 
   const unknown: CsiUnknown = {

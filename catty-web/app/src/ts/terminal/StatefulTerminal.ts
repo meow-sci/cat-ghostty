@@ -146,6 +146,10 @@ export class StatefulTerminal {
   private wrapPending = false;
   private applicationCursorKeys = false;
 
+  // Scroll region (DECSTBM)
+  private scrollTop = 0;
+  private scrollBottom: number;
+
   // Window properties state
   private windowProperties: WindowProperties = {
     title: "",
@@ -180,6 +184,9 @@ export class StatefulTerminal {
 
     this.cols = options.cols;
     this.rows = options.rows;
+    
+    // Initialize scroll region to full screen
+    this.scrollBottom = this.rows - 1;
     
     // Initialize alternate screen manager
     this.alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
@@ -901,10 +908,14 @@ export class StatefulTerminal {
 
   private lineFeed(): void {
     this.cursorY += 1;
-    if (this.cursorY >= this.rows) {
-      this.scrollUp(1);
-      this.cursorY = this.rows - 1;
+    
+    // Check if we've moved past the bottom of the scroll region
+    if (this.cursorY > this.scrollBottom) {
+      // Scroll only within the scroll region
+      this.scrollUpInRegion(1);
+      this.cursorY = this.scrollBottom;
     }
+    
     this.wrapPending = false;
   }
 
@@ -974,6 +985,61 @@ export class StatefulTerminal {
     }
 
     for (let x = 0; x < this.cols; x++) this.cells[y][x].ch = " ";
+  }
+
+  private eraseCharacters(count: number): void {
+    this.wrapPending = false;
+    const y = this.cursorY;
+    if (y < 0 || y >= this.rows) {
+      return;
+    }
+
+    // Erase 'count' characters starting from cursor position
+    const endX = Math.min(this.cursorX + count, this.cols);
+    for (let x = this.cursorX; x < endX; x++) {
+      this.cells[y][x].ch = " ";
+    }
+  }
+
+  private setScrollRegion(top?: number, bottom?: number): void {
+    // DECSTBM - Set Top and Bottom Margins
+    if (top === undefined && bottom === undefined) {
+      // Reset to full screen
+      this.scrollTop = 0;
+      this.scrollBottom = this.rows - 1;
+    } else {
+      // Convert from 1-indexed to 0-indexed and validate bounds
+      const newTop = top ? Math.max(0, Math.min(this.rows - 1, top - 1)) : 0;
+      const newBottom = bottom ? Math.max(0, Math.min(this.rows - 1, bottom - 1)) : this.rows - 1;
+      
+      // Ensure top < bottom
+      if (newTop < newBottom) {
+        this.scrollTop = newTop;
+        this.scrollBottom = newBottom;
+      }
+    }
+    
+    // Move cursor to home position within scroll region
+    this.cursorX = 0;
+    this.cursorY = this.scrollTop;
+    this.wrapPending = false;
+  }
+
+  private scrollUpInRegion(lines: number): void {
+    // Scroll only within the defined scroll region
+    for (let i = 0; i < lines; i++) {
+      // Move all lines up within the scroll region
+      for (let y = this.scrollTop; y < this.scrollBottom; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          this.cells[y][x] = { ...this.cells[y + 1][x] };
+        }
+      }
+      
+      // Clear the bottom line of the scroll region
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[this.scrollBottom][x].ch = " ";
+      }
+    }
   }
 
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
@@ -1050,7 +1116,7 @@ export class StatefulTerminal {
         this.clearDisplay(msg.mode);
         return;
       case "csi.scrollUp":
-        this.scrollUp(msg.lines);
+        this.scrollUpInRegion(msg.lines);
         return;
       case "csi.saveCursorPosition":
         this.savedCursor = [this.cursorX, this.cursorY];
@@ -1159,9 +1225,26 @@ export class StatefulTerminal {
         this.emitResponse(this.generateCharacterSetQueryResponse());
         return;
 
+      case "csi.eraseCharacter":
+        this.eraseCharacters(msg.count);
+        return;
+
+      case "csi.insertMode":
+        // IRM (Insert/Replace Mode) - store the mode but don't implement insertion yet
+        // This prevents the sequence from being unknown and potentially causing issues
+        return;
+
+      case "csi.windowManipulation":
+        // Window manipulation commands - ignore for web terminal but acknowledge
+        // Common operations: 22 = save title, 23 = restore title
+        return;
+
+      case "csi.setScrollRegion":
+        this.setScrollRegion(msg.top, msg.bottom);
+        return;
+
       // ignored (for MVP)
       case "csi.scrollDown":
-      case "csi.setScrollRegion":
       case "csi.mouseReportingMode":
       case "csi.unknown":
         return;
