@@ -2,7 +2,11 @@ import {
   type StatefulTerminal,
   type ScreenSnapshot,
   type TerminalTraceChunk,
-  formatTerminalTraceLine
+  formatTerminalTraceLine,
+  SgrStyleManager,
+  ThemeManager,
+  DEFAULT_DARK_THEME,
+  type SgrState
 } from "@catty/terminal-emulation";
 
 type InputMode = "cooked" | "raw";
@@ -22,6 +26,8 @@ export class TerminalController {
   private readonly displayElement: HTMLElement;
   private readonly inputElement: HTMLInputElement;
   private readonly traceElement: HTMLPreElement | null;
+  private readonly sgrStyleManager: SgrStyleManager;
+  private readonly themeManager: ThemeManager;
 
   private websocket: WebSocket | null = null;
   private repaintScheduled = false;
@@ -47,6 +53,11 @@ export class TerminalController {
     this.displayElement = options.displayElement;
     this.inputElement = options.inputElement;
     this.traceElement = options.traceElement ?? null;
+    this.sgrStyleManager = new SgrStyleManager();
+    
+    // Initialize theme system with default dark theme
+    this.themeManager = new ThemeManager(DEFAULT_DARK_THEME);
+    this.themeManager.applyTheme(DEFAULT_DARK_THEME);
 
     this.debugEsc = new URLSearchParams(window.location.search).has("debugEsc");
 
@@ -160,6 +171,23 @@ export class TerminalController {
    */
   public getIconName(): string {
     return this.terminal.getIconName();
+  }
+
+  /**
+   * Switch to a new terminal theme
+   * @param theme The theme to apply
+   */
+  public setTheme(theme: import("@catty/terminal-emulation").TerminalTheme): void {
+    this.themeManager.applyTheme(theme);
+    // Trigger a repaint to apply theme changes to existing styled cells
+    this.scheduleRepaint();
+  }
+
+  /**
+   * Get the current active theme
+   */
+  public getCurrentTheme(): import("@catty/terminal-emulation").TerminalTheme {
+    return this.themeManager.getCurrentTheme();
   }
 
   /**
@@ -564,7 +592,9 @@ export class TerminalController {
     for (let y = 0; y < snapshot.rows; y++) {
       const row = snapshot.cells[y];
       for (let x = 0; x < snapshot.cols; x++) {
+        
         const cell = row[x];
+        
         if (!cell || cell.ch === " ") {
           continue;
         }
@@ -575,6 +605,12 @@ export class TerminalController {
         span.style.position = "absolute";
         span.style.left = `${x}ch`;
         span.style.top = `${y}lh`;
+
+        // Apply SGR styling if the cell has sgrState
+        if (cell.sgrState) {
+          const sgrClass = this.sgrStyleManager.getStyleClass(cell.sgrState);
+          span.className += ` ${sgrClass}`;
+        }
 
         frag.appendChild(span);
       }

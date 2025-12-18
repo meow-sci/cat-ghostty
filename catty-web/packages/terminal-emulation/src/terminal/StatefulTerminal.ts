@@ -3,6 +3,8 @@ import { getLogger } from "@catty/log";
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
 import { Parser } from "./Parser";
 import type { EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage } from "./TerminalEmulationTypes";
+import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
+import { processSgrMessages } from './SgrStateProcessor';
 
 export type DecModeEvent = {
   action: "set" | "reset";
@@ -12,6 +14,7 @@ export type DecModeEvent = {
 
 export interface ScreenCell {
   ch: string;
+  sgrState?: SgrState;
 }
 
 export interface WindowProperties {
@@ -108,6 +111,7 @@ export interface ScreenSnapshot {
   cells: ReadonlyArray<ReadonlyArray<ScreenCell>>;
   windowProperties: WindowProperties;
   cursorState: CursorState;
+  currentSgrState: SgrState;
 }
 
 export interface StatefulTerminalOptions {
@@ -123,9 +127,11 @@ type DecModeListener = (ev: DecModeEvent) => void;
 type ChunkListener = (chunk: TerminalTraceChunk) => void;
 type ResponseListener = (response: string) => void;
 
+const DEFAULT_SGR_STATE = createDefaultSgrState();
+
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ({ ch: " " })),
+    Array.from({ length: cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE })),
   );
 }
 
@@ -167,6 +173,9 @@ export class StatefulTerminal {
 
   // UTF-8 mode state (DECSET/DECRST 2027)
   private utf8Mode = true; // Modern terminals default to UTF-8
+
+  // SGR state management
+  private currentSgrState: SgrState = DEFAULT_SGR_STATE;
 
   // Alternate screen buffer management
   private readonly alternateScreenManager: AlternateScreenManager;
@@ -258,7 +267,8 @@ export class StatefulTerminal {
         },
         handleSgr: (msg: SgrSequence) => {
           this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
-          // ignore styling for MVP
+          this.handleSgr(msg);
+          this.emitUpdate();
         },
         handleXtermOsc: (msg: XtermOscMessage) => {
           this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
@@ -300,6 +310,7 @@ export class StatefulTerminal {
       cells: this.cells,
       windowProperties: { ...this.windowProperties },
       cursorState: this.getCursorState(),
+      currentSgrState: { ...this.currentSgrState },
     };
   }
 
@@ -745,7 +756,9 @@ export class StatefulTerminal {
       this.cursorX = this.cols - 1;
     }
 
-    this.cells[this.cursorY][this.cursorX].ch = ch;
+    const cell = this.cells[this.cursorY][this.cursorX];
+    cell.ch = ch;
+    cell.sgrState = { ...this.currentSgrState };
 
     if (this.cursorX === this.cols - 1) {
       this.wrapPending = true;
@@ -811,7 +824,7 @@ export class StatefulTerminal {
     const currentBuffer = this.alternateScreenManager.getCurrentBuffer();
     for (let i = 0; i < n; i++) {
       currentBuffer.cells.shift();
-      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " " })));
+      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE })));
     }
   }
 
@@ -1147,5 +1160,24 @@ export class StatefulTerminal {
         // For now, we just acknowledge it (response handling would be in TerminalController)
         return;
     }
+  }
+
+  private handleSgr(msg: SgrSequence): void {
+    // Process SGR messages and update current SGR state
+    this.currentSgrState = processSgrMessages(this.currentSgrState, msg.messages);
+  }
+
+  /**
+   * Get the current SGR state
+   */
+  public getCurrentSgrState(): SgrState {
+    return { ...this.currentSgrState };
+  }
+
+  /**
+   * Reset SGR state to default
+   */
+  public resetSgrState(): void {
+    this.currentSgrState = createDefaultSgrState();
   }
 }

@@ -1,4 +1,4 @@
-import { XXH64 } from 'xxh3-ts';
+import { XXH64 } from 'xxh3-ts/xxh64.js';
 import { Buffer } from 'buffer';
 
 

@@ -22,7 +22,8 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@catty/log": "workspace:*"
+    "@catty/log": "workspace:*",
+    "xxh3-ts": "2.0.1"
   },
   "devDependencies": {
     "@catty/tsconfig": "workspace:*",
@@ -30,6 +31,7 @@
     "fast-check": "4.4.0",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vite-plugin-node-polyfills": "0.24.0",
     "vitest": "catalog:"
   }
 }

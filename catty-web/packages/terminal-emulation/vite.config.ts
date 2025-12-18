@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   build: {
@@ -7,7 +8,9 @@ export default defineConfig({
       name: 'index',
       fileName: 'index',
       formats: ["es"],
-
     },
   },
+  plugins: [
+    nodePolyfills() as Plugin,
+  ],
 });

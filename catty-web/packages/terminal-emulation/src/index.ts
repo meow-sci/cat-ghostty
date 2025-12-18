@@ -118,3 +118,37 @@ export type {
 
 export { StatefulTerminal, type ScreenSnapshot } from "./terminal/StatefulTerminal";
 export { type TerminalTraceChunk, formatTerminalTraceLine } from "./terminal/TerminalTrace";
+
+// Theme system exports
+export { 
+  ThemeManager, 
+  DEFAULT_DARK_THEME,
+  type TerminalTheme,
+  type TerminalColorPalette 
+} from "./terminal/TerminalTheme";
+
+// SGR styling exports
+export {
+  SgrStyleManager,
+  createDefaultSgrState,
+  type SgrState
+} from "./terminal/SgrStyleManager";
+
+export {
+  processSgrMessages,
+  ansiCodeToNamedColor,
+  applyInverseVideo
+} from "./terminal/SgrStateProcessor";
+
+// DOM style management exports
+export {
+  DomStyleManager,
+  CellClassManager,
+} from "./terminal/DomStyleManager";
+
+// Color resolution exports
+export {
+  ColorResolver,
+  Color256Palette,
+  ANSI_COLOR_VARIABLES
+} from "./terminal/ColorResolver";

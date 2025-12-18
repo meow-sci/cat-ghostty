@@ -28,6 +28,10 @@
 - `fast-check`: Property-based testing framework
 - `ws`: WebSocket server implementation
 
+## Conventions
+
+- Always use import/export, never use require
+
 ## Common Commands
 
 ### Development
