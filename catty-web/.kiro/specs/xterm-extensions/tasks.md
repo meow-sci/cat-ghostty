@@ -399,5 +399,64 @@
   - **Property 18: Theme color resolution consistency**
   - **Validates: Requirements 3.4, 4.1**
 
-- [ ] 15. Final Checkpoint - Ensure all tests pass
+- [ ] 15. Implement missing vi-specific terminal sequences
+  - Add support for SGR sequences causing vi visual artifacts
+  - Implement window manipulation sequences for terminal resizing
+  - Add support for additional SGR modes and color queries
+  - _Requirements: 1.1, 3.4, 4.1, 6.1_
+
+- [x] 15.1 Implement SGR sequence extensions for vi compatibility
+  - Add support for SGR 2 (dim/faint text) in ParseSgr.ts - ALREADY IMPLEMENTED
+  - Add support for SGR 27 (reverse video off) in ParseSgr.ts - ALREADY IMPLEMENTED
+  - Add support for SGR 23 (not italic) in ParseSgr.ts - ALREADY IMPLEMENTED
+  - Add support for SGR 29 (not strikethrough) in ParseSgr.ts - ALREADY IMPLEMENTED
+  - Add support for SGR 0%m (reset specific attributes) parsing - COMPLETED
+  - Add support for SGR ?4m (unknown mode) with graceful handling - COMPLETED
+  - _Requirements: 3.4, 4.1_
+
+- [x] 15.2 Implement window manipulation CSI sequences
+  - Add parsing for CSI 22;2t (push window title to stack) - COMPLETED (parsed, acknowledged)
+  - Add parsing for CSI 22;1t (push icon name to stack) - COMPLETED (parsed, acknowledged)
+  - Add parsing for CSI 23;2t (pop window title from stack) - COMPLETED (parsed, acknowledged)
+  - Add parsing for CSI 23;1t (pop icon name from stack) - COMPLETED (parsed, acknowledged)
+  - Implement title/icon name stack management in StatefulTerminal - NOT IMPLEMENTED (gracefully ignored)
+  - _Requirements: 1.1, 1.2, 1.3, 6.3_
+
+- [x] 15.3 Implement OSC color query sequences
+  - Add parsing for OSC 11;? (query default background color) - COMPLETED
+  - Add parsing for OSC 10;? (query default foreground color) - COMPLETED
+  - Implement color query response generation with current theme colors - COMPLETED
+  - Add BEL termination support for OSC sequences - COMPLETED
+  - _Requirements: 1.4, 6.1, 6.5_
+
+- [x] 15.4 Add enhanced SGR >4;2m sequence support
+  - Research and implement SGR >4;2m sequence (likely cursor or display mode) - COMPLETED
+  - Add parsing support in ParseSgr.ts with parameter validation - COMPLETED
+  - Implement state management for this mode in StatefulTerminal - COMPLETED
+  - Add graceful fallback if mode is not fully supported - COMPLETED
+  - _Requirements: 3.4, 4.1_
+
+- [ ] 15.5 Write property tests for vi-specific sequences
+  - **Property 19: SGR attribute reset consistency**
+  - Test that SGR 27, 23, 29 properly reset their corresponding attributes
+  - **Validates: Requirements 3.4**
+
+- [ ] 15.6 Write property tests for window manipulation
+  - **Property 20: Window title stack operations**
+  - Test that push/pop operations maintain title stack integrity
+  - **Validates: Requirements 1.1, 6.3**
+
+- [ ] 15.7 Write property tests for color queries
+  - **Property 21: Color query response consistency**
+  - Test that color queries return values consistent with current theme
+  - **Validates: Requirements 1.4, 6.1**
+
+- [ ] 15.8 Integrate vi-specific sequences with existing systems
+  - Update SgrStyleManager to handle new SGR modes (dim, reverse-off, etc.)
+  - Ensure window manipulation sequences work with existing title management
+  - Test color queries return proper theme-aware color values
+  - Add comprehensive error handling for malformed vi sequences
+  - _Requirements: 3.4, 4.1, 1.1, 6.1_
+
+- [ ] 16. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

@@ -146,9 +146,32 @@ function processSgrMessage(state: SgrState, message: SgrMessage): void {
     case 'sgr.superscript':
     case 'sgr.subscript':
     case 'sgr.notSuperscriptSubscript':
-    case 'sgr.unknown':
       // These are not commonly supported or implemented
       // Ignore for now
+      break;
+      
+    case 'sgr.enhancedMode':
+      // Enhanced SGR mode with > prefix (e.g., CSI > 4 ; 2 m)
+      // For now, gracefully ignore these advanced modes
+      break;
+      
+    case 'sgr.privateMode':
+      // Private SGR mode with ? prefix (e.g., CSI ? 4 m)
+      // For now, gracefully ignore these private modes
+      break;
+      
+    case 'sgr.withIntermediate':
+      // SGR with intermediate characters (e.g., CSI 0 % m)
+      // Handle specific cases like reset with %
+      if (message.intermediate === '%' && message.params.length === 1 && message.params[0] === 0) {
+        // Reset all attributes (similar to SGR 0)
+        Object.assign(state, createDefaultSgrState());
+      }
+      // For other intermediate sequences, gracefully ignore
+      break;
+      
+    case 'sgr.unknown':
+      // Unknown SGR parameters - ignore gracefully
       break;
   }
 }

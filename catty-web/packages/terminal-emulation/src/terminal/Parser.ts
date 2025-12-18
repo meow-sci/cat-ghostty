@@ -401,8 +401,8 @@ export class Parser {
 
     // CSI SGR: parse using the standalone SGR parser
     if (finalByte === 0x6d) {
-      const { params, separators } = parseSgrParamsAndSeparators(raw);
-      const sgrMessages = parseSgr(params, separators);
+      const { params, separators, prefix, intermediate } = parseSgrParamsAndSeparators(raw);
+      const sgrMessages = parseSgr(params, separators, prefix, intermediate);
       const sgr: SgrSequence = { _type: "sgr", implemented: false, raw, messages: sgrMessages };
       this.handlers.handleSgr(sgr);
       this.resetEscapeState();

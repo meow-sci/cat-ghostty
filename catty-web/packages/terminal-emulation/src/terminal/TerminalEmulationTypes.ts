@@ -60,11 +60,27 @@ export interface OscQueryWindowTitle extends OscBase {
   _type: "osc.queryWindowTitle";
 }
 
+/**
+ * OSC 10;?: Query default foreground color
+ */
+export interface OscQueryForegroundColor extends OscBase {
+  _type: "osc.queryForegroundColor";
+}
+
+/**
+ * OSC 11;?: Query default background color
+ */
+export interface OscQueryBackgroundColor extends OscBase {
+  _type: "osc.queryBackgroundColor";
+}
+
 export type XtermOscMessage = 
   | OscSetTitleAndIcon
   | OscSetIconName
   | OscSetWindowTitle
-  | OscQueryWindowTitle;
+  | OscQueryWindowTitle
+  | OscQueryForegroundColor
+  | OscQueryBackgroundColor;
 
 // =============================================================================
 // ESC Types (non-CSI)
@@ -308,6 +324,34 @@ export interface CsiEraseCharacter extends CsiBase {
   count: number;
 }
 
+/**
+ * Enhanced SGR Mode Control
+ * CSI > Ps ; Ps m - Enhanced SGR sequences with > prefix
+ */
+export interface CsiEnhancedSgrMode extends CsiBase {
+  _type: "csi.enhancedSgrMode";
+  params: number[];
+}
+
+/**
+ * Private SGR Mode Control  
+ * CSI ? Ps m - Private SGR sequences with ? prefix
+ */
+export interface CsiPrivateSgrMode extends CsiBase {
+  _type: "csi.privateSgrMode";
+  params: number[];
+}
+
+/**
+ * SGR with Intermediate Characters
+ * CSI Ps % m - SGR sequences with intermediate characters
+ */
+export interface CsiSgrWithIntermediate extends CsiBase {
+  _type: "csi.sgrWithIntermediate";
+  params: number[];
+  intermediate: string;
+}
+
 export type XtermCsiMessage =
   | CsiDeviceAttributesPrimary
   | CsiDeviceAttributesSecondary
@@ -317,7 +361,10 @@ export type XtermCsiMessage =
   | CsiCharacterSetQuery
   | CsiWindowManipulation
   | CsiInsertMode
-  | CsiEraseCharacter;
+  | CsiEraseCharacter
+  | CsiEnhancedSgrMode
+  | CsiPrivateSgrMode
+  | CsiSgrWithIntermediate;
 
 export type CsiMessage =
   | CsiCursorUp
@@ -654,6 +701,31 @@ export interface SgrNotSuperscriptSubscript extends SgrBase {
 }
 
 /**
+ * Enhanced SGR mode with > prefix (e.g., CSI > 4 ; 2 m)
+ */
+export interface SgrEnhancedMode extends SgrBase {
+  _type: "sgr.enhancedMode";
+  params: number[];
+}
+
+/**
+ * Private SGR mode with ? prefix (e.g., CSI ? 4 m)
+ */
+export interface SgrPrivateMode extends SgrBase {
+  _type: "sgr.privateMode";
+  params: number[];
+}
+
+/**
+ * SGR with intermediate characters (e.g., CSI 0 % m)
+ */
+export interface SgrWithIntermediate extends SgrBase {
+  _type: "sgr.withIntermediate";
+  params: number[];
+  intermediate: string;
+}
+
+/**
  * Unknown or unrecognized SGR parameter.
  */
 export interface SgrUnknown extends SgrBase {
@@ -702,6 +774,9 @@ export type SgrMessage =
   | SgrSuperscript
   | SgrSubscript
   | SgrNotSuperscriptSubscript
+  | SgrEnhancedMode
+  | SgrPrivateMode
+  | SgrWithIntermediate
   | SgrUnknown;
 
 /**

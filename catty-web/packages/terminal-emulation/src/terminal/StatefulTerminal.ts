@@ -2,7 +2,7 @@ import { getLogger } from "@catty/log";
 
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
 import { Parser } from "./Parser";
-import type { EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage } from "./TerminalEmulationTypes";
+import type { EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage, SgrColorType, SgrNamedColor } from "./TerminalEmulationTypes";
 import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
 import { processSgrMessages } from './SgrStateProcessor';
 
@@ -716,7 +716,7 @@ export class StatefulTerminal {
     }
 
     let ch: string;
-    
+
     // Handle Unicode code points (the parser now sends Unicode code points for UTF-8 sequences)
     if (byte > 0xFFFF) {
       // Use String.fromCodePoint for characters outside the BMP (Basic Multilingual Plane)
@@ -1138,6 +1138,21 @@ export class StatefulTerminal {
         this.setScrollRegion(msg.top, msg.bottom);
         return;
 
+      case "csi.enhancedSgrMode":
+        // Enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m)
+        this.handleEnhancedSgrMode(msg.params);
+        return;
+
+      case "csi.privateSgrMode":
+        // Private SGR sequences with ? prefix (e.g., CSI ? 4 m)
+        this.handlePrivateSgrMode(msg.params);
+        return;
+
+      case "csi.sgrWithIntermediate":
+        // SGR sequences with intermediate characters (e.g., CSI 0 % m)
+        this.handleSgrWithIntermediate(msg.params, msg.intermediate);
+        return;
+
       // ignored (for MVP)
       case "csi.scrollDown":
       case "csi.mouseReportingMode":
@@ -1187,6 +1202,18 @@ export class StatefulTerminal {
         // This would typically send a response back to the application
         // For now, we just acknowledge it (response handling would be in TerminalController)
         return;
+
+      case "osc.queryForegroundColor":
+        // OSC 10;?: Query default foreground color
+        // Respond with current theme foreground color
+        this.emitResponse(this.generateForegroundColorResponse());
+        return;
+
+      case "osc.queryBackgroundColor":
+        // OSC 11;?: Query default background color
+        // Respond with current theme background color
+        this.emitResponse(this.generateBackgroundColorResponse());
+        return;
     }
   }
 
@@ -1207,5 +1234,218 @@ export class StatefulTerminal {
    */
   public resetSgrState(): void {
     this.currentSgrState = createDefaultSgrState();
+  }
+
+  /**
+   * Handle enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m)
+   * These are typically used for advanced terminal features.
+   */
+  private handleEnhancedSgrMode(params: number[]): void {
+    // For now, gracefully ignore enhanced SGR modes
+    // In the future, this could handle advanced cursor or display modes
+    if (this.log.isLevelEnabled("debug")) {
+    this.log.debug(`Enhanced SGR mode received: ${JSON.stringify({ params })}`);
+    }
+  }
+
+  /**
+   * Handle private SGR sequences with ? prefix (e.g., CSI ? 4 m)
+   * These are typically used for private/experimental features.
+   */
+  private handlePrivateSgrMode(params: number[]): void {
+    // For now, gracefully ignore private SGR modes
+    // In the future, this could handle private terminal features
+    if (this.log.isLevelEnabled("debug")) {
+      this.log.debug(`Private SGR mode received: ${JSON.stringify({ params })}`);
+    }
+  }
+
+  /**
+   * Handle SGR sequences with intermediate characters (e.g., CSI 0 % m)
+   * These are used for special SGR attribute resets or modifications.
+   */
+  private handleSgrWithIntermediate(params: number[], intermediate: string): void {
+    // Handle specific intermediate character sequences
+    if (intermediate === "%") {
+      // CSI 0 % m - Reset specific attributes
+      if (params.length === 1 && params[0] === 0) {
+        // Reset all SGR attributes (similar to SGR 0)
+        this.currentSgrState = createDefaultSgrState();
+        this.log.debug("SGR reset with % intermediate");
+        return;
+      }
+    }
+
+    // For other intermediate sequences, gracefully ignore
+    if (this.log.isLevelEnabled("debug")) {
+      this.log.debug(`SGR with intermediate received: ${JSON.stringify({ params, intermediate })}`);
+    }
+  }
+
+  /**
+   * Generate response for OSC 10;? (query foreground color)
+   */
+  private generateForegroundColorResponse(): string {
+    // Get the current effective foreground color
+    const effectiveColor = this.getEffectiveForegroundColor();
+    
+    // Convert to OSC format: OSC 10 ; rgb:rrrr/gggg/bbbb BEL
+    return `\x1b]10;${effectiveColor}\x07`;
+  }
+
+  /**
+   * Generate response for OSC 11;? (query background color)
+   */
+  private generateBackgroundColorResponse(): string {
+    // Get the current effective background color
+    const effectiveColor = this.getEffectiveBackgroundColor();
+    
+    // Convert to OSC format: OSC 11 ; rgb:rrrr/gggg/bbbb BEL
+    return `\x1b]11;${effectiveColor}\x07`;
+  }
+
+  /**
+   * Get the effective foreground color (SGR override or theme default)
+   */
+  private getEffectiveForegroundColor(): string {
+    if (this.currentSgrState.foregroundColor) {
+      return this.convertSgrColorToOscFormat(this.currentSgrState.foregroundColor);
+    }
+    
+    // Return theme default foreground color
+    // Use the CSS variable value or fallback to standard light gray
+    return "rgb:aaaa/aaaa/aaaa"; // Default light gray
+  }
+
+  /**
+   * Get the effective background color (SGR override or theme default)
+   */
+  private getEffectiveBackgroundColor(): string {
+    if (this.currentSgrState.backgroundColor) {
+      return this.convertSgrColorToOscFormat(this.currentSgrState.backgroundColor);
+    }
+    
+    // Return theme default background color
+    // Use the CSS variable value or fallback to standard black
+    return "rgb:0000/0000/0000"; // Default black
+  }
+
+  /**
+   * Convert SGR color type to OSC rgb format
+   */
+  private convertSgrColorToOscFormat(colorType: SgrColorType): string {
+    switch (colorType.type) {
+      case 'rgb':
+        // Convert 8-bit RGB values to 16-bit hex format for OSC
+        const r16 = Math.round((colorType.r / 255) * 65535).toString(16).padStart(4, '0');
+        const g16 = Math.round((colorType.g / 255) * 65535).toString(16).padStart(4, '0');
+        const b16 = Math.round((colorType.b / 255) * 65535).toString(16).padStart(4, '0');
+        return `rgb:${r16}/${g16}/${b16}`;
+        
+      case 'indexed':
+        // Convert indexed color to RGB then to OSC format
+        return this.convertIndexedColorToOscFormat(colorType.index);
+        
+      case 'named':
+        // Convert named color to RGB then to OSC format
+        return this.convertNamedColorToOscFormat(colorType.color);
+        
+      default:
+        // Fallback to default colors
+        return "rgb:aaaa/aaaa/aaaa";
+    }
+  }
+
+  /**
+   * Convert indexed color (0-255) to OSC rgb format
+   */
+  private convertIndexedColorToOscFormat(index: number): string {
+    // Standard 16 colors (0-15) - use predefined RGB values
+    if (index >= 0 && index <= 15) {
+      const standardColors = [
+        [0, 0, 0],       // 0: black
+        [170, 0, 0],     // 1: red
+        [0, 170, 0],     // 2: green
+        [170, 85, 0],    // 3: yellow
+        [0, 0, 170],     // 4: blue
+        [170, 0, 170],   // 5: magenta
+        [0, 170, 170],   // 6: cyan
+        [170, 170, 170], // 7: white
+        [85, 85, 85],    // 8: bright black
+        [255, 85, 85],   // 9: bright red
+        [85, 255, 85],   // 10: bright green
+        [255, 255, 85],  // 11: bright yellow
+        [85, 85, 255],   // 12: bright blue
+        [255, 85, 255],  // 13: bright magenta
+        [85, 255, 255],  // 14: bright cyan
+        [255, 255, 255], // 15: bright white
+      ];
+      
+      if (index < standardColors.length) {
+        const [r, g, b] = standardColors[index];
+        const r16 = Math.round((r / 255) * 65535).toString(16).padStart(4, '0');
+        const g16 = Math.round((g / 255) * 65535).toString(16).padStart(4, '0');
+        const b16 = Math.round((b / 255) * 65535).toString(16).padStart(4, '0');
+        return `rgb:${r16}/${g16}/${b16}`;
+      }
+    }
+
+    // 216 color cube (16-231)
+    if (index >= 16 && index <= 231) {
+      const cubeIndex = index - 16;
+      const r = Math.floor(cubeIndex / 36);
+      const g = Math.floor((cubeIndex % 36) / 6);
+      const b = cubeIndex % 6;
+      
+      const toColorValue = (n: number) => n === 0 ? 0 : 55 + n * 40;
+      const rVal = toColorValue(r);
+      const gVal = toColorValue(g);
+      const bVal = toColorValue(b);
+      
+      const r16 = Math.round((rVal / 255) * 65535).toString(16).padStart(4, '0');
+      const g16 = Math.round((gVal / 255) * 65535).toString(16).padStart(4, '0');
+      const b16 = Math.round((bVal / 255) * 65535).toString(16).padStart(4, '0');
+      return `rgb:${r16}/${g16}/${b16}`;
+    }
+
+    // Grayscale ramp (232-255)
+    if (index >= 232 && index <= 255) {
+      const gray = 8 + (index - 232) * 10;
+      const gray16 = Math.round((gray / 255) * 65535).toString(16).padStart(4, '0');
+      return `rgb:${gray16}/${gray16}/${gray16}`;
+    }
+
+    // Invalid index, return default
+    return "rgb:aaaa/aaaa/aaaa";
+  }
+
+  /**
+   * Convert named ANSI color to OSC rgb format
+   */
+  private convertNamedColorToOscFormat(color: SgrNamedColor): string {
+    const namedColorRgb: Record<SgrNamedColor, [number, number, number]> = {
+      black: [0, 0, 0],
+      red: [170, 0, 0],
+      green: [0, 170, 0],
+      yellow: [170, 85, 0],
+      blue: [0, 0, 170],
+      magenta: [170, 0, 170],
+      cyan: [0, 170, 170],
+      white: [170, 170, 170],
+      brightBlack: [85, 85, 85],
+      brightRed: [255, 85, 85],
+      brightGreen: [85, 255, 85],
+      brightYellow: [255, 255, 85],
+      brightBlue: [85, 85, 255],
+      brightMagenta: [255, 85, 255],
+      brightCyan: [85, 255, 255],
+      brightWhite: [255, 255, 255],
+    };
+
+    const [r, g, b] = namedColorRgb[color] || [170, 170, 170]; // Default to white
+    const r16 = Math.round((r / 255) * 65535).toString(16).padStart(4, '0');
+    const g16 = Math.round((g / 255) * 65535).toString(16).padStart(4, '0');
+    const b16 = Math.round((b / 255) * 65535).toString(16).padStart(4, '0');
+    return `rgb:${r16}/${g16}/${b16}`;
   }
 }

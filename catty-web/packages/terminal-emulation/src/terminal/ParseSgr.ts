@@ -37,6 +37,9 @@ import type {
   SgrSuperscript,
   SgrSubscript,
   SgrNotSuperscriptSubscript,
+  SgrEnhancedMode,
+  SgrPrivateMode,
+  SgrWithIntermediate,
   SgrUnknown,
   SgrColorType,
   SgrNamedColor,
@@ -164,15 +167,27 @@ function parseUnderlineStyle(style: number): SgrUnderlineStyle {
   }
 }
 
-export function parseSgrParamsAndSeparators(raw: string): { params: number[]; separators: string[] } {
+export function parseSgrParamsAndSeparators(raw: string): { params: number[]; separators: string[]; prefix?: string; intermediate?: string } {
   // track separators between params because some use a colon for special color handling like "\x1b[4:3m"
   const paramsText = raw.length >= 3 ? raw.slice(2, -1) : "";
 
   const params: number[] = [];
   const separators: string[] = [];
+  let prefix: string | undefined = undefined;
+  let intermediate: string | undefined = undefined;
+
+  // Check for special prefixes at the start
+  let startIndex = 0;
+  if (paramsText.startsWith(">")) {
+    prefix = ">";
+    startIndex = 1;
+  } else if (paramsText.startsWith("?")) {
+    prefix = "?";
+    startIndex = 1;
+  }
 
   let current = "";
-  for (let i = 0; i < paramsText.length; i++) {
+  for (let i = startIndex; i < paramsText.length; i++) {
     const ch = paramsText[i];
 
     if (ch >= "0" && ch <= "9") {
@@ -187,7 +202,18 @@ export function parseSgrParamsAndSeparators(raw: string): { params: number[]; se
       continue;
     }
 
-    // Ignore any unexpected characters (private markers / intermediates);
+    // Check for intermediate characters (like %)
+    if (ch === "%" || ch === "$" || ch === " ") {
+      // If we have a current number, push it first
+      if (current.length > 0) {
+        params.push(Number.parseInt(current, 10));
+        current = "";
+      }
+      intermediate = ch;
+      continue;
+    }
+
+    // Ignore other unexpected characters (private markers / intermediates);
     // SGR params are expected to be digits + ';' / ':' only.
   }
 
@@ -201,7 +227,7 @@ export function parseSgrParamsAndSeparators(raw: string): { params: number[]; se
     params.push(0);
   }
 
-  return { params, separators };
+  return { params, separators, prefix, intermediate };
 }
 
 /**
@@ -209,10 +235,31 @@ export function parseSgrParamsAndSeparators(raw: string): { params: number[]; se
  *
  * @param params Array of numeric parameters from the SGR sequence
  * @param separators Array of separator characters (';' or ':') between parameters
+ * @param prefix Optional prefix character ('>' or '?')
+ * @param intermediate Optional intermediate character ('%', '$', ' ')
  * @returns Array of parsed SGR messages
  */
-export function parseSgr(params: number[], separators: string[]): SgrMessage[] {
+export function parseSgr(params: number[], separators: string[], prefix?: string, intermediate?: string): SgrMessage[] {
   const messages: SgrMessage[] = [];
+
+  // Handle special sequences with prefixes or intermediates
+  if (prefix === ">") {
+    // Enhanced SGR mode (e.g., CSI > 4 ; 2 m)
+    messages.push({ _type: "sgr.enhancedMode", params, implemented: false } as SgrEnhancedMode);
+    return messages;
+  }
+
+  if (prefix === "?") {
+    // Private SGR mode (e.g., CSI ? 4 m)
+    messages.push({ _type: "sgr.privateMode", params, implemented: false } as SgrPrivateMode);
+    return messages;
+  }
+
+  if (intermediate) {
+    // SGR with intermediate characters (e.g., CSI 0 % m)
+    messages.push({ _type: "sgr.withIntermediate", params, intermediate, implemented: false } as SgrWithIntermediate);
+    return messages;
+  }
 
   // Empty or single zero param means reset
   if (params.length === 0 || (params.length === 1 && params[0] === 0)) {

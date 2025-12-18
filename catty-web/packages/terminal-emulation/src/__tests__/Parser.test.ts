@@ -2490,8 +2490,9 @@ describe("Parser", () => {
 
       parser.pushBytes(Buffer.from("\x1b]10;?\x07"));
 
-      expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0].raw).toBe("\x1b]10;?\x07");
+      expect(captured.xtermOscMessages).toHaveLength(1);
+      expect(captured.xtermOscMessages[0]._type).toBe("osc.queryForegroundColor");
+      expect(captured.xtermOscMessages[0].raw).toBe("\x1b]10;?\x07");
     });
 
     // OSC 11: Set/query background color
@@ -2511,8 +2512,9 @@ describe("Parser", () => {
 
       parser.pushBytes(Buffer.from("\x1b]11;?\x07"));
 
-      expect(captured.oscSequences).toHaveLength(1);
-      expect(captured.oscSequences[0].raw).toBe("\x1b]11;?\x07");
+      expect(captured.xtermOscMessages).toHaveLength(1);
+      expect(captured.xtermOscMessages[0]._type).toBe("osc.queryBackgroundColor");
+      expect(captured.xtermOscMessages[0].raw).toBe("\x1b]11;?\x07");
     });
 
     // OSC 12: Set/query cursor color

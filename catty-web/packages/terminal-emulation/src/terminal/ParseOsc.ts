@@ -57,6 +57,28 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
 
   const textParam = payload.slice(semicolonIndex + 1);
   
+  // Handle color queries (OSC 10;? and OSC 11;?)
+  if (textParam === "?") {
+    switch (commandNum) {
+      case 10:
+        return {
+          _type: "osc.queryForegroundColor",
+          raw,
+          terminator,
+          implemented: false
+        };
+      case 11:
+        return {
+          _type: "osc.queryBackgroundColor",
+          raw,
+          terminator,
+          implemented: false
+        };
+      default:
+        return null;
+    }
+  }
+  
   // Decode UTF-8 text parameter
   const decodedText = decodeUtf8Text(textParam);
   

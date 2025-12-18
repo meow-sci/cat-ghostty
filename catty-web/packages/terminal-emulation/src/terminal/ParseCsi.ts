@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -223,6 +223,40 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       raw, 
       count: getParam(params, 0, 1),
       implemented: true
+    };
+    return msg;
+  }
+
+  // Enhanced SGR sequences: CSI > Ps ; Ps m
+  if (final === "m" && prefix === ">") {
+    const msg: CsiEnhancedSgrMode = {
+      _type: "csi.enhancedSgrMode",
+      raw,
+      params,
+      implemented: false
+    };
+    return msg;
+  }
+
+  // Private SGR sequences: CSI ? Ps m
+  if (final === "m" && isPrivate) {
+    const msg: CsiPrivateSgrMode = {
+      _type: "csi.privateSgrMode",
+      raw,
+      params,
+      implemented: false
+    };
+    return msg;
+  }
+
+  // SGR with intermediate characters: CSI Ps % m
+  if (final === "m" && intermediate.length > 0) {
+    const msg: CsiSgrWithIntermediate = {
+      _type: "csi.sgrWithIntermediate",
+      raw,
+      params,
+      intermediate,
+      implemented: false
     };
     return msg;
   }

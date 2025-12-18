@@ -41,6 +41,7 @@ Scoped packages under `@catty/` namespace:
 - Packages have minimal interdependencies (only `@catty/log` is shared)
 
 ### Code Organization
+- TERMINAL_SPEC_COVERAGE.md - Contains tables of implemented terminal features.  This should always get updated as tasks are completed.
 - **Types**: Comprehensive TypeScript interfaces exported from packages
 - **Testing**: Property-based testing with fast-check for terminal emulation
 - **Configuration**: Shared configs via workspace packages (`@catty/tsconfig`)
