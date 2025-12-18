@@ -715,7 +715,16 @@ export class StatefulTerminal {
       return;
     }
 
-    let ch = String.fromCharCode(byte);
+    let ch: string;
+    
+    // Handle Unicode code points (the parser now sends Unicode code points for UTF-8 sequences)
+    if (byte > 0xFFFF) {
+      // Use String.fromCodePoint for characters outside the BMP (Basic Multilingual Plane)
+      ch = String.fromCodePoint(byte);
+    } else {
+      // Use String.fromCharCode for characters in the BMP
+      ch = String.fromCharCode(byte);
+    }
 
     // Apply character set translation if not in UTF-8 mode
     if (!this.utf8Mode) {

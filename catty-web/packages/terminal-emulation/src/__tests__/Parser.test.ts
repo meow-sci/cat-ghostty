@@ -945,7 +945,7 @@ describe("Parser", () => {
       expect(captured.normalText).toBe("Hello World 123 !@#");
     });
 
-    it("should receive multi-byte UTF-8 as individual bytes", async () => {
+    it("should decode multi-byte UTF-8 as Unicode characters", async () => {
       const { handlers, captured } = createCapturingHandlers();
       const parser = new Parser({ handlers, log: getLogger() });
 
@@ -953,20 +953,28 @@ describe("Parser", () => {
       const japaneseText = Buffer.from("こんにちは", "utf-8");
       parser.pushBytes(japaneseText);
 
-      // The parser receives individual bytes; the handler accumulates them
-      // The byte count should match the UTF-8 encoding
-      expect(captured.normalBytes.length).toBe(japaneseText.length);
+      // The parser should decode UTF-8 and send Unicode code points
+      // "こんにちは" has 5 characters
+      expect(captured.normalBytes.length).toBe(5);
+      
+      // Verify the Unicode code points are correct
+      const expectedText = "こんにちは";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
-    it("should handle emoji characters as UTF-8 bytes", async () => {
+    it("should handle emoji characters as Unicode code points", async () => {
       const { handlers, captured } = createCapturingHandlers();
       const parser = new Parser({ handlers, log: getLogger() });
 
-      // "🎉" is 4 bytes in UTF-8
+      // "🎉" is 4 bytes in UTF-8 but 1 Unicode character
       const emojiText = Buffer.from("🎉", "utf-8");
       parser.pushBytes(emojiText);
 
-      expect(captured.normalBytes.length).toBe(4);
+      expect(captured.normalBytes.length).toBe(1);
+      // "🎉" has Unicode code point U+1F389 (127881)
+      expect(captured.normalBytes[0]).toBe(0x1F389);
     });
 
     it("should handle mixed ASCII and UTF-8", async () => {
@@ -976,8 +984,14 @@ describe("Parser", () => {
       const mixedText = Buffer.from("Hello 世界!", "utf-8");
       parser.pushBytes(mixedText);
 
-      // "Hello " = 6 bytes, "世界" = 6 bytes, "!" = 1 byte = 13 total
-      expect(captured.normalBytes.length).toBe(13);
+      // "Hello 世界!" has 9 characters total
+      expect(captured.normalBytes.length).toBe(9);
+      
+      // Verify the characters are decoded correctly
+      const expectedText = "Hello 世界!";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
     it("should handle UTF-8 text with SGR sequences", async () => {
@@ -990,8 +1004,14 @@ describe("Parser", () => {
 
       expect(captured.sgrMessages).toHaveLength(2);
       expect(captured.sgrMessages[0][0]._type).toBe("sgr.foregroundColor");
-      // The text "エラー" is 9 bytes in UTF-8
-      expect(captured.normalBytes.length).toBe(9);
+      // The text "エラー" has 3 characters
+      expect(captured.normalBytes.length).toBe(3);
+      
+      // Verify the characters are decoded correctly
+      const expectedText = "エラー";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
     it("should handle European characters (Latin-1 supplement)", async () => {
@@ -1001,8 +1021,14 @@ describe("Parser", () => {
       const europeanText = Buffer.from("Café naïve résumé", "utf-8");
       parser.pushBytes(europeanText);
 
-      // Each accented character is 2 bytes in UTF-8
-      expect(captured.normalBytes.length).toBeGreaterThan("Cafe naive resume".length);
+      // "Café naïve résumé" has 17 characters
+      expect(captured.normalBytes.length).toBe(17);
+      
+      // Verify the characters are decoded correctly
+      const expectedText = "Café naïve résumé";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
     it("should handle Cyrillic text", async () => {
@@ -1012,8 +1038,14 @@ describe("Parser", () => {
       const cyrillicText = Buffer.from("Привет мир", "utf-8");
       parser.pushBytes(cyrillicText);
 
-      // Each Cyrillic character is 2 bytes in UTF-8
-      expect(captured.normalBytes.length).toBe(cyrillicText.length);
+      // "Привет мир" has 10 characters (including space)
+      expect(captured.normalBytes.length).toBe(10);
+      
+      // Verify the characters are decoded correctly
+      const expectedText = "Привет мир";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
     it("should handle Arabic text (RTL)", async () => {
@@ -1023,7 +1055,14 @@ describe("Parser", () => {
       const arabicText = Buffer.from("مرحبا", "utf-8");
       parser.pushBytes(arabicText);
 
-      expect(captured.normalBytes.length).toBe(arabicText.length);
+      // "مرحبا" has 5 characters
+      expect(captured.normalBytes.length).toBe(5);
+      
+      // Verify the characters are decoded correctly
+      const expectedText = "مرحبا";
+      for (let i = 0; i < expectedText.length; i++) {
+        expect(captured.normalBytes[i]).toBe(expectedText.charCodeAt(i));
+      }
     });
 
     it("should handle Chinese text with colors", async () => {

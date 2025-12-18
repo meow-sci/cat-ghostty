@@ -21,6 +21,10 @@ export class Parser {
   private escapeSequence: number[] = [];
   private csiSequence: string = "";
 
+  // UTF-8 decoding state
+  private utf8Buffer: number[] = [];
+  private utf8ExpectedLength = 0;
+
   constructor(options: ParserOptions) {
     this.handlers = options.handlers;
     this.log = options.log;
@@ -252,8 +256,93 @@ export class Parser {
   }
 
   private handleNormalByte(byte: number): void {
+    // Handle UTF-8 multi-byte sequences
+    if (this.handleUtf8Byte(byte)) {
+      return;
+    }
+    
+    // Single ASCII byte
     this.handlers.handleNormalByte(byte);
     return;
+  }
+
+  private handleUtf8Byte(byte: number): boolean {
+    // If we're not in a UTF-8 sequence and this is ASCII, let it pass through
+    if (this.utf8ExpectedLength === 0 && byte < 0x80) {
+      return false; // Not a UTF-8 sequence, handle as normal ASCII
+    }
+
+    // Start of a new UTF-8 sequence
+    if (this.utf8ExpectedLength === 0) {
+      if ((byte & 0xE0) === 0xC0) {
+        // 2-byte sequence: 110xxxxx
+        this.utf8ExpectedLength = 2;
+      } else if ((byte & 0xF0) === 0xE0) {
+        // 3-byte sequence: 1110xxxx
+        this.utf8ExpectedLength = 3;
+      } else if ((byte & 0xF8) === 0xF0) {
+        // 4-byte sequence: 11110xxx
+        this.utf8ExpectedLength = 4;
+      } else {
+        // Invalid UTF-8 start byte, treat as single byte
+        this.handlers.handleNormalByte(byte);
+        return true;
+      }
+      
+      this.utf8Buffer = [byte];
+      return true;
+    }
+
+    // Continuation byte in UTF-8 sequence
+    if ((byte & 0xC0) !== 0x80) {
+      // Invalid continuation byte, flush buffer and start over
+      this.flushUtf8Buffer();
+      return this.handleUtf8Byte(byte); // Retry with this byte
+    }
+
+    this.utf8Buffer.push(byte);
+
+    // Check if we have a complete UTF-8 sequence
+    if (this.utf8Buffer.length === this.utf8ExpectedLength) {
+      this.decodeUtf8Sequence();
+    }
+
+    return true;
+  }
+
+  private decodeUtf8Sequence(): void {
+    try {
+      const utf8Array = new Uint8Array(this.utf8Buffer);
+      const decoded = new TextDecoder('utf-8', { fatal: true }).decode(utf8Array);
+      
+      // Send each Unicode character as its code point
+      for (let i = 0; i < decoded.length; i++) {
+        const codePoint = decoded.codePointAt(i);
+        if (codePoint !== undefined) {
+          this.handlers.handleNormalByte(codePoint);
+          // Skip the next character if this was a surrogate pair
+          if (codePoint > 0xFFFF) {
+            i++;
+          }
+        }
+      }
+    } catch (error) {
+      // Decoding failed, treat each byte as a separate character
+      this.flushUtf8Buffer();
+    }
+
+    // Reset UTF-8 state
+    this.utf8Buffer = [];
+    this.utf8ExpectedLength = 0;
+  }
+
+  private flushUtf8Buffer(): void {
+    // Send each byte in the buffer as a separate character (fallback)
+    for (const b of this.utf8Buffer) {
+      this.handlers.handleNormalByte(b);
+    }
+    this.utf8Buffer = [];
+    this.utf8ExpectedLength = 0;
   }
 
   private handleC0ExceptEscape(byte: number): boolean {
