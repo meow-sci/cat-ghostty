@@ -206,6 +206,25 @@ export class TerminalController {
   }
 
   /**
+   * Check if an SGR state is the default (unstyled) state
+   */
+  private isDefaultSgrState(sgrState: SgrState): boolean {
+    return !sgrState.bold &&
+           !sgrState.faint &&
+           !sgrState.italic &&
+           !sgrState.underline &&
+           !sgrState.blink &&
+           !sgrState.inverse &&
+           !sgrState.hidden &&
+           !sgrState.strikethrough &&
+           sgrState.foregroundColor === null &&
+           sgrState.backgroundColor === null &&
+           sgrState.underlineColor === null &&
+           sgrState.font === 0 &&
+           sgrState.underlineStyle === null;
+  }
+
+  /**
    * Update the DOM document title when terminal window title changes
    */
   private updateDomTitle(title: string): void {
@@ -320,23 +339,15 @@ export class TerminalController {
       return text;
     }
 
-    // Best-effort: suppress an exact prefix match of the last cooked line we sent.
-    // This avoids local-echo overlay + driver echo duplicating characters.
-    let i = 0;
-    const n = Math.min(text.length, remaining.length);
-    while (i < n && text[i] === remaining[i]) {
-      i++;
-    }
-
-    if (i === 0) {
-      // If the next output doesn't look like the echo, stop trying.
-      this.suppressCookedEchoRemaining = null;
-      return text;
-    }
-
-    const nextRemaining = remaining.slice(i);
-    this.suppressCookedEchoRemaining = nextRemaining.length > 0 ? nextRemaining : null;
-    return text.slice(i);
+    // Disable echo suppression entirely for zsh and other modern shells
+    // Modern shells often rewrite the command line with syntax highlighting
+    // which should not be suppressed as it's not traditional echo
+    // 
+    // The original echo suppression was designed for simple shells that
+    // just echo back the exact command, but zsh does sophisticated rewriting
+    // with cursor movements and styling that we want to preserve
+    this.suppressCookedEchoRemaining = null;
+    return text;
   }
 
   private setupInputHandlers(): void {
@@ -388,7 +399,7 @@ export class TerminalController {
           this.cookedCursorIndex = 0;
           this.inputElement.value = "";
 
-          // Suppress the PTY's echo of the line we are about to send.
+          // Set up smart echo suppression that won't interfere with syntax highlighting
           this.suppressCookedEchoRemaining = line;
           this.websocket.send(line + "\r");
           this.scheduleRepaint();
@@ -584,6 +595,8 @@ export class TerminalController {
       return;
     }
 
+
+
     // Full repaint for MVP.
     this.displayElement.textContent = "";
 
@@ -599,9 +612,17 @@ export class TerminalController {
           continue;
         }
 
-        // Skip spaces that have no styling (optimization)
-        if (cell.ch === " " && !cell.sgrState) {
-          continue;
+        // Skip spaces that have default styling (optimization)
+        // But preserve spaces that are adjacent to non-space characters to maintain proper spacing
+        if (cell.ch === " " && cell.sgrState && this.isDefaultSgrState(cell.sgrState)) {
+          // Check if this space is adjacent to non-space content
+          const hasContentBefore = x > 0 && row[x - 1] && row[x - 1].ch !== " ";
+          const hasContentAfter = x < snapshot.cols - 1 && row[x + 1] && row[x + 1].ch !== " ";
+          
+          // Only skip if this space is not between content
+          if (!hasContentBefore && !hasContentAfter) {
+            continue;
+          }
         }
 
         const span = document.createElement("span");
