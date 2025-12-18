@@ -791,6 +791,7 @@ export class StatefulTerminal {
     if (this.cursorX > 0) {
       this.cursorX -= 1;
       this.cells[this.cursorY][this.cursorX].ch = " ";
+      this.cells[this.cursorY][this.cursorX].sgrState = { ...this.currentSgrState };
       return;
     }
   }
@@ -807,6 +808,7 @@ export class StatefulTerminal {
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
+        this.cells[y][x].sgrState = { ...this.currentSgrState };
       }
     }
     this.cursorX = 0;
@@ -842,16 +844,25 @@ export class StatefulTerminal {
     }
 
     if (mode === 0) {
-      for (let x = this.cursorX; x < this.cols; x++) this.cells[y][x].ch = " ";
+      for (let x = this.cursorX; x < this.cols; x++) {
+        this.cells[y][x].ch = " ";
+        this.cells[y][x].sgrState = { ...this.currentSgrState };
+      }
       return;
     }
 
     if (mode === 1) {
-      for (let x = 0; x <= this.cursorX; x++) this.cells[y][x].ch = " ";
+      for (let x = 0; x <= this.cursorX; x++) {
+        this.cells[y][x].ch = " ";
+        this.cells[y][x].sgrState = { ...this.currentSgrState };
+      }
       return;
     }
 
-    for (let x = 0; x < this.cols; x++) this.cells[y][x].ch = " ";
+    for (let x = 0; x < this.cols; x++) {
+      this.cells[y][x].ch = " ";
+      this.cells[y][x].sgrState = { ...this.currentSgrState };
+    }
   }
 
   private eraseCharacters(count: number): void {
@@ -865,6 +876,7 @@ export class StatefulTerminal {
     const endX = Math.min(this.cursorX + count, this.cols);
     for (let x = this.cursorX; x < endX; x++) {
       this.cells[y][x].ch = " ";
+      this.cells[y][x].sgrState = { ...this.currentSgrState };
     }
   }
 
@@ -905,6 +917,7 @@ export class StatefulTerminal {
       // Clear the bottom line of the scroll region
       for (let x = 0; x < this.cols; x++) {
         this.cells[this.scrollBottom][x].ch = " ";
+        this.cells[this.scrollBottom][x].sgrState = { ...this.currentSgrState };
       }
     }
   }
@@ -920,7 +933,10 @@ export class StatefulTerminal {
       // from cursor to end
       this.clearLine(0);
       for (let y = this.cursorY + 1; y < this.rows; y++) {
-        for (let x = 0; x < this.cols; x++) this.cells[y][x].ch = " ";
+        for (let x = 0; x < this.cols; x++) {
+          this.cells[y][x].ch = " ";
+          this.cells[y][x].sgrState = { ...this.currentSgrState };
+        }
       }
       return;
     }
@@ -928,7 +944,10 @@ export class StatefulTerminal {
     if (mode === 1) {
       // from start to cursor
       for (let y = 0; y < this.cursorY; y++) {
-        for (let x = 0; x < this.cols; x++) this.cells[y][x].ch = " ";
+        for (let x = 0; x < this.cols; x++) {
+          this.cells[y][x].ch = " ";
+          this.cells[y][x].sgrState = { ...this.currentSgrState };
+        }
       }
       this.clearLine(1);
       return;

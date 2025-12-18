@@ -26,7 +26,7 @@ class MockDocument {
     return new MockElement(tagName);
   }
 
-  appendChild(element: MockElement): void {
+  appendChild(_element: MockElement): void {
     // Mock implementation
   }
 
@@ -130,7 +130,7 @@ describe('SGR Styling Integration End-to-End Tests', () => {
         { code: 37, color: 'white', sequence: '\x1b[37m' },
       ];
 
-      colorTests.forEach(({ code, color, sequence }) => {
+      colorTests.forEach(({ code: _code, color, sequence }) => {
         // Reset terminal state
         terminal.reset();
         
@@ -171,7 +171,7 @@ describe('SGR Styling Integration End-to-End Tests', () => {
         { code: 47, color: 'white', sequence: '\x1b[47m' },
       ];
 
-      colorTests.forEach(({ code, color, sequence }) => {
+      colorTests.forEach(({ code: _code, color, sequence }) => {
         // Reset terminal state
         terminal.reset();
         
@@ -212,7 +212,7 @@ describe('SGR Styling Integration End-to-End Tests', () => {
         { code: 97, color: 'brightWhite', sequence: '\x1b[97m' },
       ];
 
-      brightColorTests.forEach(({ code, color, sequence }) => {
+      brightColorTests.forEach(({ code: _code, color, sequence }) => {
         // Reset terminal state
         terminal.reset();
         
@@ -318,7 +318,7 @@ describe('SGR Styling Integration End-to-End Tests', () => {
         { r: 128, g: 64, b: 192, name: 'purple' },
       ];
 
-      rgbTests.forEach(({ r, g, b, name }) => {
+      rgbTests.forEach(({ r, g, b, name: _name }) => {
         // Reset terminal state
         terminal.reset();
         
@@ -352,7 +352,7 @@ describe('SGR Styling Integration End-to-End Tests', () => {
         { r: 128, g: 255, b: 128, name: 'light-green' },
       ];
 
-      rgbTests.forEach(({ r, g, b, name }) => {
+      rgbTests.forEach(({ r, g, b, name: _name }) => {
         // Reset terminal state
         terminal.reset();
         

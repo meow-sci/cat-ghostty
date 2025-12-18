@@ -595,13 +595,19 @@ export class TerminalController {
         
         const cell = row[x];
         
-        if (!cell || cell.ch === " ") {
+        if (!cell) {
+          continue;
+        }
+
+        // Skip spaces that have no styling (optimization)
+        if (cell.ch === " " && !cell.sgrState) {
           continue;
         }
 
         const span = document.createElement("span");
         span.className = "terminal-cell";
-        span.textContent = cell.ch;
+        // Use non-breaking space for space characters so they render properly in HTML
+        span.textContent = cell.ch === " " ? "\u00A0" : cell.ch;
         span.style.position = "absolute";
         span.style.left = `${x}ch`;
         span.style.top = `${y}lh`;
