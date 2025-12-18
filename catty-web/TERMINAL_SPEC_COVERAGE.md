@@ -158,14 +158,14 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 30-37 m | Foreground Colors | ECMA-48 | 🟡 | Parsed (black/red/green/yellow/blue/magenta/cyan/white) |
-| CSI 38;5;n m | 256-Color Foreground | xterm | 🟡 | Parsed but styling ignored |
-| CSI 38;2;r;g;b m | RGB Foreground | xterm | 🟡 | Parsed but styling ignored |
-| CSI 39 m | Default Foreground | ECMA-48 | 🟡 | Parsed but styling ignored |
-| CSI 40-47 m | Background Colors | ECMA-48 | 🟡 | Parsed (black/red/green/yellow/blue/magenta/cyan/white) |
-| CSI 48;5;n m | 256-Color Background | xterm | 🟡 | Parsed but styling ignored |
-| CSI 48;2;r;g;b m | RGB Background | xterm | 🟡 | Parsed but styling ignored |
-| CSI 49 m | Default Background | ECMA-48 | 🟡 | Parsed but styling ignored |
+| CSI 30-37 m | Foreground Colors | ECMA-48 | ✅ | Theme-aware CSS variables (black/red/green/yellow/blue/magenta/cyan/white) |
+| CSI 38;5;n m | 256-Color Foreground | xterm | ✅ | Direct color values with 256-color palette |
+| CSI 38;2;r;g;b m | RGB Foreground | xterm | ✅ | 24-bit RGB color support |
+| CSI 39 m | Default Foreground | ECMA-48 | ✅ | Reset to theme default foreground |
+| CSI 40-47 m | Background Colors | ECMA-48 | ✅ | Theme-aware CSS variables (black/red/green/yellow/blue/magenta/cyan/white) |
+| CSI 48;5;n m | 256-Color Background | xterm | ✅ | Direct color values with 256-color palette |
+| CSI 48;2;r;g;b m | RGB Background | xterm | ✅ | 24-bit RGB color support |
+| CSI 49 m | Default Background | ECMA-48 | ✅ | Reset to theme default background |
 
 ### Extended Attributes
 
@@ -199,8 +199,8 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 90-97 m | Bright Foreground | xterm | 🟡 | Parsed but styling ignored |
-| CSI 100-107 m | Bright Background | xterm | 🟡 | Parsed but styling ignored |
+| CSI 90-97 m | Bright Foreground | xterm | ✅ | Theme-aware CSS variables for bright colors |
+| CSI 100-107 m | Bright Background | xterm | ✅ | Theme-aware CSS variables for bright colors |
 
 ## OSC Sequences (Operating System Commands)
 
@@ -220,8 +220,8 @@ This document tracks the implementation status of terminal escape sequences in c
 ## Summary
 
 - **Total Sequences**: ~120 documented sequences
-- **Fully Implemented**: ~35 sequences (✅)
-- **Parsed Only**: ~80 sequences (🟡) 
+- **Fully Implemented**: ~47 sequences (✅)
+- **Parsed Only**: ~68 sequences (🟡) 
 - **Not Implemented**: ~5 sequences (❌)
 
-The terminal emulator has comprehensive parsing coverage but focuses implementation on core functionality like cursor movement, screen manipulation, and basic terminal modes. Styling (SGR) sequences are parsed but not rendered, which is appropriate for the current MVP scope.
+The terminal emulator has comprehensive parsing coverage and now includes full color support through CSS-based SGR styling. Core functionality includes cursor movement, screen manipulation, terminal modes, and complete color rendering with theme support. Text styling attributes (bold, italic, underline) are parsed but not yet rendered.
