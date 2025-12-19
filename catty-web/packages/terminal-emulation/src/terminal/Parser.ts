@@ -414,7 +414,8 @@ export class Parser {
     if (finalByte === 0x6d) {
       const { params, separators, prefix, intermediate } = parseSgrParamsAndSeparators(raw);
       const sgrMessages = parseSgr(params, separators, prefix, intermediate);
-      const sgr: SgrSequence = { _type: "sgr", implemented: false, raw, messages: sgrMessages };
+      const implemented = sgrMessages.every((m) => m.implemented);
+      const sgr: SgrSequence = { _type: "sgr", implemented, raw, messages: sgrMessages };
       this.handlers.handleSgr(sgr);
       this.resetEscapeState();
       return;

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { StatefulTerminal } from "../terminal/StatefulTerminal";
-import { getLogger } from "@catty/log";
 
 describe("Vi Color Query Integration", () => {
   it("should handle vi startup color query sequence correctly", () => {

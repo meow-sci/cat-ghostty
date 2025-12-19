@@ -16,6 +16,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    nodePolyfills() as Plugin,
+    // nodePolyfills() as Plugin,
   ],
 });

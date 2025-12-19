@@ -46,7 +46,7 @@ describe("Implemented Field", () => {
     expect(capturedCsi[0].implemented).toBe(false);
   });
 
-  it("should mark SGR commands as not implemented", () => {
+  it("should mark SGR commands as implemented", () => {
     const capturedSgr: SgrSequence[] = [];
     
     const parser = new Parser({
@@ -70,17 +70,19 @@ describe("Implemented Field", () => {
     // Test SGR bold command
     parser.pushBytes(new TextEncoder().encode("\x1b[1m"));
     expect(capturedSgr).toHaveLength(1);
+    expect(capturedSgr[0].implemented).toBe(true);
     expect(capturedSgr[0].messages).toHaveLength(1);
     expect(capturedSgr[0].messages[0]._type).toBe("sgr.bold");
-    expect(capturedSgr[0].messages[0].implemented).toBe(false);
+    expect(capturedSgr[0].messages[0].implemented).toBe(true);
 
     // Test SGR reset command
     capturedSgr.length = 0;
     parser.pushBytes(new TextEncoder().encode("\x1b[0m"));
     expect(capturedSgr).toHaveLength(1);
+    expect(capturedSgr[0].implemented).toBe(true);
     expect(capturedSgr[0].messages).toHaveLength(1);
     expect(capturedSgr[0].messages[0]._type).toBe("sgr.reset");
-    expect(capturedSgr[0].messages[0].implemented).toBe(false);
+    expect(capturedSgr[0].messages[0].implemented).toBe(true);
   });
 
   it("should mark ESC commands as implemented", () => {

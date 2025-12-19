@@ -144,8 +144,19 @@ export class StatefulTerminal {
   private readonly log = getLogger();
   private readonly parser: Parser;
 
-  private cursorX = 0;
-  private cursorY = 0;
+  private _cursorX = 0;
+
+  public get cursorX(): number {
+    return this._cursorX;
+  }
+
+  private _cursorY = 0;
+
+  public get cursorY(): number {
+    return this._cursorY;
+  }
+
+
   private savedCursor: XY | null = null;
   private cursorStyle = 1;
   private cursorVisible = true;
@@ -252,33 +263,33 @@ export class StatefulTerminal {
           this.emitChunk({
             _type: "trace.normalByte",
             implemented: true,
-            cursorX: this.cursorX,
-            cursorY: this.cursorY,
+            cursorX: this._cursorX,
+            cursorY: this._cursorY,
             byte,
           });
           this.writePrintableByte(byte);
           this.requestUpdate();
         },
         handleEsc: (msg: EscMessage) => {
-          this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
           this.handleEsc(msg);
           this.requestUpdate();
         },
         handleCsi: (msg: CsiMessage) => {
-          this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
           this.handleCsi(msg);
           this.requestUpdate();
         },
         handleOsc: (msg: OscMessage) => {
-          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
         },
         handleSgr: (msg: SgrSequence) => {
-          this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
           this.handleSgr(msg);
           this.requestUpdate();
         },
         handleXtermOsc: (msg: XtermOscMessage) => {
-          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
+          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
           this.handleXtermOsc(msg);
           this.requestUpdate();
         },
@@ -310,8 +321,8 @@ export class StatefulTerminal {
     return {
       cols: this.cols,
       rows: this.rows,
-      cursorX: this.cursorX,
-      cursorY: this.cursorY,
+      cursorX: this._cursorX,
+      cursorY: this._cursorY,
       cursorStyle: this.cursorStyle,
       cursorVisible: this.cursorVisible,
       cells: this.cells,
@@ -474,8 +485,8 @@ export class StatefulTerminal {
    */
   private generateCursorPositionReport(): string {
     // Convert from 0-indexed to 1-indexed coordinates
-    const row = this.cursorY + 1;
-    const col = this.cursorX + 1;
+    const row = this._cursorY + 1;
+    const col = this._cursorX + 1;
     return `\x1b[${row};${col}R`;
   }
 
@@ -491,8 +502,8 @@ export class StatefulTerminal {
   // Enhanced cursor state management methods
   public getCursorState(): CursorState {
     return {
-      x: this.cursorX,
-      y: this.cursorY,
+      x: this._cursorX,
+      y: this._cursorY,
       visible: this.cursorVisible,
       style: this.cursorStyle,
       applicationMode: this.applicationCursorKeys,
@@ -644,8 +655,8 @@ export class StatefulTerminal {
 
   public restoreCursorState(state: CursorState): void {
     // Validate and clamp coordinates to screen boundaries
-    this.cursorX = Math.max(0, Math.min(this.cols - 1, state.x));
-    this.cursorY = Math.max(0, Math.min(this.rows - 1, state.y));
+    this._cursorX = Math.max(0, Math.min(this.cols - 1, state.x));
+    this._cursorY = Math.max(0, Math.min(this.rows - 1, state.y));
     this.cursorVisible = state.visible;
     this.cursorStyle = state.style;
     this.applicationCursorKeys = state.applicationMode;
@@ -662,8 +673,8 @@ export class StatefulTerminal {
     if (!this.alternateScreenManager.isAlternateActive()) {
       // Save current primary buffer state
       const primaryBuffer = this.alternateScreenManager.getPrimaryBuffer();
-      primaryBuffer.cursorX = this.cursorX;
-      primaryBuffer.cursorY = this.cursorY;
+      primaryBuffer.cursorX = this._cursorX;
+      primaryBuffer.cursorY = this._cursorY;
       primaryBuffer.wrapPending = this.wrapPending;
 
       // Switch to alternate buffer
@@ -671,8 +682,8 @@ export class StatefulTerminal {
       const alternateBuffer = this.alternateScreenManager.getCurrentBuffer();
 
       // Load alternate buffer state
-      this.cursorX = alternateBuffer.cursorX;
-      this.cursorY = alternateBuffer.cursorY;
+      this._cursorX = alternateBuffer.cursorX;
+      this._cursorY = alternateBuffer.cursorY;
       this.wrapPending = alternateBuffer.wrapPending;
     }
   }
@@ -682,7 +693,7 @@ export class StatefulTerminal {
    */
   private switchToAlternateScreenWithCursorSave(): void {
     // Save cursor position
-    this.savedCursor = [this.cursorX, this.cursorY];
+    this.savedCursor = [this._cursorX, this._cursorY];
 
     // Switch to alternate screen
     this.switchToAlternateScreen();
@@ -693,15 +704,15 @@ export class StatefulTerminal {
    */
   private switchToAlternateScreenWithCursorSaveAndClear(): void {
     // Save cursor position
-    this.savedCursor = [this.cursorX, this.cursorY];
+    this.savedCursor = [this._cursorX, this._cursorY];
 
     // Switch to alternate screen
     this.switchToAlternateScreen();
 
     // Clear the alternate screen buffer
     this.alternateScreenManager.clearAlternateBuffer();
-    this.cursorX = 0;
-    this.cursorY = 0;
+    this._cursorX = 0;
+    this._cursorY = 0;
     this.wrapPending = false;
   }
 
@@ -712,8 +723,8 @@ export class StatefulTerminal {
     if (this.alternateScreenManager.isAlternateActive()) {
       // Save current alternate buffer state
       const alternateBuffer = this.alternateScreenManager.getAlternateBuffer();
-      alternateBuffer.cursorX = this.cursorX;
-      alternateBuffer.cursorY = this.cursorY;
+      alternateBuffer.cursorX = this._cursorX;
+      alternateBuffer.cursorY = this._cursorY;
       alternateBuffer.wrapPending = this.wrapPending;
 
       // Switch to primary buffer
@@ -721,8 +732,8 @@ export class StatefulTerminal {
       const primaryBuffer = this.alternateScreenManager.getCurrentBuffer();
 
       // Load primary buffer state
-      this.cursorX = primaryBuffer.cursorX;
-      this.cursorY = primaryBuffer.cursorY;
+      this._cursorX = primaryBuffer.cursorX;
+      this._cursorY = primaryBuffer.cursorY;
       this.wrapPending = primaryBuffer.wrapPending;
     }
   }
@@ -736,8 +747,8 @@ export class StatefulTerminal {
 
     // Restore cursor position
     if (this.savedCursor) {
-      this.cursorX = this.savedCursor[0];
-      this.cursorY = this.savedCursor[1];
+      this._cursorX = this.savedCursor[0];
+      this._cursorY = this.savedCursor[1];
       this.clampCursor();
     }
   }
@@ -761,8 +772,8 @@ export class StatefulTerminal {
   }
 
   public reset(): void {
-    this.cursorX = 0;
-    this.cursorY = 0;
+    this._cursorX = 0;
+    this._cursorY = 0;
     this.savedCursor = null;
     this.wrapPending = false;
     this.cursorStyle = 1;
@@ -807,7 +818,7 @@ export class StatefulTerminal {
   }
 
   private emitControlChunk(name: TraceControlName, byte: number): void {
-    this.emitChunk({ _type: "trace.control", implemented: true, cursorX: this.cursorX, cursorY: this.cursorY, name, byte });
+    this.emitChunk({ _type: "trace.control", implemented: true, cursorX: this._cursorX, cursorY: this._cursorY, name, byte });
   }
 
   private emitResponse(response: string): void {
@@ -845,57 +856,57 @@ export class StatefulTerminal {
       return;
     }
 
-    if (this.cursorY < 0 || this.cursorY >= this.rows) {
+    if (this._cursorY < 0 || this._cursorY >= this.rows) {
       return;
     }
 
-    if (this.cursorX < 0) {
-      this.cursorX = 0;
+    if (this._cursorX < 0) {
+      this._cursorX = 0;
     }
 
     // Common terminal behavior (DECAWM autowrap): writing a printable char in
     // the last column sets a pending-wrap flag. The *next* printable char
     // triggers the wrap to column 0 of the next row (with scrolling).
     if (this.wrapPending) {
-      this.cursorX = 0;
-      this.cursorY += 1;
-      if (this.cursorY >= this.rows) {
+      this._cursorX = 0;
+      this._cursorY += 1;
+      if (this._cursorY >= this.rows) {
         this.scrollUp(1);
-        this.cursorY = this.rows - 1;
+        this._cursorY = this.rows - 1;
       }
       this.wrapPending = false;
     }
 
-    if (this.cursorX >= this.cols) {
+    if (this._cursorX >= this.cols) {
       // Best-effort clamp; cursorX should normally remain in-bounds.
-      this.cursorX = this.cols - 1;
+      this._cursorX = this.cols - 1;
     }
 
-    const cell = this.cells[this.cursorY][this.cursorX];
+    const cell = this.cells[this._cursorY][this._cursorX];
     cell.ch = ch;
     cell.sgrState = { ...this.currentSgrState };
 
-    if (this.cursorX === this.cols - 1) {
+    if (this._cursorX === this.cols - 1) {
       this.wrapPending = true;
       return;
     }
 
-    this.cursorX += 1;
+    this._cursorX += 1;
   }
 
   private carriageReturn(): void {
-    this.cursorX = 0;
+    this._cursorX = 0;
     this.wrapPending = false;
   }
 
   private lineFeed(): void {
-    this.cursorY += 1;
+    this._cursorY += 1;
 
     // Check if we've moved past the bottom of the scroll region
-    if (this.cursorY > this.scrollBottom) {
+    if (this._cursorY > this.scrollBottom) {
       // Scroll only within the scroll region
       this.scrollUpInRegion(1);
-      this.cursorY = this.scrollBottom;
+      this._cursorY = this.scrollBottom;
     }
 
     this.wrapPending = false;
@@ -903,16 +914,16 @@ export class StatefulTerminal {
 
   private backspace(): void {
     this.wrapPending = false;
-    if (this.cursorX > 0) {
-      this.cursorX -= 1;
+    if (this._cursorX > 0) {
+      this._cursorX -= 1;
       return;
     }
   }
 
   private tab(): void {
     this.wrapPending = false;
-    const next = Math.min(this.cols - 1, ((Math.floor(this.cursorX / 8) + 1) * 8));
-    while (this.cursorX < next) {
+    const next = Math.min(this.cols - 1, ((Math.floor(this._cursorX / 8) + 1) * 8));
+    while (this._cursorX < next) {
       this.putChar(" ");
     }
   }
@@ -924,8 +935,8 @@ export class StatefulTerminal {
         this.cells[y][x].sgrState = { ...this.currentSgrState };
       }
     }
-    this.cursorX = 0;
-    this.cursorY = 0;
+    this._cursorX = 0;
+    this._cursorY = 0;
     this.wrapPending = false;
   }
 
@@ -945,20 +956,20 @@ export class StatefulTerminal {
   }
 
   private clampCursor(): void {
-    this.cursorX = Math.max(0, Math.min(this.cols - 1, this.cursorX));
-    this.cursorY = Math.max(0, Math.min(this.rows - 1, this.cursorY));
+    this._cursorX = Math.max(0, Math.min(this.cols - 1, this._cursorX));
+    this._cursorY = Math.max(0, Math.min(this.rows - 1, this._cursorY));
     this.wrapPending = false;
   }
 
   private clearLine(mode: 0 | 1 | 2): void {
     this.wrapPending = false;
-    const y = this.cursorY;
+    const y = this._cursorY;
     if (y < 0 || y >= this.rows) {
       return;
     }
 
     if (mode === 0) {
-      for (let x = this.cursorX; x < this.cols; x++) {
+      for (let x = this._cursorX; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
       }
@@ -966,7 +977,7 @@ export class StatefulTerminal {
     }
 
     if (mode === 1) {
-      for (let x = 0; x <= this.cursorX; x++) {
+      for (let x = 0; x <= this._cursorX; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
       }
@@ -981,14 +992,14 @@ export class StatefulTerminal {
 
   private eraseCharacters(count: number): void {
     this.wrapPending = false;
-    const y = this.cursorY;
+    const y = this._cursorY;
     if (y < 0 || y >= this.rows) {
       return;
     }
 
     // Erase 'count' characters starting from cursor position
-    const endX = Math.min(this.cursorX + count, this.cols);
-    for (let x = this.cursorX; x < endX; x++) {
+    const endX = Math.min(this._cursorX + count, this.cols);
+    for (let x = this._cursorX; x < endX; x++) {
       this.cells[y][x].ch = " ";
       this.cells[y][x].sgrState = { ...this.currentSgrState };
     }
@@ -1013,8 +1024,8 @@ export class StatefulTerminal {
     }
 
     // Move cursor to home position within scroll region
-    this.cursorX = 0;
-    this.cursorY = this.scrollTop;
+    this._cursorX = 0;
+    this._cursorY = this.scrollTop;
     this.wrapPending = false;
   }
 
@@ -1063,18 +1074,18 @@ export class StatefulTerminal {
     this.wrapPending = false;
 
     // DL/IL affect only when the cursor is within the scroll region.
-    if (this.cursorY < this.scrollTop || this.cursorY > this.scrollBottom) {
+    if (this._cursorY < this.scrollTop || this._cursorY > this.scrollBottom) {
       return;
     }
 
-    const maxDeletable = this.scrollBottom - this.cursorY + 1;
+    const maxDeletable = this.scrollBottom - this._cursorY + 1;
     const n = Math.max(0, Math.min(count, maxDeletable));
     if (n === 0) {
       return;
     }
 
     // Shift lines up within the region starting at cursorY.
-    for (let y = this.cursorY; y <= this.scrollBottom - n; y++) {
+    for (let y = this._cursorY; y <= this.scrollBottom - n; y++) {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x] = { ...this.cells[y + n][x] };
       }
@@ -1092,25 +1103,25 @@ export class StatefulTerminal {
   private insertLinesInRegion(count: number): void {
     this.wrapPending = false;
 
-    if (this.cursorY < this.scrollTop || this.cursorY > this.scrollBottom) {
+    if (this._cursorY < this.scrollTop || this._cursorY > this.scrollBottom) {
       return;
     }
 
-    const maxInsertable = this.scrollBottom - this.cursorY + 1;
+    const maxInsertable = this.scrollBottom - this._cursorY + 1;
     const n = Math.max(0, Math.min(count, maxInsertable));
     if (n === 0) {
       return;
     }
 
     // Shift lines down within the region starting at cursorY.
-    for (let y = this.scrollBottom; y >= this.cursorY + n; y--) {
+    for (let y = this.scrollBottom; y >= this._cursorY + n; y--) {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x] = { ...this.cells[y - n][x] };
       }
     }
 
     // Clear the inserted blank lines.
-    for (let y = this.cursorY; y < this.cursorY + n; y++) {
+    for (let y = this._cursorY; y < this._cursorY + n; y++) {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
@@ -1128,7 +1139,7 @@ export class StatefulTerminal {
     if (mode === 0) {
       // from cursor to end
       this.clearLine(0);
-      for (let y = this.cursorY + 1; y < this.rows; y++) {
+      for (let y = this._cursorY + 1; y < this.rows; y++) {
         for (let x = 0; x < this.cols; x++) {
           this.cells[y][x].ch = " ";
           this.cells[y][x].sgrState = { ...this.currentSgrState };
@@ -1139,7 +1150,7 @@ export class StatefulTerminal {
 
     if (mode === 1) {
       // from start to cursor
-      for (let y = 0; y < this.cursorY; y++) {
+      for (let y = 0; y < this._cursorY; y++) {
         for (let x = 0; x < this.cols; x++) {
           this.cells[y][x].ch = " ";
           this.cells[y][x].sgrState = { ...this.currentSgrState };
@@ -1153,42 +1164,42 @@ export class StatefulTerminal {
   private handleCsi(msg: CsiMessage): void {
     switch (msg._type) {
       case "csi.cursorUp":
-        this.cursorY -= Math.max(1, msg.count);
+        this._cursorY -= Math.max(1, msg.count);
         this.clampCursor();
         return;
       case "csi.cursorDown":
-        this.cursorY += Math.max(1, msg.count);
+        this._cursorY += Math.max(1, msg.count);
         this.clampCursor();
         return;
       case "csi.cursorForward":
-        this.cursorX += Math.max(1, msg.count);
+        this._cursorX += Math.max(1, msg.count);
         this.clampCursor();
         return;
       case "csi.cursorBackward":
-        this.cursorX -= Math.max(1, msg.count);
+        this._cursorX -= Math.max(1, msg.count);
         this.clampCursor();
         return;
       case "csi.cursorNextLine":
-        this.cursorY += Math.max(1, msg.count);
-        this.cursorX = 0;
+        this._cursorY += Math.max(1, msg.count);
+        this._cursorX = 0;
         this.clampCursor();
         return;
       case "csi.cursorPrevLine":
-        this.cursorY -= Math.max(1, msg.count);
-        this.cursorX = 0;
+        this._cursorY -= Math.max(1, msg.count);
+        this._cursorX = 0;
         this.clampCursor();
         return;
       case "csi.cursorHorizontalAbsolute":
-        this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
+        this._cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
         this.wrapPending = false;
         return;
       case "csi.verticalPositionAbsolute":
-        this.cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
+        this._cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
         this.wrapPending = false;
         return;
       case "csi.cursorPosition":
-        this.cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
-        this.cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
+        this._cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
+        this._cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
         this.wrapPending = false;
         return;
       case "csi.eraseInLine":
@@ -1213,12 +1224,12 @@ export class StatefulTerminal {
         this.scrollDownInRegion(msg.lines);
         return;
       case "csi.saveCursorPosition":
-        this.savedCursor = [this.cursorX, this.cursorY];
+        this.savedCursor = [this._cursorX, this._cursorY];
         return;
       case "csi.restoreCursorPosition":
         if (this.savedCursor) {
-          this.cursorX = this.savedCursor[0];
-          this.cursorY = this.savedCursor[1];
+          this._cursorX = this.savedCursor[0];
+          this._cursorY = this.savedCursor[1];
           this.clampCursor();
         }
         return;
@@ -1368,12 +1379,12 @@ export class StatefulTerminal {
   private handleEsc(msg: EscMessage): void {
     switch (msg._type) {
       case "esc.saveCursor":
-        this.savedCursor = [this.cursorX, this.cursorY];
+        this.savedCursor = [this._cursorX, this._cursorY];
         return;
       case "esc.restoreCursor":
         if (this.savedCursor) {
-          this.cursorX = this.savedCursor[0];
-          this.cursorY = this.savedCursor[1];
+          this._cursorX = this.savedCursor[0];
+          this._cursorY = this.savedCursor[1];
           this.clampCursor();
         }
         return;
@@ -1385,13 +1396,13 @@ export class StatefulTerminal {
       case "esc.reverseIndex": {
         // RI (ESC M): move cursor up; if at top margin, scroll region down.
         this.wrapPending = false;
-        if (this.cursorY <= this.scrollTop) {
-          this.cursorY = this.scrollTop;
+        if (this._cursorY <= this.scrollTop) {
+          this._cursorY = this.scrollTop;
           this.scrollDownInRegion(1);
           return;
         }
 
-        this.cursorY = Math.max(this.scrollTop, this.cursorY - 1);
+        this._cursorY = Math.max(this.scrollTop, this._cursorY - 1);
         return;
       }
     }

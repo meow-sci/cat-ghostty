@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { StatefulTerminal } from "../terminal/StatefulTerminal";
-import { getLogger } from "@catty/log";
 
 describe("OSC Color Query Sequences for vi compatibility", () => {
   describe("OSC 10;? (query foreground color)", () => {
