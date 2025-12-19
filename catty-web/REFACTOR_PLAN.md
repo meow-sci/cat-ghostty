@@ -352,6 +352,8 @@ Acceptance:
 
 ### Step 9 — Extract device query responses + OSC color conversion
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/responses.ts`.
 - Move:
   - `generateDeviceAttributesPrimaryResponse`
