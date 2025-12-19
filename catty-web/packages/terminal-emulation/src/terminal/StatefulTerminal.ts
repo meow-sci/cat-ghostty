@@ -1030,6 +1030,65 @@ export class StatefulTerminal {
     }
   }
 
+  private deleteLinesInRegion(count: number): void {
+    this.wrapPending = false;
+
+    // DL/IL affect only when the cursor is within the scroll region.
+    if (this.cursorY < this.scrollTop || this.cursorY > this.scrollBottom) {
+      return;
+    }
+
+    const maxDeletable = this.scrollBottom - this.cursorY + 1;
+    const n = Math.max(0, Math.min(count, maxDeletable));
+    if (n === 0) {
+      return;
+    }
+
+    // Shift lines up within the region starting at cursorY.
+    for (let y = this.cursorY; y <= this.scrollBottom - n; y++) {
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[y][x] = { ...this.cells[y + n][x] };
+      }
+    }
+
+    // Clear the newly exposed bottom lines.
+    for (let y = this.scrollBottom - n + 1; y <= this.scrollBottom; y++) {
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[y][x].ch = " ";
+        this.cells[y][x].sgrState = { ...this.currentSgrState };
+      }
+    }
+  }
+
+  private insertLinesInRegion(count: number): void {
+    this.wrapPending = false;
+
+    if (this.cursorY < this.scrollTop || this.cursorY > this.scrollBottom) {
+      return;
+    }
+
+    const maxInsertable = this.scrollBottom - this.cursorY + 1;
+    const n = Math.max(0, Math.min(count, maxInsertable));
+    if (n === 0) {
+      return;
+    }
+
+    // Shift lines down within the region starting at cursorY.
+    for (let y = this.scrollBottom; y >= this.cursorY + n; y--) {
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[y][x] = { ...this.cells[y - n][x] };
+      }
+    }
+
+    // Clear the inserted blank lines.
+    for (let y = this.cursorY; y < this.cursorY + n; y++) {
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[y][x].ch = " ";
+        this.cells[y][x].sgrState = { ...this.currentSgrState };
+      }
+    }
+  }
+
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
     this.wrapPending = false;
     if (mode === 2 || mode === 3) {
@@ -1108,6 +1167,14 @@ export class StatefulTerminal {
         return;
       case "csi.eraseInDisplay":
         this.clearDisplay(msg.mode);
+        return;
+
+      case "csi.deleteLines":
+        this.deleteLinesInRegion(Math.max(1, msg.count));
+        return;
+
+      case "csi.insertLines":
+        this.insertLinesInRegion(Math.max(1, msg.count));
         return;
       case "csi.scrollUp":
         this.scrollUpInRegion(msg.lines);

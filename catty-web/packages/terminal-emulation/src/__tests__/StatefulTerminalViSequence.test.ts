@@ -1,32 +1,31 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { StatefulTerminal } from "../terminal/StatefulTerminal";
 
 describe("StatefulTerminal Vi Sequence Handling", () => {
-  it("should handle CSI 11M sequence gracefully", () => {
+  it("should treat CSI 11M as delete lines (DL)", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
-    
-    // Mock the log to capture debug messages
-    const debugSpy = vi.spyOn(terminal['log'], 'debug');
-    const isLevelEnabledSpy = vi.spyOn(terminal['log'], 'isLevelEnabled').mockReturnValue(true);
-    
-    // Process CSI 11M sequence
-    const input = "\x1b[11M";
-    terminal.pushPtyText(input);
-    
-    // Verify that the sequence was handled without errors
-    // The terminal should continue to function normally
-    expect(terminal.cursorX).toBe(0);
-    expect(terminal.cursorY).toBe(0);
-    
-    // Verify debug logging was called
-    expect(debugSpy).toHaveBeenCalledWith("Unknown vi sequence received: CSI 11M");
-    
-    // Clean up spies
-    debugSpy.mockRestore();
-    isLevelEnabledSpy.mockRestore();
+
+    // Fill rows 1..23 with markers so we can see the effect.
+    terminal.pushPtyText("\x1b[1;1H");
+    for (let i = 1; i <= 23; i++) {
+      terminal.pushPtyText(`L${i.toString().padStart(2, "0")}`);
+      terminal.pushPtyText("\r\n");
+    }
+
+    // Vi Ctrl+D style: set scroll region to 1..23, home, delete 11 lines.
+    terminal.pushPtyText("\x1b[1;23r");
+    terminal.pushPtyText("\x1b[H");
+    terminal.pushPtyText("\x1b[11M");
+
+    const snapshot = terminal.getSnapshot();
+    // After deleting 11 lines at the top, old line 12 becomes new line 1.
+    const row1 = snapshot.cells[0].slice(0, 3).map(c => c.ch).join("");
+    const row12 = snapshot.cells[11].slice(0, 3).map(c => c.ch).join("");
+    expect(row1).toBe("L12");
+    expect(row12).toBe("L23");
   });
 
-  it("should handle multiple vi sequences without affecting terminal state", () => {
+  it("should handle multiple DL sequences without affecting cursor state", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     
     // Set initial cursor position
@@ -34,7 +33,7 @@ describe("StatefulTerminal Vi Sequence Handling", () => {
     expect(terminal.cursorX).toBe(9); // 0-indexed
     expect(terminal.cursorY).toBe(4); // 0-indexed
     
-    // Process multiple vi sequences
+    // Process multiple DL sequences
     terminal.pushPtyText("\x1b[11M");
     terminal.pushPtyText("\x1b[5M");
     terminal.pushPtyText("\x1b[20M");
@@ -48,9 +47,9 @@ describe("StatefulTerminal Vi Sequence Handling", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     
     // Mix vi sequences with normal cursor movement
-    terminal.pushPtyText("\x1b[11M");  // Vi sequence
+    terminal.pushPtyText("\x1b[11M");  // DL
     terminal.pushPtyText("\x1b[A");    // Cursor up
-    terminal.pushPtyText("\x1b[5M");   // Vi sequence
+    terminal.pushPtyText("\x1b[5M");   // DL
     terminal.pushPtyText("\x1b[C");    // Cursor right
     
     // Normal sequences should work, vi sequences should be ignored

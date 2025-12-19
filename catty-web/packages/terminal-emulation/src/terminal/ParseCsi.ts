@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate, CsiUnknownViSequence } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -275,18 +275,16 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     return msg;
   }
 
-  // Unknown vi sequences: CSI n M (e.g., CSI 11M)
-  if (final === "M" && !isPrivate && !prefix && intermediate.length === 0) {
-    // Validate that we have exactly one numeric parameter
-    if (params.length === 1 && Number.isInteger(params[0]) && params[0] >= 0) {
-      const msg: CsiUnknownViSequence = {
-        _type: "csi.unknownViSequence",
-        raw,
-        sequenceNumber: params[0],
-        implemented: false // Gracefully acknowledged but not implemented
-      };
-      return msg;
-    }
+  // Delete Lines (DL): CSI Ps M
+  if (final === "M" && !isPrivate && !prefix && intermediate.length === 0 && params.length <= 1) {
+    const msg: CsiDeleteLines = { _type: "csi.deleteLines", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
+  // Insert Lines (IL): CSI Ps L
+  if (final === "L" && !isPrivate && !prefix && intermediate.length === 0 && params.length <= 1) {
+    const msg: CsiInsertLines = { _type: "csi.insertLines", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
   }
 
   const unknown: CsiUnknown = {

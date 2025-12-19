@@ -208,6 +208,24 @@ export interface CsiEraseInLine extends CsiBase {
   mode: CsiEraseInLineMode;
 }
 
+/**
+ * Delete Lines (DL)
+ * CSI Ps M — Delete Ps lines starting at the cursor line within the scroll region.
+ */
+export interface CsiDeleteLines extends CsiBase {
+  _type: "csi.deleteLines";
+  count: number;
+}
+
+/**
+ * Insert Lines (IL)
+ * CSI Ps L — Insert Ps blank lines at the cursor line within the scroll region.
+ */
+export interface CsiInsertLines extends CsiBase {
+  _type: "csi.insertLines";
+  count: number;
+}
+
 export interface CsiScrollUp extends CsiBase {
   _type: "csi.scrollUp";
   lines: number;
@@ -397,6 +415,8 @@ export type CsiMessage =
   | CsiCursorPosition
   | CsiEraseInDisplay
   | CsiEraseInLine
+  | CsiDeleteLines
+  | CsiInsertLines
   | CsiScrollUp
   | CsiScrollDown
   | CsiSetScrollRegion

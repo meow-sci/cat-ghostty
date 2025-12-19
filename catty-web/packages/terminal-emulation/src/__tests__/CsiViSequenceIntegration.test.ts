@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { StatefulTerminal } from "../terminal/StatefulTerminal";
 
 describe("CSI Vi Sequence Integration", () => {
-  it("should handle CSI 11M in a realistic vi usage scenario", () => {
+  it("should handle CSI 11M (DL) in a realistic vi usage scenario", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     
     // Simulate a realistic vi session with mixed sequences
@@ -11,9 +11,9 @@ describe("CSI Vi Sequence Integration", () => {
       "\x1b[H",         // Move cursor to home
       "\x1b[2J",        // Clear screen
       "Hello World",    // Write some text
-      "\x1b[11M",       // The unknown vi sequence
+      "\x1b[11M",       // Delete lines within scroll region (used by vi)
       "\x1b[A",         // Cursor up
-      "\x1b[11M",       // Another unknown vi sequence
+      "\x1b[11M",       // Another delete-lines
       "More text",      // Write more text
       "\x1b[?1049l"     // Exit alternate screen (vi exit)
     ].join("");
@@ -35,7 +35,7 @@ describe("CSI Vi Sequence Integration", () => {
   it("should handle various vi M sequences without errors", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     
-    // Test various M sequences that might appear in vi
+    // Test various DL (CSI Ps M) sequences that might appear in vi
     const sequences = [
       "\x1b[1M",
       "\x1b[2M", 
@@ -60,7 +60,7 @@ describe("CSI Vi Sequence Integration", () => {
   it("should differentiate between CSI nM and CSI nm sequences", () => {
     const terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     
-    // CSI 11M should be handled as unknown vi sequence
+    // CSI 11M should be handled as DL (delete lines)
     terminal.pushPtyText("\x1b[11M");
     
     // CSI 11m should be handled as SGR (font selection)

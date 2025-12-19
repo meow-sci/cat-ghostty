@@ -1,50 +1,50 @@
 import { describe, it, expect } from "vitest";
 import { parseCsi } from "../terminal/ParseCsi";
 
-describe("CSI Unknown Vi Sequence Parsing", () => {
-  it("should parse CSI 11M as unknown vi sequence", () => {
-    // CSI 11M sequence: ESC [ 1 1 M
+describe("CSI Delete/Insert Line Parsing", () => {
+  it("should parse CSI 11M as delete lines", () => {
     const bytes = [0x1b, 0x5b, 0x31, 0x31, 0x4d]; // ESC [ 1 1 M
     const raw = "\x1b[11M";
-    
+
     const result = parseCsi(bytes, raw);
-    
-    expect(result._type).toBe("csi.unknownViSequence");
+
+    expect(result._type).toBe("csi.deleteLines");
     expect(result.raw).toBe(raw);
-    expect(result.implemented).toBe(false);
-    
-    if (result._type === "csi.unknownViSequence") {
-      expect(result.sequenceNumber).toBe(11);
+    expect(result.implemented).toBe(true);
+
+    if (result._type === "csi.deleteLines") {
+      expect(result.count).toBe(11);
     }
   });
 
-  it("should parse CSI 5M as unknown vi sequence", () => {
-    // CSI 5M sequence: ESC [ 5 M
-    const bytes = [0x1b, 0x5b, 0x35, 0x4d]; // ESC [ 5 M
-    const raw = "\x1b[5M";
-    
-    const result = parseCsi(bytes, raw);
-    
-    expect(result._type).toBe("csi.unknownViSequence");
-    expect(result.raw).toBe(raw);
-    expect(result.implemented).toBe(false);
-    
-    if (result._type === "csi.unknownViSequence") {
-      expect(result.sequenceNumber).toBe(5);
-    }
-  });
-
-  it("should handle CSI M without parameters as unknown", () => {
-    // CSI M sequence without parameters: ESC [ M
+  it("should parse CSI M without parameters as delete 1 line", () => {
     const bytes = [0x1b, 0x5b, 0x4d]; // ESC [ M
     const raw = "\x1b[M";
-    
+
     const result = parseCsi(bytes, raw);
-    
-    // Should fall back to unknown since no parameters
-    expect(result._type).toBe("csi.unknown");
+
+    expect(result._type).toBe("csi.deleteLines");
     expect(result.raw).toBe(raw);
-    expect(result.implemented).toBe(false);
+    expect(result.implemented).toBe(true);
+
+    if (result._type === "csi.deleteLines") {
+      expect(result.count).toBe(1);
+    }
+  });
+
+  it("should parse CSI 5L as insert lines", () => {
+    const bytes = [0x1b, 0x5b, 0x35, 0x4c]; // ESC [ 5 L
+    const raw = "\x1b[5L";
+
+    const result = parseCsi(bytes, raw);
+
+    expect(result._type).toBe("csi.insertLines");
+    expect(result.raw).toBe(raw);
+    expect(result.implemented).toBe(true);
+
+    if (result._type === "csi.insertLines") {
+      expect(result.count).toBe(5);
+    }
   });
 
   it("should handle CSI with multiple parameters and M as unknown", () => {
