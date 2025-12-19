@@ -382,4 +382,32 @@ describe("TerminalController Window Management", () => {
     const scrollbackAfter = terminal.getScrollbackRowCount();
     expect((controller as unknown as ControllerInternals).viewportTopRow).toBe(scrollbackAfter);
   });
+
+  it("should snap viewport back to bottom on Enter after scrolling up", async () => {
+    type ControllerInternals = {
+      viewportTopRow: number;
+    };
+
+    // Force enough output to create scrollback.
+    const lines = Array.from({ length: 80 }, (_, i) => `line-${i}`).join("\n") + "\n";
+    terminal.pushPtyText(lines);
+
+    const scrollbackRows = terminal.getScrollbackRowCount();
+    expect(scrollbackRows).toBeGreaterThan(0);
+    expect((controller as unknown as ControllerInternals).viewportTopRow).toBe(scrollbackRows);
+
+    // Scroll up locally via wheel (mouse mode disabled, primary screen).
+    const wheelUp = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: -100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelUp);
+    await flushRaf();
+
+    expect((controller as unknown as ControllerInternals).viewportTopRow).toBeLessThan(scrollbackRows);
+
+    // Typing Enter should snap back to bottom so the cursor/prompt is visible.
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    inputElement.dispatchEvent(enter);
+
+    expect((controller as unknown as ControllerInternals).viewportTopRow).toBe(scrollbackRows);
+    expect(wsSends[wsSends.length - 1]).toBe("\r");
+  });
 });

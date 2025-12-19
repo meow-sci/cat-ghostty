@@ -713,6 +713,8 @@ export class TerminalController {
       // Cooked (default): local line buffer in the <input>, send only on Enter.
       if (this.inputMode === "cooked") {
 
+        this.snapViewportToBottom();
+
         // Allow Ctrl+C / Ctrl+D to be sent immediately.
         const ctrl = encodeCtrlKey(e);
 
@@ -821,6 +823,8 @@ export class TerminalController {
         return;
       }
 
+      this.snapViewportToBottom();
+
       e.preventDefault();
       // Keep the input empty in raw mode (it is just a focus/IME surface).
       this.inputElement.value = "";
@@ -840,6 +844,7 @@ export class TerminalController {
           return;
         }
         e.preventDefault();
+        this.snapViewportToBottom();
         this.insertCookedText(text);
         this.inputElement.value = "";
         return;
@@ -854,6 +859,7 @@ export class TerminalController {
       }
       e.preventDefault();
       this.inputElement.value = "";
+      this.snapViewportToBottom();
       const payload = this.bracketedPasteEnabled
         ? `\x1b[200~${text}\x1b[201~`
         : text;
@@ -1280,6 +1286,23 @@ export class TerminalController {
       return;
     }
     this.viewportTopRow = next;
+    this.lastScrollbackRowCount = scrollbackRows;
+    this.scheduleRepaint();
+  }
+
+  private snapViewportToBottom(): void {
+    if (this.terminal.isAlternateScreenActive()) {
+      return;
+    }
+
+    const scrollbackRows = this.terminal.getScrollbackRowCount();
+    if (this.viewportTopRow === scrollbackRows) {
+      return;
+    }
+
+    // If the user has scrolled up, typing should snap the viewport back to the
+    // active cursor/bottom so input stays visible.
+    this.viewportTopRow = scrollbackRows;
     this.lastScrollbackRowCount = scrollbackRows;
     this.scheduleRepaint();
   }
