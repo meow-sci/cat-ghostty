@@ -83,7 +83,7 @@ export class BackendServer {
 
     try {
       // Determine the appropriate shell for the OS
-      const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
+      const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'zsh');
 
       // Create environment with Kitty graphics support indicators
       const term = 'xterm-256color';
@@ -93,6 +93,13 @@ export class BackendServer {
         TERM_PROGRAM: 'caTTY',
         COLORTERM: 'truecolor'
       } as { [key: string]: string };
+
+      // Remove any environment variables with "npm_" prefix
+      for (const key of Object.keys(env)) {
+        if (key.toLowerCase().startsWith('npm_')) {
+          delete env[key];
+        }
+      }
 
       // Spawn PTY process with default dimensions
       const pty = spawn(shell, [], {
