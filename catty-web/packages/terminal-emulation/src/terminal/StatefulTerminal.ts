@@ -167,6 +167,9 @@ export class StatefulTerminal {
   private scrollTop = 0;
   private scrollBottom: number;
 
+  // Tab stops (HTS/TAB). Defaults to every 8 columns.
+  private tabStops: boolean[] = [];
+
   // Window properties state
   private windowProperties: WindowProperties = {
     title: "",
@@ -211,6 +214,9 @@ export class StatefulTerminal {
     // Initialize scroll region to full screen
     this.scrollBottom = this.rows - 1;
 
+    // Initialize tab stops
+    this.initializeTabStops();
+
     // Initialize alternate screen manager
     this.alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
 
@@ -242,6 +248,16 @@ export class StatefulTerminal {
         handleTab: () => {
           this.emitControlChunk("TAB", 0x09);
           this.tab();
+          this.requestUpdate();
+        },
+        handleShiftIn: () => {
+          this.emitControlChunk("SI", 0x0f);
+          this.shiftIn();
+          this.requestUpdate();
+        },
+        handleShiftOut: () => {
+          this.emitControlChunk("SO", 0x0e);
+          this.shiftOut();
           this.requestUpdate();
         },
         handleLineFeed: () => {
@@ -300,6 +316,27 @@ export class StatefulTerminal {
         },
       },
     });
+  }
+
+  private initializeTabStops(): void {
+    this.tabStops = Array.from({ length: this.cols }, (_, i) => i % 8 === 0);
+  }
+
+  private setTabStopAtCursor(): void {
+    if (this._cursorX < 0 || this._cursorX >= this.cols) {
+      return;
+    }
+    this.tabStops[this._cursorX] = true;
+  }
+
+  private shiftIn(): void {
+    // SI: invoke G0 into GL
+    this.characterSets.current = "G0";
+  }
+
+  private shiftOut(): void {
+    // SO: invoke G1 into GL
+    this.characterSets.current = "G1";
   }
 
   public onUpdate(listener: UpdateListener): () => void {
@@ -777,6 +814,23 @@ export class StatefulTerminal {
   }
 
   public reset(): void {
+    // Hard reset (best-effort): return to primary buffer, clear screens, and reset modes/state.
+    this.alternateScreenManager.switchToPrimary();
+
+    const primary = this.alternateScreenManager.getPrimaryBuffer();
+    primary.cells = createCellGrid(this.cols, this.rows);
+    primary.cursorX = 0;
+    primary.cursorY = 0;
+    primary.savedCursor = null;
+    primary.wrapPending = false;
+
+    const alternate = this.alternateScreenManager.getAlternateBuffer();
+    alternate.cells = createCellGrid(this.cols, this.rows);
+    alternate.cursorX = 0;
+    alternate.cursorY = 0;
+    alternate.savedCursor = null;
+    alternate.wrapPending = false;
+
     this._cursorX = 0;
     this._cursorY = 0;
     this.savedCursor = null;
@@ -784,10 +838,17 @@ export class StatefulTerminal {
     this.cursorStyle = 1;
     this.cursorVisible = true;
     this.applicationCursorKeys = false;
+
+    this.scrollTop = 0;
+    this.scrollBottom = this.rows - 1;
+
+    this.currentSgrState = createDefaultSgrState();
+
     this.windowProperties = {
       title: "",
       iconName: ""
     };
+
     this.characterSets = {
       G0: "B",
       G1: "B",
@@ -795,12 +856,42 @@ export class StatefulTerminal {
       G3: "B",
       current: "G0",
     };
+
     this.utf8Mode = true;
+    this.initializeTabStops();
+
     // Clear title/icon name stacks
     this.titleStack = [];
     this.iconNameStack = [];
-    this.clear();
+
     this.emitUpdate();
+  }
+
+  private softReset(): void {
+    // DECSTR (soft reset): reset modes/state without clearing the screen.
+    this._cursorX = 0;
+    this._cursorY = 0;
+    this.savedCursor = null;
+    this.wrapPending = false;
+    this.cursorStyle = 1;
+    this.cursorVisible = true;
+    this.applicationCursorKeys = false;
+
+    this.scrollTop = 0;
+    this.scrollBottom = this.rows - 1;
+
+    this.currentSgrState = createDefaultSgrState();
+
+    this.characterSets = {
+      G0: "B",
+      G1: "B",
+      G2: "B",
+      G3: "B",
+      current: "G0",
+    };
+
+    this.utf8Mode = true;
+    this.initializeTabStops();
   }
 
   private emitUpdate(): void {
@@ -985,10 +1076,20 @@ export class StatefulTerminal {
 
   private tab(): void {
     this.wrapPending = false;
-    const next = Math.min(this.cols - 1, ((Math.floor(this._cursorX / 8) + 1) * 8));
-    while (this._cursorX < next) {
-      this.putChar(" ");
+
+    if (this._cursorX < 0) {
+      this._cursorX = 0;
     }
+
+    let nextStop = -1;
+    for (let x = this._cursorX + 1; x < this.cols; x += 1) {
+      if (this.tabStops[x]) {
+        nextStop = x;
+        break;
+      }
+    }
+
+    this._cursorX = nextStop === -1 ? (this.cols - 1) : nextStop;
   }
 
   private clear(): void {
@@ -1363,6 +1464,10 @@ export class StatefulTerminal {
         this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
         return;
 
+      case "csi.decSoftReset":
+        this.softReset();
+        return;
+
       case "csi.setCursorStyle":
         // DECSCUSR (CSI Ps SP q)
         // Ps:
@@ -1476,6 +1581,23 @@ export class StatefulTerminal {
         this._cursorY = Math.max(this.scrollTop, this._cursorY - 1);
         return;
       }
+
+      case "esc.index":
+        this.lineFeed();
+        return;
+
+      case "esc.nextLine":
+        this.carriageReturn();
+        this.lineFeed();
+        return;
+
+      case "esc.horizontalTabSet":
+        this.setTabStopAtCursor();
+        return;
+
+      case "esc.resetToInitialState":
+        this.reset();
+        return;
     }
   }
 

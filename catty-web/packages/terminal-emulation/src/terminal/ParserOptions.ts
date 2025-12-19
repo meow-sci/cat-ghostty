@@ -1,6 +1,6 @@
 import { getLogger } from "@catty/log";
 
-import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr, HandleDcs, HandleXtermOsc } from "./ParserHandlers";
+import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleShiftIn, HandleShiftOut, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr, HandleDcs, HandleXtermOsc } from "./ParserHandlers";
 
 export interface ParserHandlers {
   handleBell: HandleBell;
@@ -9,6 +9,8 @@ export interface ParserHandlers {
   handleLineFeed: HandleLineFeed;
   handleFormFeed: HandleFormFeed;
   handleCarriageReturn: HandleCarriageReturn;
+  handleShiftIn: HandleShiftIn;
+  handleShiftOut: HandleShiftOut;
   handleNormalByte: HandleNormalByte;
 
   /** Non-CSI ESC handler hook (e.g. ESC 7/8). */

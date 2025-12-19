@@ -56,6 +56,8 @@ function createStateCapturingHandlers(): { handlers: ParserHandlers; captured: C
     handleBell: () => { captured.controlCalls.bell++; },
     handleBackspace: () => { captured.controlCalls.backspace++; },
     handleTab: () => { captured.controlCalls.tab++; },
+    handleShiftIn: () => {},
+    handleShiftOut: () => {},
     handleLineFeed: () => { captured.controlCalls.lineFeed++; },
     handleFormFeed: () => { captured.controlCalls.formFeed++; },
     handleCarriageReturn: () => { captured.controlCalls.carriageReturn++; },

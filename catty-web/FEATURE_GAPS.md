@@ -7,7 +7,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Summary
 
 - Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
-- The biggest remaining risks are **reset/soft reset behavior**, and some **legacy VT/ECMA-48 controls** (SI/SO, IND/NEL/HTS, tab stop control, origin/autowrap modes).
+- The biggest remaining risks are **tab stop control beyond basics** (TBC/CHT/CBT) and a few **DEC private modes** (origin/autowrap mode gating, etc.).
 
 ---
 
@@ -69,7 +69,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ---
 
-### 4) SI/SO (Shift In/Out) and single-shifts are not handled
+### 4) SI/SO (Shift In/Out) and single-shifts
 
 **Why it matters:**
 - VT100 character set switching is used for line-drawing (DEC Special Graphics) and some legacy apps.
@@ -81,14 +81,16 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - (Optional but related) `SS2` (`ESC N`) and `SS3` (`ESC O`) affect next character only.
 
 **Current state:**
-- `Parser.handleC0ExceptEscape` does not treat 0x0E/0x0F as controls, so they flow through as normal bytes.
+- Implemented: `SO` (0x0E) and `SI` (0x0F) are handled as C0 controls and switch the invoked character set between `G1` and `G0` respectively.
 
 **Where to implement:**
-- Add handling for `SI`/`SO` in `Parser.handleC0ExceptEscape` and route to a handler in `StatefulTerminal` that updates the currently-invoked character set (`characterSets.current`).
+- Implemented in:
+  - `packages/terminal-emulation/src/terminal/Parser.ts`
+  - `packages/terminal-emulation/src/terminal/StatefulTerminal.ts`
 
 ---
 
-### 5) Basic ESC single-character functions missing: IND/NEL/HTS
+### 5) Basic ESC single-character functions: IND/NEL/HTS
 
 **Why it matters:**
 - These are core VT100/xterm functions and are commonly used in older code and some terminfo capabilities.
@@ -99,15 +101,16 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `ESC H` — **HTS** (Tab Set): sets a tab stop at current column
 
 **Current state:**
-- Only `ESC 7`, `ESC 8`, `ESC M`, and charset designation are explicitly handled.
+- Implemented: `ESC D` (IND), `ESC E` (NEL), and `ESC H` (HTS) are parsed and executed.
 
 **Where to implement:**
-- Extend `Parser.handleEscapeByte` to recognize these and emit explicit `EscMessage` variants.
-- Implement behavior in `StatefulTerminal.handleEsc`.
+- Implemented in:
+  - `packages/terminal-emulation/src/terminal/Parser.ts`
+  - `packages/terminal-emulation/src/terminal/StatefulTerminal.ts`
 
 ---
 
-### 6) Reset controls: RIS and DECSTR are missing
+### 6) Reset controls: RIS and DECSTR
 
 **Why it matters:**
 - Apps (and test suites like vttest) use resets to restore a known state.
@@ -118,10 +121,15 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `CSI ! p` — **DECSTR** (Soft Reset)
 
 **Current state:**
-- Neither is parsed/handled.
+- Implemented:
+  - `ESC c` (RIS) triggers a best-effort hard reset (clears buffers and resets state).
+  - `CSI ! p` (DECSTR) triggers a soft reset (resets state/modes without clearing the screen).
 
 **Where to implement:**
-- Parse in `Parser`/`ParseCsi`, implement in `StatefulTerminal.reset()` (soft reset can reuse parts of full reset).
+- Implemented in:
+  - `packages/terminal-emulation/src/terminal/Parser.ts` (RIS)
+  - `packages/terminal-emulation/src/terminal/ParseCsi.ts` (DECSTR)
+  - `packages/terminal-emulation/src/terminal/StatefulTerminal.ts` (hard + soft reset behaviors)
 
 ---
 
@@ -163,6 +171,10 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `CSI Ps Z` — CBT (Backward Tabulation)
 - `CSI Ps g` — TBC (Tab Clear)
 - `ESC H` — HTS (Tab Set) (also listed above)
+
+**Current state:**
+- Implemented (basics): tab stops are now tracked (default every 8 cols), `ESC H` sets a tab stop, and `TAB` advances to the next stop.
+- Not yet implemented: `CSI Ps I`/`CSI Ps Z` and `CSI Ps g`.
 
 ---
 

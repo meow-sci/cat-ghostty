@@ -21,6 +21,8 @@ function createOscCapturingHandlers(): { handlers: ParserHandlers; captured: Cap
     handleBell: () => {},
     handleBackspace: () => {},
     handleTab: () => {},
+    handleShiftIn: () => {},
+    handleShiftOut: () => {},
     handleLineFeed: () => {},
     handleFormFeed: () => {},
     handleCarriageReturn: () => {},

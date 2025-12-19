@@ -13,7 +13,7 @@ export interface TraceNormalByteChunk extends TraceCursorPosition {
   byte: number;
 }
 
-export type TraceControlName = "BEL" | "BS" | "TAB" | "LF" | "FF" | "CR";
+export type TraceControlName = "BEL" | "BS" | "TAB" | "SO" | "SI" | "LF" | "FF" | "CR";
 
 export interface TraceControlChunk extends TraceCursorPosition {
   _type: "trace.control";
@@ -65,6 +65,8 @@ function makeControlCharsVisible(text: string): string {
     .replaceAll("\r", "<CR>")
     .replaceAll("\n", "<LF>\n")
     .replaceAll("\t", "<TAB>")
+    .replaceAll("\x0e", "<SO>")
+    .replaceAll("\x0f", "<SI>")
     .replaceAll("\x07", "<BEL>");
 }
 

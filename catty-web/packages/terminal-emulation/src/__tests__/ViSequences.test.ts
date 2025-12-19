@@ -22,6 +22,8 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     handleBell: () => {},
     handleBackspace: () => {},
     handleTab: () => {},
+    handleShiftIn: () => {},
+    handleShiftOut: () => {},
     handleLineFeed: () => {},
     handleFormFeed: () => {},
     handleCarriageReturn: () => {},

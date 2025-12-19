@@ -124,7 +124,46 @@ export interface EscReverseIndex extends EscBase {
   _type: "esc.reverseIndex";
 }
 
-export type EscMessage = EscSaveCursor | EscRestoreCursor | EscDesignateCharacterSet | EscReverseIndex;
+/**
+ * IND (ESC D): Index.
+ * Move cursor down one line; if already at bottom margin, scroll the scroll-region up.
+ */
+export interface EscIndex extends EscBase {
+  _type: "esc.index";
+}
+
+/**
+ * NEL (ESC E): Next Line.
+ * Like CR+LF (move to first column, then index).
+ */
+export interface EscNextLine extends EscBase {
+  _type: "esc.nextLine";
+}
+
+/**
+ * HTS (ESC H): Horizontal Tab Set.
+ * Set a tab stop at the current column.
+ */
+export interface EscHorizontalTabSet extends EscBase {
+  _type: "esc.horizontalTabSet";
+}
+
+/**
+ * RIS (ESC c): Reset to Initial State.
+ */
+export interface EscResetToInitialState extends EscBase {
+  _type: "esc.resetToInitialState";
+}
+
+export type EscMessage =
+  | EscSaveCursor
+  | EscRestoreCursor
+  | EscDesignateCharacterSet
+  | EscReverseIndex
+  | EscIndex
+  | EscNextLine
+  | EscHorizontalTabSet
+  | EscResetToInitialState;
 
 // =============================================================================
 // DCS Types (Device Control String)
@@ -258,6 +297,13 @@ export interface CsiDecModeSet extends CsiBase {
 export interface CsiDecModeReset extends CsiBase {
   _type: "csi.decModeReset";
   modes: number[];
+}
+
+/**
+ * DECSTR (CSI ! p): Soft terminal reset.
+ */
+export interface CsiDecSoftReset extends CsiBase {
+  _type: "csi.decSoftReset";
 }
 
 export interface CsiSetCursorStyle extends CsiBase {
@@ -444,6 +490,7 @@ export type CsiMessage =
   | CsiRestoreCursorPosition
   | CsiDecModeSet
   | CsiDecModeReset
+  | CsiDecSoftReset
   | CsiSetCursorStyle
   | CsiUnknown
   | XtermCsiMessage;

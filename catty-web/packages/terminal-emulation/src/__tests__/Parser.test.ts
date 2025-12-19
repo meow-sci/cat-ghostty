@@ -20,6 +20,8 @@ interface CapturedEvents {
   bells: number;
   backspaces: number;
   tabs: number;
+  shiftIns: number;
+  shiftOuts: number;
   lineFeeds: number;
   formFeeds: number;
   carriageReturns: number;
@@ -38,6 +40,8 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     bells: 0,
     backspaces: 0,
     tabs: 0,
+    shiftIns: 0,
+    shiftOuts: 0,
     lineFeeds: 0,
     formFeeds: 0,
     carriageReturns: 0,
@@ -52,6 +56,12 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     },
     handleTab: () => {
       captured.tabs++;
+    },
+    handleShiftIn: () => {
+      captured.shiftIns++;
+    },
+    handleShiftOut: () => {
+      captured.shiftOuts++;
     },
     handleLineFeed: () => {
       captured.lineFeeds++;
@@ -240,6 +250,17 @@ describe("Parser", () => {
 
       expect(captured.normalText).toBe("ab");
       expect(captured.tabs).toBe(1);
+    });
+
+    it("should handle shift out/in (SO/SI)", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("a\x0eb\x0fc"));
+
+      expect(captured.normalText).toBe("abc");
+      expect(captured.shiftOuts).toBe(1);
+      expect(captured.shiftIns).toBe(1);
     });
 
     it("should handle line feed (LF)", async () => {

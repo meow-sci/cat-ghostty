@@ -351,6 +351,46 @@ export class Parser {
         return;
       }
 
+      // IND (Index): ESC D
+      if (byte === 0x44) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = { _type: "esc.index", raw, implemented: true };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
+
+      // NEL (Next Line): ESC E
+      if (byte === 0x45) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = { _type: "esc.nextLine", raw, implemented: true };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
+
+      // HTS (Horizontal Tab Set): ESC H
+      if (byte === 0x48) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = { _type: "esc.horizontalTabSet", raw, implemented: true };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
+
+      // RIS (Reset to Initial State): ESC c
+      if (byte === 0x63) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = { _type: "esc.resetToInitialState", raw, implemented: true };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
+
       // Character set designation: ESC ( X, ESC ) X, ESC * X, ESC + X
       // These are two-byte sequences after ESC
       if (byte === 0x28 || byte === 0x29 || byte === 0x2a || byte === 0x2b) {
@@ -501,6 +541,12 @@ export class Parser {
         return true;
       case 0x09: // Tab
         this.handlers.handleTab();
+        return true;
+      case 0x0e: // Shift Out (SO)
+        this.handlers.handleShiftOut();
+        return true;
+      case 0x0f: // Shift In (SI)
+        this.handlers.handleShiftIn();
         return true;
       case 0x0a: // Line Feed
         this.handlers.handleLineFeed();
