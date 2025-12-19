@@ -173,8 +173,8 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `ESC H` — HTS (Tab Set) (also listed above)
 
 **Current state:**
-- Implemented (basics): tab stops are now tracked (default every 8 cols), `ESC H` sets a tab stop, and `TAB` advances to the next stop.
-- Not yet implemented: `CSI Ps I`/`CSI Ps Z` and `CSI Ps g`.
+- Implemented: tab stops are tracked (default every 8 cols), `ESC H` sets a tab stop, `TAB` advances to the next stop, and the remaining controls are supported:
+  - `CSI Ps I` (CHT), `CSI Ps Z` (CBT), `CSI Ps g` (TBC 0/3)
 
 ---
 

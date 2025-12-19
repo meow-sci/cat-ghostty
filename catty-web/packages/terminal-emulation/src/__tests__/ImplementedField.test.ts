@@ -43,7 +43,7 @@ describe("Implemented Field", () => {
 
     // Test unknown CSI command
     capturedCsi.length = 0;
-    parser.pushBytes(new TextEncoder().encode("\x1b[99Z"));
+    parser.pushBytes(new TextEncoder().encode("\x1b[99Q"));
     expect(capturedCsi).toHaveLength(1);
     expect(capturedCsi[0]._type).toBe("csi.unknown");
     expect(capturedCsi[0].implemented).toBe(false);

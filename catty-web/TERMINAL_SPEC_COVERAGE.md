@@ -14,6 +14,8 @@ This document tracks the implementation status of terminal escape sequences in c
 | BEL (0x07) | Bell | ECMA-48 | ✅ | Audio/visual bell |
 | BS (0x08) | Backspace | ECMA-48 | ✅ | Move cursor left |
 | HT (0x09) | Horizontal Tab | ECMA-48 | ✅ | Move to next tab stop |
+| SO (0x0E) | Shift Out | ECMA-48 | ✅ | Invoke G1 as GL (charset invocation) |
+| SI (0x0F) | Shift In | ECMA-48 | ✅ | Invoke G0 as GL (charset invocation) |
 | LF (0x0A) | Line Feed | ECMA-48 | ✅ | Move cursor down |
 | FF (0x0C) | Form Feed | ECMA-48 | ✅ | Treated as line feed |
 | CR (0x0D) | Carriage Return | ECMA-48 | ✅ | Move cursor to column 0 |
@@ -24,6 +26,11 @@ This document tracks the implementation status of terminal escape sequences in c
 |----------|------|------|--------|-------|
 | ESC 7 | DECSC - Save Cursor | xterm | ✅ | Save cursor position |
 | ESC 8 | DECRC - Restore Cursor | xterm | ✅ | Restore cursor position |
+| ESC D | IND - Index | VT100/xterm | ✅ | Move down; scrolls within scroll region |
+| ESC E | NEL - Next Line | VT100/xterm | ✅ | CR + IND |
+| ESC H | HTS - Horizontal Tab Set | VT100/xterm | ✅ | Set tab stop at current column |
+| ESC M | RI - Reverse Index | VT100/xterm | ✅ | Move up; scrolls within scroll region |
+| ESC c | RIS - Reset to Initial State | VT100/xterm | ✅ | Hard reset (best-effort) |
 | ESC ( X | Designate G0 Character Set | ECMA-48 | ✅ | Character set designation |
 | ESC ) X | Designate G1 Character Set | ECMA-48 | ✅ | Character set designation |
 | ESC * X | Designate G2 Character Set | ECMA-48 | ✅ | Character set designation |
@@ -66,6 +73,20 @@ This document tracks the implementation status of terminal escape sequences in c
 |----------|------|------|--------|-------|
 | CSI s | SCP - Save Cursor Position | xterm | ✅ | Save cursor (ANSI version) |
 | CSI u | RCP - Restore Cursor Position | xterm | ✅ | Restore cursor (ANSI version) |
+
+## CSI Sequences (Tabulation)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI n I | CHT - Cursor Forward Tabulation | ECMA-48 | ✅ | Move to next tab stop n times |
+| CSI n Z | CBT - Cursor Backward Tabulation | ECMA-48 | ✅ | Move to previous tab stop n times |
+| CSI Ps g | TBC - Tab Clear | ECMA-48 | ✅ | Ps=0 clear at cursor (default); Ps=3 clear all |
+
+## CSI Sequences (Reset)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI ! p | DECSTR - Soft Reset | xterm | ✅ | Reset state/modes without clearing screen |
 
 ## CSI Sequences (Modes)
 
@@ -257,3 +278,9 @@ The terminal emulator has comprehensive parsing coverage and core SGR styling im
 - OSC color query sequences for foreground/background color detection
 - Window manipulation sequences (parsed but gracefully ignored for web security)
 - Complete SGR styling system with CSS generation and theme integration
+
+### Recent Additions (Legacy/Reset/Tab Stops)
+- SI/SO character set invocation (0x0E/0x0F)
+- IND/NEL/HTS/RIS ESC functions (ESC D/E/H/c)
+- DECSTR soft reset (CSI ! p)
+- CHT/CBT/TBC tab-stop controls (CSI I/Z/g)

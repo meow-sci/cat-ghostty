@@ -329,6 +329,59 @@ export class StatefulTerminal {
     this.tabStops[this._cursorX] = true;
   }
 
+  private clearTabStopAtCursor(): void {
+    if (this._cursorX < 0 || this._cursorX >= this.cols) {
+      return;
+    }
+    this.tabStops[this._cursorX] = false;
+  }
+
+  private clearAllTabStops(): void {
+    this.tabStops = Array.from({ length: this.cols }, () => false);
+  }
+
+  private cursorForwardTab(count: number): void {
+    const n = Math.max(1, count);
+
+    if (this._cursorX < 0) {
+      this._cursorX = 0;
+    }
+
+    for (let i = 0; i < n; i += 1) {
+      let nextStop = -1;
+      for (let x = this._cursorX + 1; x < this.cols; x += 1) {
+        if (this.tabStops[x]) {
+          nextStop = x;
+          break;
+        }
+      }
+      this._cursorX = nextStop === -1 ? (this.cols - 1) : nextStop;
+    }
+
+    this.wrapPending = false;
+  }
+
+  private cursorBackwardTab(count: number): void {
+    const n = Math.max(1, count);
+
+    if (this._cursorX < 0) {
+      this._cursorX = 0;
+    }
+
+    for (let i = 0; i < n; i += 1) {
+      let prevStop = -1;
+      for (let x = this._cursorX - 1; x >= 0; x -= 1) {
+        if (this.tabStops[x]) {
+          prevStop = x;
+          break;
+        }
+      }
+      this._cursorX = prevStop === -1 ? 0 : prevStop;
+    }
+
+    this.wrapPending = false;
+  }
+
   private shiftIn(): void {
     // SI: invoke G0 into GL
     this.characterSets.current = "G0";
@@ -1077,19 +1130,7 @@ export class StatefulTerminal {
   private tab(): void {
     this.wrapPending = false;
 
-    if (this._cursorX < 0) {
-      this._cursorX = 0;
-    }
-
-    let nextStop = -1;
-    for (let x = this._cursorX + 1; x < this.cols; x += 1) {
-      if (this.tabStops[x]) {
-        nextStop = x;
-        break;
-      }
-    }
-
-    this._cursorX = nextStop === -1 ? (this.cols - 1) : nextStop;
+    this.cursorForwardTab(1);
   }
 
   private clear(): void {
@@ -1368,6 +1409,22 @@ export class StatefulTerminal {
         return;
       case "csi.eraseInLine":
         this.clearLine(msg.mode);
+        return;
+
+      case "csi.cursorForwardTab":
+        this.cursorForwardTab(msg.count);
+        return;
+
+      case "csi.cursorBackwardTab":
+        this.cursorBackwardTab(msg.count);
+        return;
+
+      case "csi.tabClear":
+        if (msg.mode === 3) {
+          this.clearAllTabStops();
+          return;
+        }
+        this.clearTabStopAtCursor();
         return;
       case "csi.eraseInDisplay":
         this.clearDisplay(msg.mode);

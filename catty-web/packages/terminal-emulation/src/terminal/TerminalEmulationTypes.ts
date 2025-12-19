@@ -248,6 +248,36 @@ export interface CsiEraseInLine extends CsiBase {
 }
 
 /**
+ * CHT (Cursor Horizontal Tabulation): CSI Ps I
+ * Move cursor to the next tab stop Ps times.
+ */
+export interface CsiCursorForwardTab extends CsiBase {
+  _type: "csi.cursorForwardTab";
+  count: number;
+}
+
+/**
+ * CBT (Cursor Backward Tabulation): CSI Ps Z
+ * Move cursor to the previous tab stop Ps times.
+ */
+export interface CsiCursorBackwardTab extends CsiBase {
+  _type: "csi.cursorBackwardTab";
+  count: number;
+}
+
+export type CsiTabClearMode = 0 | 3;
+
+/**
+ * TBC (Tab Clear): CSI Ps g
+ * Ps 0: clear tab stop at cursor (default)
+ * Ps 3: clear all tab stops
+ */
+export interface CsiTabClear extends CsiBase {
+  _type: "csi.tabClear";
+  mode: CsiTabClearMode;
+}
+
+/**
  * Delete Lines (DL)
  * CSI Ps M — Delete Ps lines starting at the cursor line within the scroll region.
  */
@@ -479,6 +509,9 @@ export type CsiMessage =
   | CsiCursorPosition
   | CsiEraseInDisplay
   | CsiEraseInLine
+  | CsiCursorForwardTab
+  | CsiCursorBackwardTab
+  | CsiTabClear
   | CsiInsertChars
   | CsiDeleteChars
   | CsiDeleteLines

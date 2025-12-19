@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -98,8 +98,28 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     return msg;
   }
 
+  // CHT: CSI Ps I
+  if (final === "I" && !isPrivate && !prefix && intermediate === "") {
+    const msg: CsiCursorForwardTab = { _type: "csi.cursorForwardTab", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
+  // CBT: CSI Ps Z
+  if (final === "Z" && !isPrivate && !prefix && intermediate === "") {
+    const msg: CsiCursorBackwardTab = { _type: "csi.cursorBackwardTab", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
   if (final === "d") {
     const msg: CsiVerticalPositionAbsolute = { _type: "csi.verticalPositionAbsolute", raw, row: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
+  // TBC: CSI Ps g
+  if (final === "g" && !isPrivate && !prefix && intermediate === "") {
+    const modeValue = getParam(params, 0, 0);
+    const mode = modeValue === 3 ? 3 : 0;
+    const msg: CsiTabClear = { _type: "csi.tabClear", raw, mode, implemented: true };
     return msg;
   }
 

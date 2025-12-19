@@ -1,0 +1,14 @@
+{
+  "name": "root",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "tsc": "pnpm -C app tsc && pnpm -C packages/terminal-emulation tsc",
+    "test": "pnpm -C app test && pnpm -C packages/terminal-emulation test"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@7.2.10"
+    }
+  }
+}
