@@ -144,26 +144,24 @@ export class SgrStyleManager {
       cssRules.push('font-style: italic');
     }
 
+    const decorationLines: string[] = [];
+
     if (sgrState.underline && sgrState.underlineStyle) {
+      decorationLines.push('underline');
       switch (sgrState.underlineStyle) {
         case 'single':
-          // Handles both standard underline (SGR 4) and private underline mode (SGR ?4m)
-          cssRules.push('text-decoration: underline');
+          // default
           break;
         case 'double':
-          cssRules.push('text-decoration: underline');
           cssRules.push('text-decoration-style: double');
           break;
         case 'curly':
-          cssRules.push('text-decoration: underline');
           cssRules.push('text-decoration-style: wavy');
           break;
         case 'dotted':
-          cssRules.push('text-decoration: underline');
           cssRules.push('text-decoration-style: dotted');
           break;
         case 'dashed':
-          cssRules.push('text-decoration: underline');
           cssRules.push('text-decoration-style: dashed');
           break;
       }
@@ -174,7 +172,11 @@ export class SgrStyleManager {
     }
 
     if (sgrState.strikethrough) {
-      cssRules.push('text-decoration: line-through');
+      decorationLines.push('line-through');
+    }
+
+    if (decorationLines.length > 0) {
+      cssRules.push(`text-decoration: ${decorationLines.join(' ')}`);
     }
 
     if (sgrState.hidden) {
@@ -182,25 +184,28 @@ export class SgrStyleManager {
     }
 
     // Colors
-    if (sgrState.foregroundColor) {
-      const color = this.resolveColor(sgrState.foregroundColor);
-      cssRules.push(`color: ${color}`);
+    const defaultFg = 'var(--terminal-foreground)';
+    const defaultBg = 'var(--terminal-background)';
+
+    let fg = sgrState.foregroundColor ? this.resolveColor(sgrState.foregroundColor) : defaultFg;
+    let bg = sgrState.backgroundColor ? this.resolveColor(sgrState.backgroundColor) : defaultBg;
+
+    // Inverse video swaps the effective foreground/background (including defaults).
+    if (sgrState.inverse) {
+      [fg, bg] = [bg, fg];
     }
 
-    if (sgrState.backgroundColor) {
-      const color = this.resolveColor(sgrState.backgroundColor);
-      cssRules.push(`background-color: ${color}`);
+    // Only emit defaults when needed (inverse requires both).
+    if (sgrState.inverse || sgrState.foregroundColor) {
+      cssRules.push(`color: ${fg}`);
+    }
+    if (sgrState.inverse || sgrState.backgroundColor) {
+      cssRules.push(`background-color: ${bg}`);
     }
 
     if (sgrState.underlineColor) {
       const color = this.resolveColor(sgrState.underlineColor);
       cssRules.push(`text-decoration-color: ${color}`);
-    }
-
-    // Inverse (swap foreground and background)
-    if (sgrState.inverse) {
-      // This is handled by swapping the colors in the state before calling this function
-      // or by using CSS filters, but for simplicity we'll handle it in the state
     }
 
     return cssRules.join('; ');

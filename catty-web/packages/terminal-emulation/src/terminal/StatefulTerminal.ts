@@ -127,7 +127,7 @@ type DecModeListener = (ev: DecModeEvent) => void;
 type ChunkListener = (chunk: TerminalTraceChunk) => void;
 type ResponseListener = (response: string) => void;
 
-const DEFAULT_SGR_STATE = createDefaultSgrState();
+const DEFAULT_SGR_STATE: Readonly<SgrState> = Object.freeze(createDefaultSgrState());
 
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
@@ -175,7 +175,8 @@ export class StatefulTerminal {
   private utf8Mode = true; // Modern terminals default to UTF-8
 
   // SGR state management
-  private currentSgrState: SgrState = DEFAULT_SGR_STATE;
+  // NOTE: must never reference DEFAULT_SGR_STATE directly, because we mutate currentSgrState.
+  private currentSgrState: SgrState = createDefaultSgrState();
 
   // Alternate screen buffer management
   private readonly alternateScreenManager: AlternateScreenManager;
@@ -233,7 +234,7 @@ export class StatefulTerminal {
         },
         handleFormFeed: () => {
           this.emitControlChunk("FF", 0x0c);
-          this.clear();
+          this.lineFeed();
           this.emitUpdate();
         },
         handleCarriageReturn: () => {
@@ -875,8 +876,6 @@ export class StatefulTerminal {
     this.wrapPending = false;
     if (this.cursorX > 0) {
       this.cursorX -= 1;
-      this.cells[this.cursorY][this.cursorX].ch = " ";
-      this.cells[this.cursorY][this.cursorX].sgrState = { ...this.currentSgrState };
       return;
     }
   }
@@ -911,7 +910,8 @@ export class StatefulTerminal {
     const currentBuffer = this.alternateScreenManager.getCurrentBuffer();
     for (let i = 0; i < n; i++) {
       currentBuffer.cells.shift();
-      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE })));
+      const sgrState = { ...this.currentSgrState };
+      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState })));
     }
   }
 
@@ -1387,8 +1387,8 @@ export class StatefulTerminal {
 
       case "osc.queryWindowTitle":
         // OSC 21: Query window title
-        // This would typically send a response back to the application
-        // For now, we just acknowledge it (response handling would be in TerminalController)
+        // Respond with OSC ] L <title> ST (ESC \\)
+        this.emitResponse(`\x1b]L${this.windowProperties.title}\x1b\\`);
         return;
 
       case "osc.queryForegroundColor":

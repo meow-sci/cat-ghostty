@@ -277,13 +277,14 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
 
   if (intermediate) {
     // SGR with intermediate characters (e.g., CSI 0 % m)
-    messages.push({ _type: "sgr.withIntermediate", params, intermediate, implemented: false } as SgrWithIntermediate);
+    const implemented = intermediate === "%" && params.length === 1 && params[0] === 0;
+    messages.push({ _type: "sgr.withIntermediate", params, intermediate, implemented } as SgrWithIntermediate);
     return messages;
   }
 
   // Empty or single zero param means reset
   if (params.length === 0 || (params.length === 1 && params[0] === 0)) {
-    messages.push({ _type: "sgr.reset", implemented: false } as SgrReset);
+    messages.push({ _type: "sgr.reset", implemented: true } as SgrReset);
     return messages;
   }
 
@@ -295,22 +296,22 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
 
     switch (param) {
       case 0:
-        messages.push({ _type: "sgr.reset", implemented: false } as SgrReset);
+        messages.push({ _type: "sgr.reset", implemented: true } as SgrReset);
         ctx.index++;
         break;
 
       case 1:
-        messages.push({ _type: "sgr.bold", implemented: false } as SgrBold);
+        messages.push({ _type: "sgr.bold", implemented: true } as SgrBold);
         ctx.index++;
         break;
 
       case 2:
-        messages.push({ _type: "sgr.faint", implemented: false } as SgrFaint);
+        messages.push({ _type: "sgr.faint", implemented: true } as SgrFaint);
         ctx.index++;
         break;
 
       case 3:
-        messages.push({ _type: "sgr.italic", implemented: false } as SgrItalic);
+        messages.push({ _type: "sgr.italic", implemented: true } as SgrItalic);
         ctx.index++;
         break;
 
@@ -320,40 +321,40 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
           const style = parseUnderlineStyle(params[ctx.index + 1]);
           if (params[ctx.index + 1] === 0) {
             // 4:0 means no underline
-            messages.push({ _type: "sgr.notUnderlined", implemented: false } as SgrNotUnderlined);
+            messages.push({ _type: "sgr.notUnderlined", implemented: true } as SgrNotUnderlined);
           } else {
-            messages.push({ _type: "sgr.underline", style, implemented: false } as SgrUnderline);
+            messages.push({ _type: "sgr.underline", style, implemented: true } as SgrUnderline);
           }
           ctx.index += 2;
         } else {
-          messages.push({ _type: "sgr.underline", style: "single", implemented: false } as SgrUnderline);
+          messages.push({ _type: "sgr.underline", style: "single", implemented: true } as SgrUnderline);
           ctx.index++;
         }
         break;
       }
 
       case 5:
-        messages.push({ _type: "sgr.slowBlink", implemented: false } as SgrSlowBlink);
+        messages.push({ _type: "sgr.slowBlink", implemented: true } as SgrSlowBlink);
         ctx.index++;
         break;
 
       case 6:
-        messages.push({ _type: "sgr.rapidBlink", implemented: false } as SgrRapidBlink);
+        messages.push({ _type: "sgr.rapidBlink", implemented: true } as SgrRapidBlink);
         ctx.index++;
         break;
 
       case 7:
-        messages.push({ _type: "sgr.inverse", implemented: false } as SgrInverse);
+        messages.push({ _type: "sgr.inverse", implemented: true } as SgrInverse);
         ctx.index++;
         break;
 
       case 8:
-        messages.push({ _type: "sgr.hidden", implemented: false } as SgrHidden);
+        messages.push({ _type: "sgr.hidden", implemented: true } as SgrHidden);
         ctx.index++;
         break;
 
       case 9:
-        messages.push({ _type: "sgr.strikethrough", implemented: false } as SgrStrikethrough);
+        messages.push({ _type: "sgr.strikethrough", implemented: true } as SgrStrikethrough);
         ctx.index++;
         break;
 
@@ -377,27 +378,27 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         break;
 
       case 21:
-        messages.push({ _type: "sgr.doubleUnderline", implemented: false } as SgrDoubleUnderline);
+        messages.push({ _type: "sgr.doubleUnderline", implemented: true } as SgrDoubleUnderline);
         ctx.index++;
         break;
 
       case 22:
-        messages.push({ _type: "sgr.normalIntensity", implemented: false } as SgrNormalIntensity);
+        messages.push({ _type: "sgr.normalIntensity", implemented: true } as SgrNormalIntensity);
         ctx.index++;
         break;
 
       case 23:
-        messages.push({ _type: "sgr.notItalic", implemented: false } as SgrNotItalic);
+        messages.push({ _type: "sgr.notItalic", implemented: true } as SgrNotItalic);
         ctx.index++;
         break;
 
       case 24:
-        messages.push({ _type: "sgr.notUnderlined", implemented: false } as SgrNotUnderlined);
+        messages.push({ _type: "sgr.notUnderlined", implemented: true } as SgrNotUnderlined);
         ctx.index++;
         break;
 
       case 25:
-        messages.push({ _type: "sgr.notBlinking", implemented: false } as SgrNotBlinking);
+        messages.push({ _type: "sgr.notBlinking", implemented: true } as SgrNotBlinking);
         ctx.index++;
         break;
 
@@ -407,17 +408,17 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         break;
 
       case 27:
-        messages.push({ _type: "sgr.notInverse", implemented: false } as SgrNotInverse);
+        messages.push({ _type: "sgr.notInverse", implemented: true } as SgrNotInverse);
         ctx.index++;
         break;
 
       case 28:
-        messages.push({ _type: "sgr.notHidden", implemented: false } as SgrNotHidden);
+        messages.push({ _type: "sgr.notHidden", implemented: true } as SgrNotHidden);
         ctx.index++;
         break;
 
       case 29:
-        messages.push({ _type: "sgr.notStrikethrough", implemented: false } as SgrNotStrikethrough);
+        messages.push({ _type: "sgr.notStrikethrough", implemented: true } as SgrNotStrikethrough);
         ctx.index++;
         break;
 
@@ -528,7 +529,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         ctx.index++;
         const result = parseExtendedColor(ctx);
         if (result) {
-          messages.push({ _type: "sgr.underlineColor", color: result.color, implemented: false } as SgrUnderlineColor);
+          messages.push({ _type: "sgr.underlineColor", color: result.color, implemented: true } as SgrUnderlineColor);
           ctx.index += result.consumed;
         } else {
           // Invalid extended color, emit unknown
@@ -538,7 +539,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
       }
 
       case 59:
-        messages.push({ _type: "sgr.defaultUnderlineColor", implemented: false } as SgrDefaultUnderlineColor);
+        messages.push({ _type: "sgr.defaultUnderlineColor", implemented: true } as SgrDefaultUnderlineColor);
         ctx.index++;
         break;
 

@@ -243,34 +243,37 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 
   // Enhanced SGR sequences: CSI > Ps ; Ps m
   if (final === "m" && prefix === ">") {
+    const implemented = params.length >= 2 && params[0] === 4 && params[1] >= 0 && params[1] <= 5;
     const msg: CsiEnhancedSgrMode = {
       _type: "csi.enhancedSgrMode",
       raw,
       params,
-      implemented: false
+      implemented
     };
     return msg;
   }
 
   // Private SGR sequences: CSI ? Ps m
   if (final === "m" && isPrivate) {
+    const implemented = params.length === 1 && params[0] === 4;
     const msg: CsiPrivateSgrMode = {
       _type: "csi.privateSgrMode",
       raw,
       params,
-      implemented: false
+      implemented
     };
     return msg;
   }
 
   // SGR with intermediate characters: CSI Ps % m
   if (final === "m" && intermediate.length > 0) {
+    const implemented = intermediate === "%" && params.length === 1 && params[0] === 0;
     const msg: CsiSgrWithIntermediate = {
       _type: "csi.sgrWithIntermediate",
       raw,
       params,
       intermediate,
-      implemented: false
+      implemented
     };
     return msg;
   }

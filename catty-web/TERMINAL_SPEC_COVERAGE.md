@@ -57,7 +57,7 @@ This document tracks the implementation status of terminal escape sequences in c
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
 | CSI n S | SU - Scroll Up | ECMA-48 | ✅ | Scroll up n lines |
-| CSI n T | SD - Scroll Down | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI n T | SD - Scroll Down | ECMA-48 | ✅ | Scroll down n lines (within scroll region) |
 | CSI n ; m r | DECSTBM - Set Top/Bottom Margins | xterm | ✅ | Set scroll region |
 
 ## CSI Sequences (Cursor Save/Restore)
@@ -147,8 +147,8 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 10-19 m | Font Selection | ECMA-48 | ✅ | Font selection with CSS |
-| CSI 20 m | Fraktur | ECMA-48 | ✅ | Fraktur text styling with CSS |
+| CSI 10-19 m | Font Selection | ECMA-48 | 🟡 | Parsed and stored in state, but not rendered |
+| CSI 20 m | Fraktur | ECMA-48 | 🟡 | Parsed but ignored |
 
 ### Reset Attributes
 
@@ -159,7 +159,7 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI 23 m | Not Italic | ECMA-48 | ✅ | Disables italic styling |
 | CSI 24 m | Not Underlined | ECMA-48 | ✅ | Disables underline styling |
 | CSI 25 m | Not Blinking | ECMA-48 | ✅ | Disables blink styling |
-| CSI 26 m | Proportional Spacing | ECMA-48 | ✅ | Proportional spacing with CSS |
+| CSI 26 m | Proportional Spacing | ECMA-48 | 🟡 | Parsed but ignored |
 | CSI 27 m | Not Inverse | ECMA-48 | ✅ | Disables inverse video styling |
 | CSI 28 m | Not Hidden | ECMA-48 | ✅ | Disables hidden text styling |
 | CSI 29 m | Not Strikethrough | ECMA-48 | ✅ | Disables strikethrough styling |
@@ -181,12 +181,12 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 50 m | Disable Proportional | ECMA-48 | ✅ | Disables proportional spacing |
-| CSI 51 m | Framed | ECMA-48 | ✅ | Framed text styling with CSS |
-| CSI 52 m | Encircled | ECMA-48 | ✅ | Encircled text styling with CSS |
-| CSI 53 m | Overlined | ECMA-48 | ✅ | Overlined text styling with CSS |
-| CSI 54 m | Not Framed | ECMA-48 | ✅ | Disables framed styling |
-| CSI 55 m | Not Overlined | ECMA-48 | ✅ | Disables overlined styling |
+| CSI 50 m | Disable Proportional | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI 51 m | Framed | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI 52 m | Encircled | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI 53 m | Overlined | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI 54 m | Not Framed | ECMA-48 | 🟡 | Parsed but ignored |
+| CSI 55 m | Not Overlined | ECMA-48 | 🟡 | Parsed but ignored |
 | CSI 58;5;n m | Underline Color (256) | xterm | ✅ | 256-color underline with CSS |
 | CSI 58;2;r;g;b m | Underline Color (RGB) | xterm | ✅ | RGB underline color with CSS |
 | CSI 59 m | Default Underline Color | xterm | ✅ | Resets underline color to default |
@@ -195,15 +195,15 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 60-65 m | Ideogram Attributes | ECMA-48 | ✅ | Ideogram styling with CSS |
+| CSI 60-65 m | Ideogram Attributes | ECMA-48 | 🟡 | Parsed but ignored |
 
 ### Superscript/Subscript
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI 73 m | Superscript | xterm | ✅ | Superscript text styling with CSS |
-| CSI 74 m | Subscript | xterm | ✅ | Subscript text styling with CSS |
-| CSI 75 m | Neither Super/Sub | xterm | ✅ | Disables super/subscript styling |
+| CSI 73 m | Superscript | xterm | 🟡 | Parsed but ignored |
+| CSI 74 m | Subscript | xterm | 🟡 | Parsed but ignored |
+| CSI 75 m | Neither Super/Sub | xterm | 🟡 | Parsed but ignored |
 
 ### Bright Colors
 
@@ -220,7 +220,7 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI ? n m | Private SGR Mode | xterm | ✅ | Private underline mode (?4m) implemented, others gracefully ignored |
 | CSI n % m | SGR with Intermediate | xterm | ✅ | Parsed, CSI 0%m resets attributes |
 
-**Note**: All standard SGR sequences (0-107) including vi-specific usage patterns are fully supported:
+**Note**: Core SGR sequences used by typical applications (colors + common text attributes) and vi-specific usage patterns are supported:
 - SGR 32 (green foreground), SGR 39 (default foreground)
 - SGR 4 (underline), SGR 24 (not underlined)  
 - SGR 27 (not inverse), SGR 23 (not italic), SGR 29 (not strikethrough)
@@ -250,7 +250,7 @@ This document tracks the implementation status of terminal escape sequences in c
 - **Parsed Only**: ~40 sequences (🟡) 
 - **Not Implemented**: ~5 sequences (❌)
 
-The terminal emulator has comprehensive parsing coverage and full SGR styling implementation through CSS-based rendering. Core functionality includes cursor movement, screen manipulation, terminal modes, complete color rendering with theme support, and full text styling (bold, italic, underline, strikethrough, etc.). Vi-specific sequences are now supported for better compatibility with full-screen terminal applications.
+The terminal emulator has comprehensive parsing coverage and core SGR styling implementation through CSS-based rendering. Core functionality includes cursor movement, screen manipulation, terminal modes, complete color rendering with theme support, and common text styling (bold, italic, underline, strikethrough, etc.). Vi-specific sequences are supported for better compatibility with full-screen terminal applications.
 
 ### Recent Additions (Vi Compatibility)
 - Enhanced SGR sequences with special prefixes (`>`, `?`) and intermediates (`%`)
