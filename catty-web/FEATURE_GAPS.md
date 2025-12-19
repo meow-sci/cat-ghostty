@@ -7,7 +7,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Summary
 
 - Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
-- The biggest remaining risks are **tab stop control beyond basics** (TBC/CHT/CBT) and a few **DEC private modes** (origin/autowrap mode gating, etc.).
+- The biggest remaining risks are a few **DEC private modes** (save/restore private modes) and **status-report / mouse motion** gaps.
 
 ---
 
@@ -178,7 +178,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ---
 
-### 9) Origin mode + autowrap mode (DECOM/DECAWM) not implemented
+### 9) Origin mode + autowrap mode (DECOM/DECAWM)
 
 **Why it matters:**
 - Some full-screen apps assume these modes behave correctly.
@@ -188,7 +188,12 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `CSI ? 7 h/l` — DECAWM (Auto-wrap)
 
 **Current state:**
-- There is always-on wrapping logic (`wrapPending`) but no mode gating.
+- Implemented:
+  - `CSI ? 6 h/l` (DECOM) now controls whether CUP/VPA address rows relative to the scroll region and clamps cursor Y within the region when enabled.
+  - `CSI ? 7 h/l` (DECAWM) now gates auto-wrap: when disabled, printing at the right margin overwrites the last cell instead of wrapping on the next printable.
+
+**Where it lives:**
+- `packages/terminal-emulation/src/terminal/StatefulTerminal.ts`
 
 ---
 
@@ -232,9 +237,6 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ## Recommended next steps (minimal, high-value)
 
-1) Add **proper string-mode parsing** for DCS/SOS/PM/APC so payload never leaks.
-2) Implement **bracketed paste** (DECSET 2004) end-to-end (mode tracking + paste wrapping).
-3) Implement **ICH/DCH** (`CSI @`, `CSI P`) to solidify shells and TUIs.
-4) Add **SI/SO** and **IND/NEL** for VT100 correctness.
-
-If you want, I can follow up by implementing items (1) and (2) as a small, contained PR-sized change, plus focused tests in `packages/terminal-emulation/src/terminal/__tests__`.
+1) Implement **DSR 5 n** (`CSI 5 n` → respond `CSI 0 n`) to improve app readiness/probe compatibility.
+2) Implement **XTSAVE/XTRESTORE** (`CSI ? Pm s` / `CSI ? Pm r`) to preserve DEC private mode state in legacy code paths.
+3) Expand mouse support to include **motion/drag + wheel** (DECSET 1002/1003, wheel buttons) for mouse-heavy TUIs.

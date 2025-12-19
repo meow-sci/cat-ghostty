@@ -100,6 +100,8 @@ This document tracks the implementation status of terminal escape sequences in c
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
 | CSI ? 1 h/l | DECCKM - Cursor Keys Mode | xterm | ✅ | Application cursor keys |
+| CSI ? 6 h/l | DECOM - Origin Mode | VT100/xterm | ✅ | Cursor addressing relative to scroll region (margins) |
+| CSI ? 7 h/l | DECAWM - Auto-wrap Mode | VT100/xterm | ✅ | Controls wrap-at-right-margin behavior |
 | CSI ? 25 h/l | DECTCEM - Text Cursor Enable | xterm | ✅ | Show/hide cursor |
 | CSI ? 47 h/l | Alternate Screen Buffer | xterm | ✅ | Switch screen buffers |
 | CSI ? 1047 h/l | Alternate Screen + Cursor Save | xterm | ✅ | Alt screen with cursor save |

@@ -163,6 +163,13 @@ export class StatefulTerminal {
   private wrapPending = false;
   private applicationCursorKeys = false;
 
+  // DEC private modes
+  // DECOM (CSI ? 6 h/l): origin mode (cursor addressing relative to scroll region)
+  private originMode = false;
+
+  // DECAWM (CSI ? 7 h/l): auto-wrap mode
+  private autoWrapMode = true;
+
   // Scroll region (DECSTBM)
   private scrollTop = 0;
   private scrollBottom: number;
@@ -751,7 +758,12 @@ export class StatefulTerminal {
   public restoreCursorState(state: CursorState): void {
     // Validate and clamp coordinates to screen boundaries
     this._cursorX = Math.max(0, Math.min(this.cols - 1, state.x));
-    this._cursorY = Math.max(0, Math.min(this.rows - 1, state.y));
+    const y = Math.max(0, Math.min(this.rows - 1, state.y));
+    if (this.originMode) {
+      this._cursorY = Math.max(this.scrollTop, Math.min(this.scrollBottom, y));
+    } else {
+      this._cursorY = y;
+    }
     this.cursorVisible = state.visible;
     this.cursorStyle = state.style;
     this.applicationCursorKeys = state.applicationMode;
@@ -892,6 +904,9 @@ export class StatefulTerminal {
     this.cursorVisible = true;
     this.applicationCursorKeys = false;
 
+    this.originMode = false;
+    this.autoWrapMode = true;
+
     this.scrollTop = 0;
     this.scrollBottom = this.rows - 1;
 
@@ -929,6 +944,9 @@ export class StatefulTerminal {
     this.cursorStyle = 1;
     this.cursorVisible = true;
     this.applicationCursorKeys = false;
+
+    this.originMode = false;
+    this.autoWrapMode = true;
 
     this.scrollTop = 0;
     this.scrollBottom = this.rows - 1;
@@ -1074,7 +1092,7 @@ export class StatefulTerminal {
     // Common terminal behavior (DECAWM autowrap): writing a printable char in
     // the last column sets a pending-wrap flag. The *next* printable char
     // triggers the wrap to column 0 of the next row (with scrolling).
-    if (this.wrapPending) {
+    if (this.autoWrapMode && this.wrapPending) {
       this._cursorX = 0;
       this._cursorY += 1;
       if (this._cursorY >= this.rows) {
@@ -1094,7 +1112,9 @@ export class StatefulTerminal {
     cell.sgrState = { ...this.currentSgrState };
 
     if (this._cursorX === this.cols - 1) {
-      this.wrapPending = true;
+      if (this.autoWrapMode) {
+        this.wrapPending = true;
+      }
       return;
     }
 
@@ -1160,9 +1180,35 @@ export class StatefulTerminal {
     }
   }
 
+  private setOriginMode(enable: boolean): void {
+    this.originMode = enable;
+    // vt100/xterm behavior: home the cursor when toggling origin mode.
+    this._cursorX = 0;
+    this._cursorY = enable ? this.scrollTop : 0;
+    this.wrapPending = false;
+    this.clampCursor();
+  }
+
+  private setAutoWrapMode(enable: boolean): void {
+    this.autoWrapMode = enable;
+    if (!enable) {
+      this.wrapPending = false;
+    }
+  }
+
+  private mapRowParamToCursorY(row1Based: number): number {
+    const base = this.originMode ? this.scrollTop : 0;
+    return base + (row1Based - 1);
+  }
+
   private clampCursor(): void {
     this._cursorX = Math.max(0, Math.min(this.cols - 1, this._cursorX));
-    this._cursorY = Math.max(0, Math.min(this.rows - 1, this._cursorY));
+    const y = Math.max(0, Math.min(this.rows - 1, this._cursorY));
+    if (this.originMode) {
+      this._cursorY = Math.max(this.scrollTop, Math.min(this.scrollBottom, y));
+    } else {
+      this._cursorY = y;
+    }
     this.wrapPending = false;
   }
 
@@ -1399,13 +1445,13 @@ export class StatefulTerminal {
         this.wrapPending = false;
         return;
       case "csi.verticalPositionAbsolute":
-        this._cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
-        this.wrapPending = false;
+        this._cursorY = this.mapRowParamToCursorY(msg.row);
+        this.clampCursor();
         return;
       case "csi.cursorPosition":
-        this._cursorY = Math.max(0, Math.min(this.rows - 1, msg.row - 1));
+        this._cursorY = this.mapRowParamToCursorY(msg.row);
         this._cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
-        this.wrapPending = false;
+        this.clampCursor();
         return;
       case "csi.eraseInLine":
         this.clearLine(msg.mode);
@@ -1464,6 +1510,14 @@ export class StatefulTerminal {
         return;
 
       case "csi.decModeSet":
+        // DECOM (CSI ? 6 h): origin mode
+        if (msg.modes.includes(6)) {
+          this.setOriginMode(true);
+        }
+        // DECAWM (CSI ? 7 h): auto-wrap
+        if (msg.modes.includes(7)) {
+          this.setAutoWrapMode(true);
+        }
         // DECTCEM (CSI ? 25 h): show cursor
         if (msg.modes.includes(25)) {
           this.setCursorVisibility(true);
@@ -1493,6 +1547,14 @@ export class StatefulTerminal {
         return;
 
       case "csi.decModeReset":
+        // DECOM (CSI ? 6 l): origin mode
+        if (msg.modes.includes(6)) {
+          this.setOriginMode(false);
+        }
+        // DECAWM (CSI ? 7 l): auto-wrap
+        if (msg.modes.includes(7)) {
+          this.setAutoWrapMode(false);
+        }
         // DECTCEM (CSI ? 25 l): hide cursor
         if (msg.modes.includes(25)) {
           this.setCursorVisibility(false);
