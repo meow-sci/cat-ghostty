@@ -310,6 +310,8 @@ Acceptance:
 
 ### Step 7 — Extract scrollback + viewport logic
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/scrollback.ts`.
 - Move:
   - `pushScrollbackRow`, `clearScrollback`, `getViewportRows`

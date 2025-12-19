@@ -8,7 +8,12 @@ import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
 import { processSgrMessages } from './SgrStateProcessor';
 
 import { AlternateScreenManager } from "./stateful/alternateScreen";
-import { DEFAULT_SGR_STATE, cloneScreenRow, createCellGrid } from "./stateful/screenGrid";
+import { createCellGrid } from "./stateful/screenGrid";
+import {
+  clearScrollback as clearScrollbackState,
+  getViewportRows as getViewportRowsState,
+  pushScrollbackRow as pushScrollbackRowState,
+} from "./stateful/scrollback";
 
 import { createInitialTerminalState, type CharacterSetState, type TerminalState } from "./stateful/state";
 import {
@@ -136,10 +141,6 @@ export class StatefulTerminal {
 
   private set applicationCursorKeys(v: boolean) {
     this.state.applicationCursorKeys = v;
-  }
-
-  private get scrollbackLimit(): number {
-    return this.state.scrollbackLimit;
   }
 
   private get scrollback(): ScreenCell[][] {
@@ -844,49 +845,22 @@ export class StatefulTerminal {
   }
 
   public getViewportRows(viewportTopRow: number, rows: number): ReadonlyArray<ReadonlyArray<ScreenCell>> {
-    const nRows = Math.max(0, Math.trunc(rows));
-    if (nRows === 0) {
-      return [];
-    }
-
-    if (this.isAlternateScreenActive()) {
-      // Real-world terminals typically do not show primary scrollback while an
-      // alternate screen app is active.
-      return this.cells;
-    }
-
-    const scrollbackRows = this.scrollback.length;
-    const top = clampInt(viewportTopRow, 0, scrollbackRows);
-    const out: Array<ReadonlyArray<ScreenCell>> = [];
-    out.length = nRows;
-
-    for (let i = 0; i < nRows; i++) {
-      const globalRow = top + i;
-      if (globalRow < scrollbackRows) {
-        out[i] = this.scrollback[globalRow];
-        continue;
-      }
-      const screenRow = globalRow - scrollbackRows;
-      out[i] = this.cells[screenRow] ?? Array.from({ length: this.cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE, isProtected: false }));
-    }
-
-    return out;
+    return getViewportRowsState({
+      cols: this.cols,
+      cells: this.cells,
+      scrollback: this.scrollback,
+      isAlternateScreenActive: this.isAlternateScreenActive(),
+      viewportTopRow,
+      rows,
+    });
   }
 
   private pushScrollbackRow(row: ReadonlyArray<ScreenCell>): void {
-    if (this.scrollbackLimit <= 0) {
-      return;
-    }
-
-    this.scrollback.push(cloneScreenRow(row));
-    if (this.scrollback.length <= this.scrollbackLimit) {
-      return;
-    }
-    this.scrollback = this.scrollback.slice(-this.scrollbackLimit);
+    pushScrollbackRowState(this.state, row);
   }
 
   private clearScrollback(): void {
-    this.scrollback = [];
+    clearScrollbackState(this.state);
   }
 
   /**
