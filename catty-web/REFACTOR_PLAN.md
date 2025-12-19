@@ -373,6 +373,8 @@ Acceptance:
 
 ### Step 10 — Extract protocol handlers (CSI / ESC / OSC)
 
+Status: **IN PROGRESS** (10a implemented, 2025-12-19)
+
 This step makes the biggest readability win, since `handleCsi` is the largest “blob”.
 
 #### 10a — Create a narrow `TerminalActions` interface
@@ -391,6 +393,8 @@ Then `handlers/csi.ts` can be a pure dispatcher:
 
 - Input: `TerminalActions`, `CsiMessage`
 - Output: void
+
+Status: **DONE** (implemented, 2025-12-19)
 
 #### 10b — Move CSI switch to `handlers/csi.ts`
 
