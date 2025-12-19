@@ -7,7 +7,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Summary
 
 - Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
-- The biggest remaining risks are **string-mode controls (DCS/etc.)** and **input-side features** that require coordinating DECSET modes with `TerminalController` (notably **bracketed paste** and **mouse reporting**).
+- The biggest remaining risks are **reset/soft reset behavior**, and some **legacy VT/ECMA-48 controls** (SI/SO, IND/NEL/HTS, tab stop control, origin/autowrap modes).
 
 ---
 
@@ -141,13 +141,15 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `CSI ? 1005 h/l` (UTF-8 extended coordinates; less important today)
 
 **Current state:**
-- Spec doc mentions these as parsed/ignored.
-- In code, these likely arrive as `csi.decModeSet` / `csi.decModeReset` with modes containing 1000/1002/1003/1006; `StatefulTerminal` does not do anything with them.
-- `TerminalEmulationTypes.ts` defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not produce it (so that type is effectively unused).
+- Implemented (minimum click support): `TerminalController` now tracks `CSI ? 1000 h/l` and `CSI ? 1006 h/l` via `terminal.onDecMode(...)` and sends xterm mouse reports on `mousedown`/`mouseup`.
+  - Uses SGR encoding (1006) when enabled: `ESC[<b;x;yM` press and `ESC[<b;x;ym` release.
+  - Falls back to X10 encoding if 1006 is not enabled.
+- Not yet implemented: motion/drag reporting (1002/1003) and wheel events.
+- `TerminalEmulationTypes.ts` still defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not emit it; mouse modes are handled as DECSET/DECRST (recommended to keep that way unless/until you want richer typed events).
 
-**Where to implement:**
-- Decide whether to keep mouse as a DEC private mode inside `csi.decModeSet` (simple), or emit dedicated `csi.mouseReportingMode` messages.
-- Implement event wiring in the web layer: `TerminalController` needs mouse listeners on the display and should send appropriate reports back to the PTY when enabled.
+**Where it lives:**
+- Mouse event wiring + encoding: `app/src/ts/terminal/TerminalController.ts`
+- Tests: `app/src/ts/terminal/__tests__/TerminalController.window.test.ts`
 
 ---
 

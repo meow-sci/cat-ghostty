@@ -11,6 +11,13 @@ import {
 
 type InputMode = "cooked" | "raw";
 
+type MouseTrackingMode = "off" | "click" | "button" | "any";
+
+type CellMetrics = {
+  cellWidthPx: number;
+  cellHeightPx: number;
+};
+
 export interface TerminalControllerOptions {
   terminal: StatefulTerminal;
   displayElement: HTMLElement;
@@ -43,6 +50,11 @@ export class TerminalController {
   private inputMode: InputMode = "raw";
   private applicationCursorKeys = false;
   private bracketedPasteEnabled = false;
+
+  private mouseTrackingMode: MouseTrackingMode = "off";
+  private mouseSgrEncodingEnabled = false;
+  private cellMetrics: CellMetrics | null = null;
+  private lastMouseButton: 0 | 1 | 2 | null = null;
 
   private cookedLine = "";
   private cookedCursorIndex = 0;
@@ -96,6 +108,28 @@ export class TerminalController {
 
       if (modes.has(2004)) {
         this.bracketedPasteEnabled = ev.action === "set";
+      }
+
+      // Mouse tracking modes
+      // 1000: click tracking
+      // 1002: button-event tracking (drag)
+      // 1003: any-event tracking (motion)
+      if (modes.has(1000) || modes.has(1002) || modes.has(1003)) {
+        if (ev.action === "set") {
+          if (modes.has(1003)) this.mouseTrackingMode = "any";
+          else if (modes.has(1002)) this.mouseTrackingMode = "button";
+          else this.mouseTrackingMode = "click";
+        } else {
+          // Minimal behavior: if any of these are reset, drop to off.
+          // (Apps typically reset all relevant mouse modes together.)
+          this.mouseTrackingMode = "off";
+        }
+      }
+
+      // Mouse encoding
+      // 1006: SGR (recommended)
+      if (modes.has(1006)) {
+        this.mouseSgrEncodingEnabled = ev.action === "set";
       }
 
       // Always remain in raw mode for PTY-backed sessions.
@@ -378,6 +412,36 @@ export class TerminalController {
     this.displayElement.addEventListener("pointerdown", focusInput);
     this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", focusInput));
 
+    // Mouse reporting (xterm). Minimum for htop: left-click press/release.
+    const onPointerDown = (e: PointerEvent) => {
+      focusInput(e);
+      this.handleMouseDown(e);
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      focusInput(e);
+      this.handleMouseUp(e);
+    };
+
+    this.displayElement.addEventListener("pointerdown", onPointerDown);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", onPointerDown));
+
+    this.displayElement.addEventListener("pointerup", onPointerUp);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerup", onPointerUp));
+
+    // Fallback for environments without PointerEvent (or where it is flaky).
+    const onMouseDown = (e: MouseEvent) => {
+      focusInput(e);
+      this.handleMouseDown(e);
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      focusInput(e);
+      this.handleMouseUp(e);
+    };
+    this.displayElement.addEventListener("mousedown", onMouseDown);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("mousedown", onMouseDown));
+    this.displayElement.addEventListener("mouseup", onMouseUp);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("mouseup", onMouseUp));
+
     const onKeyDown = (e: KeyboardEvent) => {
 
       if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
@@ -539,6 +603,170 @@ export class TerminalController {
 
     // Autofocus on mount
     queueMicrotask(() => this.inputElement.focus());
+  }
+
+  private getCellMetrics(): CellMetrics {
+    if (this.cellMetrics) {
+      return this.cellMetrics;
+    }
+
+    // Best-effort measurement using CSS-relative units used for positioning.
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.width = "1ch";
+    probe.style.height = "1lh";
+    this.displayElement.appendChild(probe);
+
+    const r = probe.getBoundingClientRect();
+    probe.remove();
+
+    const cellWidthPx = Number.isFinite(r.width) && r.width > 0 ? r.width : 8;
+    const cellHeightPx = Number.isFinite(r.height) && r.height > 0 ? r.height : 16;
+
+    this.cellMetrics = { cellWidthPx, cellHeightPx };
+    return this.cellMetrics;
+  }
+
+  private eventToCell(ev: { clientX: number; clientY: number }): { x1: number; y1: number } | null {
+    const rect = this.displayElement.getBoundingClientRect();
+    const { cellWidthPx, cellHeightPx } = this.getCellMetrics();
+    if (cellWidthPx <= 0 || cellHeightPx <= 0) {
+      return null;
+    }
+
+    const dx = ev.clientX - rect.left;
+    const dy = ev.clientY - rect.top;
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+      return null;
+    }
+
+    const x0 = Math.floor(dx / cellWidthPx);
+    const y0 = Math.floor(dy / cellHeightPx);
+
+    // Clamp to terminal size.
+    const x1 = Math.max(1, Math.min(this.terminal.cols, x0 + 1));
+    const y1 = Math.max(1, Math.min(this.terminal.rows, y0 + 1));
+    return { x1, y1 };
+  }
+
+  private mouseEnabled(): boolean {
+    return this.mouseTrackingMode !== "off";
+  }
+
+  private mouseButtonFromEvent(ev: { button: number }): 0 | 1 | 2 | null {
+    if (ev.button === 0) return 0;
+    if (ev.button === 1) return 1;
+    if (ev.button === 2) return 2;
+    return null;
+  }
+
+  private encodeMousePress(button: 0 | 1 | 2, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
+    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
+    const b = button + modBits;
+
+    if (this.mouseSgrEncodingEnabled) {
+      return `\x1b[<${b};${x1};${y1}M`;
+    }
+
+    // X10 fallback encoding (limited to 223 for coordinates).
+    const cx = 32 + Math.max(1, Math.min(223, x1));
+    const cy = 32 + Math.max(1, Math.min(223, y1));
+    const cb = 32 + Math.max(0, Math.min(255, b));
+    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
+  }
+
+  private encodeMouseRelease(button: 0 | 1 | 2, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
+    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
+
+    if (this.mouseSgrEncodingEnabled) {
+      // In SGR mode, xterm uses final 'm' to indicate release.
+      const b = button + modBits;
+      return `\x1b[<${b};${x1};${y1}m`;
+    }
+
+    // In classic mode, use button 3 (release) + modifiers.
+    const cb = 32 + (3 + modBits);
+    const cx = 32 + Math.max(1, Math.min(223, x1));
+    const cy = 32 + Math.max(1, Math.min(223, y1));
+    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
+  }
+
+  private handleMouseDown(ev: MouseEvent | PointerEvent): void {
+    if (!this.mouseEnabled()) {
+      return;
+    }
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const button = this.mouseButtonFromEvent(ev);
+    if (button === null) {
+      return;
+    }
+
+    const pos = this.eventToCell(ev);
+    if (!pos) {
+      return;
+    }
+
+    ev.preventDefault();
+
+    try {
+      if ("pointerId" in ev) {
+        this.displayElement.setPointerCapture(ev.pointerId);
+      }
+    } catch {
+      // ignore
+    }
+
+    this.lastMouseButton = button;
+
+    const seq = this.encodeMousePress(button, pos.x1, pos.y1, {
+      shift: ev.shiftKey,
+      alt: ev.altKey,
+      ctrl: ev.ctrlKey,
+    });
+    this.websocket.send(seq);
+  }
+
+  private handleMouseUp(ev: MouseEvent | PointerEvent): void {
+    if (!this.mouseEnabled()) {
+      return;
+    }
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const button = this.lastMouseButton ?? this.mouseButtonFromEvent(ev);
+    if (button === null) {
+      return;
+    }
+
+    const pos = this.eventToCell(ev);
+    if (!pos) {
+      return;
+    }
+
+    ev.preventDefault();
+
+    try {
+      if ("pointerId" in ev) {
+        this.displayElement.releasePointerCapture(ev.pointerId);
+      }
+    } catch {
+      // ignore
+    }
+
+    this.lastMouseButton = null;
+
+    const seq = this.encodeMouseRelease(button, pos.x1, pos.y1, {
+      shift: ev.shiftKey,
+      alt: ev.altKey,
+      ctrl: ev.ctrlKey,
+    });
+    this.websocket.send(seq);
   }
 
   private insertCookedText(text: string): void {

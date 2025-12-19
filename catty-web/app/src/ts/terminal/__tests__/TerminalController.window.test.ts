@@ -43,6 +43,20 @@ describe("TerminalController Window Management", () => {
     displayElement = document.createElement("div");
     inputElement = document.createElement("input");
 
+    // Deterministic geometry for mouse coordinate mapping in jsdom.
+    // (TerminalController maps clientX/Y -> cell coords using getBoundingClientRect + cached cell metrics.)
+    (displayElement as any).getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 480,
+      right: 800,
+      bottom: 480,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
     // Create terminal and controller
     terminal = new StatefulTerminal({ cols: 80, rows: 24 });
     controller = new TerminalController({
@@ -51,6 +65,9 @@ describe("TerminalController Window Management", () => {
       inputElement,
       websocketUrl: "ws://localhost:9999", // Non-existent to avoid actual connection
     });
+
+    // Force deterministic cell metrics in tests.
+    (controller as any).cellMetrics = { cellWidthPx: 10, cellHeightPx: 20 };
   });
 
   function dispatchPaste(text: string): void {
@@ -216,5 +233,25 @@ describe("TerminalController Window Management", () => {
     terminal.pushPtyText("\x1b[?2004l");
     dispatchPaste("bye");
     expect(wsSends[wsSends.length - 1]).toBe("bye");
+  });
+
+  it("should send SGR mouse press/release when mouse mode is enabled (htop click)", () => {
+    // Enable mouse click tracking + SGR encoding.
+    terminal.pushPtyText("\x1b[?1000h\x1b[?1006h");
+
+    const down = new MouseEvent("mousedown", { clientX: 15, clientY: 25, button: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(down);
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<0;2;2M");
+
+    const up = new MouseEvent("mouseup", { clientX: 15, clientY: 25, button: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(up);
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<0;2;2m");
+  });
+
+  it("should not send mouse reports when mouse mode is disabled", () => {
+    const start = wsSends.length;
+    const down = new MouseEvent("mousedown", { clientX: 15, clientY: 25, button: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(down);
+    expect(wsSends.length).toBe(start);
   });
 });
