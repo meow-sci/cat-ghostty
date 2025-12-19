@@ -7,10 +7,11 @@ import type { DcsMessage, EscMessage, CsiMessage, OscMessage, SgrSequence, Xterm
 import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
 import { processSgrMessages } from './SgrStateProcessor';
 
+import { AlternateScreenManager } from "./stateful/alternateScreen";
+
 import type {
   CursorState,
   DecModeEvent,
-  ScreenBuffer,
   ScreenCell,
   ScreenSnapshot,
   StatefulTerminalOptions,
@@ -27,67 +28,7 @@ export type {
   WindowProperties,
 } from "./stateful/screenTypes";
 
-export class AlternateScreenManager {
-  private primaryBuffer: ScreenBuffer;
-  private alternateBuffer: ScreenBuffer;
-  private currentBuffer: "primary" | "alternate" = "primary";
-  private readonly cols: number;
-  private readonly rows: number;
-
-  constructor(cols: number, rows: number) {
-    this.cols = cols;
-    this.rows = rows;
-
-    // Initialize primary buffer with empty cells
-    this.primaryBuffer = {
-      cells: createCellGrid(cols, rows),
-      cursorX: 0,
-      cursorY: 0,
-      savedCursor: null,
-      wrapPending: false,
-    };
-
-    // Initialize alternate buffer with empty cells
-    this.alternateBuffer = {
-      cells: createCellGrid(cols, rows),
-      cursorX: 0,
-      cursorY: 0,
-      savedCursor: null,
-      wrapPending: false,
-    };
-  }
-
-  public switchToPrimary(): void {
-    this.currentBuffer = "primary";
-  }
-
-  public switchToAlternate(): void {
-    this.currentBuffer = "alternate";
-  }
-
-  public getCurrentBuffer(): ScreenBuffer {
-    return this.currentBuffer === "primary" ? this.primaryBuffer : this.alternateBuffer;
-  }
-
-  public isAlternateActive(): boolean {
-    return this.currentBuffer === "alternate";
-  }
-
-  public getPrimaryBuffer(): ScreenBuffer {
-    return this.primaryBuffer;
-  }
-
-  public getAlternateBuffer(): ScreenBuffer {
-    return this.alternateBuffer;
-  }
-
-  public clearAlternateBuffer(): void {
-    this.alternateBuffer.cells = createCellGrid(this.cols, this.rows);
-    this.alternateBuffer.cursorX = 0;
-    this.alternateBuffer.cursorY = 0;
-    this.alternateBuffer.wrapPending = false;
-  }
-}
+export { AlternateScreenManager } from "./stateful/alternateScreen";
 
 type UpdateListener = (snapshot: ScreenSnapshot) => void;
 type DecModeListener = (ev: DecModeEvent) => void;

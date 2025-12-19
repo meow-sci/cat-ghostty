@@ -227,6 +227,8 @@ Acceptance:
 
 ### Step 2 — Extract `AlternateScreenManager` into its own file
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts`.
 - Move `AlternateScreenManager` and the `ScreenBuffer` initialization logic.
 - Keep constructor signature identical (cols/rows) to minimize diffs.
