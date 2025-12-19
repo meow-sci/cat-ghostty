@@ -186,6 +186,12 @@ export class StatefulTerminal {
   private readonly chunkListeners = new Set<ChunkListener>();
   private readonly responseListeners = new Set<ResponseListener>();
 
+  // Update batching
+  // When processing a burst of bytes we want to avoid emitting intermediate
+  // snapshots that can cause visible flicker (e.g. transient status-line writes).
+  private updateBatchDepth = 0;
+  private updateDirty = false;
+
   constructor(options: StatefulTerminalOptions) {
 
     this.cols = options.cols;
@@ -220,27 +226,27 @@ export class StatefulTerminal {
         handleBackspace: () => {
           this.emitControlChunk("BS", 0x08);
           this.backspace();
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleTab: () => {
           this.emitControlChunk("TAB", 0x09);
           this.tab();
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleLineFeed: () => {
           this.emitControlChunk("LF", 0x0a);
           this.lineFeed();
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleFormFeed: () => {
           this.emitControlChunk("FF", 0x0c);
           this.lineFeed();
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleCarriageReturn: () => {
           this.emitControlChunk("CR", 0x0d);
           this.carriageReturn();
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleNormalByte: (byte: number) => {
           this.emitChunk({
@@ -251,17 +257,17 @@ export class StatefulTerminal {
             byte,
           });
           this.writePrintableByte(byte);
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleEsc: (msg: EscMessage) => {
           this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleEsc(msg);
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleCsi: (msg: CsiMessage) => {
           this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleCsi(msg);
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleOsc: (msg: OscMessage) => {
           this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
@@ -269,12 +275,12 @@ export class StatefulTerminal {
         handleSgr: (msg: SgrSequence) => {
           this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleSgr(msg);
-          this.emitUpdate();
+          this.requestUpdate();
         },
         handleXtermOsc: (msg: XtermOscMessage) => {
           this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this.cursorX, cursorY: this.cursorY, msg });
           this.handleXtermOsc(msg);
-          this.emitUpdate();
+          this.requestUpdate();
         },
       },
     });
@@ -318,17 +324,38 @@ export class StatefulTerminal {
   // Window properties management methods
   public setWindowTitle(title: string): void {
     this.windowProperties.title = title;
-    this.emitUpdate();
+    this.requestUpdate();
   }
 
   public setIconName(iconName: string): void {
     this.windowProperties.iconName = iconName;
-    this.emitUpdate();
+    this.requestUpdate();
   }
 
   public setTitleAndIcon(title: string): void {
     this.windowProperties.title = title;
     this.windowProperties.iconName = title;
+    this.requestUpdate();
+  }
+
+  private withUpdateBatch<T>(fn: () => T): T {
+    this.updateBatchDepth += 1;
+    try {
+      return fn();
+    } finally {
+      this.updateBatchDepth -= 1;
+      if (this.updateBatchDepth === 0 && this.updateDirty) {
+        this.updateDirty = false;
+        this.emitUpdate();
+      }
+    }
+  }
+
+  private requestUpdate(): void {
+    if (this.updateBatchDepth > 0) {
+      this.updateDirty = true;
+      return;
+    }
     this.emitUpdate();
   }
 
@@ -727,8 +754,10 @@ export class StatefulTerminal {
   }
 
   public pushPtyText(text: string): void {
-    const bytes = new TextEncoder().encode(text);
-    this.parser.pushBytes(bytes);
+    this.withUpdateBatch(() => {
+      const bytes = new TextEncoder().encode(text);
+      this.parser.pushBytes(bytes);
+    });
   }
 
   public reset(): void {

@@ -31,6 +31,7 @@ export class TerminalController {
 
   private websocket: WebSocket | null = null;
   private repaintScheduled = false;
+  private repaintReschedule = false;
   private lastSnapshot: ScreenSnapshot | null = null;
 
   private traceScheduled = false;
@@ -544,12 +545,22 @@ export class TerminalController {
 
   private scheduleRepaint(): void {
     if (this.repaintScheduled) {
+      // Output is still streaming; postpone paint to avoid showing transient
+      // intermediate states (e.g. Vim showcmd briefly writing "^[").
+      this.repaintReschedule = true;
       return;
     }
-    this.repaintScheduled = true;
 
+    this.repaintScheduled = true;
     requestAnimationFrame(() => {
       this.repaintScheduled = false;
+
+      if (this.repaintReschedule) {
+        this.repaintReschedule = false;
+        this.scheduleRepaint();
+        return;
+      }
+
       this.repaint();
     });
   }
