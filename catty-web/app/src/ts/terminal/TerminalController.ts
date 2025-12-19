@@ -6,14 +6,23 @@ import {
   SgrStyleManager,
   ThemeManager,
   DEFAULT_DARK_THEME,
-  type SgrState
+  type SgrState,
+  encodeCtrlKey,
+  encodeKeyDownToTerminalBytes,
+  encodeMouseMotion,
+  encodeMouseWheel,
+  encodeMousePress,
+  encodeMouseRelease,
+  wheelDirectionFromDelta,
+  wheelScrollLinesFromDelta,
+  wheelNotchesFromDelta,
+  altScreenWheelSequenceFromDelta,
+  resolveMouseTrackingMode,
+  type MouseTrackingMode,
+  type MouseTrackingDecMode
 } from "@catty/terminal-emulation";
 
 type InputMode = "cooked" | "raw";
-
-type MouseTrackingMode = "off" | "click" | "button" | "any";
-
-type MouseTrackingDecMode = 1000 | 1002 | 1003;
 
 type CellMetrics = {
   cellWidthPx: number;
@@ -41,8 +50,6 @@ function isWheelOverElement(el: HTMLElement, ev: WheelEvent): boolean {
   return false;
 }
 
-type WheelDirection = "up" | "down";
-
 type MouseMoveSample = {
   clientX: number;
   clientY: number;
@@ -61,72 +68,6 @@ type WheelSample = {
   altKey: boolean;
   ctrlKey: boolean;
 };
-
-function wheelDirectionFromDelta(deltaY: number): WheelDirection {
-  return deltaY < 0 ? "up" : "down";
-}
-
-function wheelScrollLinesFromDelta(deltaY: number, deltaMode: number, rows: number): number {
-  if (!Number.isFinite(deltaY) || deltaY === 0) {
-    return 0;
-  }
-  const sign = deltaY < 0 ? -1 : 1;
-  const abs = Math.abs(deltaY);
-  const max = Math.max(1, rows * 3);
-
-  // 0: pixels, 1: lines, 2: pages
-  if (deltaMode === 2) {
-    return sign * Math.max(1, rows);
-  }
-  if (deltaMode === 1) {
-    return sign * clampInt(Math.round(abs), 1, max);
-  }
-
-  // Pixel-based (trackpads): a small fraction of a line per pixel.
-  return sign * clampInt(Math.round(abs / 40), 1, max);
-}
-
-function wheelNotchesFromDelta(deltaY: number, deltaMode: number): number {
-  const abs = Math.abs(deltaY);
-  if (deltaMode === 2) {
-    // Page-based wheels are already coarse.
-    return clampInt(Math.round(abs), 1, 10);
-  }
-  if (deltaMode === 1) {
-    // Line-based: treat each line as one notch (clamped).
-    return clampInt(Math.round(abs), 1, 10);
-  }
-
-  // Pixel-based (trackpads): ~100px is roughly one "notch".
-  return clampInt(Math.round(abs / 100), 1, 10);
-}
-
-function altScreenWheelSequenceFromDelta(
-  deltaY: number,
-  deltaMode: number,
-  rows: number,
-  applicationCursorKeys: boolean
-): string {
-  const direction = wheelDirectionFromDelta(deltaY);
-  const lines = wheelScrollLinesFromDelta(deltaY, deltaMode, rows);
-  if (lines === 0) {
-    return "";
-  }
-
-  // Prefer line-wise scrolling via arrow keys, but if the delta is effectively
-  // a full page, use PageUp/PageDown to avoid sending very long sequences.
-  const absLines = Math.abs(lines);
-  if (absLines >= rows) {
-    const pages = clampInt(Math.round(absLines / Math.max(1, rows)), 1, 10);
-    const seq = direction === "up" ? "\x1b[5~" : "\x1b[6~";
-    return seq.repeat(pages);
-  }
-
-  const arrow = direction === "up"
-    ? (applicationCursorKeys ? "\x1bOA" : "\x1b[A")
-    : (applicationCursorKeys ? "\x1bOB" : "\x1b[B");
-  return arrow.repeat(clampInt(absLines, 1, rows * 3));
-}
 
 function clampInt(v: number, min: number, max: number): number {
   if (!Number.isFinite(v)) {
@@ -312,15 +253,7 @@ export class TerminalController {
         }
       }
 
-      if (this.mouseTrackingDecModesEnabled.has(1003)) {
-        this.mouseTrackingMode = "any";
-      } else if (this.mouseTrackingDecModesEnabled.has(1002)) {
-        this.mouseTrackingMode = "button";
-      } else if (this.mouseTrackingDecModesEnabled.has(1000)) {
-        this.mouseTrackingMode = "click";
-      } else {
-        this.mouseTrackingMode = "off";
-      }
+      this.mouseTrackingMode = resolveMouseTrackingMode(this.mouseTrackingDecModesEnabled);
 
       // Mouse encoding
       // 1006: SGR (recommended)
@@ -939,69 +872,6 @@ export class TerminalController {
     return null;
   }
 
-  private encodeMouseMotion(button: 0 | 1 | 2 | 3, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
-    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
-    // Motion reports add 32.
-    const b = button + modBits + 32;
-
-    if (this.mouseSgrEncodingEnabled) {
-      return `\x1b[<${b};${x1};${y1}M`;
-    }
-
-    const cx = 32 + Math.max(1, Math.min(223, x1));
-    const cy = 32 + Math.max(1, Math.min(223, y1));
-    const cb = 32 + Math.max(0, Math.min(255, b));
-    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
-  }
-
-  private encodeMouseWheel(direction: "up" | "down", x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
-    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
-
-    // xterm wheel: buttons 64/65 (press only)
-    const wheelButton = direction === "up" ? 64 : 65;
-    const b = wheelButton + modBits;
-
-    if (this.mouseSgrEncodingEnabled) {
-      return `\x1b[<${b};${x1};${y1}M`;
-    }
-
-    const cx = 32 + Math.max(1, Math.min(223, x1));
-    const cy = 32 + Math.max(1, Math.min(223, y1));
-    const cb = 32 + Math.max(0, Math.min(255, b));
-    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
-  }
-
-  private encodeMousePress(button: 0 | 1 | 2, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
-    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
-    const b = button + modBits;
-
-    if (this.mouseSgrEncodingEnabled) {
-      return `\x1b[<${b};${x1};${y1}M`;
-    }
-
-    // X10 fallback encoding (limited to 223 for coordinates).
-    const cx = 32 + Math.max(1, Math.min(223, x1));
-    const cy = 32 + Math.max(1, Math.min(223, y1));
-    const cb = 32 + Math.max(0, Math.min(255, b));
-    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
-  }
-
-  private encodeMouseRelease(button: 0 | 1 | 2, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
-    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
-
-    if (this.mouseSgrEncodingEnabled) {
-      // In SGR mode, xterm uses final 'm' to indicate release.
-      const b = button + modBits;
-      return `\x1b[<${b};${x1};${y1}m`;
-    }
-
-    // In classic mode, use button 3 (release) + modifiers.
-    const cb = 32 + (3 + modBits);
-    const cx = 32 + Math.max(1, Math.min(223, x1));
-    const cy = 32 + Math.max(1, Math.min(223, y1));
-    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
-  }
-
   private handleMouseDown(ev: MouseEvent | PointerEvent): void {
     if (!this.mouseEnabled()) {
       return;
@@ -1033,11 +903,11 @@ export class TerminalController {
     this.lastMouseButton = button;
     this.lastMouseCell = pos;
 
-    const seq = this.encodeMousePress(button, pos.x1, pos.y1, {
+    const seq = encodeMousePress(button, pos.x1, pos.y1, {
       shift: ev.shiftKey,
       alt: ev.altKey,
       ctrl: ev.ctrlKey,
-    });
+    }, this.mouseSgrEncodingEnabled);
     this.websocket.send(seq);
   }
 
@@ -1072,11 +942,11 @@ export class TerminalController {
     this.lastMouseButton = null;
     this.lastMouseCell = pos;
 
-    const seq = this.encodeMouseRelease(button, pos.x1, pos.y1, {
+    const seq = encodeMouseRelease(button, pos.x1, pos.y1, {
       shift: ev.shiftKey,
       alt: ev.altKey,
       ctrl: ev.ctrlKey,
-    });
+    }, this.mouseSgrEncodingEnabled);
     this.websocket.send(seq);
   }
 
@@ -1147,11 +1017,11 @@ export class TerminalController {
 
     this.lastMouseCell = pos;
 
-    const seq = this.encodeMouseMotion(button, pos.x1, pos.y1, {
+    const seq = encodeMouseMotion(button, pos.x1, pos.y1, {
       shift: sample.shiftKey,
       alt: sample.altKey,
       ctrl: sample.ctrlKey,
-    });
+    }, this.mouseSgrEncodingEnabled);
     this.websocket.send(seq);
   }
 
@@ -1262,11 +1132,11 @@ export class TerminalController {
     const notches = wheelNotchesFromDelta(sample.deltaY, sample.deltaMode);
     this.lastMouseCell = pos;
 
-    const one = this.encodeMouseWheel(direction, pos.x1, pos.y1, {
+    const one = encodeMouseWheel(direction, pos.x1, pos.y1, {
       shift: sample.shiftKey,
       alt: sample.altKey,
       ctrl: sample.ctrlKey,
-    });
+    }, this.mouseSgrEncodingEnabled);
 
     // Send N "wheel clicks" for large deltas.
     this.websocket.send(one.repeat(notches));
@@ -1611,154 +1481,6 @@ function cursorClassNameForStyle(style: number): string {
 
   return `${base} terminal-cursor--block terminal-cursor--blink`;
 }
-
-function encodeCtrlKey(e: KeyboardEvent): string | null {
-  if (!e.ctrlKey || e.metaKey) {
-    return null;
-  }
-
-  // Ctrl+C and Ctrl+D are the main ones that matter for shells.
-  const k = e.key;
-  if (k === "c" || k === "C") {
-    return String.fromCharCode(0x03);
-  }
-  if (k === "d" || k === "D") {
-    return String.fromCharCode(0x04);
-  }
-
-  // Generic Ctrl+<letter> mapping.
-  if (k.length === 1) {
-    const ch = k.toUpperCase();
-    const code = ch.charCodeAt(0);
-    if (code >= 0x40 && code <= 0x5f) {
-      return String.fromCharCode(code - 0x40);
-    }
-    if (code >= 0x41 && code <= 0x5a) {
-      return String.fromCharCode(code - 0x40);
-    }
-  }
-
-  return null;
-}
-
-interface EncodeKeyOptions {
-  applicationCursorKeys: boolean;
-}
-
-function xtermModifierParam(e: KeyboardEvent): number {
-  // xterm modifier encoding: 1 + (shift?1) + (alt?2) + (ctrl?4)
-  // https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-  let mod = 1;
-  if (e.shiftKey) mod += 1;
-  if (e.altKey) mod += 2;
-  if (e.ctrlKey) mod += 4;
-  return mod;
-}
-
-function encodeKeyDownToTerminalBytes(e: KeyboardEvent, opts: EncodeKeyOptions): string | null {
-
-  if (e.metaKey) {
-    // Let browser/OS shortcuts work.
-    return null;
-  }
-
-  const ctrl = encodeCtrlKey(e);
-
-  if (ctrl) {
-    return ctrl;
-  }
-
-  switch (e.key) {
-    case "Enter":
-      return "\r";
-    case "Backspace":
-      // Most shells in raw mode expect DEL (0x7f) for backspace.
-      return "\x7f";
-    case "Tab":
-      return "\t";
-    case "Escape":
-      return "\x1b";
-    case "ArrowUp":
-      return opts.applicationCursorKeys ? "\x1bOA" : "\x1b[A";
-    case "ArrowDown":
-      return opts.applicationCursorKeys ? "\x1bOB" : "\x1b[B";
-    case "ArrowRight":
-      return opts.applicationCursorKeys ? "\x1bOC" : "\x1b[C";
-    case "ArrowLeft":
-      return opts.applicationCursorKeys ? "\x1bOD" : "\x1b[D";
-    case "Home":
-      return "\x1b[H";
-    case "End":
-      return "\x1b[F";
-    case "Delete":
-      return "\x1b[3~";
-    case "Insert":
-      return "\x1b[2~";
-    case "PageUp":
-      return "\x1b[5~";
-    case "PageDown":
-      return "\x1b[6~";
-
-    // Function keys (xterm-compatible)
-    // Common mappings:
-    // - F1-F4: SS3 P/Q/R/S (or CSI 1;M P/Q/R/S with modifiers)
-    // - F5-F12: CSI 15/17/18/19/20/21/23/24 ~ (with optional ;M)
-    case "F1":
-    case "F2":
-    case "F3":
-    case "F4": {
-      const mod = xtermModifierParam(e);
-      const final = e.key === "F1" ? "P" : e.key === "F2" ? "Q" : e.key === "F3" ? "R" : "S";
-      if (mod === 1) {
-        return "\x1bO" + final;
-      }
-      return `\x1b[1;${mod}${final}`;
-    }
-
-    case "F5":
-    case "F6":
-    case "F7":
-    case "F8":
-    case "F9":
-    case "F10":
-    case "F11":
-    case "F12": {
-      const code =
-        e.key === "F5" ? 15 :
-        e.key === "F6" ? 17 :
-        e.key === "F7" ? 18 :
-        e.key === "F8" ? 19 :
-        e.key === "F9" ? 20 :
-        e.key === "F10" ? 21 :
-        e.key === "F11" ? 23 :
-        24;
-
-      const mod = xtermModifierParam(e);
-      if (mod === 1) {
-        return `\x1b[${code}~`;
-      }
-      return `\x1b[${code};${mod}~`;
-    }
-  }
-
-  // Ignore non-text keys (Shift, Alt, etc)
-  if (e.key.length !== 1) {
-    return null;
-  }
-
-  // Alt as ESC prefix (best-effort). On macOS option often produces a different
-  // character already, so only do this when the produced key is a plain ASCII.
-  if (e.altKey) {
-    const code = e.key.charCodeAt(0);
-    if (code >= 0x20 && code <= 0x7e) {
-      return "\x1b" + e.key;
-    }
-  }
-
-  return e.key;
-}
-
-
 
 function debugLogIncoming(text: string): void {
 

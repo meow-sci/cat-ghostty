@@ -153,3 +153,7 @@ export {
   Color256Palette,
   ANSI_COLOR_VARIABLES
 } from "./terminal/ColorResolver";
+// Input exports
+export * from "./input/InputTypes";
+export * from "./input/InputEncoder";
+export * from "./input/ScrollLogic";
