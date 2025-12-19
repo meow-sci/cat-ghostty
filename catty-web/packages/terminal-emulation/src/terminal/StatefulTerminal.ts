@@ -856,6 +856,64 @@ export class StatefulTerminal {
     this.putChar(ch);
   }
 
+  private makeBlankCellWithCurrentSgr(): ScreenCell {
+    return { ch: " ", sgrState: { ...this.currentSgrState } };
+  }
+
+  private insertCharsInLine(count: number): void {
+    if (count <= 0) {
+      return;
+    }
+    if (this._cursorY < 0 || this._cursorY >= this.rows) {
+      return;
+    }
+    if (this._cursorX < 0 || this._cursorX >= this.cols) {
+      return;
+    }
+
+    const n = Math.min(count, this.cols - this._cursorX);
+    if (n <= 0) {
+      return;
+    }
+
+    this.wrapPending = false;
+
+    const row = this.cells[this._cursorY];
+    for (let x = this.cols - 1; x >= this._cursorX + n; x -= 1) {
+      row[x] = row[x - n];
+    }
+    for (let x = 0; x < n; x += 1) {
+      row[this._cursorX + x] = this.makeBlankCellWithCurrentSgr();
+    }
+  }
+
+  private deleteCharsInLine(count: number): void {
+    if (count <= 0) {
+      return;
+    }
+    if (this._cursorY < 0 || this._cursorY >= this.rows) {
+      return;
+    }
+    if (this._cursorX < 0 || this._cursorX >= this.cols) {
+      return;
+    }
+
+    const n = Math.min(count, this.cols - this._cursorX);
+    if (n <= 0) {
+      return;
+    }
+
+    this.wrapPending = false;
+
+    const row = this.cells[this._cursorY];
+    for (let x = this._cursorX; x < this.cols - n; x += 1) {
+      row[x] = row[x + n];
+    }
+    for (let x = this.cols - n; x < this.cols; x += 1) {
+      row[x] = this.makeBlankCellWithCurrentSgr();
+    }
+  }
+
   private putChar(ch: string): void {
     if (this.cols <= 0 || this.rows <= 0) {
       return;
@@ -1212,6 +1270,14 @@ export class StatefulTerminal {
         return;
       case "csi.eraseInDisplay":
         this.clearDisplay(msg.mode);
+        return;
+
+      case "csi.insertChars":
+        this.insertCharsInLine(Math.max(1, msg.count));
+        return;
+
+      case "csi.deleteChars":
+        this.deleteCharsInLine(Math.max(1, msg.count));
         return;
 
       case "csi.deleteLines":

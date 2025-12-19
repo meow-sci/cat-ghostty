@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -287,6 +287,18 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // Insert Lines (IL): CSI Ps L
   if (final === "L" && !isPrivate && !prefix && intermediate.length === 0 && params.length <= 1) {
     const msg: CsiInsertLines = { _type: "csi.insertLines", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
+  // Insert Character (ICH): CSI Ps @
+  if (final === "@" && !isPrivate && !prefix && intermediate.length === 0 && params.length <= 1) {
+    const msg: CsiInsertChars = { _type: "csi.insertChars", raw, count: getParam(params, 0, 1), implemented: true };
+    return msg;
+  }
+
+  // Delete Character (DCH): CSI Ps P
+  if (final === "P" && !isPrivate && !prefix && intermediate.length === 0 && params.length <= 1) {
+    const msg: CsiDeleteChars = { _type: "csi.deleteChars", raw, count: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 

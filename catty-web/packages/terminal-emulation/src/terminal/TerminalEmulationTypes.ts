@@ -351,6 +351,24 @@ export interface CsiEraseCharacter extends CsiBase {
 }
 
 /**
+ * Insert Character (ICH)
+ * CSI Ps @ - Insert Ps blank characters at cursor position (shift right)
+ */
+export interface CsiInsertChars extends CsiBase {
+  _type: "csi.insertChars";
+  count: number;
+}
+
+/**
+ * Delete Character (DCH)
+ * CSI Ps P - Delete Ps characters at cursor position (shift left)
+ */
+export interface CsiDeleteChars extends CsiBase {
+  _type: "csi.deleteChars";
+  count: number;
+}
+
+/**
  * Enhanced SGR Mode Control
  * CSI > Ps ; Ps m - Enhanced SGR sequences with > prefix
  */
@@ -415,6 +433,8 @@ export type CsiMessage =
   | CsiCursorPosition
   | CsiEraseInDisplay
   | CsiEraseInLine
+  | CsiInsertChars
+  | CsiDeleteChars
   | CsiDeleteLines
   | CsiInsertLines
   | CsiScrollUp

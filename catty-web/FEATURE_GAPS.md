@@ -20,15 +20,16 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - xterm uses DCS for several common “query” features (e.g. DECRQSS, XTGETTCAP). Some apps probe capabilities this way.
 
 **Current state:**
-- `Parser` has states for `esc`, `csi`, `osc`, but **no `dcs` state**. `ESC P` is treated like an opaque 2-byte ESC sequence, and then the remaining DCS payload is processed as normal bytes.
+- Implemented: `DCS` (`ESC P ... ST`) plus `SOS` (`ESC X`), `PM` (`ESC ^`), and `APC` (`ESC _`) are now parsed as control strings and **consumed until `ST`** so payload never renders as normal bytes.
 
 **Key sequences:**
 - `DCS ... ST` (7-bit: `ESC P ... ESC \\`)
 - Also related string controls worth consuming correctly (even if ignored): `SOS` (`ESC X`), `PM` (`ESC ^`), `APC` (`ESC _`).
 
-**Where to implement:**
-- Add string-mode parsing in `packages/terminal-emulation/src/terminal/Parser.ts` (new states for DCS/SOS/PM/APC, terminate on `ST` = `ESC \\`).
-- Initially it’s fine to emit a generic message and ignore it in `StatefulTerminal`, as long as the payload is not rendered.
+**Where it lives:**
+- Parser changes: `packages/terminal-emulation/src/terminal/Parser.ts`
+- DCS handler plumbing: `packages/terminal-emulation/src/terminal/ParserOptions.ts`
+- Trace support: `packages/terminal-emulation/src/terminal/TerminalTrace.ts`
 
 ---
 
@@ -38,18 +39,14 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - Bracketed paste is a de-facto baseline feature for shells/editors. It prevents pasted text from being interpreted as “typed input” (e.g. avoids executing pasted newlines in shells without confirmation).
 
 **Current state:**
-- Apps enable it using `CSI ? 2004 h` and disable using `CSI ? 2004 l`.
-- Those sequences will be parsed as `csi.decModeSet` / `csi.decModeReset`, but `StatefulTerminal` only acts on a small subset (25/1/2027/47/1047/1049). Mode 2004 is therefore **parsed but has no effect**.
-- `TerminalController` paste handling always sends raw clipboard text; it does **not** wrap with bracket markers.
+- Implemented: `TerminalController` now tracks `CSI ? 2004 h/l` via `terminal.onDecMode(...)` and wraps paste as `ESC[200~...ESC[201~` when enabled.
 
 **Expected behavior:**
 - When bracketed paste is enabled, terminal should send:
   - `ESC [ 200 ~` + pasted text + `ESC [ 201 ~`
 
-**Where to implement:**
-- Track DECSET/DECRST 2004 as a boolean “bracketedPasteEnabled” somewhere accessible to the input bridge.
-  - Easiest: have `TerminalController` subscribe to `terminal.onDecMode(...)` and update a local flag.
-- Update the raw-mode paste handler in `app/src/ts/terminal/TerminalController.ts` to wrap pasted text when enabled.
+**Where it lives:**
+- `app/src/ts/terminal/TerminalController.ts`
 
 ---
 
@@ -64,12 +61,11 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - `CSI Ps P` — **DCH** Delete characters (shift left)
 
 **Current state:**
-- `ParseCsi.ts` does not parse these at all (they end up as `csi.unknown`).
-- `StatefulTerminal` has no handlers for them.
+- Implemented: `CSI Ps @` (ICH) and `CSI Ps P` (DCH) are parsed and executed by shifting cells within the current line.
 
-**Where to implement:**
-- Add message types + parsing in `packages/terminal-emulation/src/terminal/ParseCsi.ts`.
-- Implement line shifting in `packages/terminal-emulation/src/terminal/StatefulTerminal.ts` within the current line and (optionally) within margins/scroll region rules.
+**Where it lives:**
+- Parsing: `packages/terminal-emulation/src/terminal/ParseCsi.ts`
+- Execution: `packages/terminal-emulation/src/terminal/StatefulTerminal.ts`
 
 ---
 
