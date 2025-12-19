@@ -38,7 +38,9 @@ export class TerminalController {
   private readonly traceChunks: TerminalTraceChunk[] = [];
   private traceRenderedCount = 0;
 
-  private inputMode: InputMode = "cooked";
+  // For PTY-backed shells (bash/zsh), we must forward keystrokes immediately.
+  // Local "cooked" line editing breaks readline/zle features like Tab completion.
+  private inputMode: InputMode = "raw";
   private applicationCursorKeys = false;
 
   private cookedLine = "";
@@ -82,7 +84,6 @@ export class TerminalController {
 
     const unsubscribeDecModes = this.terminal.onDecMode((ev) => {
       // These are "real world" sequences apps send to terminals.
-      // We use them as a proxy to decide whether we should behave like a raw-key terminal.
       // - 1049/1047/47: alternate screen buffers
       // - 1: application cursor keys
       const modes = new Set(ev.modes);
@@ -91,9 +92,8 @@ export class TerminalController {
         this.applicationCursorKeys = ev.action === "set";
       }
 
-      if (modes.has(47) || modes.has(1047) || modes.has(1049)) {
-        this.setInputMode(ev.action === "set" ? "raw" : "cooked");
-      }
+      // Always remain in raw mode for PTY-backed sessions.
+      // (Full-screen apps toggling the alt screen should not affect input semantics.)
     });
     this.removeListeners.push(unsubscribeDecModes);
 
