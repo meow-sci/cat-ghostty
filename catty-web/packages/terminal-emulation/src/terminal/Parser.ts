@@ -4,10 +4,12 @@ import type { ParserOptions } from "./ParserOptions";
 import { parseSgr, parseSgrParamsAndSeparators } from "./ParseSgr";
 import { parseCsi } from "./ParseCsi";
 import { parseOsc } from "./ParseOsc";
-import type { EscMessage, OscMessage, SgrSequence } from "./TerminalEmulationTypes";
+import type { DcsMessage, EscMessage, OscMessage, SgrSequence } from "./TerminalEmulationTypes";
 
 
-type State = "normal" | "esc" | "csi" | "osc" | "osc_esc";
+type State = "normal" | "esc" | "csi" | "osc" | "osc_esc" | "dcs" | "dcs_esc" | "str" | "str_esc";
+
+type ControlStringKind = "sos" | "pm" | "apc";
 
 
 export class Parser {
@@ -20,6 +22,12 @@ export class Parser {
   private state: State = "normal";
   private escapeSequence: number[] = [];
   private csiSequence: string = "";
+
+  // Control string state (DCS/SOS/PM/APC)
+  private controlStringKind: ControlStringKind | null = null;
+  private dcsCommand: string | null = null;
+  private dcsParamBuffer: string = "";
+  private dcsParameters: string[] = [];
 
   // UTF-8 decoding state
   private utf8Buffer: number[] = [];
@@ -93,6 +101,22 @@ export class Parser {
       case "osc_esc": {
         return this.handleOscEscByte(byte);
       }
+
+      case "dcs": {
+        return this.handleDcsByte(byte);
+      }
+
+      case "dcs_esc": {
+        return this.handleDcsEscByte(byte);
+      }
+
+      case "str": {
+        return this.handleControlStringByte(byte);
+      }
+
+      case "str_esc": {
+        return this.handleControlStringEscByte(byte);
+      }
     }
 
   }
@@ -148,6 +172,99 @@ export class Parser {
     return;
   }
 
+  private handleDcsByte(byte: number): void {
+    // DCS is a control string terminated by ST (ESC \\).
+    // Do not interpret payload bytes as normal text.
+
+    // CAN (0x18) / SUB (0x1a) abort a control string per ECMA-48.
+    if (byte === 0x18 || byte === 0x1a) {
+      this.resetEscapeState();
+      return;
+    }
+
+    this.escapeSequence.push(byte);
+
+    if (byte === 0x1b) {
+      this.state = "dcs_esc";
+      return;
+    }
+
+    // Parse the DCS "function identifier" (params/intermediates/final) once.
+    if (this.dcsCommand === null) {
+      // Final byte (0x40-0x7E) ends the identifier.
+      if (byte >= 0x40 && byte <= 0x7e) {
+        this.dcsCommand = String.fromCharCode(byte);
+        this.dcsParameters = this.dcsParamBuffer.length === 0 ? [] : this.dcsParamBuffer.split(";");
+        return;
+      }
+
+      // Parameter bytes are typically 0x30-0x3F (digits and delimiters).
+      // We keep it simple and buffer printable parameter bytes.
+      if (byte >= 0x20 && byte <= 0x3f) {
+        this.dcsParamBuffer += String.fromCharCode(byte);
+      }
+    }
+  }
+
+  private handleDcsEscByte(byte: number): void {
+    // We just saw an ESC while inside DCS. If next byte is "\\" then it's ST terminator.
+    // Otherwise, it was a literal ESC in the payload and we continue in DCS.
+    this.escapeSequence.push(byte);
+
+    if (byte === 0x5c) {
+      this.finishDcsSequence("ST");
+      return;
+    }
+
+    // CAN/SUB should still abort even if we were in the ESC lookahead.
+    if (byte === 0x18 || byte === 0x1a) {
+      this.resetEscapeState();
+      return;
+    }
+
+    this.state = "dcs";
+    return;
+  }
+
+  private handleControlStringByte(byte: number): void {
+    // SOS/PM/APC are control strings terminated by ST (ESC \\).
+    // We intentionally ignore all payload and only ensure correct termination.
+
+    // CAN (0x18) / SUB (0x1a) abort a control string per ECMA-48.
+    if (byte === 0x18 || byte === 0x1a) {
+      this.resetEscapeState();
+      return;
+    }
+
+    this.escapeSequence.push(byte);
+
+    if (byte === 0x1b) {
+      this.state = "str_esc";
+      return;
+    }
+  }
+
+  private handleControlStringEscByte(byte: number): void {
+    this.escapeSequence.push(byte);
+
+    if (byte === 0x5c) {
+      // ST terminator
+      const raw = bytesToString(this.escapeSequence);
+      const kind = this.controlStringKind ?? "str";
+      this.log.debug(`${kind.toUpperCase()} (ST): ${raw}`);
+      this.resetEscapeState();
+      return;
+    }
+
+    if (byte === 0x18 || byte === 0x1a) {
+      this.resetEscapeState();
+      return;
+    }
+
+    this.state = "str";
+    return;
+  }
+
   private handleCsiByte(byte: number): void {
 
     // guard against bytes outside the allowed CSI byte range (0x20 - 0x7E)
@@ -190,6 +307,24 @@ export class Parser {
       if (byte === 0x5d) {
         this.escapeSequence.push(byte);
         this.state = "osc";
+        return;
+      }
+
+      // DCS: ESC P ... ST
+      if (byte === 0x50) {
+        this.escapeSequence.push(byte);
+        this.dcsCommand = null;
+        this.dcsParamBuffer = "";
+        this.dcsParameters = [];
+        this.state = "dcs";
+        return;
+      }
+
+      // SOS / PM / APC: ESC X / ESC ^ / ESC _ ... ST
+      if (byte === 0x58 || byte === 0x5e || byte === 0x5f) {
+        this.escapeSequence.push(byte);
+        this.controlStringKind = byte === 0x58 ? "sos" : byte === 0x5e ? "pm" : "apc";
+        this.state = "str";
         return;
       }
 
@@ -427,10 +562,29 @@ export class Parser {
     return;
   }
 
+  private finishDcsSequence(terminator: "ST"): void {
+    const raw = bytesToString(this.escapeSequence);
+    const msg: DcsMessage = {
+      _type: "dcs",
+      raw,
+      terminator,
+      implemented: false,
+      command: this.dcsCommand ?? "",
+      parameters: this.dcsParameters,
+    };
+    this.log.debug(`DCS (${terminator}): ${raw}`);
+    this.handlers.handleDcs(msg);
+    this.resetEscapeState();
+  }
+
   private resetEscapeState(): void {
     this.state = "normal";
     this.escapeSequence = [];
     this.csiSequence = "";
+    this.controlStringKind = null;
+    this.dcsCommand = null;
+    this.dcsParamBuffer = "";
+    this.dcsParameters = [];
     return;
   }
 

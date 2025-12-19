@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { Parser } from "../terminal/Parser";
 import { ParserHandlers } from "../terminal/ParserOptions";
-import { type CsiMessage, type EscMessage, type OscMessage, type SgrMessage, type SgrSequence, type XtermOscMessage } from "../terminal/TerminalEmulationTypes";
+import { type CsiMessage, type DcsMessage, type EscMessage, type OscMessage, type SgrMessage, type SgrSequence, type XtermOscMessage } from "../terminal/TerminalEmulationTypes";
 import { getLogger } from "@catty/log";
 
 /**
@@ -15,6 +15,7 @@ interface CapturedEvents {
   csiMessages: CsiMessage[];
   sgrMessages: SgrMessage[][];
   oscSequences: OscMessage[];
+  dcsMessages: DcsMessage[];
   xtermOscMessages: XtermOscMessage[];
   bells: number;
   backspaces: number;
@@ -32,6 +33,7 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     csiMessages: [],
     sgrMessages: [],
     oscSequences: [],
+    dcsMessages: [],
     xtermOscMessages: [],
     bells: 0,
     backspaces: 0,
@@ -81,6 +83,9 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
     handleOsc: (msg: OscMessage) => {
       captured.oscSequences.push(msg);
     },
+    handleDcs: (msg: DcsMessage) => {
+      captured.dcsMessages.push(msg);
+    },
     handleSgr: (seq: SgrSequence) => {
       captured.sgrMessages.push(seq.messages);
     },
@@ -115,6 +120,54 @@ describe("Parser", () => {
       expect(captured.escMessages).toHaveLength(1);
       expect(captured.escMessages[0]._type).toBe("esc.restoreCursor");
       expect(captured.escMessages[0].raw).toBe("\x1b8");
+    });
+  });
+
+  describe("control strings (DCS/SOS/PM/APC)", () => {
+    it("should consume DCS payload until ST and not emit it as normal text", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      // DCS: ESC P <params> <final> <payload> ESC \
+      // Here: params "1;2", final "q", payload "PAYLOAD".
+      parser.pushBytes(Buffer.from("A\x1bP1;2qPAYLOAD\x1b\\B"));
+
+      expect(captured.normalText).toBe("AB");
+      expect(captured.dcsMessages).toHaveLength(1);
+      expect(captured.dcsMessages[0]._type).toBe("dcs");
+      expect(captured.dcsMessages[0].terminator).toBe("ST");
+      expect(captured.dcsMessages[0].command).toBe("q");
+      expect(captured.dcsMessages[0].parameters).toEqual(["1", "2"]);
+    });
+
+    it("should consume SOS payload until ST and not emit it as normal text", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("A\x1bXIGNORED\x1b\\B"));
+
+      expect(captured.normalText).toBe("AB");
+      expect(captured.dcsMessages).toHaveLength(0);
+    });
+
+    it("should consume PM payload until ST and not emit it as normal text", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("A\x1b^IGNORED\x1b\\B"));
+
+      expect(captured.normalText).toBe("AB");
+      expect(captured.dcsMessages).toHaveLength(0);
+    });
+
+    it("should consume APC payload until ST and not emit it as normal text", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("A\x1b_IGNORED\x1b\\B"));
+
+      expect(captured.normalText).toBe("AB");
+      expect(captured.dcsMessages).toHaveLength(0);
     });
   });
 

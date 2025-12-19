@@ -31,6 +31,7 @@ function createCapturingHandlers(): { handlers: ParserHandlers; captured: Captur
       captured.csiMessages.push(msg);
     },
     handleOsc: () => {},
+    handleDcs: () => {},
     handleSgr: (seq: SgrSequence) => {
       captured.sgrSequences.push(seq);
     },

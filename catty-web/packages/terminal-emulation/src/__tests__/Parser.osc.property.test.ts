@@ -28,6 +28,7 @@ function createOscCapturingHandlers(): { handlers: ParserHandlers; captured: Cap
     handleEsc: () => {},
     handleCsi: () => {},
     handleOsc: () => {},
+    handleDcs: () => {},
     handleSgr: () => {},
     handleXtermOsc: (msg: XtermOscMessage) => {
       captured.xtermOscMessages.push(msg);

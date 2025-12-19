@@ -1,6 +1,6 @@
 import { getLogger } from "@catty/log";
 
-import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr, HandleXtermOsc } from "./ParserHandlers";
+import type { HandleBell, HandleBackspace, HandleTab, HandleLineFeed, HandleFormFeed, HandleCarriageReturn, HandleNormalByte, HandleCsi, HandleEsc, HandleOsc, HandleSgr, HandleDcs, HandleXtermOsc } from "./ParserHandlers";
 
 export interface ParserHandlers {
   handleBell: HandleBell;
@@ -19,6 +19,9 @@ export interface ParserHandlers {
 
   /** Opaque OSC sequence (buffered, not parsed), includes raw */
   handleOsc: HandleOsc;
+
+  /** Device Control String (DCS) sequence, buffered and parsed minimally */
+  handleDcs: HandleDcs;
 
   /** Parsed SGR messages (stateless) wrapped with raw sequence */
   handleSgr: HandleSgr;

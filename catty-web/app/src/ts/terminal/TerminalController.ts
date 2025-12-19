@@ -42,6 +42,7 @@ export class TerminalController {
   // Local "cooked" line editing breaks readline/zle features like Tab completion.
   private inputMode: InputMode = "raw";
   private applicationCursorKeys = false;
+  private bracketedPasteEnabled = false;
 
   private cookedLine = "";
   private cookedCursorIndex = 0;
@@ -86,10 +87,15 @@ export class TerminalController {
       // These are "real world" sequences apps send to terminals.
       // - 1049/1047/47: alternate screen buffers
       // - 1: application cursor keys
+      // - 2004: bracketed paste mode
       const modes = new Set(ev.modes);
 
       if (modes.has(1)) {
         this.applicationCursorKeys = ev.action === "set";
+      }
+
+      if (modes.has(2004)) {
+        this.bracketedPasteEnabled = ev.action === "set";
       }
 
       // Always remain in raw mode for PTY-backed sessions.
@@ -522,7 +528,10 @@ export class TerminalController {
       }
       e.preventDefault();
       this.inputElement.value = "";
-      this.websocket.send(text);
+      const payload = this.bracketedPasteEnabled
+        ? `\x1b[200~${text}\x1b[201~`
+        : text;
+      this.websocket.send(payload);
     };
 
     this.inputElement.addEventListener("paste", onPaste);

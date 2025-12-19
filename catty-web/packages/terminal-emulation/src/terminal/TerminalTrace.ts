@@ -1,4 +1,4 @@
-import type { EscMessage, CsiMessage, OscMessage, XtermOscMessage, SgrSequence } from "./TerminalEmulationTypes";
+import type { EscMessage, CsiMessage, DcsMessage, OscMessage, XtermOscMessage, SgrSequence } from "./TerminalEmulationTypes";
 
 export interface TraceCursorPosition {
   /** 0-based cursor column */
@@ -36,6 +36,11 @@ export interface TraceOscChunk extends TraceCursorPosition {
   msg: OscMessage | XtermOscMessage;
 }
 
+export interface TraceDcsChunk extends TraceCursorPosition {
+  _type: "trace.dcs";
+  msg: DcsMessage;
+}
+
 export interface TraceSgrChunk extends TraceCursorPosition {
   _type: "trace.sgr";
   msg: SgrSequence;
@@ -47,6 +52,7 @@ export type TerminalTraceChunk =
   | TraceEscChunk
   | TraceCsiChunk
   | TraceOscChunk
+  | TraceDcsChunk
   | TraceSgrChunk;
 
 function byteToHex(byte: number): string {
@@ -99,6 +105,10 @@ export function formatTerminalTraceLine(chunk: TerminalTraceChunk, index: number
       const terminator = 'terminator' in chunk.msg ? chunk.msg.terminator : 'BEL';
       const msgType = chunk.msg._type !== 'osc' ? ` ${chunk.msg._type}` : '';
       return `${prefix}OSC ${terminator}${msgType} ${makeControlCharsVisible(chunk.msg.raw)}`;
+    }
+
+    case "trace.dcs": {
+      return `${prefix}DCS ${chunk.msg.terminator} ${makeControlCharsVisible(chunk.msg.raw)}`;
     }
 
     case "trace.sgr":

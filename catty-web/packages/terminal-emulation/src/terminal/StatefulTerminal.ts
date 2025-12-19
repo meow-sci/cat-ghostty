@@ -2,7 +2,7 @@ import { getLogger } from "@catty/log";
 
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
 import { Parser } from "./Parser";
-import type { EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage, SgrColorType, SgrNamedColor } from "./TerminalEmulationTypes";
+import type { DcsMessage, EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage, SgrColorType, SgrNamedColor } from "./TerminalEmulationTypes";
 import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
 import { processSgrMessages } from './SgrStateProcessor';
 
@@ -282,6 +282,11 @@ export class StatefulTerminal {
         },
         handleOsc: (msg: OscMessage) => {
           this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+        },
+        handleDcs: (msg: DcsMessage) => {
+          // For now, DCS is treated as a consumed-but-ignored control string.
+          // The critical behavior is that its payload never renders as normal bytes.
+          this.emitChunk({ _type: "trace.dcs", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
         },
         handleSgr: (msg: SgrSequence) => {
           this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });

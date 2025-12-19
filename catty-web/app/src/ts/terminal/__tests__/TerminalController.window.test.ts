@@ -53,6 +53,17 @@ describe("TerminalController Window Management", () => {
     });
   });
 
+  function dispatchPaste(text: string): void {
+    const ev = new Event("paste", { bubbles: true, cancelable: true }) as unknown as ClipboardEvent;
+    const clipboardData = {
+      getData: (type: string) => (type === "text/plain" ? text : ""),
+    };
+    Object.defineProperty(ev, "clipboardData", {
+      value: clipboardData as unknown as DataTransfer,
+    });
+    inputElement.dispatchEvent(ev);
+  }
+
   it("should set window title", () => {
     controller.setTitle("Test Title");
     expect(controller.getTitle()).toBe("Test Title");
@@ -184,5 +195,26 @@ describe("TerminalController Window Management", () => {
 
     // F10 should map to CSI 21 ~
     expect(wsSends).toContain("\x1b[21~");
+  });
+
+  it("should send raw paste without bracketed paste by default", () => {
+    dispatchPaste("hello");
+    expect(wsSends[wsSends.length - 1]).toBe("hello");
+  });
+
+  it("should wrap paste in bracketed paste markers when DECSET 2004 is enabled", () => {
+    terminal.pushPtyText("\x1b[?2004h");
+    dispatchPaste("hello");
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[200~hello\x1b[201~");
+  });
+
+  it("should stop wrapping paste when DECRST 2004 is received", () => {
+    terminal.pushPtyText("\x1b[?2004h");
+    dispatchPaste("hello");
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[200~hello\x1b[201~");
+
+    terminal.pushPtyText("\x1b[?2004l");
+    dispatchPaste("bye");
+    expect(wsSends[wsSends.length - 1]).toBe("bye");
   });
 });

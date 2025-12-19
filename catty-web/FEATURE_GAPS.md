@@ -1,0 +1,230 @@
+# caTTY Terminal Emulator – Feature Gaps (Baseline)
+
+This document lists **important terminal-emulation gaps** found by reviewing the current parser + state machine in `packages/terminal-emulation` and the web input bridge in `app/src/ts/terminal/TerminalController.ts`.
+
+I’ve prioritized items that are common in “baseline” terminal emulators (ECMA-48/VT100-ish + widely used xterm extensions) and that tend to affect real-world apps (shell line editing, tmux/screen, vim/emacs, TUIs).
+
+## Summary
+
+- Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
+- The biggest remaining risks are **string-mode controls (DCS/etc.)** and **input-side features** that require coordinating DECSET modes with `TerminalController` (notably **bracketed paste** and **mouse reporting**).
+
+---
+
+## High Priority (strong “baseline” expectations)
+
+### 1) DCS (and other ECMA-48 “string” controls) are not parsed and will leak payload as text
+
+**Why it matters:**
+- Modern terminals must at least *consume* these sequences correctly, even if they do not implement the feature, otherwise the **payload bytes can show up on screen** (or corrupt the parser state).
+- xterm uses DCS for several common “query” features (e.g. DECRQSS, XTGETTCAP). Some apps probe capabilities this way.
+
+**Current state:**
+- `Parser` has states for `esc`, `csi`, `osc`, but **no `dcs` state**. `ESC P` is treated like an opaque 2-byte ESC sequence, and then the remaining DCS payload is processed as normal bytes.
+
+**Key sequences:**
+- `DCS ... ST` (7-bit: `ESC P ... ESC \\`)
+- Also related string controls worth consuming correctly (even if ignored): `SOS` (`ESC X`), `PM` (`ESC ^`), `APC` (`ESC _`).
+
+**Where to implement:**
+- Add string-mode parsing in `packages/terminal-emulation/src/terminal/Parser.ts` (new states for DCS/SOS/PM/APC, terminate on `ST` = `ESC \\`).
+- Initially it’s fine to emit a generic message and ignore it in `StatefulTerminal`, as long as the payload is not rendered.
+
+---
+
+### 2) Bracketed paste mode (DECSET 2004) is unhandled end-to-end
+
+**Why it matters:**
+- Bracketed paste is a de-facto baseline feature for shells/editors. It prevents pasted text from being interpreted as “typed input” (e.g. avoids executing pasted newlines in shells without confirmation).
+
+**Current state:**
+- Apps enable it using `CSI ? 2004 h` and disable using `CSI ? 2004 l`.
+- Those sequences will be parsed as `csi.decModeSet` / `csi.decModeReset`, but `StatefulTerminal` only acts on a small subset (25/1/2027/47/1047/1049). Mode 2004 is therefore **parsed but has no effect**.
+- `TerminalController` paste handling always sends raw clipboard text; it does **not** wrap with bracket markers.
+
+**Expected behavior:**
+- When bracketed paste is enabled, terminal should send:
+  - `ESC [ 200 ~` + pasted text + `ESC [ 201 ~`
+
+**Where to implement:**
+- Track DECSET/DECRST 2004 as a boolean “bracketedPasteEnabled” somewhere accessible to the input bridge.
+  - Easiest: have `TerminalController` subscribe to `terminal.onDecMode(...)` and update a local flag.
+- Update the raw-mode paste handler in `app/src/ts/terminal/TerminalController.ts` to wrap pasted text when enabled.
+
+---
+
+### 3) Insert/Delete Character editing ops missing (ICH/DCH)
+
+**Why it matters:**
+- Shell line editing (readline/zle/fish) and many TUIs rely on **character insertion/deletion within a line**.
+- Without these, you can still “mostly work”, but you’ll see cursor artifacts, broken prompt redraws, or incorrect line updates.
+
+**Missing CSI sequences (common):**
+- `CSI Ps @` — **ICH** Insert blank characters (shift right)
+- `CSI Ps P` — **DCH** Delete characters (shift left)
+
+**Current state:**
+- `ParseCsi.ts` does not parse these at all (they end up as `csi.unknown`).
+- `StatefulTerminal` has no handlers for them.
+
+**Where to implement:**
+- Add message types + parsing in `packages/terminal-emulation/src/terminal/ParseCsi.ts`.
+- Implement line shifting in `packages/terminal-emulation/src/terminal/StatefulTerminal.ts` within the current line and (optionally) within margins/scroll region rules.
+
+---
+
+### 4) SI/SO (Shift In/Out) and single-shifts are not handled
+
+**Why it matters:**
+- VT100 character set switching is used for line-drawing (DEC Special Graphics) and some legacy apps.
+- You already implemented *designation* (e.g. `ESC ( 0`), and you have character translation logic, but without *invocation* the feature is incomplete.
+
+**Key controls:**
+- `SO` (0x0E) — invoke G1 as GL
+- `SI` (0x0F) — invoke G0 as GL
+- (Optional but related) `SS2` (`ESC N`) and `SS3` (`ESC O`) affect next character only.
+
+**Current state:**
+- `Parser.handleC0ExceptEscape` does not treat 0x0E/0x0F as controls, so they flow through as normal bytes.
+
+**Where to implement:**
+- Add handling for `SI`/`SO` in `Parser.handleC0ExceptEscape` and route to a handler in `StatefulTerminal` that updates the currently-invoked character set (`characterSets.current`).
+
+---
+
+### 5) Basic ESC single-character functions missing: IND/NEL/HTS
+
+**Why it matters:**
+- These are core VT100/xterm functions and are commonly used in older code and some terminfo capabilities.
+
+**Key sequences:**
+- `ESC D` — **IND** (Index): move down one line (like LF but scrolls within region)
+- `ESC E` — **NEL** (Next Line): CR + LF
+- `ESC H` — **HTS** (Tab Set): sets a tab stop at current column
+
+**Current state:**
+- Only `ESC 7`, `ESC 8`, `ESC M`, and charset designation are explicitly handled.
+
+**Where to implement:**
+- Extend `Parser.handleEscapeByte` to recognize these and emit explicit `EscMessage` variants.
+- Implement behavior in `StatefulTerminal.handleEsc`.
+
+---
+
+### 6) Reset controls: RIS and DECSTR are missing
+
+**Why it matters:**
+- Apps (and test suites like vttest) use resets to restore a known state.
+- Correct reset behavior reduces “sticky state” bugs (scroll region, origin mode, modes, character sets, SGR, etc.).
+
+**Key sequences:**
+- `ESC c` — **RIS** (Full Reset)
+- `CSI ! p` — **DECSTR** (Soft Reset)
+
+**Current state:**
+- Neither is parsed/handled.
+
+**Where to implement:**
+- Parse in `Parser`/`ParseCsi`, implement in `StatefulTerminal.reset()` (soft reset can reuse parts of full reset).
+
+---
+
+## Medium Priority (common, but some apps tolerate absence)
+
+### 7) Mouse reporting modes are “parsed but ignored” (and ParseCsi type mismatch)
+
+**Why it matters:**
+- Vim, less, and many TUIs can use the mouse.
+- Even if you don’t want to fully support mouse yet, you should at least track enable/disable cleanly so you can add it without refactoring.
+
+**Key xterm modes (DECSET/DECRST):**
+- `CSI ? 1000 h/l` (VT200 mouse)
+- `CSI ? 1002 h/l` (button-event tracking)
+- `CSI ? 1003 h/l` (any-event tracking)
+- `CSI ? 1006 h/l` (SGR mouse encoding)
+- `CSI ? 1005 h/l` (UTF-8 extended coordinates; less important today)
+
+**Current state:**
+- Spec doc mentions these as parsed/ignored.
+- In code, these likely arrive as `csi.decModeSet` / `csi.decModeReset` with modes containing 1000/1002/1003/1006; `StatefulTerminal` does not do anything with them.
+- `TerminalEmulationTypes.ts` defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not produce it (so that type is effectively unused).
+
+**Where to implement:**
+- Decide whether to keep mouse as a DEC private mode inside `csi.decModeSet` (simple), or emit dedicated `csi.mouseReportingMode` messages.
+- Implement event wiring in the web layer: `TerminalController` needs mouse listeners on the display and should send appropriate reports back to the PTY when enabled.
+
+---
+
+### 8) Tab stop management (TBC/CHT/CBT) not implemented
+
+**Why it matters:**
+- Many programs assume fixed 8-column tabs and never manipulate stops; but some TUIs do.
+
+**Key sequences:**
+- `CSI Ps I` — CHT (Forward Tabulation)
+- `CSI Ps Z` — CBT (Backward Tabulation)
+- `CSI Ps g` — TBC (Tab Clear)
+- `ESC H` — HTS (Tab Set) (also listed above)
+
+---
+
+### 9) Origin mode + autowrap mode (DECOM/DECAWM) not implemented
+
+**Why it matters:**
+- Some full-screen apps assume these modes behave correctly.
+
+**Key sequences:**
+- `CSI ? 6 h/l` — DECOM (Origin mode)
+- `CSI ? 7 h/l` — DECAWM (Auto-wrap)
+
+**Current state:**
+- There is always-on wrapping logic (`wrapPending`) but no mode gating.
+
+---
+
+### 10) XTSAVE/XTRESTORE (save/restore DEC private modes)
+
+**Why it matters:**
+- Used historically in termcap/vi scenarios to preserve private mode state.
+
+**Key sequences:**
+- `CSI ? Pm s` — XTSAVE
+- `CSI ? Pm r` — XTRESTORE
+
+---
+
+### 11) DSR “status report” (CSI 5 n)
+
+**Why it matters:**
+- Some programs send DSR to verify terminal readiness.
+
+**Key sequences:**
+- `CSI 5 n` → respond `CSI 0 n`
+
+(Currently you implement `CSI 6 n` CPR, but not `5 n`.)
+
+---
+
+## Lower Priority / Optional (not baseline for your current goals)
+
+- Graphics: SIXEL/ReGIS (needs full DCS parsing first).
+- OSC color/palette mutation (OSC 4/12/etc.) and clipboard OSC 52.
+- Rectangular editing and selective erase variants (`CSI ? Ps J/K`, DECCARA/DECERA, etc.).
+
+---
+
+## “Parsed but not implemented” items already present
+
+- `CSI 4 h/l` — Insert/Replace Mode (IRM): explicitly parsed with `implemented: false`, and `StatefulTerminal` currently does nothing besides acknowledging.
+- `CSI ... t` window manipulation: implemented only for title/icon stack ops; other operations are intentionally ignored (reasonable for the web).
+
+---
+
+## Recommended next steps (minimal, high-value)
+
+1) Add **proper string-mode parsing** for DCS/SOS/PM/APC so payload never leaks.
+2) Implement **bracketed paste** (DECSET 2004) end-to-end (mode tracking + paste wrapping).
+3) Implement **ICH/DCH** (`CSI @`, `CSI P`) to solidify shells and TUIs.
+4) Add **SI/SO** and **IND/NEL** for VT100 correctness.
+
+If you want, I can follow up by implementing items (1) and (2) as a small, contained PR-sized change, plus focused tests in `packages/terminal-emulation/src/terminal/__tests__`.

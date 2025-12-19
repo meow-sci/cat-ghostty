@@ -1,5 +1,6 @@
 import type { 
   CsiMessage, 
+  DcsMessage,
   EscMessage, 
   OscMessage, 
   SgrSequence,
@@ -17,6 +18,12 @@ export type HandleCsi = (msg: CsiMessage) => void;
 export type HandleEsc = (msg: EscMessage) => void;
 export type HandleOsc = (msg: OscMessage) => void;
 export type HandleSgr = (msg: SgrSequence) => void;
+
+// =============================================================================
+// ECMA-48 / VT / Xterm Control Strings
+// =============================================================================
+
+export type HandleDcs = (msg: DcsMessage) => void;
 
 // =============================================================================
 // Xterm Extension Handlers

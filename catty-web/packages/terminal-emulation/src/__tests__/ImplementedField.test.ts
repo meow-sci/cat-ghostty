@@ -21,6 +21,7 @@ describe("Implemented Field", () => {
         handleOsc: () => {},
         handleSgr: () => {},
         handleXtermOsc: () => {},
+        handleDcs: () => {},
       },
       log: getLogger(),
     });
@@ -63,6 +64,7 @@ describe("Implemented Field", () => {
         handleOsc: () => {},
         handleSgr: (msg: SgrSequence) => { capturedSgr.push(msg); },
         handleXtermOsc: () => {},
+        handleDcs: () => {},
       },
       log: getLogger(),
     });
@@ -102,6 +104,7 @@ describe("Implemented Field", () => {
         handleOsc: () => {},
         handleSgr: () => {},
         handleXtermOsc: () => {},
+        handleDcs: () => {},
       },
       log: getLogger(),
     });
@@ -137,6 +140,7 @@ describe("Implemented Field", () => {
         handleOsc: () => {},
         handleSgr: () => {},
         handleXtermOsc: (msg: XtermOscMessage) => { capturedXtermOsc.push(msg); },
+        handleDcs: () => {},
       },
       log: getLogger(),
     });

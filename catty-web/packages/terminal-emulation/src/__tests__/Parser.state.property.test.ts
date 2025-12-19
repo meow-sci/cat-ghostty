@@ -4,6 +4,7 @@ import { Parser } from "../terminal/Parser";
 import { ParserHandlers } from "../terminal/ParserOptions";
 import { 
   type CsiMessage, 
+  type DcsMessage,
   type EscMessage, 
   type OscMessage, 
   type SgrSequence,
@@ -19,6 +20,7 @@ interface CapturedParserState {
   csiMessages: CsiMessage[];
   escMessages: EscMessage[];
   oscMessages: OscMessage[];
+  dcsMessages: DcsMessage[];
   sgrSequences: SgrSequence[];
   xtermOscMessages: XtermOscMessage[];
   controlCalls: {
@@ -37,6 +39,7 @@ function createStateCapturingHandlers(): { handlers: ParserHandlers; captured: C
     csiMessages: [],
     escMessages: [],
     oscMessages: [],
+    dcsMessages: [],
     sgrSequences: [],
     xtermOscMessages: [],
     controlCalls: {
@@ -60,6 +63,7 @@ function createStateCapturingHandlers(): { handlers: ParserHandlers; captured: C
     handleEsc: (msg: EscMessage) => { captured.escMessages.push(msg); },
     handleCsi: (msg: CsiMessage) => { captured.csiMessages.push(msg); },
     handleOsc: (msg: OscMessage) => { captured.oscMessages.push(msg); },
+    handleDcs: (msg: DcsMessage) => { captured.dcsMessages.push(msg); },
     handleSgr: (msg: SgrSequence) => { captured.sgrSequences.push(msg); },
     handleXtermOsc: (msg: XtermOscMessage) => { captured.xtermOscMessages.push(msg); },
   };
@@ -251,18 +255,35 @@ describe("Parser State Integrity Property-Based Tests", () => {
           // Data integrity: No corruption should occur in message content
           for (const msg of captured.xtermOscMessages) {
             if (msg._type === "osc.setTitleAndIcon" || msg._type === "osc.setWindowTitle") {
-              // Title should be extractable from raw sequence
-              const titleMatch = msg.raw.match(/\x1b\](?:0|2);([^\x07\x1b]*)/);
-              if (titleMatch && msg._type === "osc.setTitleAndIcon") {
-                expect((msg as any).title).toBe(titleMatch[1]);
-              } else if (titleMatch && msg._type === "osc.setWindowTitle") {
-                expect((msg as any).title).toBe(titleMatch[1]);
+              // Title should be extractable from raw sequence.
+              // Avoid regex with control-character escapes (linted as errors).
+              const raw = msg.raw;
+              const prefix0 = "\x1b]0;";
+              const prefix2 = "\x1b]2;";
+              const prefix = raw.startsWith(prefix0) ? prefix0 : raw.startsWith(prefix2) ? prefix2 : null;
+
+              if (prefix) {
+                const belIndex = raw.indexOf("\x07");
+                const stIndex = raw.indexOf("\x1b\\");
+                const termIndex = belIndex !== -1 ? belIndex : stIndex !== -1 ? stIndex : raw.length;
+                const title = raw.slice(prefix.length, termIndex);
+
+                if (msg._type === "osc.setTitleAndIcon") {
+                  expect((msg as any).title).toBe(title);
+                } else if (msg._type === "osc.setWindowTitle") {
+                  expect((msg as any).title).toBe(title);
+                }
               }
             } else if (msg._type === "osc.setIconName") {
-              // Icon name should be extractable from raw sequence
-              const iconMatch = msg.raw.match(/\x1b\]1;([^\x07\x1b]*)/);
-              if (iconMatch) {
-                expect((msg as any).iconName).toBe(iconMatch[1]);
+              // Icon name should be extractable from raw sequence.
+              const raw = msg.raw;
+              const prefix1 = "\x1b]1;";
+              if (raw.startsWith(prefix1)) {
+                const belIndex = raw.indexOf("\x07");
+                const stIndex = raw.indexOf("\x1b\\");
+                const termIndex = belIndex !== -1 ? belIndex : stIndex !== -1 ? stIndex : raw.length;
+                const iconName = raw.slice(prefix1.length, termIndex);
+                expect((msg as any).iconName).toBe(iconName);
               }
             }
           }
