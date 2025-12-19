@@ -277,7 +277,8 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| DCS ... ST | Device Control | ECMA-48 | 🟡 | Parsed and payload is consumed until ST so it never renders; no semantic DCS features (e.g. DECRQSS/XTGETTCAP responses) |
+| DCS ... ST | Device Control | ECMA-48 | ✅ | Parsed and payload is consumed until ST |
+| DCS $ q | DECRQSS - Request Status String | VT/xterm | ✅ | Request status of SGR, DECSTBM (others return invalid) |
 
 ## Summary
 

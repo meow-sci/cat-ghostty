@@ -45,6 +45,7 @@ import type { TerminalActions } from "./stateful/actions";
 import { handleCsi as handleCsiDispatch } from "./stateful/handlers/csi";
 import { handleEsc as handleEscDispatch } from "./stateful/handlers/esc";
 import { handleXtermOsc as handleXtermOscDispatch } from "./stateful/handlers/osc";
+import { handleDcs as handleDcsDispatch } from "./stateful/handlers/dcs";
 
 import type {
   CursorState,
@@ -305,6 +306,7 @@ export class StatefulTerminal {
       setUtf8Mode: (enable: boolean) => this.setUtf8Mode(enable),
 
       getScrollTop: () => this.scrollTop,
+      getScrollBottom: () => this.scrollBottom,
       designateCharacterSet: (slot: "G0" | "G1" | "G2" | "G3", charset: string) => {
         this.designateCharacterSet(slot, charset);
       },
@@ -462,11 +464,10 @@ export class StatefulTerminal {
           }
         },
         handleDcs: (msg: DcsMessage) => {
-          // For now, DCS is treated as a consumed-but-ignored control string.
-          // The critical behavior is that its payload never renders as normal bytes.
           if (traceSettings.enabled) {
             this.emitChunk({ _type: "trace.dcs", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
           }
+          handleDcsDispatch(this.actions, msg);
         },
         handleSgr: (msg: SgrSequence) => {
           if (traceSettings.enabled) {

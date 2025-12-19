@@ -30,6 +30,7 @@ export interface TerminalActions {
 
   // ESC helpers
   getScrollTop(): number;
+  getScrollBottom(): number;
   designateCharacterSet(slot: "G0" | "G1" | "G2" | "G3", charset: string): void;
   lineFeed(): void;
   carriageReturn(): void;

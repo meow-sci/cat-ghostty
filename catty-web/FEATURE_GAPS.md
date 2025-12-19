@@ -21,7 +21,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 **Current state:**
 - Implemented (baseline safety): `DCS` (`ESC P ... ST`) plus `SOS` (`ESC X`), `PM` (`ESC ^`), and `APC` (`ESC _`) are parsed as control strings and **consumed until `ST`** so payload never renders as normal bytes.
-- Not implemented (feature semantics): DCS query/response behaviors (e.g. DECRQSS, XTGETTCAP) are not responded to; DCS is currently treated as consumed/ignored.
+- Implemented (feature semantics): `DECRQSS` (DCS $ q) is now handled and responds to queries for SGR and DECSTBM. Other DCS sequences are consumed/ignored.
 
 **Key sequences:**
 - `DCS ... ST` (7-bit: `ESC P ... ESC \\`)
@@ -29,7 +29,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 **Where it lives:**
 - Parser changes: `packages/terminal-emulation/src/terminal/Parser.ts`
-- DCS handler plumbing: `packages/terminal-emulation/src/terminal/ParserOptions.ts`
+- DCS handler plumbing: `packages/terminal-emulation/src/terminal/stateful/handlers/dcs.ts`
 - Trace support: `packages/terminal-emulation/src/terminal/TerminalTrace.ts`
 
 ---
