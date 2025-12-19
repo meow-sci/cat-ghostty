@@ -129,6 +129,16 @@ export class TerminalController {
   private readonly sgrStyleManager: SgrStyleManager;
   private readonly themeManager: ThemeManager;
 
+  // Render cache for fast in-place repaint.
+  private cellCols = 0;
+  private cellRows = 0;
+  private cellSpans: Array<HTMLSpanElement> | null = null;
+  private cellRenderedText: string[] = [];
+  private cellRenderedClassName: string[] = [];
+  private overlayElement: HTMLDivElement | null = null;
+  private echoLayerElement: HTMLDivElement | null = null;
+  private cursorElement: HTMLDivElement | null = null;
+
   private websocket: WebSocket | null = null;
   private repaintScheduled = false;
   private repaintReschedule = false;
@@ -1211,96 +1221,185 @@ export class TerminalController {
       return;
     }
 
+    this.ensureDisplayDom(snapshot.cols, snapshot.rows);
 
+    const spans = this.cellSpans;
+    if (!spans) {
+      return;
+    }
 
-    // Full repaint for MVP.
-    this.displayElement.textContent = "";
-
-    const frag = document.createDocumentFragment();
-
+    // Update cell spans in-place.
     for (let y = 0; y < snapshot.rows; y++) {
       const row = snapshot.cells[y];
       for (let x = 0; x < snapshot.cols; x++) {
-        
-        const cell = row[x];
-        
-        if (!cell) {
-          continue;
+        const idx = y * snapshot.cols + x;
+        const cell = row?.[x] ?? null;
+
+        const next = this.renderStateForCell(cell);
+
+        if (this.cellRenderedText[idx] !== next.text) {
+          spans[idx].textContent = next.text;
+          this.cellRenderedText[idx] = next.text;
         }
 
-        // Skip spaces that have default styling (optimization)
-        // But preserve spaces that are adjacent to non-space characters to maintain proper spacing
-        if (cell.ch === " " && cell.sgrState && this.isDefaultSgrState(cell.sgrState)) {
-          // Check if this space is adjacent to non-space content
-          const hasContentBefore = x > 0 && row[x - 1] && row[x - 1].ch !== " ";
-          const hasContentAfter = x < snapshot.cols - 1 && row[x + 1] && row[x + 1].ch !== " ";
-          
-          // Only skip if this space is not between content
-          if (!hasContentBefore && !hasContentAfter) {
-            continue;
-          }
+        if (this.cellRenderedClassName[idx] !== next.className) {
+          spans[idx].className = next.className;
+          this.cellRenderedClassName[idx] = next.className;
         }
-
-        const span = document.createElement("span");
-        span.className = "terminal-cell";
-        // Use non-breaking space for space characters so they render properly in HTML
-        span.textContent = cell.ch === " " ? "\u00A0" : cell.ch;
-        span.style.position = "absolute";
-        span.style.left = `${x}ch`;
-        span.style.top = `${y}lh`;
-
-        // Apply SGR styling if the cell has sgrState
-        if (cell.sgrState) {
-          const sgrClass = this.sgrStyleManager.getStyleClass(cell.sgrState);
-          span.className += ` ${sgrClass}`;
-        }
-
-        frag.appendChild(span);
       }
     }
 
     // Cooked-mode local echo overlay.
-    if (this.inputMode === "cooked" && this.cookedLine.length > 0) {
-      const startX = snapshot.cursorX;
-      const startY = snapshot.cursorY;
+    const echoLayer = this.echoLayerElement;
+    if (echoLayer) {
+      if (this.inputMode === "cooked" && this.cookedLine.length > 0) {
+        const startX = snapshot.cursorX;
+        const startY = snapshot.cursorY;
+        const echoFrag = document.createDocumentFragment();
 
-      for (let i = 0; i < this.cookedLine.length; i++) {
-        const ch = this.cookedLine[i];
-        const pos = addOffset(startX, startY, i, snapshot.cols);
-        if (!pos) {
-          break;
-        }
-        const [x, y] = pos;
-        if (y >= snapshot.rows) {
-          break;
+        for (let i = 0; i < this.cookedLine.length; i++) {
+          const ch = this.cookedLine[i];
+          const pos = addOffset(startX, startY, i, snapshot.cols);
+          if (!pos) {
+            break;
+          }
+          const [x, y] = pos;
+          if (y >= snapshot.rows) {
+            break;
+          }
+
+          const span = document.createElement("span");
+          span.className = "terminal-echo";
+          span.textContent = ch;
+          span.style.left = `${x}ch`;
+          span.style.top = `${y}lh`;
+          echoFrag.appendChild(span);
         }
 
-        const span = document.createElement("span");
-        span.className = "terminal-echo";
-        span.textContent = ch;
-        span.style.left = `${x}ch`;
-        span.style.top = `${y}lh`;
-        frag.appendChild(span);
+        echoLayer.replaceChildren(echoFrag);
+      } else {
+        echoLayer.replaceChildren();
       }
     }
 
     // Cursor overlay (respects DECTCEM cursor visibility)
-    if (snapshot.cursorVisible) {
-      const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;
-      const cursorPos = addOffset(snapshot.cursorX, snapshot.cursorY, cursorOffset, snapshot.cols);
-      if (cursorPos) {
-        const [cx, cy] = cursorPos;
-        if (cy >= 0 && cy < snapshot.rows) {
-          const cursor = document.createElement("div");
-          cursor.className = cursorClassNameForStyle(snapshot.cursorStyle);
-          cursor.style.left = `${cx}ch`;
-          cursor.style.top = `${cy}lh`;
-          frag.appendChild(cursor);
+    const cursor = this.cursorElement;
+    if (cursor) {
+      if (!snapshot.cursorVisible) {
+        cursor.style.display = "none";
+      } else {
+        const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;
+        const cursorPos = addOffset(snapshot.cursorX, snapshot.cursorY, cursorOffset, snapshot.cols);
+        if (!cursorPos) {
+          cursor.style.display = "none";
+        } else {
+          const [cx, cy] = cursorPos;
+          if (cy < 0 || cy >= snapshot.rows) {
+            cursor.style.display = "none";
+          } else {
+            const className = cursorClassNameForStyle(snapshot.cursorStyle);
+            if (cursor.className !== className) {
+              cursor.className = className;
+            }
+            cursor.style.left = `${cx}ch`;
+            cursor.style.top = `${cy}lh`;
+            cursor.style.display = "block";
+          }
         }
       }
     }
+  }
 
+  private ensureDisplayDom(cols: number, rows: number): void {
+    if (
+      this.cellSpans &&
+      this.overlayElement &&
+      this.echoLayerElement &&
+      this.cursorElement &&
+      this.cellCols === cols &&
+      this.cellRows === rows
+    ) {
+      return;
+    }
+
+    this.cellCols = cols;
+    this.cellRows = rows;
+
+    const spanCount = cols * rows;
+    this.cellSpans = [];
+    this.cellSpans.length = spanCount;
+    this.cellRenderedText = Array.from({ length: spanCount }, () => "");
+    this.cellRenderedClassName = Array.from({ length: spanCount }, () => "terminal-cell");
+
+    const frag = document.createDocumentFragment();
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = y * cols + x;
+        const span = document.createElement("span");
+        span.className = "terminal-cell";
+        span.style.left = `${x}ch`;
+        span.style.top = `${y}lh`;
+        this.cellSpans[idx] = span;
+        frag.appendChild(span);
+      }
+    }
+
+    const overlay = document.createElement("div");
+    overlay.style.position = "absolute";
+    overlay.style.left = "0";
+    overlay.style.top = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.pointerEvents = "none";
+
+    const echoLayer = document.createElement("div");
+    echoLayer.style.position = "absolute";
+    echoLayer.style.left = "0";
+    echoLayer.style.top = "0";
+    echoLayer.style.width = "100%";
+    echoLayer.style.height = "100%";
+    overlay.appendChild(echoLayer);
+
+    const cursor = document.createElement("div");
+    cursor.className = cursorClassNameForStyle(1);
+    cursor.style.display = "none";
+    overlay.appendChild(cursor);
+
+    this.overlayElement = overlay;
+    this.echoLayerElement = echoLayer;
+    this.cursorElement = cursor;
+
+    // Rebuild display root.
+    this.displayElement.textContent = "";
     this.displayElement.appendChild(frag);
+    this.displayElement.appendChild(overlay);
+  }
+
+  private renderStateForCell(cell: { ch: string; sgrState?: SgrState | null } | null): { text: string; className: string } {
+    if (!cell) {
+      return { text: "", className: "terminal-cell" };
+    }
+
+    const sgrState = cell.sgrState ?? null;
+
+    // Default spaces are the common case; render as empty to avoid drawing and
+    // avoid creating unnecessary text nodes. (Styled spaces still need a NBSP
+    // so backgrounds/attributes paint.)
+    const isSpace = cell.ch === " ";
+    const isDefault = !sgrState || this.isDefaultSgrState(sgrState);
+
+    if (isSpace && isDefault) {
+      return { text: "", className: "terminal-cell" };
+    }
+
+    const sgrClass = sgrState && !this.isDefaultSgrState(sgrState)
+      ? this.sgrStyleManager.getStyleClass(sgrState)
+      : "";
+
+    const className = sgrClass.length > 0 ? `terminal-cell ${sgrClass}` : "terminal-cell";
+    const text = isSpace ? "\u00A0" : cell.ch;
+    return { text, className };
   }
 }
 
