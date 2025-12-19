@@ -505,6 +505,22 @@ export interface CsiPrivateSgrMode extends CsiBase {
 }
 
 /**
+ * XTSAVE: CSI ? Pm s - Save DEC Private Mode(s)
+ */
+export interface CsiSavePrivateMode extends CsiBase {
+  _type: "csi.savePrivateMode";
+  modes: number[];
+}
+
+/**
+ * XTRESTORE: CSI ? Pm r - Restore DEC Private Mode(s)
+ */
+export interface CsiRestorePrivateMode extends CsiBase {
+  _type: "csi.restorePrivateMode";
+  modes: number[];
+}
+
+/**
  * SGR with Intermediate Characters
  * CSI Ps % m - SGR sequences with intermediate characters
  */
@@ -537,6 +553,8 @@ export type XtermCsiMessage =
   | CsiEraseCharacter
   | CsiEnhancedSgrMode
   | CsiPrivateSgrMode
+  | CsiSavePrivateMode
+  | CsiRestorePrivateMode
   | CsiSgrWithIntermediate
   | CsiUnknownViSequence;
 

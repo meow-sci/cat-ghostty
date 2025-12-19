@@ -280,6 +280,14 @@ export function handleCsi(actions: TerminalActions, msg: CsiMessage): void {
       actions.handleUnknownViSequence(msg.sequenceNumber);
       return;
 
+    case "csi.savePrivateMode":
+      actions.savePrivateMode(msg.modes);
+      return;
+
+    case "csi.restorePrivateMode":
+      actions.restorePrivateMode(msg.modes);
+      return;
+
     // ignored (for MVP)
     case "csi.mouseReportingMode":
     case "csi.unknown":

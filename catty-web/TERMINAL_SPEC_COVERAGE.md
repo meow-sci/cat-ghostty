@@ -91,6 +91,13 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI s | SCP - Save Cursor Position | xterm | ✅ | Save cursor (ANSI version) |
 | CSI u | RCP - Restore Cursor Position | xterm | ✅ | Restore cursor (ANSI version) |
 
+## CSI Sequences (Mode Management)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI ? Pm s | XTSAVE - Save DEC Private Mode | xterm | ✅ | Save state of private modes (e.g. 1, 6, 7, 25, 47, 1047, 1049) |
+| CSI ? Pm r | XTRESTORE - Restore DEC Private Mode | xterm | ✅ | Restore state of private modes |
+
 ## CSI Sequences (Tabulation)
 
 | Sequence | Name | Spec | Status | Notes |

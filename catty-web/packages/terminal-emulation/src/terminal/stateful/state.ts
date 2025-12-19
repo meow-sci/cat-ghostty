@@ -44,6 +44,8 @@ export interface TerminalState {
   characterSets: CharacterSetState;
   utf8Mode: boolean;
 
+  savedPrivateModes: Map<number, boolean>;
+
   currentSgrState: SgrState;
   currentCharacterProtection: "unprotected" | "protected";
 
@@ -97,6 +99,8 @@ export function createInitialTerminalState(options: CreateInitialTerminalStateOp
       current: "G0",
     },
     utf8Mode: true,
+
+    savedPrivateModes: new Map(),
 
     currentSgrState: createDefaultSgrState(),
     currentCharacterProtection: "unprotected",

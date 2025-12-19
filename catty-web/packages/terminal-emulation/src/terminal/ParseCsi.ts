@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiSelectiveEraseInDisplayMode, CsiSelectiveEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiSelectiveEraseInLineMode, CsiSelectiveEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiDeviceStatusReport, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate, CsiSelectCharacterProtection } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiSelectiveEraseInDisplayMode, CsiSelectiveEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiSelectiveEraseInLineMode, CsiSelectiveEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiDeviceStatusReport, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSavePrivateMode, CsiRestorePrivateMode, CsiSgrWithIntermediate, CsiSelectCharacterProtection } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -183,20 +183,31 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     return msg;
   }
 
-  if (final === "r") {
-    const top = params.length >= 1 ? params[0] : undefined;
-    const bottom = params.length >= 2 ? params[1] : undefined;
-    const msg: CsiSetScrollRegion = { _type: "csi.setScrollRegion", raw, top, bottom, implemented: true };
-    return msg;
-  }
 
   if (final === "s") {
+    if (isPrivate) {
+      const modes = validateDecModes(params);
+      const msg: CsiSavePrivateMode = { _type: "csi.savePrivateMode", raw, modes, implemented: true };
+      return msg;
+    }
     const msg: CsiSaveCursorPosition = { _type: "csi.saveCursorPosition", raw, implemented: true };
     return msg;
   }
 
   if (final === "u") {
     const msg: CsiRestoreCursorPosition = { _type: "csi.restoreCursorPosition", raw, implemented: true };
+    return msg;
+  }
+
+  if (final === "r") {
+    if (isPrivate) {
+      const modes = validateDecModes(params);
+      const msg: CsiRestorePrivateMode = { _type: "csi.restorePrivateMode", raw, modes, implemented: true };
+      return msg;
+    }
+    const top = params.length >= 1 ? params[0] : undefined;
+    const bottom = params.length >= 2 ? params[1] : undefined;
+    const msg: CsiSetScrollRegion = { _type: "csi.setScrollRegion", raw, top, bottom, implemented: true };
     return msg;
   }
 

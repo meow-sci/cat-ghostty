@@ -175,6 +175,10 @@ export class StatefulTerminal {
   }
 
   // DECAWM (CSI ? 7 h/l): auto-wrap mode
+  private get autoWrapMode(): boolean {
+    return this.state.autoWrapMode;
+  }
+
   // Scroll region (DECSTBM)
   private get scrollTop(): number {
     return this.state.scrollTop;
@@ -349,6 +353,9 @@ export class StatefulTerminal {
           this.clampCursor();
         }
       },
+
+      savePrivateMode: (modes: number[]) => this.savePrivateMode(modes),
+      restorePrivateMode: (modes: number[]) => this.restorePrivateMode(modes),
 
       softReset: () => this.softReset(),
       setCursorStyle: (style: number) => this.setCursorStyle(style),
@@ -714,6 +721,81 @@ export class StatefulTerminal {
     this.applicationCursorKeys = state.applicationMode;
     this.wrapPending = state.wrapPending;
     this.emitUpdate();
+  }
+
+  private savePrivateMode(modes: number[]): void {
+    for (const mode of modes) {
+      let enabled = false;
+      switch (mode) {
+        case 1: // DECCKM
+          enabled = this.applicationCursorKeys;
+          break;
+        case 6: // DECOM
+          enabled = this.originMode;
+          break;
+        case 7: // DECAWM
+          enabled = this.autoWrapMode;
+          break;
+        case 25: // DECTCEM
+          enabled = this.cursorVisible;
+          break;
+        case 47:
+        case 1047:
+        case 1049:
+          enabled = this.isAlternateScreenActive();
+          break;
+        default:
+          continue;
+      }
+      this.state.savedPrivateModes.set(mode, enabled);
+    }
+  }
+
+  private restorePrivateMode(modes: number[]): void {
+    for (const mode of modes) {
+      const enabled = this.state.savedPrivateModes.get(mode);
+      if (enabled === undefined) {
+        continue;
+      }
+
+      switch (mode) {
+        case 1: // DECCKM
+          this.setApplicationCursorKeys(enabled);
+          break;
+        case 6: // DECOM
+          this.setOriginMode(enabled);
+          break;
+        case 7: // DECAWM
+          this.setAutoWrapMode(enabled);
+          break;
+        case 25: // DECTCEM
+          this.setCursorVisibility(enabled);
+          break;
+        case 47:
+        case 1047:
+        case 1049:
+          if (enabled) {
+            if (!this.isAlternateScreenActive()) {
+              if (mode === 1049) {
+                this.switchToAlternateScreenWithCursorSaveAndClear();
+              } else if (mode === 1047) {
+                this.switchToAlternateScreenWithCursorSave();
+              } else {
+                this.switchToAlternateScreen();
+              }
+            }
+          } else {
+            if (this.isAlternateScreenActive()) {
+              if (mode === 1049 || mode === 1047) {
+                this.switchToPrimaryScreenWithCursorRestore();
+              } else {
+                this.switchToPrimaryScreen();
+              }
+            }
+          }
+          break;
+      }
+    }
   }
 
   // Alternate screen buffer switching methods

@@ -7,7 +7,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Summary
 
 - Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
-- The biggest remaining risks are a few **DEC private mode save/restore** gaps (XTSAVE/XTRESTORE), plus missing semantics for some **DCS query** features (apps probing via DCS).
+- The biggest remaining risks are missing semantics for some **DCS query** features (apps probing via DCS).
 
 ---
 
@@ -205,6 +205,9 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 **Why it matters:**
 - Used historically in termcap/vi scenarios to preserve private mode state.
 
+**Current state:**
+- Implemented: `CSI ? Pm s` (XTSAVE) and `CSI ? Pm r` (XTRESTORE) are now supported for key modes (DECCKM, DECOM, DECAWM, DECTCEM, Alternate Screen).
+
 **Key sequences:**
 - `CSI ? Pm s` — XTSAVE
 - `CSI ? Pm r` — XTRESTORE
@@ -241,5 +244,4 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ## Recommended next steps (minimal, high-value)
 
-1) Implement **XTSAVE/XTRESTORE** (`CSI ? Pm s` / `CSI ? Pm r`) to preserve DEC private mode state in legacy code paths.
-2) Implement common **DCS query responses** (e.g. DECRQSS, XTGETTCAP) so probing applications get expected replies.
+1) Implement common **DCS query responses** (e.g. DECRQSS, XTGETTCAP) so probing applications get expected replies.

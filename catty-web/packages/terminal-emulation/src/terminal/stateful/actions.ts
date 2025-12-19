@@ -66,6 +66,10 @@ export interface TerminalActions {
   saveCursorPosition(): void;
   restoreCursorPosition(): void;
 
+  // XTSAVE/XTRESTORE
+  savePrivateMode(modes: number[]): void;
+  restorePrivateMode(modes: number[]): void;
+
   // Screen/mode ops
   softReset(): void;
   setCursorStyle(style: number): void;

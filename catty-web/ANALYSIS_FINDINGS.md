@@ -28,8 +28,8 @@ However, there are specific feature gaps (notably DCS handling) and potential ar
 
 ### 2. DEC Private Mode Save/Restore (XTSAVE/XTRESTORE)
 **Severity: Medium**
-- **Current State**: `FEATURE_GAPS.md` identifies this as a missing feature.
-- **Impact**: Applications that temporarily change terminal modes (e.g., hiding cursor, changing screen buffer) and expect to restore them exactly as they were might leave the terminal in an inconsistent state upon exit.
+- **Current State**: Implemented.
+- **Impact**: Applications can now reliably save and restore terminal modes.
 
 ### 3. Mouse Reporting State
 **Severity: Low**
