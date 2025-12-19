@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiDeviceStatusReport, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -198,6 +198,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   }
 
   // Cursor Position Report request: CSI 6 n
+  // Device Status Report request: CSI 5 n
   // Character Set Query: CSI ? 26 n
   if (final === "n") {
     if (isPrivate && params.length === 1 && params[0] === 26) {
@@ -211,6 +212,14 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     if (!isPrivate && !prefix && params.length === 1 && params[0] === 6) {
       const msg: CsiCursorPositionReport = { 
         _type: "csi.cursorPositionReport", 
+        raw,
+        implemented: true
+      };
+      return msg;
+    }
+    if (!isPrivate && !prefix && params.length === 1 && params[0] === 5) {
+      const msg: CsiDeviceStatusReport = {
+        _type: "csi.deviceStatusReport",
         raw,
         implemented: true
       };

@@ -120,6 +120,7 @@ This document tracks the implementation status of terminal escape sequences in c
 |----------|------|------|--------|-------|
 | CSI c | DA1 - Primary Device Attributes | xterm | ✅ | Query terminal capabilities |
 | CSI > c | DA2 - Secondary Device Attributes | xterm | ✅ | Query terminal version |
+| CSI 5 n | DSR - Device Status Report (Ready) | xterm | ✅ | Responds with CSI 0 n |
 | CSI 6 n | CPR - Cursor Position Report | xterm | ✅ | Request cursor position |
 | CSI 18 t | Terminal Size Query | xterm | ✅ | Request terminal dimensions |
 | CSI ? 26 n | Character Set Query | xterm | ✅ | Query character set |

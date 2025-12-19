@@ -216,7 +216,8 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 **Key sequences:**
 - `CSI 5 n` → respond `CSI 0 n`
 
-(Currently you implement `CSI 6 n` CPR, but not `5 n`.)
+**Current state:**
+- Implemented: `CSI 5 n` now responds with `CSI 0 n`.
 
 ---
 
@@ -237,6 +238,5 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ## Recommended next steps (minimal, high-value)
 
-1) Implement **DSR 5 n** (`CSI 5 n` → respond `CSI 0 n`) to improve app readiness/probe compatibility.
-2) Implement **XTSAVE/XTRESTORE** (`CSI ? Pm s` / `CSI ? Pm r`) to preserve DEC private mode state in legacy code paths.
-3) Expand mouse support to include **motion/drag + wheel** (DECSET 1002/1003, wheel buttons) for mouse-heavy TUIs.
+1) Implement **XTSAVE/XTRESTORE** (`CSI ? Pm s` / `CSI ? Pm r`) to preserve DEC private mode state in legacy code paths.
+2) Expand mouse support to include **motion/drag + wheel** (DECSET 1002/1003, wheel buttons) for mouse-heavy TUIs.

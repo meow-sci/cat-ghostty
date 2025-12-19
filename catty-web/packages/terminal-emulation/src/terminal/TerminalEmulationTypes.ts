@@ -375,6 +375,14 @@ export interface CsiCursorPositionReport extends CsiBase {
 }
 
 /**
+ * Device Status Report (DSR) Request
+ * CSI 5 n - Request terminal status report (ready)
+ */
+export interface CsiDeviceStatusReport extends CsiBase {
+  _type: "csi.deviceStatusReport";
+}
+
+/**
  * Terminal Size Query
  */
 export interface CsiTerminalSizeQuery extends CsiBase {
@@ -485,6 +493,7 @@ export interface CsiUnknownViSequence extends CsiBase {
 export type XtermCsiMessage =
   | CsiDeviceAttributesPrimary
   | CsiDeviceAttributesSecondary
+  | CsiDeviceStatusReport
   | CsiCursorPositionReport
   | CsiTerminalSizeQuery
   | CsiMouseReportingMode

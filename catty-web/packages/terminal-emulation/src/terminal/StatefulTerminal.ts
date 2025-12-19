@@ -593,6 +593,14 @@ export class StatefulTerminal {
   }
 
   /**
+   * Generate Device Status Report (DSR) "ready" response.
+   * Format: CSI 0 n
+   */
+  private generateDeviceStatusReportResponse(): string {
+    return "\x1b[0n";
+  }
+
+  /**
    * Generate Terminal Size Query response.
    * Reports terminal dimensions in characters.
    * Format: CSI 8 ; rows ; cols t
@@ -1613,6 +1621,11 @@ export class StatefulTerminal {
       case "csi.cursorPositionReport":
         // CPR query: respond with current cursor position
         this.emitResponse(this.generateCursorPositionReport());
+        return;
+
+      case "csi.deviceStatusReport":
+        // DSR ready query: respond with CSI 0 n
+        this.emitResponse(this.generateDeviceStatusReportResponse());
         return;
 
       case "csi.terminalSizeQuery":
