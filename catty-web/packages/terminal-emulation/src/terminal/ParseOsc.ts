@@ -58,21 +58,22 @@ export function parseOsc(msg: OscMessage): XtermOscMessage | null {
   const textParam = payload.slice(semicolonIndex + 1);
   
   // Handle color queries (OSC 10;? and OSC 11;?)
-  if (textParam === "?") {
+  // Check if textParam is exactly "?" or starts with "?;" (for extra parameters)
+  if (textParam === "?" || textParam.startsWith("?;")) {
     switch (commandNum) {
       case 10:
         return {
           _type: "osc.queryForegroundColor",
           raw,
           terminator,
-          implemented: false
+          implemented: true
         };
       case 11:
         return {
           _type: "osc.queryBackgroundColor",
           raw,
           terminator,
-          implemented: false
+          implemented: true
         };
       default:
         return null;

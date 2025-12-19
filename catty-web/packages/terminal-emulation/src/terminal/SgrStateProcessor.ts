@@ -152,12 +152,54 @@ function processSgrMessage(state: SgrState, message: SgrMessage): void {
       
     case 'sgr.enhancedMode':
       // Enhanced SGR mode with > prefix (e.g., CSI > 4 ; 2 m)
-      // For now, gracefully ignore these advanced modes
+      if (message.implemented && message.params.length >= 2 && message.params[0] === 4) {
+        // Enhanced underline mode: CSI > 4 ; n m
+        const underlineType = message.params[1];
+        switch (underlineType) {
+          case 0:
+            // No underline
+            state.underline = false;
+            state.underlineStyle = null;
+            break;
+          case 1:
+            // Single underline
+            state.underline = true;
+            state.underlineStyle = 'single';
+            break;
+          case 2:
+            // Double underline
+            state.underline = true;
+            state.underlineStyle = 'double';
+            break;
+          case 3:
+            // Curly underline
+            state.underline = true;
+            state.underlineStyle = 'curly';
+            break;
+          case 4:
+            // Dotted underline
+            state.underline = true;
+            state.underlineStyle = 'dotted';
+            break;
+          case 5:
+            // Dashed underline
+            state.underline = true;
+            state.underlineStyle = 'dashed';
+            break;
+        }
+      }
+      // For other enhanced modes or invalid parameters, gracefully ignore
       break;
       
     case 'sgr.privateMode':
       // Private SGR mode with ? prefix (e.g., CSI ? 4 m)
-      // For now, gracefully ignore these private modes
+      if (message.implemented && message.params.length === 1 && message.params[0] === 4) {
+        // Private underline mode (?4m) - enable a special underline style
+        state.underline = true;
+        state.underlineStyle = 'single'; // Use single underline for private mode
+        // Could be extended to use a different style if needed
+      }
+      // For other private modes, gracefully ignore
       break;
       
     case 'sgr.withIntermediate':

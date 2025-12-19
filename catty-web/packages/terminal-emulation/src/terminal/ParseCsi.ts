@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate, CsiUnknownViSequence } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -205,12 +205,26 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
     
     // Window manipulation commands
     if (params.length >= 1) {
+      // Check for title stack operations (vi compatibility)
+      const operation = params[0];
+      let implemented = false;
+      
+      // Title stack operations: 22;1t, 22;2t, 23;1t, 23;2t
+      if (operation === 22 || operation === 23) {
+        if (params.length >= 2) {
+          const subOperation = params[1];
+          if (subOperation === 1 || subOperation === 2) {
+            implemented = true; // We'll handle these with graceful acknowledgment
+          }
+        }
+      }
+      
       const msg: CsiWindowManipulation = {
         _type: "csi.windowManipulation",
         raw,
         operation: params[0],
         params: params.slice(1),
-        implemented: false
+        implemented
       };
       return msg;
     }
@@ -259,6 +273,20 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
       implemented: false
     };
     return msg;
+  }
+
+  // Unknown vi sequences: CSI n M (e.g., CSI 11M)
+  if (final === "M" && !isPrivate && !prefix && intermediate.length === 0) {
+    // Validate that we have exactly one numeric parameter
+    if (params.length === 1 && Number.isInteger(params[0]) && params[0] >= 0) {
+      const msg: CsiUnknownViSequence = {
+        _type: "csi.unknownViSequence",
+        raw,
+        sequenceNumber: params[0],
+        implemented: false // Gracefully acknowledged but not implemented
+      };
+      return msg;
+    }
   }
 
   const unknown: CsiUnknown = {

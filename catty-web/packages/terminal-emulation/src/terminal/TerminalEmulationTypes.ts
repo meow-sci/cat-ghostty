@@ -352,6 +352,16 @@ export interface CsiSgrWithIntermediate extends CsiBase {
   intermediate: string;
 }
 
+/**
+ * CSI 11 M - Unknown vi sequence (likely delete/insert related)
+ * This sequence appears in vi usage but is not part of standard terminal specifications.
+ * We handle it gracefully by parsing and acknowledging it.
+ */
+export interface CsiUnknownViSequence extends CsiBase {
+  _type: "csi.unknownViSequence";
+  sequenceNumber: number; // The number before M (e.g., 11 in CSI 11M)
+}
+
 export type XtermCsiMessage =
   | CsiDeviceAttributesPrimary
   | CsiDeviceAttributesSecondary
@@ -364,7 +374,8 @@ export type XtermCsiMessage =
   | CsiEraseCharacter
   | CsiEnhancedSgrMode
   | CsiPrivateSgrMode
-  | CsiSgrWithIntermediate;
+  | CsiSgrWithIntermediate
+  | CsiUnknownViSequence;
 
 export type CsiMessage =
   | CsiCursorUp

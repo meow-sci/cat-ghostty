@@ -106,10 +106,10 @@ This document tracks the implementation status of terminal escape sequences in c
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
 | CSI n t | Window Manipulation | xterm | 🟡 | Parsed but ignored (web security) |
-| CSI 22;2 t | Push Window Title | xterm | 🟡 | Parsed but ignored (no title stack) |
-| CSI 22;1 t | Push Icon Name | xterm | 🟡 | Parsed but ignored (no title stack) |
-| CSI 23;2 t | Pop Window Title | xterm | 🟡 | Parsed but ignored (no title stack) |
-| CSI 23;1 t | Pop Icon Name | xterm | 🟡 | Parsed but ignored (no title stack) |
+| CSI 22;2 t | Push Window Title | xterm | ✅ | Title stack management for vi compatibility |
+| CSI 22;1 t | Push Icon Name | xterm | ✅ | Icon name stack management for vi compatibility |
+| CSI 23;2 t | Pop Window Title | xterm | ✅ | Title stack management for vi compatibility |
+| CSI 23;1 t | Pop Icon Name | xterm | ✅ | Icon name stack management for vi compatibility |
 
 ## CSI Sequences (Mouse)
 
@@ -118,6 +118,12 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI ? 1000 h/l | Mouse Reporting | xterm | 🟡 | Parsed but ignored |
 | CSI ? 1002 h/l | Button Event Mouse | xterm | 🟡 | Parsed but ignored |
 | CSI ? 1003 h/l | Any Event Mouse | xterm | 🟡 | Parsed but ignored |
+
+## CSI Sequences (Vi Compatibility)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI n M | Unknown Vi Sequence | vi | 🟡 | Parsed and gracefully acknowledged (e.g., CSI 11M) |
 
 ## SGR Sequences (Select Graphic Rendition)
 
@@ -210,9 +216,15 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI > n ; m m | Enhanced SGR Mode | xterm | ✅ | Parsed and gracefully ignored |
-| CSI ? n m | Private SGR Mode | xterm | ✅ | Parsed and gracefully ignored |
+| CSI > n ; m m | Enhanced SGR Mode | xterm | ✅ | Enhanced underline mode (>4;n) implemented, others gracefully ignored |
+| CSI ? n m | Private SGR Mode | xterm | ✅ | Private underline mode (?4m) implemented, others gracefully ignored |
 | CSI n % m | SGR with Intermediate | xterm | ✅ | Parsed, CSI 0%m resets attributes |
+
+**Note**: All standard SGR sequences (0-107) including vi-specific usage patterns are fully supported:
+- SGR 32 (green foreground), SGR 39 (default foreground)
+- SGR 4 (underline), SGR 24 (not underlined)  
+- SGR 27 (not inverse), SGR 23 (not italic), SGR 29 (not strikethrough)
+- Bare SGR m (reset all attributes) with empty parameter list
 
 ## OSC Sequences (Operating System Commands)
 
@@ -222,8 +234,8 @@ This document tracks the implementation status of terminal escape sequences in c
 | OSC 1 ; text BEL/ST | Set Icon Name | xterm | ✅ | Set icon name |
 | OSC 2 ; text BEL/ST | Set Window Title | xterm | ✅ | Set window title |
 | OSC 21 BEL/ST | Query Window Title | xterm | ✅ | Query current title |
-| OSC 10 ; ? BEL/ST | Query Foreground Color | xterm | ✅ | Returns theme foreground color |
-| OSC 11 ; ? BEL/ST | Query Background Color | xterm | ✅ | Returns theme background color |
+| OSC 10 ; ? BEL/ST | Query Foreground Color | xterm | ✅ | Returns current foreground color in rgb:rrrr/gggg/bbbb format |
+| OSC 11 ; ? BEL/ST | Query Background Color | xterm | ✅ | Returns current background color in rgb:rrrr/gggg/bbbb format |
 
 ## DCS Sequences (Device Control String)
 

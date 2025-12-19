@@ -245,13 +245,33 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
   // Handle special sequences with prefixes or intermediates
   if (prefix === ">") {
     // Enhanced SGR mode (e.g., CSI > 4 ; 2 m)
-    messages.push({ _type: "sgr.enhancedMode", params, implemented: false } as SgrEnhancedMode);
+    // Validate parameters for enhanced underline mode
+    if (params.length >= 2 && params[0] === 4) {
+      // Enhanced underline mode: CSI > 4 ; n m
+      // n=0: no underline, n=1: single, n=2: double, n=3: curly, n=4: dotted, n=5: dashed
+      const underlineType = params[1];
+      if (underlineType >= 0 && underlineType <= 5) {
+        messages.push({ _type: "sgr.enhancedMode", params, implemented: true } as SgrEnhancedMode);
+      } else {
+        // Invalid underline type, mark as not implemented but still parse
+        messages.push({ _type: "sgr.enhancedMode", params, implemented: false } as SgrEnhancedMode);
+      }
+    } else {
+      // Other enhanced modes not yet supported
+      messages.push({ _type: "sgr.enhancedMode", params, implemented: false } as SgrEnhancedMode);
+    }
     return messages;
   }
 
   if (prefix === "?") {
     // Private SGR mode (e.g., CSI ? 4 m)
-    messages.push({ _type: "sgr.privateMode", params, implemented: false } as SgrPrivateMode);
+    // Check if this is the private underline mode (?4m)
+    const isPrivateUnderlineMode = params.length === 1 && params[0] === 4;
+    messages.push({ 
+      _type: "sgr.privateMode", 
+      params, 
+      implemented: isPrivateUnderlineMode 
+    } as SgrPrivateMode);
     return messages;
   }
 
@@ -413,7 +433,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         messages.push({
           _type: "sgr.foregroundColor",
           color: { type: "named", color: STANDARD_COLORS[param - 30] },
-          implemented: false
+          implemented: true
         } as SgrForegroundColor);
         ctx.index++;
         break;
@@ -423,7 +443,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         ctx.index++;
         const result = parseExtendedColor(ctx);
         if (result) {
-          messages.push({ _type: "sgr.foregroundColor", color: result.color, implemented: false } as SgrForegroundColor);
+          messages.push({ _type: "sgr.foregroundColor", color: result.color, implemented: true } as SgrForegroundColor);
           ctx.index += result.consumed;
         } else {
           // Invalid extended color, emit unknown
@@ -433,7 +453,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
       }
 
       case 39:
-        messages.push({ _type: "sgr.defaultForeground", implemented: false } as SgrDefaultForeground);
+        messages.push({ _type: "sgr.defaultForeground", implemented: true } as SgrDefaultForeground);
         ctx.index++;
         break;
 
@@ -449,7 +469,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         messages.push({
           _type: "sgr.backgroundColor",
           color: { type: "named", color: STANDARD_COLORS[param - 40] },
-          implemented: false
+          implemented: true
         } as SgrBackgroundColor);
         ctx.index++;
         break;
@@ -459,7 +479,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
         ctx.index++;
         const result = parseExtendedColor(ctx);
         if (result) {
-          messages.push({ _type: "sgr.backgroundColor", color: result.color, implemented: false } as SgrBackgroundColor);
+          messages.push({ _type: "sgr.backgroundColor", color: result.color, implemented: true } as SgrBackgroundColor);
           ctx.index += result.consumed;
         } else {
           // Invalid extended color, emit unknown
@@ -469,7 +489,7 @@ export function parseSgr(params: number[], separators: string[], prefix?: string
       }
 
       case 49:
-        messages.push({ _type: "sgr.defaultBackground", implemented: false } as SgrDefaultBackground);
+        messages.push({ _type: "sgr.defaultBackground", implemented: true } as SgrDefaultBackground);
         ctx.index++;
         break;
 

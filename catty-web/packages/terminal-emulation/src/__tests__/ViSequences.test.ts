@@ -57,6 +57,63 @@ describe("Vi-specific terminal sequences", () => {
       expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.enhancedMode");
       if (captured.sgrSequences[0].messages[0]._type === "sgr.enhancedMode") {
         expect(captured.sgrSequences[0].messages[0].params).toEqual([4, 2]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(true);
+      }
+    });
+
+    it("should parse CSI > 4 ; 0 m as enhanced underline off", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[>4;0m"));
+
+      expect(captured.sgrSequences).toHaveLength(1);
+      expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.enhancedMode");
+      if (captured.sgrSequences[0].messages[0]._type === "sgr.enhancedMode") {
+        expect(captured.sgrSequences[0].messages[0].params).toEqual([4, 0]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(true);
+      }
+    });
+
+    it("should parse CSI > 4 ; 3 m as enhanced curly underline", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[>4;3m"));
+
+      expect(captured.sgrSequences).toHaveLength(1);
+      expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.enhancedMode");
+      if (captured.sgrSequences[0].messages[0]._type === "sgr.enhancedMode") {
+        expect(captured.sgrSequences[0].messages[0].params).toEqual([4, 3]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(true);
+      }
+    });
+
+    it("should gracefully handle invalid enhanced underline types", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[>4;99m"));
+
+      expect(captured.sgrSequences).toHaveLength(1);
+      expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.enhancedMode");
+      if (captured.sgrSequences[0].messages[0]._type === "sgr.enhancedMode") {
+        expect(captured.sgrSequences[0].messages[0].params).toEqual([4, 99]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(false);
+      }
+    });
+
+    it("should gracefully handle other enhanced modes", async () => {
+      const { handlers, captured } = createCapturingHandlers();
+      const parser = new Parser({ handlers, log: getLogger() });
+
+      parser.pushBytes(Buffer.from("\x1b[>5;1m"));
+
+      expect(captured.sgrSequences).toHaveLength(1);
+      expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.enhancedMode");
+      if (captured.sgrSequences[0].messages[0]._type === "sgr.enhancedMode") {
+        expect(captured.sgrSequences[0].messages[0].params).toEqual([5, 1]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(false);
       }
     });
   });
@@ -74,6 +131,7 @@ describe("Vi-specific terminal sequences", () => {
       expect(captured.sgrSequences[0].messages[0]._type).toBe("sgr.privateMode");
       if (captured.sgrSequences[0].messages[0]._type === "sgr.privateMode") {
         expect(captured.sgrSequences[0].messages[0].params).toEqual([4]);
+        expect(captured.sgrSequences[0].messages[0].implemented).toBe(true);
       }
     });
   });

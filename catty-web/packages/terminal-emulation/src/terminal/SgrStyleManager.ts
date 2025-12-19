@@ -147,6 +147,7 @@ export class SgrStyleManager {
     if (sgrState.underline && sgrState.underlineStyle) {
       switch (sgrState.underlineStyle) {
         case 'single':
+          // Handles both standard underline (SGR 4) and private underline mode (SGR ?4m)
           cssRules.push('text-decoration: underline');
           break;
         case 'double':

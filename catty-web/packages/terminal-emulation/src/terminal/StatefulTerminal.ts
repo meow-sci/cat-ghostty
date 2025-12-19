@@ -343,6 +343,79 @@ export class StatefulTerminal {
     return { ...this.windowProperties };
   }
 
+  // Title/icon name stack management for vi compatibility
+  private titleStack: string[] = [];
+  private iconNameStack: string[] = [];
+
+  /**
+   * Handle window manipulation sequences (CSI Ps t)
+   * Implements title/icon name stack operations for vi compatibility
+   */
+  private handleWindowManipulation(operation: number, params: number[]): void {
+    switch (operation) {
+      case 22:
+        // Push title/icon name to stack
+        if (params.length >= 1) {
+          const subOperation = params[0];
+          if (subOperation === 1) {
+            // CSI 22;1t - Push icon name to stack
+            this.iconNameStack.push(this.windowProperties.iconName);
+            if (this.log.isLevelEnabled("debug")) {
+              this.log.debug(`Pushed icon name to stack: "${this.windowProperties.iconName}"`);
+            }
+          } else if (subOperation === 2) {
+            // CSI 22;2t - Push window title to stack
+            this.titleStack.push(this.windowProperties.title);
+            if (this.log.isLevelEnabled("debug")) {
+              this.log.debug(`Pushed window title to stack: "${this.windowProperties.title}"`);
+            }
+          }
+        }
+        break;
+
+      case 23:
+        // Pop title/icon name from stack
+        if (params.length >= 1) {
+          const subOperation = params[0];
+          if (subOperation === 1) {
+            // CSI 23;1t - Pop icon name from stack
+            const poppedIconName = this.iconNameStack.pop();
+            if (poppedIconName !== undefined) {
+              this.setIconName(poppedIconName);
+              if (this.log.isLevelEnabled("debug")) {
+                this.log.debug(`Popped icon name from stack: "${poppedIconName}"`);
+              }
+            } else {
+              if (this.log.isLevelEnabled("debug")) {
+                this.log.debug("Attempted to pop icon name from empty stack");
+              }
+            }
+          } else if (subOperation === 2) {
+            // CSI 23;2t - Pop window title from stack
+            const poppedTitle = this.titleStack.pop();
+            if (poppedTitle !== undefined) {
+              this.setWindowTitle(poppedTitle);
+              if (this.log.isLevelEnabled("debug")) {
+                this.log.debug(`Popped window title from stack: "${poppedTitle}"`);
+              }
+            } else {
+              if (this.log.isLevelEnabled("debug")) {
+                this.log.debug("Attempted to pop window title from empty stack");
+              }
+            }
+          }
+        }
+        break;
+
+      default:
+        // Other window manipulation commands - gracefully ignore
+        if (this.log.isLevelEnabled("debug")) {
+          this.log.debug(`Window manipulation operation ${operation} with params ${JSON.stringify(params)} - gracefully ignored`);
+        }
+        break;
+    }
+  }
+
   // Device query response generation methods
 
   /**
@@ -677,6 +750,9 @@ export class StatefulTerminal {
       current: "G0",
     };
     this.utf8Mode = true;
+    // Clear title/icon name stacks
+    this.titleStack = [];
+    this.iconNameStack = [];
     this.clear();
     this.emitUpdate();
   }
@@ -1130,8 +1206,8 @@ export class StatefulTerminal {
         return;
 
       case "csi.windowManipulation":
-        // Window manipulation commands - ignore for web terminal but acknowledge
-        // Common operations: 22 = save title, 23 = restore title
+        // Window manipulation commands - handle title stack operations for vi compatibility
+        this.handleWindowManipulation(msg.operation, msg.params);
         return;
 
       case "csi.setScrollRegion":
@@ -1151,6 +1227,12 @@ export class StatefulTerminal {
       case "csi.sgrWithIntermediate":
         // SGR sequences with intermediate characters (e.g., CSI 0 % m)
         this.handleSgrWithIntermediate(msg.params, msg.intermediate);
+        return;
+
+      case "csi.unknownViSequence":
+        // Unknown vi sequences (e.g., CSI 11M) - gracefully acknowledge but don't implement
+        // These sequences appear in vi usage but are not part of standard terminal specifications
+        this.handleUnknownViSequence(msg.sequenceNumber);
         return;
 
       // ignored (for MVP)
@@ -1241,10 +1323,59 @@ export class StatefulTerminal {
    * These are typically used for advanced terminal features.
    */
   private handleEnhancedSgrMode(params: number[]): void {
-    // For now, gracefully ignore enhanced SGR modes
-    // In the future, this could handle advanced cursor or display modes
-    if (this.log.isLevelEnabled("debug")) {
-    this.log.debug(`Enhanced SGR mode received: ${JSON.stringify({ params })}`);
+    if (params.length >= 2 && params[0] === 4) {
+      // Enhanced underline mode: CSI > 4 ; n m
+      const underlineType = params[1];
+      
+      if (underlineType >= 0 && underlineType <= 5) {
+        // Valid enhanced underline mode - update SGR state
+        switch (underlineType) {
+          case 0:
+            // No underline
+            this.currentSgrState.underline = false;
+            this.currentSgrState.underlineStyle = null;
+            break;
+          case 1:
+            // Single underline
+            this.currentSgrState.underline = true;
+            this.currentSgrState.underlineStyle = 'single';
+            break;
+          case 2:
+            // Double underline
+            this.currentSgrState.underline = true;
+            this.currentSgrState.underlineStyle = 'double';
+            break;
+          case 3:
+            // Curly underline
+            this.currentSgrState.underline = true;
+            this.currentSgrState.underlineStyle = 'curly';
+            break;
+          case 4:
+            // Dotted underline
+            this.currentSgrState.underline = true;
+            this.currentSgrState.underlineStyle = 'dotted';
+            break;
+          case 5:
+            // Dashed underline
+            this.currentSgrState.underline = true;
+            this.currentSgrState.underlineStyle = 'dashed';
+            break;
+        }
+        
+        if (this.log.isLevelEnabled("debug")) {
+          this.log.debug(`Enhanced underline mode set: type=${underlineType}, style=${this.currentSgrState.underlineStyle}`);
+        }
+      } else {
+        // Invalid underline type - gracefully ignore
+        if (this.log.isLevelEnabled("debug")) {
+          this.log.debug(`Invalid enhanced underline type: ${underlineType}, ignoring`);
+        }
+      }
+    } else {
+      // Other enhanced modes not yet supported - gracefully ignore
+      if (this.log.isLevelEnabled("debug")) {
+        this.log.debug(`Enhanced SGR mode received: ${JSON.stringify({ params })}, not implemented`);
+      }
     }
   }
 
@@ -1253,10 +1384,21 @@ export class StatefulTerminal {
    * These are typically used for private/experimental features.
    */
   private handlePrivateSgrMode(params: number[]): void {
-    // For now, gracefully ignore private SGR modes
-    // In the future, this could handle private terminal features
+    // Handle specific private SGR modes
+    if (params.length === 1 && params[0] === 4) {
+      // Private underline mode (?4m) - enable underline
+      this.currentSgrState.underline = true;
+      this.currentSgrState.underlineStyle = 'single';
+      
+      if (this.log.isLevelEnabled("debug")) {
+        this.log.debug("Private underline mode (?4m) enabled");
+      }
+      return;
+    }
+    
+    // For other private modes, gracefully ignore
     if (this.log.isLevelEnabled("debug")) {
-      this.log.debug(`Private SGR mode received: ${JSON.stringify({ params })}`);
+      this.log.debug(`Private SGR mode received: ${JSON.stringify({ params })}, not implemented`);
     }
   }
 
@@ -1280,6 +1422,21 @@ export class StatefulTerminal {
     if (this.log.isLevelEnabled("debug")) {
       this.log.debug(`SGR with intermediate received: ${JSON.stringify({ params, intermediate })}`);
     }
+  }
+
+  /**
+   * Handle unknown vi sequences (e.g., CSI 11M)
+   * These sequences appear in vi usage but are not part of standard terminal specifications.
+   * We gracefully acknowledge them without implementing specific behavior.
+   */
+  private handleUnknownViSequence(sequenceNumber: number): void {
+    // Log the sequence for debugging purposes
+    if (this.log.isLevelEnabled("debug")) {
+      this.log.debug(`Unknown vi sequence received: CSI ${sequenceNumber}M`);
+    }
+    
+    // Gracefully acknowledge - no specific action needed
+    // The sequence is parsed and handled without causing errors
   }
 
   /**

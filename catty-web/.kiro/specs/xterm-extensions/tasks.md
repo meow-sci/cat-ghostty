@@ -399,6 +399,78 @@
   - **Property 18: Theme color resolution consistency**
   - **Validates: Requirements 3.4, 4.1**
 
+- [x] 14.14 Implement additional SGR sequences for vi compatibility
+  - Add support for SGR 32 (green foreground) - ensure proper parsing and CSS generation
+  - Add support for SGR 39 (default foreground) - ensure proper reset functionality
+  - Add support for SGR 4 (underline) - verify existing implementation handles vi usage
+  - Add support for SGR 24 (not underlined) - verify existing implementation handles vi usage
+  - Add support for SGR 27 (not inverse) - verify existing implementation handles vi usage
+  - Add support for SGR 23 (not italic) - verify existing implementation handles vi usage
+  - Add support for SGR 29 (not strikethrough) - verify existing implementation handles vi usage
+  - Add support for bare SGR m (reset all) - ensure proper parsing of empty parameter list
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 3.4, 4.1_
+
+- [x] 14.15 Implement enhanced SGR >4;2m sequence
+  - Research and implement SGR >4;2m sequence (enhanced underline mode)
+  - Add parsing support in ParseSgr.ts with proper parameter validation
+  - Implement state management for enhanced underline mode in StatefulTerminal
+  - Add CSS generation for enhanced underline styling in SgrStyleManager
+  - Add graceful fallback if enhanced mode is not fully supported
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 3.4, 4.1_
+
+- [x] 14.16 Implement SGR ?4m private mode sequence
+  - Add parsing support for SGR ?4m (private underline mode) in ParseSgr.ts
+  - Implement state management for private underline mode in StatefulTerminal
+  - Add CSS generation for private underline mode in SgrStyleManager
+  - Ensure graceful handling when private mode is not supported
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 3.4, 4.1_
+
+- [x] 14.17 Implement window manipulation CSI sequences for vi
+  - Add parsing for CSI 22;2t (push window title to stack) in ParseCsi.ts
+  - Add parsing for CSI 22;1t (push icon name to stack) in ParseCsi.ts
+  - Add parsing for CSI 23;2t (pop window title from stack) in ParseCsi.ts
+  - Add parsing for CSI 23;1t (pop icon name from stack) in ParseCsi.ts
+  - Implement title/icon name stack management in StatefulTerminal (or graceful acknowledgment)
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 1.1, 1.2, 1.3, 6.3_
+
+- [x] 14.18 Implement CSI 11M sequence (unknown vi sequence)
+  - Research CSI 11M sequence functionality (likely delete/insert related)
+  - Add parsing support in ParseCsi.ts with proper parameter validation
+  - Implement appropriate handler in StatefulTerminal or graceful acknowledgment
+  - Add error handling for malformed CSI 11M sequences
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 6.1, 10.1_
+
+- [x] 14.19 Enhance OSC color query sequences for vi compatibility
+  - Verify OSC 11;? (query background color) works correctly with vi
+  - Verify OSC 10;? (query foreground color) works correctly with vi
+  - Ensure BEL termination is properly handled for both sequences
+  - Test color query responses match current theme colors accurately
+  - Add comprehensive error handling for malformed color query sequences
+  - Update TERMINAL_SPEC_COVERAGE.md to reflect implementation status
+  - _Requirements: 1.4, 6.1, 6.5_
+
+- [x] 14.20 Write property tests for additional vi sequences
+  - **Property 22: Additional SGR sequence consistency**
+  - Test that SGR 32, 39, and bare m sequences work correctly
+  - **Property 23: Enhanced SGR mode handling**
+  - Test that SGR >4;2m and ?4m sequences are handled gracefully
+  - **Property 24: Window manipulation acknowledgment**
+  - Test that window manipulation sequences are acknowledged properly
+  - **Validates: Requirements 3.4, 4.1, 1.1, 6.1**
+
+- [x] 14.21 Integrate vi-specific sequences with existing terminal systems
+  - Ensure all new SGR sequences work with existing SgrStyleManager
+  - Verify window manipulation sequences integrate with existing title management
+  - Test that CSI 11M sequence doesn't interfere with other CSI parsing
+  - Add comprehensive end-to-end testing with vi editor sequences
+  - Verify all sequences update TERMINAL_SPEC_COVERAGE.md correctly
+  - _Requirements: 3.4, 4.1, 1.1, 6.1, 10.1_
+
 - [ ] 15. Implement missing vi-specific terminal sequences
   - Add support for SGR sequences causing vi visual artifacts
   - Implement window manipulation sequences for terminal resizing
@@ -457,6 +529,8 @@
   - Test color queries return proper theme-aware color values
   - Add comprehensive error handling for malformed vi sequences
   - _Requirements: 3.4, 4.1, 1.1, 6.1_
+
+
 
 - [ ] 16. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
