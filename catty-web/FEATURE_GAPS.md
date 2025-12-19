@@ -7,20 +7,21 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Summary
 
 - Rendering + core CSI cursor movement, screen clearing, scroll regions, alternate screen, SGR, and basic OSC title/color queries are in good shape.
-- The biggest remaining risks are a few **DEC private modes** (save/restore private modes) and **status-report / mouse motion** gaps.
+- The biggest remaining risks are a few **DEC private mode save/restore** gaps (XTSAVE/XTRESTORE), plus missing semantics for some **DCS query** features (apps probing via DCS).
 
 ---
 
 ## High Priority (strong “baseline” expectations)
 
-### 1) DCS (and other ECMA-48 “string” controls) are not parsed and will leak payload as text
+### 1) DCS (and other ECMA-48 “string” controls) are now consumed correctly (payload no longer leaks)
 
 **Why it matters:**
 - Modern terminals must at least *consume* these sequences correctly, even if they do not implement the feature, otherwise the **payload bytes can show up on screen** (or corrupt the parser state).
 - xterm uses DCS for several common “query” features (e.g. DECRQSS, XTGETTCAP). Some apps probe capabilities this way.
 
 **Current state:**
-- Implemented: `DCS` (`ESC P ... ST`) plus `SOS` (`ESC X`), `PM` (`ESC ^`), and `APC` (`ESC _`) are now parsed as control strings and **consumed until `ST`** so payload never renders as normal bytes.
+- Implemented (baseline safety): `DCS` (`ESC P ... ST`) plus `SOS` (`ESC X`), `PM` (`ESC ^`), and `APC` (`ESC _`) are parsed as control strings and **consumed until `ST`** so payload never renders as normal bytes.
+- Not implemented (feature semantics): DCS query/response behaviors (e.g. DECRQSS, XTGETTCAP) are not responded to; DCS is currently treated as consumed/ignored.
 
 **Key sequences:**
 - `DCS ... ST` (7-bit: `ESC P ... ESC \\`)
@@ -33,7 +34,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ---
 
-### 2) Bracketed paste mode (DECSET 2004) is unhandled end-to-end
+### 2) Bracketed paste mode (DECSET 2004) is implemented end-to-end
 
 **Why it matters:**
 - Bracketed paste is a de-facto baseline feature for shells/editors. It prevents pasted text from being interpreted as “typed input” (e.g. avoids executing pasted newlines in shells without confirmation).
@@ -50,13 +51,13 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ---
 
-### 3) Insert/Delete Character editing ops missing (ICH/DCH)
+### 3) Insert/Delete Character editing ops (ICH/DCH) are implemented
 
 **Why it matters:**
 - Shell line editing (readline/zle/fish) and many TUIs rely on **character insertion/deletion within a line**.
 - Without these, you can still “mostly work”, but you’ll see cursor artifacts, broken prompt redraws, or incorrect line updates.
 
-**Missing CSI sequences (common):**
+**Key CSI sequences (common):**
 - `CSI Ps @` — **ICH** Insert blank characters (shift right)
 - `CSI Ps P` — **DCH** Delete characters (shift left)
 
@@ -135,7 +136,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ## Medium Priority (common, but some apps tolerate absence)
 
-### 7) Mouse reporting modes are “parsed but ignored” (and ParseCsi type mismatch)
+### 7) Mouse reporting modes are implemented (ParseCsi type mismatch remains)
 
 **Why it matters:**
 - Vim, less, and many TUIs can use the mouse.
@@ -152,7 +153,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - Implemented (minimum click support): `TerminalController` now tracks `CSI ? 1000 h/l` and `CSI ? 1006 h/l` via `terminal.onDecMode(...)` and sends xterm mouse reports on `mousedown`/`mouseup`.
   - Uses SGR encoding (1006) when enabled: `ESC[<b;x;yM` press and `ESC[<b;x;ym` release.
   - Falls back to X10 encoding if 1006 is not enabled.
- Implemented: motion/drag reporting (1002/1003) and wheel events.
+- Implemented: motion/drag reporting (1002/1003) and wheel events.
 - `TerminalEmulationTypes.ts` still defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not emit it; mouse modes are handled as DECSET/DECRST (recommended to keep that way unless/until you want richer typed events).
 
   - Wheel events send xterm wheel button codes (64/65).
@@ -162,7 +163,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 ---
 
-### 8) Tab stop management (TBC/CHT/CBT) not implemented
+### 8) Tab stop management (TBC/CHT/CBT) is implemented
 
 **Why it matters:**
 - Many programs assume fixed 8-column tabs and never manipulate stops; but some TUIs do.
@@ -240,4 +241,4 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 ## Recommended next steps (minimal, high-value)
 
 1) Implement **XTSAVE/XTRESTORE** (`CSI ? Pm s` / `CSI ? Pm r`) to preserve DEC private mode state in legacy code paths.
-2) Expand mouse support to include **motion/drag + wheel** (DECSET 1002/1003, wheel buttons) for mouse-heavy TUIs.
+2) Implement common **DCS query responses** (e.g. DECRQSS, XTGETTCAP) so probing applications get expected replies.

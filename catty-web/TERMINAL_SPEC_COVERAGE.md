@@ -59,6 +59,15 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI n K | EL - Erase in Line | ECMA-48 | ✅ | Clear line (modes 0,1,2) |
 | CSI n X | ECH - Erase Character | ECMA-48 | ✅ | Erase n characters |
 
+## CSI Sequences (Editing)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI Ps @ | ICH - Insert Character | ECMA-48 | ✅ | Insert blank characters (shift right) |
+| CSI Ps P | DCH - Delete Character | ECMA-48 | ✅ | Delete characters (shift left) |
+| CSI Ps L | IL - Insert Line | VT100/xterm | ✅ | Inserts blank lines at cursor within scroll region |
+| CSI Ps M | DL - Delete Line | VT100/xterm | ✅ | Deletes lines at cursor within scroll region (commonly used by vi) |
+
 ## CSI Sequences (Scrolling)
 
 | Sequence | Name | Spec | Status | Notes |
@@ -143,12 +152,6 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI ? 1002 h/l | Button Event Mouse | xterm | ✅ | App controller sends motion while a button is held (drag) |
 | CSI ? 1003 h/l | Any Event Mouse | xterm | ✅ | App controller sends motion with no buttons as well |
 | CSI ? 1006 h/l | SGR Mouse Encoding | xterm | ✅ | App controller uses SGR encoding when enabled; falls back to X10 |
-
-## CSI Sequences (Vi Compatibility)
-
-| Sequence | Name | Spec | Status | Notes |
-|----------|------|------|--------|-------|
-| CSI n M | Unknown Vi Sequence | vi | 🟡 | Parsed and gracefully acknowledged (e.g., CSI 11M) |
 
 ## SGR Sequences (Select Graphic Rendition)
 
@@ -266,14 +269,11 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| DCS ... ST | Device Control | ECMA-48 | 🟡 | Parsed but not implemented |
+| DCS ... ST | Device Control | ECMA-48 | 🟡 | Parsed and payload is consumed until ST so it never renders; no semantic DCS features (e.g. DECRQSS/XTGETTCAP responses) |
 
 ## Summary
 
-- **Total Sequences**: ~130 documented sequences
-- **Fully Implemented**: ~85 sequences (✅)
-- **Parsed Only**: ~40 sequences (🟡) 
-- **Not Implemented**: ~5 sequences (❌)
+Totals are approximate and may drift as coverage expands; the tables above are the source of truth.
 
 The terminal emulator has comprehensive parsing coverage and core SGR styling implementation through CSS-based rendering. Core functionality includes cursor movement, screen manipulation, terminal modes, complete color rendering with theme support, and common text styling (bold, italic, underline, strikethrough, etc.). Vi-specific sequences are supported for better compatibility with full-screen terminal applications.
 
@@ -288,3 +288,4 @@ The terminal emulator has comprehensive parsing coverage and core SGR styling im
 - IND/NEL/HTS/RIS ESC functions (ESC D/E/H/c)
 - DECSTR soft reset (CSI ! p)
 - CHT/CBT/TBC tab-stop controls (CSI I/Z/g)
+- ICH/DCH/IL/DL editing controls (CSI @/P/L/M)
