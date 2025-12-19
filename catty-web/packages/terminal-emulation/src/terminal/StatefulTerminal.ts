@@ -10,6 +10,8 @@ import { processSgrMessages } from './SgrStateProcessor';
 import { AlternateScreenManager } from "./stateful/alternateScreen";
 import { DEFAULT_SGR_STATE, cloneScreenRow, createCellGrid } from "./stateful/screenGrid";
 
+import { createInitialTerminalState, type CharacterSetState, type TerminalState } from "./stateful/state";
+
 import type {
   CursorState,
   DecModeEvent,
@@ -52,69 +54,195 @@ export class StatefulTerminal {
   private readonly log = getLogger();
   private readonly parser: Parser;
 
-  private _cursorX = 0;
+  private state: TerminalState;
+
+  private get _cursorX(): number {
+    return this.state.cursorX;
+  }
+
+  private set _cursorX(v: number) {
+    this.state.cursorX = v;
+  }
 
   public get cursorX(): number {
     return this._cursorX;
   }
 
-  private _cursorY = 0;
+  private get _cursorY(): number {
+    return this.state.cursorY;
+  }
+
+  private set _cursorY(v: number) {
+    this.state.cursorY = v;
+  }
 
   public get cursorY(): number {
     return this._cursorY;
   }
 
+  private get savedCursor(): XY | null {
+    return this.state.savedCursor;
+  }
 
-  private savedCursor: XY | null = null;
-  private cursorStyle = 1;
-  private cursorVisible = true;
-  private wrapPending = false;
-  private applicationCursorKeys = false;
+  private set savedCursor(v: XY | null) {
+    this.state.savedCursor = v;
+  }
 
-  private readonly scrollbackLimit: number;
-  private scrollback: ScreenCell[][] = [];
+  private get cursorStyle(): number {
+    return this.state.cursorStyle;
+  }
+
+  private set cursorStyle(v: number) {
+    this.state.cursorStyle = v;
+  }
+
+  private get cursorVisible(): boolean {
+    return this.state.cursorVisible;
+  }
+
+  private set cursorVisible(v: boolean) {
+    this.state.cursorVisible = v;
+  }
+
+  private get wrapPending(): boolean {
+    return this.state.wrapPending;
+  }
+
+  private set wrapPending(v: boolean) {
+    this.state.wrapPending = v;
+  }
+
+  private get applicationCursorKeys(): boolean {
+    return this.state.applicationCursorKeys;
+  }
+
+  private set applicationCursorKeys(v: boolean) {
+    this.state.applicationCursorKeys = v;
+  }
+
+  private get scrollbackLimit(): number {
+    return this.state.scrollbackLimit;
+  }
+
+  private get scrollback(): ScreenCell[][] {
+    return this.state.scrollback;
+  }
+
+  private set scrollback(v: ScreenCell[][]) {
+    this.state.scrollback = v;
+  }
 
   // DEC private modes
   // DECOM (CSI ? 6 h/l): origin mode (cursor addressing relative to scroll region)
-  private originMode = false;
+  private get originMode(): boolean {
+    return this.state.originMode;
+  }
+
+  private set originMode(v: boolean) {
+    this.state.originMode = v;
+  }
 
   // DECAWM (CSI ? 7 h/l): auto-wrap mode
-  private autoWrapMode = true;
+  private get autoWrapMode(): boolean {
+    return this.state.autoWrapMode;
+  }
+
+  private set autoWrapMode(v: boolean) {
+    this.state.autoWrapMode = v;
+  }
 
   // Scroll region (DECSTBM)
-  private scrollTop = 0;
-  private scrollBottom: number;
+  private get scrollTop(): number {
+    return this.state.scrollTop;
+  }
+
+  private set scrollTop(v: number) {
+    this.state.scrollTop = v;
+  }
+
+  private get scrollBottom(): number {
+    return this.state.scrollBottom;
+  }
+
+  private set scrollBottom(v: number) {
+    this.state.scrollBottom = v;
+  }
 
   // Tab stops (HTS/TAB). Defaults to every 8 columns.
-  private tabStops: boolean[] = [];
+  private get tabStops(): boolean[] {
+    return this.state.tabStops;
+  }
+
+  private set tabStops(v: boolean[]) {
+    this.state.tabStops = v;
+  }
 
   // Window properties state
-  private windowProperties: WindowProperties = {
-    title: "",
-    iconName: ""
-  };
+  private get windowProperties(): WindowProperties {
+    return this.state.windowProperties;
+  }
+
+  private set windowProperties(v: WindowProperties) {
+    this.state.windowProperties = v;
+  }
 
   // Character set state
-  private characterSets = {
-    G0: "B", // ASCII (default)
-    G1: "B", // ASCII (default)
-    G2: "B", // ASCII (default)
-    G3: "B", // ASCII (default)
-    current: "G0" as "G0" | "G1" | "G2" | "G3", // Currently active character set
-  };
+  private get characterSets(): CharacterSetState {
+    return this.state.characterSets;
+  }
+
+  private set characterSets(v: CharacterSetState) {
+    this.state.characterSets = v;
+  }
+
+  private get titleStack(): string[] {
+    return this.state.titleStack;
+  }
+
+  private set titleStack(v: string[]) {
+    this.state.titleStack = v;
+  }
+
+  private get iconNameStack(): string[] {
+    return this.state.iconNameStack;
+  }
+
+  private set iconNameStack(v: string[]) {
+    this.state.iconNameStack = v;
+  }
 
   // UTF-8 mode state (DECSET/DECRST 2027)
-  private utf8Mode = true; // Modern terminals default to UTF-8
+  private get utf8Mode(): boolean {
+    return this.state.utf8Mode;
+  }
+
+  private set utf8Mode(v: boolean) {
+    this.state.utf8Mode = v;
+  }
 
   // SGR state management
   // NOTE: must never reference DEFAULT_SGR_STATE directly, because we mutate currentSgrState.
-  private currentSgrState: SgrState = createDefaultSgrState();
+  private get currentSgrState(): SgrState {
+    return this.state.currentSgrState;
+  }
+
+  private set currentSgrState(v: SgrState) {
+    this.state.currentSgrState = v;
+  }
 
   // DECSCA (CSI Ps " q) character protection attribute.
-  private currentCharacterProtection: "unprotected" | "protected" = "unprotected";
+  private get currentCharacterProtection(): "unprotected" | "protected" {
+    return this.state.currentCharacterProtection;
+  }
+
+  private set currentCharacterProtection(v: "unprotected" | "protected") {
+    this.state.currentCharacterProtection = v;
+  }
 
   // Alternate screen buffer management
-  private readonly alternateScreenManager: AlternateScreenManager;
+  private get alternateScreenManager(): AlternateScreenManager {
+    return this.state.alternateScreenManager;
+  }
 
   private readonly updateListeners = new Set<UpdateListener>();
   private readonly decModeListeners = new Set<DecModeListener>();
@@ -124,24 +252,36 @@ export class StatefulTerminal {
   // Update batching
   // When processing a burst of bytes we want to avoid emitting intermediate
   // snapshots that can cause visible flicker (e.g. transient status-line writes).
-  private updateBatchDepth = 0;
-  private updateDirty = false;
+  private get updateBatchDepth(): number {
+    return this.state.updateBatchDepth;
+  }
+
+  private set updateBatchDepth(v: number) {
+    this.state.updateBatchDepth = v;
+  }
+
+  private get updateDirty(): boolean {
+    return this.state.updateDirty;
+  }
+
+  private set updateDirty(v: boolean) {
+    this.state.updateDirty = v;
+  }
 
   constructor(options: StatefulTerminalOptions) {
 
     this.cols = options.cols;
     this.rows = options.rows;
 
-    this.scrollbackLimit = clampInt(options.scrollbackLimit ?? 10000, 0, 200000);
+    const scrollbackLimit = clampInt(options.scrollbackLimit ?? 10000, 0, 200000);
+    const alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
 
-    // Initialize scroll region to full screen
-    this.scrollBottom = this.rows - 1;
-
-    // Initialize tab stops
-    this.initializeTabStops();
-
-    // Initialize alternate screen manager
-    this.alternateScreenManager = new AlternateScreenManager(this.cols, this.rows);
+    this.state = createInitialTerminalState({
+      cols: this.cols,
+      rows: this.rows,
+      scrollbackLimit,
+      alternateScreenManager,
+    });
 
     if (options.onUpdate) {
       this.updateListeners.add(options.onUpdate);
@@ -413,10 +553,6 @@ export class StatefulTerminal {
   public getWindowProperties(): WindowProperties {
     return { ...this.windowProperties };
   }
-
-  // Title/icon name stack management for vi compatibility
-  private titleStack: string[] = [];
-  private iconNameStack: string[] = [];
 
   /**
    * Handle window manipulation sequences (CSI Ps t)

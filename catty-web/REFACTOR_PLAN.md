@@ -252,6 +252,8 @@ Acceptance:
 
 ### Step 4 — Introduce internal `TerminalState` while keeping method bodies intact
 
+Status: **DONE** (implemented, 2025-12-19)
+
 This is the most “mechanical” step, but it unlocks the rest.
 
 - Create `packages/terminal-emulation/src/terminal/stateful/state.ts`:
@@ -259,7 +261,7 @@ This is the most “mechanical” step, but it unlocks the rest.
   - Define `createInitialTerminalState({ cols, rows, scrollbackLimit, alternateScreenManager, ... })`.
 - In `StatefulTerminal.ts`:
   - Replace the many private fields with `private state: TerminalState`.
-  - Update all references `this._cursorX` → `this.state.cursorX`, etc.
+  - Route former fields through `TerminalState` via accessors to keep method bodies stable.
   - Keep all methods in the same file for now.
 
 Guidance:
@@ -269,6 +271,7 @@ Guidance:
 Acceptance:
 - Tests pass.
 - Runtime behavior matches.
+- `pnpm run tsc` passes.
 
 ### Step 5 — Extract tab stops into a dedicated module
 
