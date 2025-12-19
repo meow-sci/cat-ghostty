@@ -200,6 +200,7 @@ export class TerminalController {
   // At the bottom, this equals terminal.getScrollbackRowCount().
   private viewportTopRow = 0;
   private lastScrollbackRowCount = 0;
+  private lastAlternateScreenActive = false;
 
   private mouseTrackingMode: MouseTrackingMode = "off";
   private readonly mouseTrackingDecModesEnabled = new Set<MouseTrackingDecMode>();
@@ -243,17 +244,29 @@ export class TerminalController {
     const unsubscribe = this.terminal.onUpdate((snapshot) => {
       this.lastSnapshot = snapshot;
 
+      const alternateActive = this.terminal.isAlternateScreenActive();
+
       // Maintain scrollback viewport:
       // - If we're at the bottom, follow output.
       // - If the user has scrolled up, keep the viewport stable.
-      const scrollbackRows = this.terminal.getScrollbackRowCount();
-      if (this.terminal.isAlternateScreenActive()) {
+      if (alternateActive) {
         this.viewportTopRow = 0;
       } else {
+        const scrollbackRows = this.terminal.getScrollbackRowCount();
+
+        // Leaving a full-screen TUI (alternate screen) should restore the primary
+        // screen with the prompt/cursor visible at the bottom.
+        if (this.lastAlternateScreenActive) {
+          this.viewportTopRow = scrollbackRows;
+        } else {
         const wasFollowing = this.viewportTopRow === this.lastScrollbackRowCount;
         this.viewportTopRow = wasFollowing ? scrollbackRows : clampInt(this.viewportTopRow, 0, scrollbackRows);
+        }
+
+        this.lastScrollbackRowCount = scrollbackRows;
       }
-      this.lastScrollbackRowCount = scrollbackRows;
+
+      this.lastAlternateScreenActive = alternateActive;
 
       this.scheduleRepaint();
 
@@ -330,6 +343,7 @@ export class TerminalController {
 
     this.lastScrollbackRowCount = this.terminal.getScrollbackRowCount();
     this.viewportTopRow = this.terminal.isAlternateScreenActive() ? 0 : this.lastScrollbackRowCount;
+    this.lastAlternateScreenActive = this.terminal.isAlternateScreenActive();
 
     const cols = options.cols ?? this.terminal.cols;
     const rows = options.rows ?? this.terminal.rows;

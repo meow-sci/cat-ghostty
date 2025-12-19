@@ -122,7 +122,7 @@ This document tracks the implementation status of terminal escape sequences in c
 | CSI ? 25 h/l | DECTCEM - Text Cursor Enable | xterm | ✅ | Show/hide cursor |
 | CSI ? 47 h/l | Alternate Screen Buffer | xterm | ✅ | Switch screen buffers |
 | CSI ? 1047 h/l | Alternate Screen + Cursor Save | xterm | ✅ | Alt screen with cursor save |
-| CSI ? 1049 h/l | Alternate Screen + Clear + Cursor | xterm | ✅ | Alt screen with clear and cursor save |
+| CSI ? 1049 h/l | Alternate Screen + Clear + Cursor | xterm | ✅ | Alt screen with clear + cursor save; on exit, primary viewport snaps to bottom |
 | CSI ? 2027 h/l | UTF-8 Mode | xterm | ✅ | Enable/disable UTF-8 |
 
 ## CSI Sequences (Cursor Style)

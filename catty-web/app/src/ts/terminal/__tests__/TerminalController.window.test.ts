@@ -357,4 +357,29 @@ describe("TerminalController Window Management", () => {
     expect(wsSends.length).toBe(start + 2);
     expect(wsSends[wsSends.length - 1]).toBe("\x1bOB\x1bOB\x1bOB");
   });
+
+  it("should restore viewport to bottom after exiting alternate screen (htop)", () => {
+    type ControllerInternals = {
+      viewportTopRow: number;
+    };
+
+    // Force enough output to create scrollback.
+    const lines = Array.from({ length: 40 }, (_, i) => `line-${i}`).join("\n") + "\n";
+    terminal.pushPtyText(lines);
+
+    const scrollbackBefore = terminal.getScrollbackRowCount();
+    expect(scrollbackBefore).toBeGreaterThan(0);
+
+    const internalsBefore = controller as unknown as ControllerInternals;
+    expect(internalsBefore.viewportTopRow).toBe(scrollbackBefore);
+
+    // Enter and exit alternate screen.
+    terminal.pushPtyText("\x1b[?1049h");
+    expect((controller as unknown as ControllerInternals).viewportTopRow).toBe(0);
+
+    terminal.pushPtyText("\x1b[?1049l");
+
+    const scrollbackAfter = terminal.getScrollbackRowCount();
+    expect((controller as unknown as ControllerInternals).viewportTopRow).toBe(scrollbackAfter);
+  });
 });
