@@ -324,6 +324,8 @@ Acceptance:
 
 ### Step 8 — Extract buffer mutation ops (screen editing primitives)
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/bufferOps.ts`.
 - Move functions that are semantically “screen editing primitives”:
   - `makeBlankCellWithCurrentSgr`

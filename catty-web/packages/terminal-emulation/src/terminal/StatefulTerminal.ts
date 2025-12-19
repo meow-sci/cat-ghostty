@@ -35,6 +35,8 @@ import {
   setTabStopAtCursor,
 } from "./stateful/tabStops";
 
+import * as bufferOps from "./stateful/bufferOps";
+
 import type {
   CursorState,
   DecModeEvent,
@@ -870,6 +872,18 @@ export class StatefulTerminal {
     return this.alternateScreenManager.getCurrentBuffer().cells;
   }
 
+  private getBufferOpsContext(): bufferOps.BufferOpsContext {
+    return {
+      cols: this.cols,
+      rows: this.rows,
+      getCells: () => this.cells,
+      getCurrentBuffer: () => this.alternateScreenManager.getCurrentBuffer(),
+      isAlternateScreenActive: () => this.isAlternateScreenActive(),
+      pushScrollbackRow: (row: ReadonlyArray<ScreenCell>) => this.pushScrollbackRow(row),
+      clearScrollback: () => this.clearScrollback(),
+    };
+  }
+
   public pushPtyText(text: string): void {
     this.withUpdateBatch(() => {
       const bytes = new TextEncoder().encode(text);
@@ -1028,172 +1042,34 @@ export class StatefulTerminal {
     this.putChar(ch);
   }
 
-  private makeBlankCellWithCurrentSgr(isProtected: boolean): ScreenCell {
-    return { ch: " ", sgrState: { ...this.currentSgrState }, isProtected };
-  }
-
   private insertCharsInLine(count: number): void {
-    if (count <= 0) {
-      return;
-    }
-    if (this._cursorY < 0 || this._cursorY >= this.rows) {
-      return;
-    }
-    if (this._cursorX < 0 || this._cursorX >= this.cols) {
-      return;
-    }
-
-    const n = Math.min(count, this.cols - this._cursorX);
-    if (n <= 0) {
-      return;
-    }
-
-    this.wrapPending = false;
-
-    const row = this.cells[this._cursorY];
-    for (let x = this.cols - 1; x >= this._cursorX + n; x -= 1) {
-      row[x] = row[x - n];
-    }
-    for (let x = 0; x < n; x += 1) {
-      row[this._cursorX + x] = this.makeBlankCellWithCurrentSgr(this.currentCharacterProtection === "protected");
-    }
+    bufferOps.insertCharsInLine(this.state, this.getBufferOpsContext(), count);
   }
 
   private deleteCharsInLine(count: number): void {
-    if (count <= 0) {
-      return;
-    }
-    if (this._cursorY < 0 || this._cursorY >= this.rows) {
-      return;
-    }
-    if (this._cursorX < 0 || this._cursorX >= this.cols) {
-      return;
-    }
-
-    const n = Math.min(count, this.cols - this._cursorX);
-    if (n <= 0) {
-      return;
-    }
-
-    this.wrapPending = false;
-
-    const row = this.cells[this._cursorY];
-    for (let x = this._cursorX; x < this.cols - n; x += 1) {
-      row[x] = row[x + n];
-    }
-    for (let x = this.cols - n; x < this.cols; x += 1) {
-      row[x] = this.makeBlankCellWithCurrentSgr(false);
-    }
+    bufferOps.deleteCharsInLine(this.state, this.getBufferOpsContext(), count);
   }
 
   private putChar(ch: string): void {
-    if (this.cols <= 0 || this.rows <= 0) {
-      return;
-    }
-
-    if (this._cursorY < 0 || this._cursorY >= this.rows) {
-      return;
-    }
-
-    if (this._cursorX < 0) {
-      this._cursorX = 0;
-    }
-
-    // Common terminal behavior (DECAWM autowrap): writing a printable char in
-    // the last column sets a pending-wrap flag. The *next* printable char
-    // triggers the wrap to column 0 of the next row (with scrolling).
-    if (this.autoWrapMode && this.wrapPending) {
-      this._cursorX = 0;
-      this._cursorY += 1;
-      if (this._cursorY >= this.rows) {
-        this.scrollUp(1);
-        this._cursorY = this.rows - 1;
-      }
-      this.wrapPending = false;
-    }
-
-    if (this._cursorX >= this.cols) {
-      // Best-effort clamp; cursorX should normally remain in-bounds.
-      this._cursorX = this.cols - 1;
-    }
-
-    const cell = this.cells[this._cursorY][this._cursorX];
-    cell.ch = ch;
-    cell.sgrState = { ...this.currentSgrState };
-    cell.isProtected = this.currentCharacterProtection === "protected";
-
-    if (this._cursorX === this.cols - 1) {
-      if (this.autoWrapMode) {
-        this.wrapPending = true;
-      }
-      return;
-    }
-
-    this._cursorX += 1;
+    bufferOps.putChar(this.state, this.getBufferOpsContext(), ch);
   }
 
   private carriageReturn(): void {
-    this._cursorX = 0;
-    this.wrapPending = false;
+    bufferOps.carriageReturn(this.state);
   }
 
   private lineFeed(): void {
-    this._cursorY += 1;
-
-    // Check if we've moved past the bottom of the scroll region
-    if (this._cursorY > this.scrollBottom) {
-      // Scroll only within the scroll region
-      this.scrollUpInRegion(1);
-      this._cursorY = this.scrollBottom;
-    }
-
-    this.wrapPending = false;
+    bufferOps.lineFeed(this.state, this.getBufferOpsContext());
   }
 
   private backspace(): void {
-    this.wrapPending = false;
-    if (this._cursorX > 0) {
-      this._cursorX -= 1;
-      return;
-    }
+    bufferOps.backspace(this.state);
   }
 
   private tab(): void {
     this.wrapPending = false;
 
     cursorForwardTab(this.state, this.cols, 1);
-  }
-
-  private clear(): void {
-    for (let y = 0; y < this.rows; y++) {
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[y][x].ch = " ";
-        this.cells[y][x].sgrState = { ...this.currentSgrState };
-        this.cells[y][x].isProtected = false;
-      }
-    }
-    this._cursorX = 0;
-    this._cursorY = 0;
-    this.wrapPending = false;
-  }
-
-  private scrollUp(lines: number): void {
-    this.wrapPending = false;
-    const n = Math.max(0, Math.min(lines, this.rows));
-    if (n === 0) {
-      return;
-    }
-
-    const currentBuffer = this.alternateScreenManager.getCurrentBuffer();
-    const primaryAndFullScreen = !this.isAlternateScreenActive() && this.scrollTop === 0 && this.scrollBottom === this.rows - 1;
-    for (let i = 0; i < n; i++) {
-      const removed = currentBuffer.cells.shift();
-      if (removed && primaryAndFullScreen) {
-        this.pushScrollbackRow(removed);
-      }
-      const sgrState = { ...this.currentSgrState };
-      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState, isProtected: false })));
-    }
   }
 
   private setOriginMode(enable: boolean): void {
@@ -1229,331 +1105,43 @@ export class StatefulTerminal {
   }
 
   private clearLine(mode: 0 | 1 | 2): void {
-    this.wrapPending = false;
-    const y = this._cursorY;
-    if (y < 0 || y >= this.rows) {
-      return;
-    }
-
-    if (mode === 0) {
-      for (let x = this._cursorX; x < this.cols; x++) {
-        this.cells[y][x].ch = " ";
-        this.cells[y][x].sgrState = { ...this.currentSgrState };
-        this.cells[y][x].isProtected = false;
-      }
-      return;
-    }
-
-    if (mode === 1) {
-      for (let x = 0; x <= this._cursorX; x++) {
-        this.cells[y][x].ch = " ";
-        this.cells[y][x].sgrState = { ...this.currentSgrState };
-        this.cells[y][x].isProtected = false;
-      }
-      return;
-    }
-
-    for (let x = 0; x < this.cols; x++) {
-      this.cells[y][x].ch = " ";
-      this.cells[y][x].sgrState = { ...this.currentSgrState };
-      this.cells[y][x].isProtected = false;
-    }
+    bufferOps.clearLine(this.state, this.getBufferOpsContext(), mode);
   }
 
   private clearLineSelective(mode: 0 | 1 | 2): void {
-    this.wrapPending = false;
-    const y = this._cursorY;
-    if (y < 0 || y >= this.rows) {
-      return;
-    }
-
-    const shouldErase = (cell: ScreenCell): boolean => cell.isProtected !== true;
-
-    if (mode === 0) {
-      for (let x = this._cursorX; x < this.cols; x++) {
-        const cell = this.cells[y][x];
-        if (!shouldErase(cell)) {
-          continue;
-        }
-        cell.ch = " ";
-        cell.sgrState = { ...this.currentSgrState };
-        cell.isProtected = false;
-      }
-      return;
-    }
-
-    if (mode === 1) {
-      for (let x = 0; x <= this._cursorX; x++) {
-        const cell = this.cells[y][x];
-        if (!shouldErase(cell)) {
-          continue;
-        }
-        cell.ch = " ";
-        cell.sgrState = { ...this.currentSgrState };
-        cell.isProtected = false;
-      }
-      return;
-    }
-
-    for (let x = 0; x < this.cols; x++) {
-      const cell = this.cells[y][x];
-      if (!shouldErase(cell)) {
-        continue;
-      }
-      cell.ch = " ";
-      cell.sgrState = { ...this.currentSgrState };
-      cell.isProtected = false;
-    }
+    bufferOps.clearLineSelective(this.state, this.getBufferOpsContext(), mode);
   }
 
   private eraseCharacters(count: number): void {
-    this.wrapPending = false;
-    const y = this._cursorY;
-    if (y < 0 || y >= this.rows) {
-      return;
-    }
-
-    // Erase 'count' characters starting from cursor position
-    const endX = Math.min(this._cursorX + count, this.cols);
-    for (let x = this._cursorX; x < endX; x++) {
-      this.cells[y][x].ch = " ";
-      this.cells[y][x].sgrState = { ...this.currentSgrState };
-      this.cells[y][x].isProtected = false;
-    }
+    bufferOps.eraseCharacters(this.state, this.getBufferOpsContext(), count);
   }
 
   private setScrollRegion(top?: number, bottom?: number): void {
-    // DECSTBM - Set Top and Bottom Margins
-    if (top === undefined && bottom === undefined) {
-      // Reset to full screen
-      this.scrollTop = 0;
-      this.scrollBottom = this.rows - 1;
-    } else {
-      // Convert from 1-indexed to 0-indexed and validate bounds
-      const newTop = top ? Math.max(0, Math.min(this.rows - 1, top - 1)) : 0;
-      const newBottom = bottom ? Math.max(0, Math.min(this.rows - 1, bottom - 1)) : this.rows - 1;
-
-      // Ensure top < bottom
-      if (newTop < newBottom) {
-        this.scrollTop = newTop;
-        this.scrollBottom = newBottom;
-      }
-    }
-
-    // Move cursor to home position within scroll region
-    this._cursorX = 0;
-    this._cursorY = this.scrollTop;
-    this.wrapPending = false;
+    bufferOps.setScrollRegion(this.state, this.rows, top, bottom);
   }
 
   private scrollUpInRegion(lines: number): void {
-    // Scroll only within the defined scroll region
-    if (this.scrollTop === 0 && this.scrollBottom === this.rows - 1) {
-      // When the scroll region covers the full screen, treat this as a normal
-      // terminal scroll and append scrolled-off lines to scrollback (primary only).
-      this.scrollUp(lines);
-      return;
-    }
-
-    for (let i = 0; i < lines; i++) {
-      // Move all lines up within the scroll region
-      for (let y = this.scrollTop; y < this.scrollBottom; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          this.cells[y][x] = { ...this.cells[y + 1][x] };
-        }
-      }
-
-      // Clear the bottom line of the scroll region
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[this.scrollBottom][x].ch = " ";
-        this.cells[this.scrollBottom][x].sgrState = { ...this.currentSgrState };
-        this.cells[this.scrollBottom][x].isProtected = false;
-      }
-    }
+    bufferOps.scrollUpInRegion(this.state, this.getBufferOpsContext(), lines);
   }
 
   private scrollDownInRegion(lines: number): void {
-    this.wrapPending = false;
-    const n = Math.max(0, Math.min(lines, this.scrollBottom - this.scrollTop + 1));
-    if (n === 0) {
-      return;
-    }
-
-    for (let i = 0; i < n; i++) {
-      // Move all lines down within the scroll region
-      for (let y = this.scrollBottom; y > this.scrollTop; y--) {
-        for (let x = 0; x < this.cols; x++) {
-          this.cells[y][x] = { ...this.cells[y - 1][x] };
-        }
-      }
-
-      // Clear the top line of the scroll region
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[this.scrollTop][x].ch = " ";
-        this.cells[this.scrollTop][x].sgrState = { ...this.currentSgrState };
-        this.cells[this.scrollTop][x].isProtected = false;
-      }
-    }
+    bufferOps.scrollDownInRegion(this.state, this.getBufferOpsContext(), lines);
   }
 
   private deleteLinesInRegion(count: number): void {
-    this.wrapPending = false;
-
-    // DL/IL affect only when the cursor is within the scroll region.
-    if (this._cursorY < this.scrollTop || this._cursorY > this.scrollBottom) {
-      return;
-    }
-
-    const maxDeletable = this.scrollBottom - this._cursorY + 1;
-    const n = Math.max(0, Math.min(count, maxDeletable));
-    if (n === 0) {
-      return;
-    }
-
-    // Shift lines up within the region starting at cursorY.
-    for (let y = this._cursorY; y <= this.scrollBottom - n; y++) {
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[y][x] = { ...this.cells[y + n][x] };
-      }
-    }
-
-    // Clear the newly exposed bottom lines.
-    for (let y = this.scrollBottom - n + 1; y <= this.scrollBottom; y++) {
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[y][x].ch = " ";
-        this.cells[y][x].sgrState = { ...this.currentSgrState };
-        this.cells[y][x].isProtected = false;
-      }
-    }
+    bufferOps.deleteLinesInRegion(this.state, this.getBufferOpsContext(), count);
   }
 
   private insertLinesInRegion(count: number): void {
-    this.wrapPending = false;
-
-    if (this._cursorY < this.scrollTop || this._cursorY > this.scrollBottom) {
-      return;
-    }
-
-    const maxInsertable = this.scrollBottom - this._cursorY + 1;
-    const n = Math.max(0, Math.min(count, maxInsertable));
-    if (n === 0) {
-      return;
-    }
-
-    // Shift lines down within the region starting at cursorY.
-    for (let y = this.scrollBottom; y >= this._cursorY + n; y--) {
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[y][x] = { ...this.cells[y - n][x] };
-      }
-    }
-
-    // Clear the inserted blank lines.
-    for (let y = this._cursorY; y < this._cursorY + n; y++) {
-      for (let x = 0; x < this.cols; x++) {
-        this.cells[y][x].ch = " ";
-        this.cells[y][x].sgrState = { ...this.currentSgrState };
-        this.cells[y][x].isProtected = this.currentCharacterProtection === "protected";
-      }
-    }
+    bufferOps.insertLinesInRegion(this.state, this.getBufferOpsContext(), count);
   }
 
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
-    this.wrapPending = false;
-    if (mode === 3) {
-      // xterm: ED 3 clears the scrollback as well as the screen.
-      this.clearScrollback();
-      this.clear();
-      return;
-    }
-    if (mode === 2) {
-      this.clear();
-      return;
-    }
-
-    if (mode === 0) {
-      // from cursor to end
-      this.clearLine(0);
-      for (let y = this._cursorY + 1; y < this.rows; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          this.cells[y][x].ch = " ";
-          this.cells[y][x].sgrState = { ...this.currentSgrState };
-          this.cells[y][x].isProtected = false;
-        }
-      }
-      return;
-    }
-
-    if (mode === 1) {
-      // from start to cursor
-      for (let y = 0; y < this._cursorY; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          this.cells[y][x].ch = " ";
-          this.cells[y][x].sgrState = { ...this.currentSgrState };
-          this.cells[y][x].isProtected = false;
-        }
-      }
-      this.clearLine(1);
-      return;
-    }
+    bufferOps.clearDisplay(this.state, this.getBufferOpsContext(), mode);
   }
 
   private clearDisplaySelective(mode: 0 | 1 | 2 | 3): void {
-    this.wrapPending = false;
-
-    const shouldErase = (cell: ScreenCell): boolean => cell.isProtected !== true;
-
-    if (mode === 3) {
-      // xterm: selective ED 3 clears the scrollback as well.
-      this.clearScrollback();
-      // Fall through to selective full-screen erase.
-    }
-
-    if (mode === 2 || mode === 3) {
-      for (let y = 0; y < this.rows; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          const cell = this.cells[y][x];
-          if (!shouldErase(cell)) {
-            continue;
-          }
-          cell.ch = " ";
-          cell.sgrState = { ...this.currentSgrState };
-          cell.isProtected = false;
-        }
-      }
-      return;
-    }
-
-    if (mode === 0) {
-      this.clearLineSelective(0);
-      for (let y = this._cursorY + 1; y < this.rows; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          const cell = this.cells[y][x];
-          if (!shouldErase(cell)) {
-            continue;
-          }
-          cell.ch = " ";
-          cell.sgrState = { ...this.currentSgrState };
-          cell.isProtected = false;
-        }
-      }
-      return;
-    }
-
-    if (mode === 1) {
-      for (let y = 0; y < this._cursorY; y++) {
-        for (let x = 0; x < this.cols; x++) {
-          const cell = this.cells[y][x];
-          if (!shouldErase(cell)) {
-            continue;
-          }
-          cell.ch = " ";
-          cell.sgrState = { ...this.currentSgrState };
-          cell.isProtected = false;
-        }
-      }
-      this.clearLineSelective(1);
-      return;
-    }
+    bufferOps.clearDisplaySelective(this.state, this.getBufferOpsContext(), mode);
   }
 
   private handleCsi(msg: CsiMessage): void {
