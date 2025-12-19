@@ -1,4 +1,5 @@
 import type { DecModeEvent } from "./screenTypes";
+import type { SgrState } from "../SgrStyleManager";
 
 /**
  * Narrow internal interface for protocol handlers (CSI/ESC/OSC).
@@ -26,6 +27,14 @@ export interface TerminalActions {
   setCursorVisibility(visible: boolean): void;
   setApplicationCursorKeys(enable: boolean): void;
   setUtf8Mode(enable: boolean): void;
+
+  // ESC helpers
+  getScrollTop(): number;
+  designateCharacterSet(slot: "G0" | "G1" | "G2" | "G3", charset: string): void;
+  lineFeed(): void;
+  carriageReturn(): void;
+  setTabStopAtCursor(): void;
+  resetToInitialState(): void;
 
   // Tabs
   cursorForwardTab(count: number): void;
@@ -66,6 +75,13 @@ export interface TerminalActions {
   switchToAlternateScreenWithCursorSaveAndClear(): void;
   switchToPrimaryScreen(): void;
   switchToPrimaryScreenWithCursorRestore(): void;
+
+  // OSC helpers
+  getWindowTitle(): string;
+  setWindowTitle(title: string): void;
+  setIconName(iconName: string): void;
+  setTitleAndIcon(title: string): void;
+  getCurrentSgrState(): SgrState;
 
   // Queries & misc CSI helpers
   generateCharacterSetQueryResponse(): string;

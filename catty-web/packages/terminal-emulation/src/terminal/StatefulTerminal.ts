@@ -37,13 +37,10 @@ import {
 
 import * as bufferOps from "./stateful/bufferOps";
 
-import {
-  generateBackgroundColorResponse,
-  generateForegroundColorResponse,
-} from "./stateful/responses";
-
 import type { TerminalActions } from "./stateful/actions";
 import { handleCsi as handleCsiDispatch } from "./stateful/handlers/csi";
+import { handleEsc as handleEscDispatch } from "./stateful/handlers/esc";
+import { handleXtermOsc as handleXtermOscDispatch } from "./stateful/handlers/osc";
 
 import type {
   CursorState,
@@ -336,6 +333,15 @@ export class StatefulTerminal {
       setApplicationCursorKeys: (enable: boolean) => this.setApplicationCursorKeys(enable),
       setUtf8Mode: (enable: boolean) => this.setUtf8Mode(enable),
 
+      getScrollTop: () => this.scrollTop,
+      designateCharacterSet: (slot: "G0" | "G1" | "G2" | "G3", charset: string) => {
+        this.designateCharacterSet(slot, charset);
+      },
+      lineFeed: () => this.lineFeed(),
+      carriageReturn: () => this.carriageReturn(),
+      setTabStopAtCursor: () => setTabStopAtCursor(this.state, this.cols),
+      resetToInitialState: () => this.reset(),
+
       cursorForwardTab: (count: number) => cursorForwardTab(this.state, this.cols, count),
       cursorBackwardTab: (count: number) => cursorBackwardTab(this.state, count),
       clearTabStopAtCursor: () => clearTabStopAtCursor(this.state, this.cols),
@@ -379,6 +385,12 @@ export class StatefulTerminal {
       switchToAlternateScreenWithCursorSaveAndClear: () => this.switchToAlternateScreenWithCursorSaveAndClear(),
       switchToPrimaryScreen: () => this.switchToPrimaryScreen(),
       switchToPrimaryScreenWithCursorRestore: () => this.switchToPrimaryScreenWithCursorRestore(),
+
+      getWindowTitle: () => this.windowProperties.title,
+      setWindowTitle: (title: string) => this.setWindowTitle(title),
+      setIconName: (iconName: string) => this.setIconName(iconName),
+      setTitleAndIcon: (title: string) => this.setTitleAndIcon(title),
+      getCurrentSgrState: () => ({ ...this.currentSgrState }),
 
       generateCharacterSetQueryResponse: () => this.generateCharacterSetQueryResponse(),
       handleWindowManipulation: (operation: number, params: number[]) => this.handleWindowManipulation(operation, params),
@@ -1184,89 +1196,11 @@ export class StatefulTerminal {
   }
 
   private handleEsc(msg: EscMessage): void {
-    switch (msg._type) {
-      case "esc.saveCursor":
-        this.savedCursor = [this._cursorX, this._cursorY];
-        return;
-      case "esc.restoreCursor":
-        if (this.savedCursor) {
-          this._cursorX = this.savedCursor[0];
-          this._cursorY = this.savedCursor[1];
-          this.clampCursor();
-        }
-        return;
-      case "esc.designateCharacterSet":
-        // Designate character set to the specified G slot
-        this.designateCharacterSet(msg.slot, msg.charset);
-        return;
-
-      case "esc.reverseIndex": {
-        // RI (ESC M): move cursor up; if at top margin, scroll region down.
-        this.wrapPending = false;
-        if (this._cursorY <= this.scrollTop) {
-          this._cursorY = this.scrollTop;
-          this.scrollDownInRegion(1);
-          return;
-        }
-
-        this._cursorY = Math.max(this.scrollTop, this._cursorY - 1);
-        return;
-      }
-
-      case "esc.index":
-        this.lineFeed();
-        return;
-
-      case "esc.nextLine":
-        this.carriageReturn();
-        this.lineFeed();
-        return;
-
-      case "esc.horizontalTabSet":
-        setTabStopAtCursor(this.state, this.cols);
-        return;
-
-      case "esc.resetToInitialState":
-        this.reset();
-        return;
-    }
+    handleEscDispatch(this.actions, msg);
   }
 
   private handleXtermOsc(msg: XtermOscMessage): void {
-    switch (msg._type) {
-      case "osc.setTitleAndIcon":
-        // OSC 0: Set both window title and icon name
-        this.setTitleAndIcon(msg.title);
-        return;
-
-      case "osc.setIconName":
-        // OSC 1: Set icon name only
-        this.setIconName(msg.iconName);
-        return;
-
-      case "osc.setWindowTitle":
-        // OSC 2: Set window title only
-        this.setWindowTitle(msg.title);
-        return;
-
-      case "osc.queryWindowTitle":
-        // OSC 21: Query window title
-        // Respond with OSC ] L <title> ST (ESC \\)
-        this.emitResponse(`\x1b]L${this.windowProperties.title}\x1b\\`);
-        return;
-
-      case "osc.queryForegroundColor":
-        // OSC 10;?: Query default foreground color
-        // Respond with current theme foreground color
-        this.emitResponse(generateForegroundColorResponse(this.currentSgrState));
-        return;
-
-      case "osc.queryBackgroundColor":
-        // OSC 11;?: Query default background color
-        // Respond with current theme background color
-        this.emitResponse(generateBackgroundColorResponse(this.currentSgrState));
-        return;
-    }
+    handleXtermOscDispatch(this.actions, msg);
   }
 
   private handleSgr(msg: SgrSequence): void {

@@ -373,7 +373,7 @@ Acceptance:
 
 ### Step 10 — Extract protocol handlers (CSI / ESC / OSC)
 
-Status: **IN PROGRESS** (10a-10b implemented, 2025-12-19)
+Status: **DONE** (10a-10c implemented, 2025-12-19)
 
 This step makes the biggest readability win, since `handleCsi` is the largest “blob”.
 
@@ -411,6 +411,8 @@ Status: **DONE** (implemented, 2025-12-19)
 
 Acceptance:
 - Integration tests that cover CSI/ESC/OSC behavior remain green.
+
+Status: **DONE** (implemented, 2025-12-19)
 
 ### Step 11 — Cleanup pass: reduce `StatefulTerminal.ts` to orchestration
 
