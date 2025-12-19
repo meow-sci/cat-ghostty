@@ -118,6 +118,7 @@ export type {
 
 export { StatefulTerminal, type ScreenSnapshot } from "./terminal/StatefulTerminal";
 export { type TerminalTraceChunk, formatTerminalTraceLine } from "./terminal/TerminalTrace";
+export { traceSettings } from "./terminal/traceSettings";
 
 // Theme system exports
 export { 

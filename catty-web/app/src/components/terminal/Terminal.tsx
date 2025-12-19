@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "@nanostores/react";
 
 import { TerminalController } from "../../ts/terminal/TerminalController";
 import { StatefulTerminal } from "@catty/terminal-emulation";
+import { traceEnabledStore } from "../../ts/terminal/traceStore";
 
 export function Terminal() {
 
@@ -10,6 +12,7 @@ export function Terminal() {
   const traceRef = useRef<HTMLPreElement | null>(null);
   const controllerRef = useRef<TerminalController | null>(null);
   const [size, _setSize] = useState<[number, number]>(() => [85, 24]);
+  const traceEnabled = useStore(traceEnabledStore);
 
   useEffect(() => {
 
@@ -74,6 +77,10 @@ export function Terminal() {
     }
   };
 
+  const onToggleTrace = (enabled: boolean) => {
+    traceEnabledStore.set(enabled);
+  };
+
   return (
     <>
       <div id="terminal" ref={terminalRef} style={style} />
@@ -87,6 +94,14 @@ export function Terminal() {
         <button type="button" onClick={onCopyRawTraceJsonLines}>
           Copy raw JSON lines
         </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={traceEnabled}
+            onChange={(e) => onToggleTrace(e.target.checked)}
+          />
+          Trace
+        </label>
       </div>
       <pre id="trace" ref={traceRef} style={style} />
       <input

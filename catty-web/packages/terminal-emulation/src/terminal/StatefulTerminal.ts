@@ -1,6 +1,7 @@
 import { getLogger } from "@catty/log";
 
 import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
+import { traceSettings } from "./traceSettings";
 import { Parser } from "./Parser";
 import type { DcsMessage, EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage, SgrColorType, SgrNamedColor } from "./TerminalEmulationTypes";
 import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
@@ -283,41 +284,55 @@ export class StatefulTerminal {
           this.requestUpdate();
         },
         handleNormalByte: (byte: number) => {
-          this.emitChunk({
-            _type: "trace.normalByte",
-            implemented: true,
-            cursorX: this._cursorX,
-            cursorY: this._cursorY,
-            byte,
-          });
+          if (traceSettings.enabled) {
+            this.emitChunk({
+              _type: "trace.normalByte",
+              implemented: true,
+              cursorX: this._cursorX,
+              cursorY: this._cursorY,
+              byte,
+            });
+          }
           this.writePrintableByte(byte);
           this.requestUpdate();
         },
         handleEsc: (msg: EscMessage) => {
-          this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.esc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
           this.handleEsc(msg);
           this.requestUpdate();
         },
         handleCsi: (msg: CsiMessage) => {
-          this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.csi", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
           this.handleCsi(msg);
           this.requestUpdate();
         },
         handleOsc: (msg: OscMessage) => {
-          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
         },
         handleDcs: (msg: DcsMessage) => {
           // For now, DCS is treated as a consumed-but-ignored control string.
           // The critical behavior is that its payload never renders as normal bytes.
-          this.emitChunk({ _type: "trace.dcs", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.dcs", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
         },
         handleSgr: (msg: SgrSequence) => {
-          this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.sgr", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
           this.handleSgr(msg);
           this.requestUpdate();
         },
         handleXtermOsc: (msg: XtermOscMessage) => {
-          this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          if (traceSettings.enabled) {
+            this.emitChunk({ _type: "trace.osc", implemented: msg.implemented, cursorX: this._cursorX, cursorY: this._cursorY, msg });
+          }
           this.handleXtermOsc(msg);
           this.requestUpdate();
         },
@@ -987,12 +1002,18 @@ export class StatefulTerminal {
   }
 
   private emitChunk(chunk: TerminalTraceChunk): void {
+    if (!traceSettings.enabled) {
+      return;
+    }
     for (const listener of this.chunkListeners) {
       listener(chunk);
     }
   }
 
   private emitControlChunk(name: TraceControlName, byte: number): void {
+    if (!traceSettings.enabled) {
+      return;
+    }
     this.emitChunk({ _type: "trace.control", implemented: true, cursorX: this._cursorX, cursorY: this._cursorY, name, byte });
   }
 

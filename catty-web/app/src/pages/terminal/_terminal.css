@@ -62,6 +62,13 @@
   font: inherit;
 }
 
+#trace-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  user-select: none;
+}
+
 .terminal-cell {
   position: absolute;
   white-space: pre;
