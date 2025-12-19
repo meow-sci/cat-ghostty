@@ -11,6 +11,14 @@ import { AlternateScreenManager } from "./stateful/alternateScreen";
 import { DEFAULT_SGR_STATE, cloneScreenRow, createCellGrid } from "./stateful/screenGrid";
 
 import { createInitialTerminalState, type CharacterSetState, type TerminalState } from "./stateful/state";
+import {
+  clearAllTabStops,
+  clearTabStopAtCursor,
+  cursorBackwardTab,
+  cursorForwardTab,
+  initializeTabStops,
+  setTabStopAtCursor,
+} from "./stateful/tabStops";
 
 import type {
   CursorState,
@@ -393,70 +401,6 @@ export class StatefulTerminal {
         },
       },
     });
-  }
-
-  private initializeTabStops(): void {
-    this.tabStops = Array.from({ length: this.cols }, (_, i) => i % 8 === 0);
-  }
-
-  private setTabStopAtCursor(): void {
-    if (this._cursorX < 0 || this._cursorX >= this.cols) {
-      return;
-    }
-    this.tabStops[this._cursorX] = true;
-  }
-
-  private clearTabStopAtCursor(): void {
-    if (this._cursorX < 0 || this._cursorX >= this.cols) {
-      return;
-    }
-    this.tabStops[this._cursorX] = false;
-  }
-
-  private clearAllTabStops(): void {
-    this.tabStops = Array.from({ length: this.cols }, () => false);
-  }
-
-  private cursorForwardTab(count: number): void {
-    const n = Math.max(1, count);
-
-    if (this._cursorX < 0) {
-      this._cursorX = 0;
-    }
-
-    for (let i = 0; i < n; i += 1) {
-      let nextStop = -1;
-      for (let x = this._cursorX + 1; x < this.cols; x += 1) {
-        if (this.tabStops[x]) {
-          nextStop = x;
-          break;
-        }
-      }
-      this._cursorX = nextStop === -1 ? (this.cols - 1) : nextStop;
-    }
-
-    this.wrapPending = false;
-  }
-
-  private cursorBackwardTab(count: number): void {
-    const n = Math.max(1, count);
-
-    if (this._cursorX < 0) {
-      this._cursorX = 0;
-    }
-
-    for (let i = 0; i < n; i += 1) {
-      let prevStop = -1;
-      for (let x = this._cursorX - 1; x >= 0; x -= 1) {
-        if (this.tabStops[x]) {
-          prevStop = x;
-          break;
-        }
-      }
-      this._cursorX = prevStop === -1 ? 0 : prevStop;
-    }
-
-    this.wrapPending = false;
   }
 
   private shiftIn(): void {
@@ -1053,7 +997,7 @@ export class StatefulTerminal {
     };
 
     this.utf8Mode = true;
-    this.initializeTabStops();
+    this.tabStops = initializeTabStops(this.cols);
 
     // Clear title/icon name stacks
     this.titleStack = [];
@@ -1091,7 +1035,7 @@ export class StatefulTerminal {
     };
 
     this.utf8Mode = true;
-    this.initializeTabStops();
+    this.tabStops = initializeTabStops(this.cols);
   }
 
   private emitUpdate(): void {
@@ -1286,7 +1230,7 @@ export class StatefulTerminal {
   private tab(): void {
     this.wrapPending = false;
 
-    this.cursorForwardTab(1);
+    cursorForwardTab(this.state, this.cols, 1);
   }
 
   private clear(): void {
@@ -1731,19 +1675,19 @@ export class StatefulTerminal {
         return;
 
       case "csi.cursorForwardTab":
-        this.cursorForwardTab(msg.count);
+        cursorForwardTab(this.state, this.cols, msg.count);
         return;
 
       case "csi.cursorBackwardTab":
-        this.cursorBackwardTab(msg.count);
+        cursorBackwardTab(this.state, msg.count);
         return;
 
       case "csi.tabClear":
         if (msg.mode === 3) {
-          this.clearAllTabStops();
+          clearAllTabStops(this.state, this.cols);
           return;
         }
-        this.clearTabStopAtCursor();
+        clearTabStopAtCursor(this.state, this.cols);
         return;
       case "csi.eraseInDisplay":
         this.clearDisplay(msg.mode);
@@ -1997,7 +1941,7 @@ export class StatefulTerminal {
         return;
 
       case "esc.horizontalTabSet":
-        this.setTabStopAtCursor();
+        setTabStopAtCursor(this.state, this.cols);
         return;
 
       case "esc.resetToInitialState":

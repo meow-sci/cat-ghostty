@@ -2,6 +2,7 @@ import { createDefaultSgrState, type SgrState } from "../SgrStyleManager";
 
 import type { AlternateScreenManager } from "./alternateScreen";
 import type { ScreenCell, WindowProperties } from "./screenTypes";
+import { initializeTabStops } from "./tabStops";
 
 export type CursorXY = [number, number];
 
@@ -79,7 +80,7 @@ export function createInitialTerminalState(options: CreateInitialTerminalStateOp
     scrollTop: 0,
     scrollBottom: options.rows - 1,
 
-    tabStops: Array.from({ length: options.cols }, (_, i) => i % 8 === 0),
+    tabStops: initializeTabStops(options.cols),
 
     windowProperties: {
       title: "",

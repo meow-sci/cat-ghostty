@@ -275,6 +275,8 @@ Acceptance:
 
 ### Step 5 — Extract tab stops into a dedicated module
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/tabStops.ts`.
 - Move:
   - `initializeTabStops`, `setTabStopAtCursor`, `clearTabStopAtCursor`, `clearAllTabStops`, `cursorForwardTab`, `cursorBackwardTab`.
