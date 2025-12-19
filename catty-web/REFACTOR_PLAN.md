@@ -293,6 +293,8 @@ Acceptance:
 
 ### Step 6 — Extract character set + translation logic
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/charset.ts`.
 - Move:
   - `designateCharacterSet`, `getCharacterSet`, `getCurrentCharacterSet`, `switchCharacterSet`

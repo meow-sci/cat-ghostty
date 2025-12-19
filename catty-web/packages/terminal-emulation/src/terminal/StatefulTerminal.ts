@@ -12,6 +12,16 @@ import { DEFAULT_SGR_STATE, cloneScreenRow, createCellGrid } from "./stateful/sc
 
 import { createInitialTerminalState, type CharacterSetState, type TerminalState } from "./stateful/state";
 import {
+  designateCharacterSet as designateCharacterSetState,
+  generateCharacterSetQueryResponse as generateCharacterSetQueryResponseState,
+  getCharacterSet as getCharacterSetState,
+  getCurrentCharacterSet as getCurrentCharacterSetState,
+  isUtf8Mode as isUtf8ModeState,
+  setUtf8Mode as setUtf8ModeState,
+  switchCharacterSet as switchCharacterSetState,
+  translateCharacter as translateCharacterState,
+} from "./stateful/charset";
+import {
   clearAllTabStops,
   clearTabStopAtCursor,
   cursorBackwardTab,
@@ -659,42 +669,42 @@ export class StatefulTerminal {
    * Designate a character set to a specific G slot
    */
   public designateCharacterSet(slot: "G0" | "G1" | "G2" | "G3", charset: string): void {
-    this.characterSets[slot] = charset;
+    designateCharacterSetState(this.state, slot, charset);
   }
 
   /**
    * Get the currently designated character set for a slot
    */
   public getCharacterSet(slot: "G0" | "G1" | "G2" | "G3"): string {
-    return this.characterSets[slot];
+    return getCharacterSetState(this.state, slot);
   }
 
   /**
    * Get the current active character set
    */
   public getCurrentCharacterSet(): string {
-    return this.characterSets[this.characterSets.current];
+    return getCurrentCharacterSetState(this.state);
   }
 
   /**
    * Switch to a different character set slot
    */
   public switchCharacterSet(slot: "G0" | "G1" | "G2" | "G3"): void {
-    this.characterSets.current = slot;
+    switchCharacterSetState(this.state, slot);
   }
 
   /**
    * Enable or disable UTF-8 mode
    */
   public setUtf8Mode(enabled: boolean): void {
-    this.utf8Mode = enabled;
+    setUtf8ModeState(this.state, enabled);
   }
 
   /**
    * Check if UTF-8 mode is enabled
    */
   public isUtf8Mode(): boolean {
-    return this.utf8Mode;
+    return isUtf8ModeState(this.state);
   }
 
   /**
@@ -702,10 +712,7 @@ export class StatefulTerminal {
    * Format: CSI ? 26 ; charset ST
    */
   private generateCharacterSetQueryResponse(): string {
-    // Report current character set
-    // For UTF-8 mode, report "utf-8", otherwise report the current G set
-    const charset = this.utf8Mode ? "utf-8" : this.getCurrentCharacterSet();
-    return `\x1b[?26;${charset}\x1b\\`;
+    return generateCharacterSetQueryResponseState(this.state);
   }
 
   /**
@@ -716,57 +723,7 @@ export class StatefulTerminal {
    * @returns The translated character
    */
   private translateCharacter(ch: string): string {
-    // If UTF-8 mode is enabled, no translation needed
-    if (this.utf8Mode) {
-      return ch;
-    }
-
-    const currentCharset = this.getCurrentCharacterSet();
-
-    // DEC Special Graphics character set (line drawing characters)
-    if (currentCharset === "0") {
-      const code = ch.charCodeAt(0);
-      // Map ASCII characters to Unicode box drawing characters
-      const decSpecialGraphics: Record<number, string> = {
-        0x60: "\u25C6", // ` -> ◆ (diamond)
-        0x61: "\u2592", // a -> ▒ (checkerboard)
-        0x62: "\u2409", // b -> ␉ (HT symbol)
-        0x63: "\u240C", // c -> ␌ (FF symbol)
-        0x64: "\u240D", // d -> ␍ (CR symbol)
-        0x65: "\u240A", // e -> ␊ (LF symbol)
-        0x66: "\u00B0", // f -> ° (degree)
-        0x67: "\u00B1", // g -> ± (plus-minus)
-        0x68: "\u2424", // h -> ␤ (NL symbol)
-        0x69: "\u240B", // i -> ␋ (VT symbol)
-        0x6A: "\u2518", // j -> ┘ (lower right corner)
-        0x6B: "\u2510", // k -> ┐ (upper right corner)
-        0x6C: "\u250C", // l -> ┌ (upper left corner)
-        0x6D: "\u2514", // m -> └ (lower left corner)
-        0x6E: "\u253C", // n -> ┼ (crossing lines)
-        0x6F: "\u23BA", // o -> ⎺ (scan line 1)
-        0x70: "\u23BB", // p -> ⎻ (scan line 3)
-        0x71: "\u2500", // q -> ─ (horizontal line)
-        0x72: "\u23BC", // r -> ⎼ (scan line 7)
-        0x73: "\u23BD", // s -> ⎽ (scan line 9)
-        0x74: "\u251C", // t -> ├ (left tee)
-        0x75: "\u2524", // u -> ┤ (right tee)
-        0x76: "\u2534", // v -> ┴ (bottom tee)
-        0x77: "\u252C", // w -> ┬ (top tee)
-        0x78: "\u2502", // x -> │ (vertical line)
-        0x79: "\u2264", // y -> ≤ (less than or equal)
-        0x7A: "\u2265", // z -> ≥ (greater than or equal)
-        0x7B: "\u03C0", // { -> π (pi)
-        0x7C: "\u2260", // | -> ≠ (not equal)
-        0x7D: "\u00A3", // } -> £ (pound sterling)
-        0x7E: "\u00B7", // ~ -> · (middle dot)
-      };
-
-      return decSpecialGraphics[code] || ch;
-    }
-
-    // For other character sets, return the character as-is
-    // In a full implementation, we would handle other character sets here
-    return ch;
+    return translateCharacterState(this.state, ch);
   }
 
   public saveCursorState(): CursorState {
