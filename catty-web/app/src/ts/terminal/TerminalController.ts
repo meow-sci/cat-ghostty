@@ -135,6 +135,23 @@ function clampInt(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(v)));
 }
 
+// Wheel throttling
+//
+// Trackpads can generate extremely high-frequency wheel events, which can make
+// scrolling feel overly sensitive (too many rows/inputs per second).
+//
+// We already coalesce wheel events via rAF; additionally, we cap how often we
+// *act* on the coalesced delta by requiring a minimum number of rAF frames
+// between flushes. This keeps tests deterministic (they stub rAF) while still
+// providing a configurable max "polling" rate.
+const WHEEL_MAX_FLUSH_HZ = 10;
+const WHEEL_ASSUMED_RAF_HZ = 60;
+const WHEEL_MIN_RAF_FRAMES_BETWEEN_FLUSH = clampInt(
+  Math.round(WHEEL_ASSUMED_RAF_HZ / Math.max(1, WHEEL_MAX_FLUSH_HZ)),
+  1,
+  10
+);
+
 export interface TerminalControllerOptions {
   terminal: StatefulTerminal;
   displayElement: HTMLElement;
@@ -197,6 +214,7 @@ export class TerminalController {
   private mouseMoveRaf: number | null = null;
   private pendingWheel: WheelSample | null = null;
   private wheelRaf: number | null = null;
+  private wheelThrottleFramesRemaining = 0;
 
   private cookedLine = "";
   private cookedCursorIndex = 0;
@@ -1145,11 +1163,37 @@ export class TerminalController {
 
     this.wheelRaf = requestAnimationFrame(() => {
       this.wheelRaf = null;
-      this.flushWheel();
+      this.tickWheelFlush();
     });
   }
 
-  private flushWheel(): void {
+  private tickWheelFlush(): void {
+    if (WHEEL_MIN_RAF_FRAMES_BETWEEN_FLUSH > 1 && this.wheelThrottleFramesRemaining > 0) {
+      this.wheelThrottleFramesRemaining -= 1;
+      if (this.pendingWheel) {
+        this.wheelRaf = requestAnimationFrame(() => {
+          this.wheelRaf = null;
+          this.tickWheelFlush();
+        });
+      }
+      return;
+    }
+
+    this.flushWheelNow();
+
+    if (WHEEL_MIN_RAF_FRAMES_BETWEEN_FLUSH > 1) {
+      this.wheelThrottleFramesRemaining = WHEEL_MIN_RAF_FRAMES_BETWEEN_FLUSH - 1;
+    }
+
+    if (this.pendingWheel && this.wheelRaf === null) {
+      this.wheelRaf = requestAnimationFrame(() => {
+        this.wheelRaf = null;
+        this.tickWheelFlush();
+      });
+    }
+  }
+
+  private flushWheelNow(): void {
     const sample = this.pendingWheel;
     this.pendingWheel = null;
     if (!sample) {
