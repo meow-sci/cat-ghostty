@@ -152,9 +152,10 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - Implemented (minimum click support): `TerminalController` now tracks `CSI ? 1000 h/l` and `CSI ? 1006 h/l` via `terminal.onDecMode(...)` and sends xterm mouse reports on `mousedown`/`mouseup`.
   - Uses SGR encoding (1006) when enabled: `ESC[<b;x;yM` press and `ESC[<b;x;ym` release.
   - Falls back to X10 encoding if 1006 is not enabled.
-- Not yet implemented: motion/drag reporting (1002/1003) and wheel events.
+ Implemented: motion/drag reporting (1002/1003) and wheel events.
 - `TerminalEmulationTypes.ts` still defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not emit it; mouse modes are handled as DECSET/DECRST (recommended to keep that way unless/until you want richer typed events).
 
+  - Wheel events send xterm wheel button codes (64/65).
 **Where it lives:**
 - Mouse event wiring + encoding: `app/src/ts/terminal/TerminalController.ts`
 - Tests: `app/src/ts/terminal/__tests__/TerminalController.window.test.ts`

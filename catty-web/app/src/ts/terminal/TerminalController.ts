@@ -13,10 +13,103 @@ type InputMode = "cooked" | "raw";
 
 type MouseTrackingMode = "off" | "click" | "button" | "any";
 
+type MouseTrackingDecMode = 1000 | 1002 | 1003;
+
 type CellMetrics = {
   cellWidthPx: number;
   cellHeightPx: number;
 };
+
+function isNode(value: unknown): value is Node {
+  return typeof value === "object" && value !== null && value instanceof Node;
+}
+
+function isWheelOverElement(el: HTMLElement, ev: WheelEvent): boolean {
+  // Prefer hit-testing by coordinates; some browsers can mis-target wheel events.
+  if (typeof document.elementFromPoint === "function") {
+    const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (hit) {
+      return el.contains(hit);
+    }
+  }
+
+  // Fallback: use the event target.
+  if (isNode(ev.target)) {
+    return el.contains(ev.target);
+  }
+
+  return false;
+}
+
+type WheelDirection = "up" | "down";
+
+type MouseMoveSample = {
+  clientX: number;
+  clientY: number;
+  buttons: number;
+  shiftKey: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+};
+
+type WheelSample = {
+  clientX: number;
+  clientY: number;
+  deltaY: number;
+  deltaMode: number;
+  shiftKey: boolean;
+  altKey: boolean;
+  ctrlKey: boolean;
+};
+
+function wheelDirectionFromDelta(deltaY: number): WheelDirection {
+  return deltaY < 0 ? "up" : "down";
+}
+
+function wheelFallbackSequenceFromDelta(deltaY: number, deltaMode: number, direction: WheelDirection, applicationCursorKeys: boolean): string {
+  // When mouse reporting is not enabled, many native terminals scroll pagers by
+  // mapping wheel to arrow keys / page keys rather than sending xterm mouse.
+  // Our web terminal has no scrollback, so this fallback preserves expected UX.
+  const abs = Math.abs(deltaY);
+
+  // 0: pixels, 1: lines, 2: pages
+  if (deltaMode === 2) {
+    return direction === "up" ? "\x1b[5~" : "\x1b[6~";
+  }
+
+  // Heuristic: map to 1..10 arrow steps depending on scroll magnitude.
+  const steps = deltaMode === 1
+    ? clampInt(abs, 1, 10)
+    : clampInt(Math.round(abs / 50), 1, 10);
+
+  const one = direction === "up"
+    ? (applicationCursorKeys ? "\x1bOA" : "\x1b[A")
+    : (applicationCursorKeys ? "\x1bOB" : "\x1b[B");
+
+  return one.repeat(steps);
+}
+
+function wheelNotchesFromDelta(deltaY: number, deltaMode: number): number {
+  const abs = Math.abs(deltaY);
+  if (deltaMode === 2) {
+    // Page-based wheels are already coarse.
+    return clampInt(Math.round(abs), 1, 10);
+  }
+  if (deltaMode === 1) {
+    // Line-based: treat each line as one notch (clamped).
+    return clampInt(Math.round(abs), 1, 10);
+  }
+
+  // Pixel-based (trackpads): ~100px is roughly one "notch".
+  return clampInt(Math.round(abs / 100), 1, 10);
+}
+
+function clampInt(v: number, min: number, max: number): number {
+  if (!Number.isFinite(v)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.trunc(v)));
+}
 
 export interface TerminalControllerOptions {
   terminal: StatefulTerminal;
@@ -52,9 +145,18 @@ export class TerminalController {
   private bracketedPasteEnabled = false;
 
   private mouseTrackingMode: MouseTrackingMode = "off";
+  private readonly mouseTrackingDecModesEnabled = new Set<MouseTrackingDecMode>();
   private mouseSgrEncodingEnabled = false;
   private cellMetrics: CellMetrics | null = null;
   private lastMouseButton: 0 | 1 | 2 | null = null;
+  private lastMouseCell: { x1: number; y1: number } | null = null;
+  private pointerOverDisplay = false;
+
+  // High-frequency input coalescing (mousemove / wheel).
+  private pendingMouseMove: MouseMoveSample | null = null;
+  private mouseMoveRaf: number | null = null;
+  private pendingWheel: WheelSample | null = null;
+  private wheelRaf: number | null = null;
 
   private cookedLine = "";
   private cookedCursorIndex = 0;
@@ -114,16 +216,26 @@ export class TerminalController {
       // 1000: click tracking
       // 1002: button-event tracking (drag)
       // 1003: any-event tracking (motion)
-      if (modes.has(1000) || modes.has(1002) || modes.has(1003)) {
-        if (ev.action === "set") {
-          if (modes.has(1003)) this.mouseTrackingMode = "any";
-          else if (modes.has(1002)) this.mouseTrackingMode = "button";
-          else this.mouseTrackingMode = "click";
-        } else {
-          // Minimal behavior: if any of these are reset, drop to off.
-          // (Apps typically reset all relevant mouse modes together.)
-          this.mouseTrackingMode = "off";
+      for (const m of [1000, 1002, 1003] as const) {
+        if (!modes.has(m)) {
+          continue;
         }
+
+        if (ev.action === "set") {
+          this.mouseTrackingDecModesEnabled.add(m);
+        } else {
+          this.mouseTrackingDecModesEnabled.delete(m);
+        }
+      }
+
+      if (this.mouseTrackingDecModesEnabled.has(1003)) {
+        this.mouseTrackingMode = "any";
+      } else if (this.mouseTrackingDecModesEnabled.has(1002)) {
+        this.mouseTrackingMode = "button";
+      } else if (this.mouseTrackingDecModesEnabled.has(1000)) {
+        this.mouseTrackingMode = "click";
+      } else {
+        this.mouseTrackingMode = "off";
       }
 
       // Mouse encoding
@@ -412,6 +524,24 @@ export class TerminalController {
     this.displayElement.addEventListener("pointerdown", focusInput);
     this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", focusInput));
 
+    // Track whether the pointer is currently over the terminal. Some wheel events
+    // (notably on trackpads) can be dispatched with surprising targets; this lets
+    // us reliably suppress page scrolling when the user scrolls over the terminal.
+    const onPointerEnter = () => {
+      this.pointerOverDisplay = true;
+    };
+    const onPointerLeave = () => {
+      this.pointerOverDisplay = false;
+    };
+    this.displayElement.addEventListener("pointerenter", onPointerEnter);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerenter", onPointerEnter));
+    this.displayElement.addEventListener("pointerleave", onPointerLeave);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerleave", onPointerLeave));
+    this.displayElement.addEventListener("mouseenter", onPointerEnter);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("mouseenter", onPointerEnter));
+    this.displayElement.addEventListener("mouseleave", onPointerLeave);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("mouseleave", onPointerLeave));
+
     // Mouse reporting (xterm). Minimum for htop: left-click press/release.
     const onPointerDown = (e: PointerEvent) => {
       focusInput(e);
@@ -421,12 +551,50 @@ export class TerminalController {
       focusInput(e);
       this.handleMouseUp(e);
     };
+    const onPointerMove = (e: PointerEvent) => {
+      this.handleMouseMove(e);
+    };
+    const onWheel = (e: WheelEvent) => {
+      // If we already handled this via a capture listener, don't double-send.
+      if (e.defaultPrevented) {
+        return;
+      }
+      this.handleWheel(e);
+    };
 
     this.displayElement.addEventListener("pointerdown", onPointerDown);
     this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", onPointerDown));
 
     this.displayElement.addEventListener("pointerup", onPointerUp);
     this.removeListeners.push(() => this.displayElement.removeEventListener("pointerup", onPointerUp));
+
+    this.displayElement.addEventListener("pointermove", onPointerMove);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("pointermove", onPointerMove));
+
+    this.displayElement.addEventListener("wheel", onWheel, { passive: false });
+    this.removeListeners.push(() => this.displayElement.removeEventListener("wheel", onWheel));
+
+    // On some browsers / trackpads, wheel events may not reliably target the
+    // terminal element even when the pointer is over it (leading to page scroll).
+    // Capture at the window level and route to the terminal when appropriate.
+    const onWheelCapture = (e: WheelEvent) => {
+      if (e.defaultPrevented) {
+        return;
+      }
+      const overTerminal = this.pointerOverDisplay || isWheelOverElement(this.displayElement, e);
+      if (!overTerminal) {
+        return;
+      }
+
+      // Always suppress page scrolling when scrolling over the terminal.
+      // (If mouse reporting is enabled, we also forward wheel events to the app.)
+      e.preventDefault();
+      e.stopPropagation();
+
+      this.handleWheel(e);
+    };
+    window.addEventListener("wheel", onWheelCapture, { passive: false, capture: true });
+    this.removeListeners.push(() => window.removeEventListener("wheel", onWheelCapture, { capture: true }));
 
     // Fallback for environments without PointerEvent (or where it is flaky).
     const onMouseDown = (e: MouseEvent) => {
@@ -437,10 +605,16 @@ export class TerminalController {
       focusInput(e);
       this.handleMouseUp(e);
     };
+    const onMouseMove = (e: MouseEvent) => {
+      this.handleMouseMove(e);
+    };
     this.displayElement.addEventListener("mousedown", onMouseDown);
     this.removeListeners.push(() => this.displayElement.removeEventListener("mousedown", onMouseDown));
     this.displayElement.addEventListener("mouseup", onMouseUp);
     this.removeListeners.push(() => this.displayElement.removeEventListener("mouseup", onMouseUp));
+
+    this.displayElement.addEventListener("mousemove", onMouseMove);
+    this.removeListeners.push(() => this.displayElement.removeEventListener("mousemove", onMouseMove));
 
     const onKeyDown = (e: KeyboardEvent) => {
 
@@ -662,6 +836,47 @@ export class TerminalController {
     return null;
   }
 
+  private mouseButtonFromButtons(buttons: number): 0 | 1 | 2 | null {
+    // https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
+    // 1: primary (left), 2: secondary (right), 4: auxiliary (middle)
+    if ((buttons & 1) !== 0) return 0;
+    if ((buttons & 4) !== 0) return 1;
+    if ((buttons & 2) !== 0) return 2;
+    return null;
+  }
+
+  private encodeMouseMotion(button: 0 | 1 | 2 | 3, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
+    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
+    // Motion reports add 32.
+    const b = button + modBits + 32;
+
+    if (this.mouseSgrEncodingEnabled) {
+      return `\x1b[<${b};${x1};${y1}M`;
+    }
+
+    const cx = 32 + Math.max(1, Math.min(223, x1));
+    const cy = 32 + Math.max(1, Math.min(223, y1));
+    const cb = 32 + Math.max(0, Math.min(255, b));
+    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
+  }
+
+  private encodeMouseWheel(direction: "up" | "down", x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
+    const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
+
+    // xterm wheel: buttons 64/65 (press only)
+    const wheelButton = direction === "up" ? 64 : 65;
+    const b = wheelButton + modBits;
+
+    if (this.mouseSgrEncodingEnabled) {
+      return `\x1b[<${b};${x1};${y1}M`;
+    }
+
+    const cx = 32 + Math.max(1, Math.min(223, x1));
+    const cy = 32 + Math.max(1, Math.min(223, y1));
+    const cb = 32 + Math.max(0, Math.min(255, b));
+    return `\x1b[M${String.fromCharCode(cb)}${String.fromCharCode(cx)}${String.fromCharCode(cy)}`;
+  }
+
   private encodeMousePress(button: 0 | 1 | 2, x1: number, y1: number, mods: { shift: boolean; alt: boolean; ctrl: boolean }): string {
     const modBits = (mods.shift ? 4 : 0) + (mods.alt ? 8 : 0) + (mods.ctrl ? 16 : 0);
     const b = button + modBits;
@@ -722,6 +937,7 @@ export class TerminalController {
     }
 
     this.lastMouseButton = button;
+    this.lastMouseCell = pos;
 
     const seq = this.encodeMousePress(button, pos.x1, pos.y1, {
       shift: ev.shiftKey,
@@ -760,6 +976,7 @@ export class TerminalController {
     }
 
     this.lastMouseButton = null;
+    this.lastMouseCell = pos;
 
     const seq = this.encodeMouseRelease(button, pos.x1, pos.y1, {
       shift: ev.shiftKey,
@@ -767,6 +984,157 @@ export class TerminalController {
       ctrl: ev.ctrlKey,
     });
     this.websocket.send(seq);
+  }
+
+  private handleMouseMove(ev: MouseEvent | PointerEvent): void {
+    if (!this.mouseEnabled()) {
+      return;
+    }
+    if (this.mouseTrackingMode === "click") {
+      return;
+    }
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const buttons = typeof (ev as { buttons?: number }).buttons === "number" ? (ev as { buttons: number }).buttons : 0;
+
+    this.pendingMouseMove = {
+      clientX: ev.clientX,
+      clientY: ev.clientY,
+      buttons,
+      shiftKey: ev.shiftKey,
+      altKey: ev.altKey,
+      ctrlKey: ev.ctrlKey,
+    };
+
+    if (this.mouseMoveRaf !== null) {
+      return;
+    }
+
+    this.mouseMoveRaf = requestAnimationFrame(() => {
+      this.mouseMoveRaf = null;
+      this.flushMouseMove();
+    });
+  }
+
+  private flushMouseMove(): void {
+    const sample = this.pendingMouseMove;
+    this.pendingMouseMove = null;
+    if (!sample) {
+      return;
+    }
+    if (!this.mouseEnabled()) {
+      return;
+    }
+    if (this.mouseTrackingMode === "click") {
+      return;
+    }
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const pos = this.eventToCell(sample);
+    if (!pos) {
+      return;
+    }
+
+    if (this.lastMouseCell && this.lastMouseCell.x1 === pos.x1 && this.lastMouseCell.y1 === pos.y1) {
+      return;
+    }
+
+    const pressed = this.lastMouseButton ?? this.mouseButtonFromButtons(sample.buttons);
+    if (this.mouseTrackingMode === "button" && pressed === null) {
+      return;
+    }
+
+    // For motion with no pressed buttons (1003), xterm reports button=3.
+    const button: 0 | 1 | 2 | 3 = pressed ?? 3;
+
+    this.lastMouseCell = pos;
+
+    const seq = this.encodeMouseMotion(button, pos.x1, pos.y1, {
+      shift: sample.shiftKey,
+      alt: sample.altKey,
+      ctrl: sample.ctrlKey,
+    });
+    this.websocket.send(seq);
+  }
+
+  private handleWheel(ev: WheelEvent): void {
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    // Coalesce high-frequency trackpad wheel events.
+    if (this.pendingWheel) {
+      this.pendingWheel.clientX = ev.clientX;
+      this.pendingWheel.clientY = ev.clientY;
+      this.pendingWheel.deltaY += ev.deltaY;
+      this.pendingWheel.deltaMode = ev.deltaMode;
+      this.pendingWheel.shiftKey = ev.shiftKey;
+      this.pendingWheel.altKey = ev.altKey;
+      this.pendingWheel.ctrlKey = ev.ctrlKey;
+    } else {
+      this.pendingWheel = {
+        clientX: ev.clientX,
+        clientY: ev.clientY,
+        deltaY: ev.deltaY,
+        deltaMode: ev.deltaMode,
+        shiftKey: ev.shiftKey,
+        altKey: ev.altKey,
+        ctrlKey: ev.ctrlKey,
+      };
+    }
+
+    if (this.wheelRaf !== null) {
+      return;
+    }
+
+    this.wheelRaf = requestAnimationFrame(() => {
+      this.wheelRaf = null;
+      this.flushWheel();
+    });
+  }
+
+  private flushWheel(): void {
+    const sample = this.pendingWheel;
+    this.pendingWheel = null;
+    if (!sample) {
+      return;
+    }
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (!Number.isFinite(sample.deltaY) || sample.deltaY === 0) {
+      return;
+    }
+
+    const direction = wheelDirectionFromDelta(sample.deltaY);
+
+    // If the app hasn't enabled mouse reporting, fall back to arrow/page keys.
+    if (!this.mouseEnabled()) {
+      const seq = wheelFallbackSequenceFromDelta(sample.deltaY, sample.deltaMode, direction, this.applicationCursorKeys);
+      this.websocket.send(seq);
+      return;
+    }
+
+    const pos = this.eventToCell(sample);
+    if (!pos) {
+      return;
+    }
+
+    const notches = wheelNotchesFromDelta(sample.deltaY, sample.deltaMode);
+    this.lastMouseCell = pos;
+
+    const one = this.encodeMouseWheel(direction, pos.x1, pos.y1, {
+      shift: sample.shiftKey,
+      alt: sample.altKey,
+      ctrl: sample.ctrlKey,
+    });
+
+    // Send N "wheel clicks" for large deltas.
+    this.websocket.send(one.repeat(notches));
   }
 
   private insertCookedText(text: string): void {
@@ -1132,8 +1500,8 @@ function debugLogIncoming(text: string): void {
     return;
   }
 
-  // Focus on the sequences relevant to cursor visibility + alt screen.
-  const _interesting = [
+  // Focus on the sequences relevant to cursor visibility + alt screen + input modes.
+  const interesting = [
     "\x1b[?25l",
     "\x1b[?25h",
     "\x1b[?1049h",
@@ -1144,17 +1512,25 @@ function debugLogIncoming(text: string): void {
     "\x1b[?47l",
     "\x1b[?1h",
     "\x1b[?1l",
+    "\x1b[?2004h",
+    "\x1b[?2004l",
+    "\x1b[?1000h",
+    "\x1b[?1000l",
+    "\x1b[?1002h",
+    "\x1b[?1002l",
+    "\x1b[?1003h",
+    "\x1b[?1003l",
+    "\x1b[?1006h",
+    "\x1b[?1006l",
   ];
 
-  let found = true;
-
-  // let found = false;
-  // for (const seq of interesting) {
-  //   if (text.includes(seq)) {
-  //     found = true;
-  //     break;
-  //   }
-  // }
+  let found = false;
+  for (const seq of interesting) {
+    if (text.includes(seq)) {
+      found = true;
+      break;
+    }
+  }
 
   if (!found) {
     return;

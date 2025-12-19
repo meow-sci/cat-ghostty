@@ -139,9 +139,10 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI ? 1000 h/l | Mouse Reporting | xterm | 🟡 | Parsed but ignored |
-| CSI ? 1002 h/l | Button Event Mouse | xterm | 🟡 | Parsed but ignored |
-| CSI ? 1003 h/l | Any Event Mouse | xterm | 🟡 | Parsed but ignored |
+| CSI ? 1000 h/l | Mouse Reporting | xterm | ✅ | App controller sends click press/release |
+| CSI ? 1002 h/l | Button Event Mouse | xterm | ✅ | App controller sends motion while a button is held (drag) |
+| CSI ? 1003 h/l | Any Event Mouse | xterm | ✅ | App controller sends motion with no buttons as well |
+| CSI ? 1006 h/l | SGR Mouse Encoding | xterm | ✅ | App controller uses SGR encoding when enabled; falls back to X10 |
 
 ## CSI Sequences (Vi Compatibility)
 

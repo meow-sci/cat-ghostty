@@ -8,9 +8,17 @@ describe("TerminalController Window Management", () => {
   let displayElement: HTMLElement;
   let inputElement: HTMLInputElement;
   let wsSends: unknown[];
+  let rafQueue: Array<(t: number) => void>;
 
   beforeEach(() => {
     wsSends = [];
+    rafQueue = [];
+
+    // Deterministic rAF for tests (TerminalController throttles mousemove/wheel via rAF).
+    (globalThis as any).requestAnimationFrame = (cb: (t: number) => void) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    };
 
     class MockWebSocket {
       static CONNECTING = 0;
@@ -69,6 +77,19 @@ describe("TerminalController Window Management", () => {
     // Force deterministic cell metrics in tests.
     (controller as any).cellMetrics = { cellWidthPx: 10, cellHeightPx: 20 };
   });
+
+  async function flushRaf(): Promise<void> {
+    // Run all queued frames. (Nested scheduling is possible, so loop.)
+    while (rafQueue.length > 0) {
+      const batch = rafQueue;
+      rafQueue = [];
+      for (const cb of batch) {
+        cb(0);
+      }
+      // Allow microtasks to settle between frames.
+      await Promise.resolve();
+    }
+  }
 
   function dispatchPaste(text: string): void {
     const ev = new Event("paste", { bubbles: true, cancelable: true }) as unknown as ClipboardEvent;
@@ -248,10 +269,74 @@ describe("TerminalController Window Management", () => {
     expect(wsSends[wsSends.length - 1]).toBe("\x1b[<0;2;2m");
   });
 
-  it("should not send mouse reports when mouse mode is disabled", () => {
+  it("should send SGR mouse motion when 1002 is enabled and a button is held", async () => {
+    terminal.pushPtyText("\x1b[?1002h\x1b[?1006h");
+
+    const down = new MouseEvent("mousedown", { clientX: 15, clientY: 25, button: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(down);
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<0;2;2M");
+
+    // Move to the next cell to produce a motion report.
+    const move = new MouseEvent("mousemove", { clientX: 25, clientY: 25, buttons: 1, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(move);
+
+    await flushRaf();
+
+    // Motion adds 32 to the button code.
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<32;3;2M");
+  });
+
+  it("should not send motion when 1002 is enabled but no button is held", async () => {
+    terminal.pushPtyText("\x1b[?1002h\x1b[?1006h");
+
+    const start = wsSends.length;
+    const move = new MouseEvent("mousemove", { clientX: 25, clientY: 25, buttons: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(move);
+    await flushRaf();
+    expect(wsSends.length).toBe(start);
+  });
+
+  it("should send SGR mouse motion when 1003 is enabled even with no buttons", async () => {
+    terminal.pushPtyText("\x1b[?1003h\x1b[?1006h");
+
+    const move = new MouseEvent("mousemove", { clientX: 25, clientY: 25, buttons: 0, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(move);
+
+    await flushRaf();
+
+    // Motion with no buttons uses base button 3, plus 32 for motion.
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<35;3;2M");
+  });
+
+  it("should send SGR wheel reports when mouse mode is enabled", async () => {
+    terminal.pushPtyText("\x1b[?1000h\x1b[?1006h");
+
+    const wheelUp = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: -100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelUp);
+    await flushRaf();
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<64;2;2M");
+
+    const wheelDown = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: 100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelDown);
+    await flushRaf();
+    expect(wsSends[wsSends.length - 1]).toBe("\x1b[<65;2;2M");
+  });
+
+  it("should not send mouse reports when mouse mode is disabled", async () => {
     const start = wsSends.length;
     const down = new MouseEvent("mousedown", { clientX: 15, clientY: 25, button: 0, bubbles: true, cancelable: true });
     displayElement.dispatchEvent(down);
     expect(wsSends.length).toBe(start);
+
+    const wheelUp = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: -100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelUp);
+    await flushRaf();
+    expect(wsSends.length).toBe(start + 1);
+    const esc = String.fromCharCode(0x1b);
+    const sent = wsSends[start];
+    expect(typeof sent).toBe("string");
+    if (typeof sent === "string") {
+      expect([`${esc}[A`, `${esc}OA`, `${esc}[5~`].some((p) => sent.startsWith(p))).toBe(true);
+    }
   });
 });
