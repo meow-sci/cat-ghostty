@@ -773,6 +773,16 @@ interface EncodeKeyOptions {
   applicationCursorKeys: boolean;
 }
 
+function xtermModifierParam(e: KeyboardEvent): number {
+  // xterm modifier encoding: 1 + (shift?1) + (alt?2) + (ctrl?4)
+  // https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+  let mod = 1;
+  if (e.shiftKey) mod += 1;
+  if (e.altKey) mod += 2;
+  if (e.ctrlKey) mod += 4;
+  return mod;
+}
+
 function encodeKeyDownToTerminalBytes(e: KeyboardEvent, opts: EncodeKeyOptions): string | null {
 
   if (e.metaKey) {
@@ -816,6 +826,47 @@ function encodeKeyDownToTerminalBytes(e: KeyboardEvent, opts: EncodeKeyOptions):
       return "\x1b[5~";
     case "PageDown":
       return "\x1b[6~";
+
+    // Function keys (xterm-compatible)
+    // Common mappings:
+    // - F1-F4: SS3 P/Q/R/S (or CSI 1;M P/Q/R/S with modifiers)
+    // - F5-F12: CSI 15/17/18/19/20/21/23/24 ~ (with optional ;M)
+    case "F1":
+    case "F2":
+    case "F3":
+    case "F4": {
+      const mod = xtermModifierParam(e);
+      const final = e.key === "F1" ? "P" : e.key === "F2" ? "Q" : e.key === "F3" ? "R" : "S";
+      if (mod === 1) {
+        return "\x1bO" + final;
+      }
+      return `\x1b[1;${mod}${final}`;
+    }
+
+    case "F5":
+    case "F6":
+    case "F7":
+    case "F8":
+    case "F9":
+    case "F10":
+    case "F11":
+    case "F12": {
+      const code =
+        e.key === "F5" ? 15 :
+        e.key === "F6" ? 17 :
+        e.key === "F7" ? 18 :
+        e.key === "F8" ? 19 :
+        e.key === "F9" ? 20 :
+        e.key === "F10" ? 21 :
+        e.key === "F11" ? 23 :
+        24;
+
+      const mod = xtermModifierParam(e);
+      if (mod === 1) {
+        return `\x1b[${code}~`;
+      }
+      return `\x1b[${code};${mod}~`;
+    }
   }
 
   // Ignore non-text keys (Shift, Alt, etc)

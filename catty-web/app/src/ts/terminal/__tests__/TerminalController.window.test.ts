@@ -7,8 +7,38 @@ describe("TerminalController Window Management", () => {
   let controller: TerminalController;
   let displayElement: HTMLElement;
   let inputElement: HTMLInputElement;
+  let wsSends: unknown[];
 
   beforeEach(() => {
+    wsSends = [];
+
+    class MockWebSocket {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+
+      public readyState = MockWebSocket.OPEN;
+      public onopen: (() => void) | null = null;
+      public onmessage: ((ev: MessageEvent) => void) | null = null;
+
+      constructor(_url: string) {
+        // Immediately "open" so key handling can send.
+        queueMicrotask(() => this.onopen?.());
+      }
+
+      send(data: unknown): void {
+        wsSends.push(data);
+      }
+
+      close(): void {
+        this.readyState = MockWebSocket.CLOSED;
+      }
+    }
+
+    // Ensure a deterministic WebSocket in jsdom.
+    (globalThis as any).WebSocket = MockWebSocket;
+
     // Create DOM elements
     displayElement = document.createElement("div");
     inputElement = document.createElement("input");
@@ -146,5 +176,13 @@ describe("TerminalController Window Management", () => {
     expect(cssContent).toContain("--terminal-color-red");
     expect(cssContent).toContain("--terminal-foreground");
     expect(cssContent).toContain("--terminal-background");
+  });
+
+  it("should send F10 as an xterm function-key escape sequence", () => {
+    const ev = new KeyboardEvent("keydown", { key: "F10", bubbles: true, cancelable: true });
+    inputElement.dispatchEvent(ev);
+
+    // F10 should map to CSI 21 ~
+    expect(wsSends).toContain("\x1b[21~");
   });
 });
