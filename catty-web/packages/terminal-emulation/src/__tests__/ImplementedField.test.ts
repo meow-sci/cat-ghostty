@@ -31,12 +31,12 @@ describe("Implemented Field", () => {
     expect(capturedCsi[0]._type).toBe("csi.cursorUp");
     expect(capturedCsi[0].implemented).toBe(true);
 
-    // Test non-implemented CSI command (scroll down)
+    // Test implemented CSI command (scroll down)
     capturedCsi.length = 0;
     parser.pushBytes(new TextEncoder().encode("\x1b[3T"));
     expect(capturedCsi).toHaveLength(1);
     expect(capturedCsi[0]._type).toBe("csi.scrollDown");
-    expect(capturedCsi[0].implemented).toBe(false);
+    expect(capturedCsi[0].implemented).toBe(true);
 
     // Test unknown CSI command
     capturedCsi.length = 0;

@@ -205,6 +205,17 @@ export class Parser {
         return;
       }
 
+      // RI (Reverse Index): ESC M
+      // Used by full-screen apps (e.g. less) to scroll the display down within the scroll region.
+      if (byte === 0x4d) {
+        this.escapeSequence.push(byte);
+        const raw = bytesToString(this.escapeSequence);
+        const msg: EscMessage = { _type: "esc.reverseIndex", raw, implemented: true };
+        this.handlers.handleEsc(msg);
+        this.resetEscapeState();
+        return;
+      }
+
       // Character set designation: ESC ( X, ESC ) X, ESC * X, ESC + X
       // These are two-byte sequences after ESC
       if (byte === 0x28 || byte === 0x29 || byte === 0x2a || byte === 0x2b) {
@@ -326,7 +337,7 @@ export class Parser {
           }
         }
       }
-    } catch (error) {
+    } catch {
       // Decoding failed, treat each byte as a separate character
       this.flushUtf8Buffer();
     }

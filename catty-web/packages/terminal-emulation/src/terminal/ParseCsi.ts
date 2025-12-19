@@ -128,7 +128,7 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   }
 
   if (final === "T" && params.length <= 1 && !isPrivate) {
-    const msg: CsiScrollDown = { _type: "csi.scrollDown", raw, lines: getParam(params, 0, 1), implemented: false };
+    const msg: CsiScrollDown = { _type: "csi.scrollDown", raw, lines: getParam(params, 0, 1), implemented: true };
     return msg;
   }
 

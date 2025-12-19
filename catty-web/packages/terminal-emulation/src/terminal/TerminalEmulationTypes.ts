@@ -116,7 +116,15 @@ export interface EscDesignateCharacterSet extends EscBase {
   charset: string; // Character set identifier (e.g., "B" for ASCII, "0" for DEC Special Graphics)
 }
 
-export type EscMessage = EscSaveCursor | EscRestoreCursor | EscDesignateCharacterSet;
+/**
+ * RI (ESC M): Reverse Index.
+ * Move cursor up one line; if already at the top margin, scroll the scroll-region down.
+ */
+export interface EscReverseIndex extends EscBase {
+  _type: "esc.reverseIndex";
+}
+
+export type EscMessage = EscSaveCursor | EscRestoreCursor | EscDesignateCharacterSet | EscReverseIndex;
 
 // =============================================================================
 // DCS Types (Device Control String)

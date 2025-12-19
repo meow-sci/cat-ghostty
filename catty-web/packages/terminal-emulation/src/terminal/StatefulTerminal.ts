@@ -1007,6 +1007,29 @@ export class StatefulTerminal {
     }
   }
 
+  private scrollDownInRegion(lines: number): void {
+    this.wrapPending = false;
+    const n = Math.max(0, Math.min(lines, this.scrollBottom - this.scrollTop + 1));
+    if (n === 0) {
+      return;
+    }
+
+    for (let i = 0; i < n; i++) {
+      // Move all lines down within the scroll region
+      for (let y = this.scrollBottom; y > this.scrollTop; y--) {
+        for (let x = 0; x < this.cols; x++) {
+          this.cells[y][x] = { ...this.cells[y - 1][x] };
+        }
+      }
+
+      // Clear the top line of the scroll region
+      for (let x = 0; x < this.cols; x++) {
+        this.cells[this.scrollTop][x].ch = " ";
+        this.cells[this.scrollTop][x].sgrState = { ...this.currentSgrState };
+      }
+    }
+  }
+
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
     this.wrapPending = false;
     if (mode === 2 || mode === 3) {
@@ -1088,6 +1111,10 @@ export class StatefulTerminal {
         return;
       case "csi.scrollUp":
         this.scrollUpInRegion(msg.lines);
+        return;
+
+      case "csi.scrollDown":
+        this.scrollDownInRegion(msg.lines);
         return;
       case "csi.saveCursorPosition":
         this.savedCursor = [this.cursorX, this.cursorY];
@@ -1236,7 +1263,6 @@ export class StatefulTerminal {
         return;
 
       // ignored (for MVP)
-      case "csi.scrollDown":
       case "csi.mouseReportingMode":
       case "csi.unknown":
         return;
@@ -1259,6 +1285,19 @@ export class StatefulTerminal {
         // Designate character set to the specified G slot
         this.designateCharacterSet(msg.slot, msg.charset);
         return;
+
+      case "esc.reverseIndex": {
+        // RI (ESC M): move cursor up; if at top margin, scroll region down.
+        this.wrapPending = false;
+        if (this.cursorY <= this.scrollTop) {
+          this.cursorY = this.scrollTop;
+          this.scrollDownInRegion(1);
+          return;
+        }
+
+        this.cursorY = Math.max(this.scrollTop, this.cursorY - 1);
+        return;
+      }
     }
   }
 
