@@ -240,11 +240,45 @@ export interface CsiEraseInDisplay extends CsiBase {
   mode: CsiEraseInDisplayMode;
 }
 
+export type CsiSelectiveEraseInDisplayMode = 0 | 1 | 2 | 3;
+
+/**
+ * DECSED - Selective Erase In Display
+ * CSI ? Ps J
+ * Erases only unprotected character positions.
+ */
+export interface CsiSelectiveEraseInDisplay extends CsiBase {
+  _type: "csi.selectiveEraseInDisplay";
+  mode: CsiSelectiveEraseInDisplayMode;
+}
+
 export type CsiEraseInLineMode = 0 | 1 | 2;
 
 export interface CsiEraseInLine extends CsiBase {
   _type: "csi.eraseInLine";
   mode: CsiEraseInLineMode;
+}
+
+export type CsiSelectiveEraseInLineMode = 0 | 1 | 2;
+
+/**
+ * DECSEL - Selective Erase In Line
+ * CSI ? Ps K
+ * Erases only unprotected character positions.
+ */
+export interface CsiSelectiveEraseInLine extends CsiBase {
+  _type: "csi.selectiveEraseInLine";
+  mode: CsiSelectiveEraseInLineMode;
+}
+
+/**
+ * DECSCA - Select Character Protection Attribute
+ * CSI Ps " q
+ * Ps: 0 = unprotected (default), 2 = protected
+ */
+export interface CsiSelectCharacterProtection extends CsiBase {
+  _type: "csi.selectCharacterProtection";
+  protected: boolean;
 }
 
 /**
@@ -517,7 +551,9 @@ export type CsiMessage =
   | CsiVerticalPositionAbsolute
   | CsiCursorPosition
   | CsiEraseInDisplay
+  | CsiSelectiveEraseInDisplay
   | CsiEraseInLine
+  | CsiSelectiveEraseInLine
   | CsiCursorForwardTab
   | CsiCursorBackwardTab
   | CsiTabClear
@@ -534,6 +570,7 @@ export type CsiMessage =
   | CsiDecModeReset
   | CsiDecSoftReset
   | CsiSetCursorStyle
+  | CsiSelectCharacterProtection
   | CsiUnknown
   | XtermCsiMessage;
 

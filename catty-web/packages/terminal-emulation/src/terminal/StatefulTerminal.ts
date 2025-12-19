@@ -16,6 +16,7 @@ export type DecModeEvent = {
 export interface ScreenCell {
   ch: string;
   sgrState?: SgrState;
+  isProtected?: boolean;
 }
 
 export interface WindowProperties {
@@ -132,7 +133,7 @@ const DEFAULT_SGR_STATE: Readonly<SgrState> = Object.freeze(createDefaultSgrStat
 
 function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE })),
+    Array.from({ length: cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE, isProtected: false })),
   );
 }
 
@@ -199,6 +200,9 @@ export class StatefulTerminal {
   // SGR state management
   // NOTE: must never reference DEFAULT_SGR_STATE directly, because we mutate currentSgrState.
   private currentSgrState: SgrState = createDefaultSgrState();
+
+  // DECSCA (CSI Ps " q) character protection attribute.
+  private currentCharacterProtection: "unprotected" | "protected" = "unprotected";
 
   // Alternate screen buffer management
   private readonly alternateScreenManager: AlternateScreenManager;
@@ -934,6 +938,7 @@ export class StatefulTerminal {
     this.scrollBottom = this.rows - 1;
 
     this.currentSgrState = createDefaultSgrState();
+    this.currentCharacterProtection = "unprotected";
 
     this.windowProperties = {
       title: "",
@@ -973,6 +978,8 @@ export class StatefulTerminal {
 
     this.scrollTop = 0;
     this.scrollBottom = this.rows - 1;
+
+    this.currentCharacterProtection = "unprotected";
 
     this.currentSgrState = createDefaultSgrState();
 
@@ -1047,8 +1054,8 @@ export class StatefulTerminal {
     this.putChar(ch);
   }
 
-  private makeBlankCellWithCurrentSgr(): ScreenCell {
-    return { ch: " ", sgrState: { ...this.currentSgrState } };
+  private makeBlankCellWithCurrentSgr(isProtected: boolean): ScreenCell {
+    return { ch: " ", sgrState: { ...this.currentSgrState }, isProtected };
   }
 
   private insertCharsInLine(count: number): void {
@@ -1074,7 +1081,7 @@ export class StatefulTerminal {
       row[x] = row[x - n];
     }
     for (let x = 0; x < n; x += 1) {
-      row[this._cursorX + x] = this.makeBlankCellWithCurrentSgr();
+      row[this._cursorX + x] = this.makeBlankCellWithCurrentSgr(this.currentCharacterProtection === "protected");
     }
   }
 
@@ -1101,7 +1108,7 @@ export class StatefulTerminal {
       row[x] = row[x + n];
     }
     for (let x = this.cols - n; x < this.cols; x += 1) {
-      row[x] = this.makeBlankCellWithCurrentSgr();
+      row[x] = this.makeBlankCellWithCurrentSgr(false);
     }
   }
 
@@ -1139,6 +1146,7 @@ export class StatefulTerminal {
     const cell = this.cells[this._cursorY][this._cursorX];
     cell.ch = ch;
     cell.sgrState = { ...this.currentSgrState };
+    cell.isProtected = this.currentCharacterProtection === "protected";
 
     if (this._cursorX === this.cols - 1) {
       if (this.autoWrapMode) {
@@ -1187,6 +1195,7 @@ export class StatefulTerminal {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
+        this.cells[y][x].isProtected = false;
       }
     }
     this._cursorX = 0;
@@ -1205,7 +1214,7 @@ export class StatefulTerminal {
     for (let i = 0; i < n; i++) {
       currentBuffer.cells.shift();
       const sgrState = { ...this.currentSgrState };
-      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState })));
+      currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState, isProtected: false })));
     }
   }
 
@@ -1252,6 +1261,7 @@ export class StatefulTerminal {
       for (let x = this._cursorX; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
+        this.cells[y][x].isProtected = false;
       }
       return;
     }
@@ -1260,6 +1270,7 @@ export class StatefulTerminal {
       for (let x = 0; x <= this._cursorX; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
+        this.cells[y][x].isProtected = false;
       }
       return;
     }
@@ -1267,6 +1278,53 @@ export class StatefulTerminal {
     for (let x = 0; x < this.cols; x++) {
       this.cells[y][x].ch = " ";
       this.cells[y][x].sgrState = { ...this.currentSgrState };
+      this.cells[y][x].isProtected = false;
+    }
+  }
+
+  private clearLineSelective(mode: 0 | 1 | 2): void {
+    this.wrapPending = false;
+    const y = this._cursorY;
+    if (y < 0 || y >= this.rows) {
+      return;
+    }
+
+    const shouldErase = (cell: ScreenCell): boolean => cell.isProtected !== true;
+
+    if (mode === 0) {
+      for (let x = this._cursorX; x < this.cols; x++) {
+        const cell = this.cells[y][x];
+        if (!shouldErase(cell)) {
+          continue;
+        }
+        cell.ch = " ";
+        cell.sgrState = { ...this.currentSgrState };
+        cell.isProtected = false;
+      }
+      return;
+    }
+
+    if (mode === 1) {
+      for (let x = 0; x <= this._cursorX; x++) {
+        const cell = this.cells[y][x];
+        if (!shouldErase(cell)) {
+          continue;
+        }
+        cell.ch = " ";
+        cell.sgrState = { ...this.currentSgrState };
+        cell.isProtected = false;
+      }
+      return;
+    }
+
+    for (let x = 0; x < this.cols; x++) {
+      const cell = this.cells[y][x];
+      if (!shouldErase(cell)) {
+        continue;
+      }
+      cell.ch = " ";
+      cell.sgrState = { ...this.currentSgrState };
+      cell.isProtected = false;
     }
   }
 
@@ -1282,6 +1340,7 @@ export class StatefulTerminal {
     for (let x = this._cursorX; x < endX; x++) {
       this.cells[y][x].ch = " ";
       this.cells[y][x].sgrState = { ...this.currentSgrState };
+      this.cells[y][x].isProtected = false;
     }
   }
 
@@ -1323,6 +1382,7 @@ export class StatefulTerminal {
       for (let x = 0; x < this.cols; x++) {
         this.cells[this.scrollBottom][x].ch = " ";
         this.cells[this.scrollBottom][x].sgrState = { ...this.currentSgrState };
+        this.cells[this.scrollBottom][x].isProtected = false;
       }
     }
   }
@@ -1346,6 +1406,7 @@ export class StatefulTerminal {
       for (let x = 0; x < this.cols; x++) {
         this.cells[this.scrollTop][x].ch = " ";
         this.cells[this.scrollTop][x].sgrState = { ...this.currentSgrState };
+        this.cells[this.scrollTop][x].isProtected = false;
       }
     }
   }
@@ -1376,6 +1437,7 @@ export class StatefulTerminal {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
+        this.cells[y][x].isProtected = false;
       }
     }
   }
@@ -1405,6 +1467,7 @@ export class StatefulTerminal {
       for (let x = 0; x < this.cols; x++) {
         this.cells[y][x].ch = " ";
         this.cells[y][x].sgrState = { ...this.currentSgrState };
+        this.cells[y][x].isProtected = this.currentCharacterProtection === "protected";
       }
     }
   }
@@ -1423,6 +1486,7 @@ export class StatefulTerminal {
         for (let x = 0; x < this.cols; x++) {
           this.cells[y][x].ch = " ";
           this.cells[y][x].sgrState = { ...this.currentSgrState };
+          this.cells[y][x].isProtected = false;
         }
       }
       return;
@@ -1434,9 +1498,63 @@ export class StatefulTerminal {
         for (let x = 0; x < this.cols; x++) {
           this.cells[y][x].ch = " ";
           this.cells[y][x].sgrState = { ...this.currentSgrState };
+          this.cells[y][x].isProtected = false;
         }
       }
       this.clearLine(1);
+      return;
+    }
+  }
+
+  private clearDisplaySelective(mode: 0 | 1 | 2 | 3): void {
+    this.wrapPending = false;
+
+    const shouldErase = (cell: ScreenCell): boolean => cell.isProtected !== true;
+
+    if (mode === 2 || mode === 3) {
+      for (let y = 0; y < this.rows; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          const cell = this.cells[y][x];
+          if (!shouldErase(cell)) {
+            continue;
+          }
+          cell.ch = " ";
+          cell.sgrState = { ...this.currentSgrState };
+          cell.isProtected = false;
+        }
+      }
+      return;
+    }
+
+    if (mode === 0) {
+      this.clearLineSelective(0);
+      for (let y = this._cursorY + 1; y < this.rows; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          const cell = this.cells[y][x];
+          if (!shouldErase(cell)) {
+            continue;
+          }
+          cell.ch = " ";
+          cell.sgrState = { ...this.currentSgrState };
+          cell.isProtected = false;
+        }
+      }
+      return;
+    }
+
+    if (mode === 1) {
+      for (let y = 0; y < this._cursorY; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          const cell = this.cells[y][x];
+          if (!shouldErase(cell)) {
+            continue;
+          }
+          cell.ch = " ";
+          cell.sgrState = { ...this.currentSgrState };
+          cell.isProtected = false;
+        }
+      }
+      this.clearLineSelective(1);
       return;
     }
   }
@@ -1486,6 +1604,10 @@ export class StatefulTerminal {
         this.clearLine(msg.mode);
         return;
 
+      case "csi.selectiveEraseInLine":
+        this.clearLineSelective(msg.mode);
+        return;
+
       case "csi.cursorForwardTab":
         this.cursorForwardTab(msg.count);
         return;
@@ -1503,6 +1625,14 @@ export class StatefulTerminal {
         return;
       case "csi.eraseInDisplay":
         this.clearDisplay(msg.mode);
+        return;
+
+      case "csi.selectiveEraseInDisplay":
+        this.clearDisplaySelective(msg.mode);
+        return;
+
+      case "csi.selectCharacterProtection":
+        this.currentCharacterProtection = msg.protected ? "protected" : "unprotected";
         return;
 
       case "csi.insertChars":

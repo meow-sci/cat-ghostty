@@ -227,7 +227,7 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 
 - Graphics: SIXEL/ReGIS (needs full DCS parsing first).
 - OSC color/palette mutation (OSC 4/12/etc.) and clipboard OSC 52.
-- Rectangular editing and selective erase variants (`CSI ? Ps J/K`, DECCARA/DECERA, etc.).
+- Rectangular editing variants (DECCARA/DECERA, etc.).
 
 ---
 

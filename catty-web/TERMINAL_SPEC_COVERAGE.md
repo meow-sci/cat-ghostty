@@ -57,7 +57,15 @@ This document tracks the implementation status of terminal escape sequences in c
 |----------|------|------|--------|-------|
 | CSI n J | ED - Erase in Display | ECMA-48 | ✅ | Clear screen (modes 0,1,2,3) |
 | CSI n K | EL - Erase in Line | ECMA-48 | ✅ | Clear line (modes 0,1,2) |
+| CSI ? n J | DECSED - Selective Erase in Display | VT/xterm | ✅ | Erases only unprotected cells (see DECSCA) |
+| CSI ? n K | DECSEL - Selective Erase in Line | VT/xterm | ✅ | Erases only unprotected cells (see DECSCA) |
 | CSI n X | ECH - Erase Character | ECMA-48 | ✅ | Erase n characters |
+
+## CSI Sequences (Character Protection)
+
+| Sequence | Name | Spec | Status | Notes |
+|----------|------|------|--------|-------|
+| CSI Ps " q | DECSCA - Select Character Protection Attribute | VT/xterm | ✅ | Ps=0 unprotected (default), Ps=2 protected; affects newly written characters |
 
 ## CSI Sequences (Editing)
 

@@ -1,4 +1,4 @@
-import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiDeviceStatusReport, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate } from "./TerminalEmulationTypes";
+import type { CsiMessage, CsiSetCursorStyle, CsiDecModeSet, CsiDecModeReset, CsiDecSoftReset, CsiCursorUp, CsiCursorDown, CsiCursorForward, CsiCursorBackward, CsiCursorNextLine, CsiCursorPrevLine, CsiCursorHorizontalAbsolute, CsiVerticalPositionAbsolute, CsiCursorPosition, CsiEraseInDisplayMode, CsiEraseInDisplay, CsiSelectiveEraseInDisplayMode, CsiSelectiveEraseInDisplay, CsiEraseInLineMode, CsiEraseInLine, CsiSelectiveEraseInLineMode, CsiSelectiveEraseInLine, CsiCursorForwardTab, CsiCursorBackwardTab, CsiTabClear, CsiInsertChars, CsiDeleteChars, CsiDeleteLines, CsiInsertLines, CsiScrollUp, CsiScrollDown, CsiSetScrollRegion, CsiSaveCursorPosition, CsiRestoreCursorPosition, CsiUnknown, CsiDeviceAttributesPrimary, CsiDeviceAttributesSecondary, CsiDeviceStatusReport, CsiCursorPositionReport, CsiTerminalSizeQuery, CsiCharacterSetQuery, CsiWindowManipulation, CsiInsertMode, CsiEraseCharacter, CsiEnhancedSgrMode, CsiPrivateSgrMode, CsiSgrWithIntermediate, CsiSelectCharacterProtection } from "./TerminalEmulationTypes";
 
 export function parseCsi(bytes: number[], raw: string): CsiMessage {
   // bytes: ESC [ ... final
@@ -29,6 +29,19 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
   if (final === "q" && intermediate === " ") {
     const style = validateCursorStyle(getParam(params, 0, 0));
     const msg: CsiSetCursorStyle = { _type: "csi.setCursorStyle", raw, style, implemented: true };
+    return msg;
+  }
+
+  // DECSCA: CSI Ps " q
+  if (final === "q" && intermediate === "\"" && !isPrivate && !prefix) {
+    const modeValue = getParam(params, 0, 0);
+    const protectedValue = modeValue === 2;
+    const msg: CsiSelectCharacterProtection = {
+      _type: "csi.selectCharacterProtection",
+      raw,
+      protected: protectedValue,
+      implemented: true
+    };
     return msg;
   }
 
@@ -136,6 +149,12 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 
   if (final === "J") {
     const modeValue = getParam(params, 0, 0);
+    if (isPrivate) {
+      const mode: CsiSelectiveEraseInDisplayMode = (modeValue === 0 || modeValue === 1 || modeValue === 2 || modeValue === 3) ? modeValue : 0;
+      const msg: CsiSelectiveEraseInDisplay = { _type: "csi.selectiveEraseInDisplay", raw, mode, implemented: true };
+      return msg;
+    }
+
     const mode: CsiEraseInDisplayMode = (modeValue === 0 || modeValue === 1 || modeValue === 2 || modeValue === 3) ? modeValue : 0;
     const msg: CsiEraseInDisplay = { _type: "csi.eraseInDisplay", raw, mode, implemented: true };
     return msg;
@@ -143,6 +162,12 @@ export function parseCsi(bytes: number[], raw: string): CsiMessage {
 
   if (final === "K") {
     const modeValue = getParam(params, 0, 0);
+    if (isPrivate) {
+      const mode: CsiSelectiveEraseInLineMode = (modeValue === 0 || modeValue === 1 || modeValue === 2) ? modeValue : 0;
+      const msg: CsiSelectiveEraseInLine = { _type: "csi.selectiveEraseInLine", raw, mode, implemented: true };
+      return msg;
+    }
+
     const mode: CsiEraseInLineMode = (modeValue === 0 || modeValue === 1 || modeValue === 2) ? modeValue : 0;
     const msg: CsiEraseInLine = { _type: "csi.eraseInLine", raw, mode, implemented: true };
     return msg;
