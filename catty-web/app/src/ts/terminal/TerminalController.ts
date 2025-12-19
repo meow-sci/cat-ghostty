@@ -66,27 +66,24 @@ function wheelDirectionFromDelta(deltaY: number): WheelDirection {
   return deltaY < 0 ? "up" : "down";
 }
 
-function wheelFallbackSequenceFromDelta(deltaY: number, deltaMode: number, direction: WheelDirection, applicationCursorKeys: boolean): string {
-  // When mouse reporting is not enabled, many native terminals scroll pagers by
-  // mapping wheel to arrow keys / page keys rather than sending xterm mouse.
-  // Our web terminal has no scrollback, so this fallback preserves expected UX.
+function wheelScrollLinesFromDelta(deltaY: number, deltaMode: number, rows: number): number {
+  if (!Number.isFinite(deltaY) || deltaY === 0) {
+    return 0;
+  }
+  const sign = deltaY < 0 ? -1 : 1;
   const abs = Math.abs(deltaY);
+  const max = Math.max(1, rows * 3);
 
   // 0: pixels, 1: lines, 2: pages
   if (deltaMode === 2) {
-    return direction === "up" ? "\x1b[5~" : "\x1b[6~";
+    return sign * Math.max(1, rows);
+  }
+  if (deltaMode === 1) {
+    return sign * clampInt(Math.round(abs), 1, max);
   }
 
-  // Heuristic: map to 1..10 arrow steps depending on scroll magnitude.
-  const steps = deltaMode === 1
-    ? clampInt(abs, 1, 10)
-    : clampInt(Math.round(abs / 50), 1, 10);
-
-  const one = direction === "up"
-    ? (applicationCursorKeys ? "\x1bOA" : "\x1b[A")
-    : (applicationCursorKeys ? "\x1bOB" : "\x1b[B");
-
-  return one.repeat(steps);
+  // Pixel-based (trackpads): a small fraction of a line per pixel.
+  return sign * clampInt(Math.round(abs / 40), 1, max);
 }
 
 function wheelNotchesFromDelta(deltaY: number, deltaMode: number): number {
@@ -102,6 +99,33 @@ function wheelNotchesFromDelta(deltaY: number, deltaMode: number): number {
 
   // Pixel-based (trackpads): ~100px is roughly one "notch".
   return clampInt(Math.round(abs / 100), 1, 10);
+}
+
+function altScreenWheelSequenceFromDelta(
+  deltaY: number,
+  deltaMode: number,
+  rows: number,
+  applicationCursorKeys: boolean
+): string {
+  const direction = wheelDirectionFromDelta(deltaY);
+  const lines = wheelScrollLinesFromDelta(deltaY, deltaMode, rows);
+  if (lines === 0) {
+    return "";
+  }
+
+  // Prefer line-wise scrolling via arrow keys, but if the delta is effectively
+  // a full page, use PageUp/PageDown to avoid sending very long sequences.
+  const absLines = Math.abs(lines);
+  if (absLines >= rows) {
+    const pages = clampInt(Math.round(absLines / Math.max(1, rows)), 1, 10);
+    const seq = direction === "up" ? "\x1b[5~" : "\x1b[6~";
+    return seq.repeat(pages);
+  }
+
+  const arrow = direction === "up"
+    ? (applicationCursorKeys ? "\x1bOA" : "\x1b[A")
+    : (applicationCursorKeys ? "\x1bOB" : "\x1b[B");
+  return arrow.repeat(clampInt(absLines, 1, rows * 3));
 }
 
 function clampInt(v: number, min: number, max: number): number {
@@ -154,6 +178,12 @@ export class TerminalController {
   private applicationCursorKeys = false;
   private bracketedPasteEnabled = false;
 
+  // Scrollback viewport (primary screen only). This is the 0-based row index
+  // into the combined (scrollback + current screen) buffer of the top visible row.
+  // At the bottom, this equals terminal.getScrollbackRowCount().
+  private viewportTopRow = 0;
+  private lastScrollbackRowCount = 0;
+
   private mouseTrackingMode: MouseTrackingMode = "off";
   private readonly mouseTrackingDecModesEnabled = new Set<MouseTrackingDecMode>();
   private mouseSgrEncodingEnabled = false;
@@ -194,6 +224,19 @@ export class TerminalController {
 
     const unsubscribe = this.terminal.onUpdate((snapshot) => {
       this.lastSnapshot = snapshot;
+
+      // Maintain scrollback viewport:
+      // - If we're at the bottom, follow output.
+      // - If the user has scrolled up, keep the viewport stable.
+      const scrollbackRows = this.terminal.getScrollbackRowCount();
+      if (this.terminal.isAlternateScreenActive()) {
+        this.viewportTopRow = 0;
+      } else {
+        const wasFollowing = this.viewportTopRow === this.lastScrollbackRowCount;
+        this.viewportTopRow = wasFollowing ? scrollbackRows : clampInt(this.viewportTopRow, 0, scrollbackRows);
+      }
+      this.lastScrollbackRowCount = scrollbackRows;
+
       this.scheduleRepaint();
 
       // Update DOM title when window properties change
@@ -266,6 +309,9 @@ export class TerminalController {
     this.removeListeners.push(unsubscribeResponses);
 
     this.setupInputHandlers();
+
+    this.lastScrollbackRowCount = this.terminal.getScrollbackRowCount();
+    this.viewportTopRow = this.terminal.isAlternateScreenActive() ? 0 : this.lastScrollbackRowCount;
 
     const cols = options.cols ?? this.terminal.cols;
     const rows = options.rows ?? this.terminal.rows;
@@ -1072,10 +1118,6 @@ export class TerminalController {
   }
 
   private handleWheel(ev: WheelEvent): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
     // Coalesce high-frequency trackpad wheel events.
     if (this.pendingWheel) {
       this.pendingWheel.clientX = ev.clientX;
@@ -1113,21 +1155,40 @@ export class TerminalController {
     if (!sample) {
       return;
     }
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
     if (!Number.isFinite(sample.deltaY) || sample.deltaY === 0) {
       return;
     }
 
-    const direction = wheelDirectionFromDelta(sample.deltaY);
-
-    // If the app hasn't enabled mouse reporting, fall back to arrow/page keys.
+    // If the app hasn't enabled mouse reporting, behave like a real terminal:
+    // - In the primary screen: scroll the terminal viewport (scrollback) locally.
+    // - In the alternate screen: many full-screen TUIs rely on wheel->key
+    //   translation (xterm's alternateScroll behavior).
     if (!this.mouseEnabled()) {
-      const seq = wheelFallbackSequenceFromDelta(sample.deltaY, sample.deltaMode, direction, this.applicationCursorKeys);
-      this.websocket.send(seq);
+      if (this.terminal.isAlternateScreenActive()) {
+        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        const seq = altScreenWheelSequenceFromDelta(
+          sample.deltaY,
+          sample.deltaMode,
+          this.terminal.rows,
+          this.applicationCursorKeys
+        );
+        if (seq.length > 0) {
+          this.websocket.send(seq);
+        }
+      } else {
+        const lines = wheelScrollLinesFromDelta(sample.deltaY, sample.deltaMode, this.terminal.rows);
+        this.scrollViewportBy(lines);
+      }
       return;
     }
+
+    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const direction = wheelDirectionFromDelta(sample.deltaY);
 
     const pos = this.eventToCell(sample);
     if (!pos) {
@@ -1145,6 +1206,24 @@ export class TerminalController {
 
     // Send N "wheel clicks" for large deltas.
     this.websocket.send(one.repeat(notches));
+  }
+
+  private scrollViewportBy(lines: number): void {
+    if (!Number.isFinite(lines) || lines === 0) {
+      return;
+    }
+    if (this.terminal.isAlternateScreenActive()) {
+      return;
+    }
+
+    const scrollbackRows = this.terminal.getScrollbackRowCount();
+    const next = clampInt(this.viewportTopRow + Math.trunc(lines), 0, scrollbackRows);
+    if (next === this.viewportTopRow) {
+      return;
+    }
+    this.viewportTopRow = next;
+    this.lastScrollbackRowCount = scrollbackRows;
+    this.scheduleRepaint();
   }
 
   private insertCookedText(text: string): void {
@@ -1221,6 +1300,10 @@ export class TerminalController {
       return;
     }
 
+    const alternateActive = this.terminal.isAlternateScreenActive();
+    const scrollbackRows = alternateActive ? 0 : this.terminal.getScrollbackRowCount();
+    const atBottom = alternateActive ? true : this.viewportTopRow === scrollbackRows;
+
     this.ensureDisplayDom(snapshot.cols, snapshot.rows);
 
     const spans = this.cellSpans;
@@ -1229,8 +1312,12 @@ export class TerminalController {
     }
 
     // Update cell spans in-place.
+    const viewportRows = alternateActive
+      ? snapshot.cells
+      : this.terminal.getViewportRows(this.viewportTopRow, snapshot.rows);
+
     for (let y = 0; y < snapshot.rows; y++) {
-      const row = snapshot.cells[y];
+      const row = viewportRows[y];
       for (let x = 0; x < snapshot.cols; x++) {
         const idx = y * snapshot.cols + x;
         const cell = row?.[x] ?? null;
@@ -1252,7 +1339,7 @@ export class TerminalController {
     // Cooked-mode local echo overlay.
     const echoLayer = this.echoLayerElement;
     if (echoLayer) {
-      if (this.inputMode === "cooked" && this.cookedLine.length > 0) {
+      if (atBottom && this.inputMode === "cooked" && this.cookedLine.length > 0) {
         const startX = snapshot.cursorX;
         const startY = snapshot.cursorY;
         const echoFrag = document.createDocumentFragment();
@@ -1285,7 +1372,7 @@ export class TerminalController {
     // Cursor overlay (respects DECTCEM cursor visibility)
     const cursor = this.cursorElement;
     if (cursor) {
-      if (!snapshot.cursorVisible) {
+      if (!atBottom || !snapshot.cursorVisible) {
         cursor.style.display = "none";
       } else {
         const cursorOffset = this.inputMode === "cooked" ? this.cookedCursorIndex : 0;

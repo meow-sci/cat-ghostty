@@ -122,6 +122,7 @@ export interface StatefulTerminalOptions {
   onUpdate?: (snapshot: ScreenSnapshot) => void;
   onChunk?: (chunk: TerminalTraceChunk) => void;
   onResponse?: (response: string) => void;
+  scrollbackLimit?: number;
 }
 
 type UpdateListener = (snapshot: ScreenSnapshot) => void;
@@ -135,6 +136,25 @@ function createCellGrid(cols: number, rows: number): ScreenCell[][] {
   return Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE, isProtected: false })),
   );
+}
+
+function cloneScreenCell(cell: ScreenCell): ScreenCell {
+  return {
+    ch: cell.ch,
+    sgrState: cell.sgrState ? { ...cell.sgrState } : undefined,
+    isProtected: cell.isProtected,
+  };
+}
+
+function cloneScreenRow(row: ReadonlyArray<ScreenCell>): ScreenCell[] {
+  return row.map(cloneScreenCell);
+}
+
+function clampInt(v: number, min: number, max: number): number {
+  if (!Number.isFinite(v)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.trunc(v)));
 }
 
 type XY = [number, number];
@@ -164,6 +184,9 @@ export class StatefulTerminal {
   private cursorVisible = true;
   private wrapPending = false;
   private applicationCursorKeys = false;
+
+  private readonly scrollbackLimit: number;
+  private scrollback: ScreenCell[][] = [];
 
   // DEC private modes
   // DECOM (CSI ? 6 h/l): origin mode (cursor addressing relative to scroll region)
@@ -222,6 +245,8 @@ export class StatefulTerminal {
 
     this.cols = options.cols;
     this.rows = options.rows;
+
+    this.scrollbackLimit = clampInt(options.scrollbackLimit ?? 10000, 0, 200000);
 
     // Initialize scroll region to full screen
     this.scrollBottom = this.rows - 1;
@@ -891,6 +916,56 @@ export class StatefulTerminal {
     return this.alternateScreenManager.isAlternateActive();
   }
 
+  public getScrollbackRowCount(): number {
+    return this.scrollback.length;
+  }
+
+  public getViewportRows(viewportTopRow: number, rows: number): ReadonlyArray<ReadonlyArray<ScreenCell>> {
+    const nRows = Math.max(0, Math.trunc(rows));
+    if (nRows === 0) {
+      return [];
+    }
+
+    if (this.isAlternateScreenActive()) {
+      // Real-world terminals typically do not show primary scrollback while an
+      // alternate screen app is active.
+      return this.cells;
+    }
+
+    const scrollbackRows = this.scrollback.length;
+    const top = clampInt(viewportTopRow, 0, scrollbackRows);
+    const out: Array<ReadonlyArray<ScreenCell>> = [];
+    out.length = nRows;
+
+    for (let i = 0; i < nRows; i++) {
+      const globalRow = top + i;
+      if (globalRow < scrollbackRows) {
+        out[i] = this.scrollback[globalRow];
+        continue;
+      }
+      const screenRow = globalRow - scrollbackRows;
+      out[i] = this.cells[screenRow] ?? Array.from({ length: this.cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE, isProtected: false }));
+    }
+
+    return out;
+  }
+
+  private pushScrollbackRow(row: ReadonlyArray<ScreenCell>): void {
+    if (this.scrollbackLimit <= 0) {
+      return;
+    }
+
+    this.scrollback.push(cloneScreenRow(row));
+    if (this.scrollback.length <= this.scrollbackLimit) {
+      return;
+    }
+    this.scrollback = this.scrollback.slice(-this.scrollbackLimit);
+  }
+
+  private clearScrollback(): void {
+    this.scrollback = [];
+  }
+
   /**
    * Get the current buffer's cells (either primary or alternate)
    */
@@ -938,6 +1013,8 @@ export class StatefulTerminal {
     this.scrollBottom = this.rows - 1;
 
     this.currentSgrState = createDefaultSgrState();
+
+    this.clearScrollback();
     this.currentCharacterProtection = "unprotected";
 
     this.windowProperties = {
@@ -1211,8 +1288,12 @@ export class StatefulTerminal {
     }
 
     const currentBuffer = this.alternateScreenManager.getCurrentBuffer();
+    const primaryAndFullScreen = !this.isAlternateScreenActive() && this.scrollTop === 0 && this.scrollBottom === this.rows - 1;
     for (let i = 0; i < n; i++) {
-      currentBuffer.cells.shift();
+      const removed = currentBuffer.cells.shift();
+      if (removed && primaryAndFullScreen) {
+        this.pushScrollbackRow(removed);
+      }
       const sgrState = { ...this.currentSgrState };
       currentBuffer.cells.push(Array.from({ length: this.cols }, () => ({ ch: " ", sgrState, isProtected: false })));
     }
@@ -1370,6 +1451,13 @@ export class StatefulTerminal {
 
   private scrollUpInRegion(lines: number): void {
     // Scroll only within the defined scroll region
+    if (this.scrollTop === 0 && this.scrollBottom === this.rows - 1) {
+      // When the scroll region covers the full screen, treat this as a normal
+      // terminal scroll and append scrolled-off lines to scrollback (primary only).
+      this.scrollUp(lines);
+      return;
+    }
+
     for (let i = 0; i < lines; i++) {
       // Move all lines up within the scroll region
       for (let y = this.scrollTop; y < this.scrollBottom; y++) {
@@ -1474,7 +1562,13 @@ export class StatefulTerminal {
 
   private clearDisplay(mode: 0 | 1 | 2 | 3): void {
     this.wrapPending = false;
-    if (mode === 2 || mode === 3) {
+    if (mode === 3) {
+      // xterm: ED 3 clears the scrollback as well as the screen.
+      this.clearScrollback();
+      this.clear();
+      return;
+    }
+    if (mode === 2) {
       this.clear();
       return;
     }
@@ -1510,6 +1604,12 @@ export class StatefulTerminal {
     this.wrapPending = false;
 
     const shouldErase = (cell: ScreenCell): boolean => cell.isProtected !== true;
+
+    if (mode === 3) {
+      // xterm: selective ED 3 clears the scrollback as well.
+      this.clearScrollback();
+      // Fall through to selective full-screen erase.
+    }
 
     if (mode === 2 || mode === 3) {
       for (let y = 0; y < this.rows; y++) {

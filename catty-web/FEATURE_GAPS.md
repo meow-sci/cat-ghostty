@@ -156,7 +156,8 @@ I’ve prioritized items that are common in “baseline” terminal emulators (E
 - Implemented: motion/drag reporting (1002/1003) and wheel events.
 - `TerminalEmulationTypes.ts` still defines `CsiMouseReportingMode`, but `ParseCsi.ts` does not emit it; mouse modes are handled as DECSET/DECRST (recommended to keep that way unless/until you want richer typed events).
 
-  - Wheel events send xterm wheel button codes (64/65).
+  - When mouse reporting is enabled, wheel events send xterm wheel button codes (64/65).
+  - When mouse reporting is disabled, wheel scrolls the local scrollback viewport (no arrow/page key injection to the PTY).
 **Where it lives:**
 - Mouse event wiring + encoding: `app/src/ts/terminal/TerminalController.ts`
 - Tests: `app/src/ts/terminal/__tests__/TerminalController.window.test.ts`

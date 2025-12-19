@@ -55,7 +55,7 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI n J | ED - Erase in Display | ECMA-48 | ✅ | Clear screen (modes 0,1,2,3) |
+| CSI n J | ED - Erase in Display | ECMA-48 | ✅ | Clear screen (modes 0,1,2); mode 3 also clears scrollback |
 | CSI n K | EL - Erase in Line | ECMA-48 | ✅ | Clear line (modes 0,1,2) |
 | CSI ? n J | DECSED - Selective Erase in Display | VT/xterm | ✅ | Erases only unprotected cells (see DECSCA) |
 | CSI ? n K | DECSEL - Selective Erase in Line | VT/xterm | ✅ | Erases only unprotected cells (see DECSCA) |
@@ -156,7 +156,7 @@ This document tracks the implementation status of terminal escape sequences in c
 
 | Sequence | Name | Spec | Status | Notes |
 |----------|------|------|--------|-------|
-| CSI ? 1000 h/l | Mouse Reporting | xterm | ✅ | App controller sends click press/release |
+| CSI ? 1000 h/l | Mouse Reporting | xterm | ✅ | App controller sends click press/release; when disabled, wheel scrolls local scrollback (no key injection) |
 | CSI ? 1002 h/l | Button Event Mouse | xterm | ✅ | App controller sends motion while a button is held (drag) |
 | CSI ? 1003 h/l | Any Event Mouse | xterm | ✅ | App controller sends motion with no buttons as well |
 | CSI ? 1006 h/l | SGR Mouse Encoding | xterm | ✅ | App controller uses SGR encoding when enabled; falls back to X10 |

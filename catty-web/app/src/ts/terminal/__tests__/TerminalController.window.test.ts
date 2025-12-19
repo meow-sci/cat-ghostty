@@ -331,12 +331,30 @@ describe("TerminalController Window Management", () => {
     const wheelUp = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: -100, bubbles: true, cancelable: true });
     displayElement.dispatchEvent(wheelUp);
     await flushRaf();
+    // Real terminals scroll the viewport (scrollback) locally when mouse
+    // reporting is disabled; they do not send arrow/page keys to the application.
+    expect(wsSends.length).toBe(start);
+  });
+
+  it("should translate wheel to keys in alternate screen when mouse mode is disabled (bat/less)", async () => {
+    // bat switches into alt screen and typically enables application cursor keys.
+    terminal.pushPtyText("\x1b[?1049h\x1b[?1h");
+
+    const start = wsSends.length;
+
+    const wheelUp = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: -100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelUp);
+    await flushRaf();
+
+    // With deltaY=-100 and pixel mode, the controller converts to ~3 lines.
     expect(wsSends.length).toBe(start + 1);
-    const esc = String.fromCharCode(0x1b);
-    const sent = wsSends[start];
-    expect(typeof sent).toBe("string");
-    if (typeof sent === "string") {
-      expect([`${esc}[A`, `${esc}OA`, `${esc}[5~`].some((p) => sent.startsWith(p))).toBe(true);
-    }
+    expect(wsSends[wsSends.length - 1]).toBe("\x1bOA\x1bOA\x1bOA");
+
+    const wheelDown = new WheelEvent("wheel", { clientX: 15, clientY: 25, deltaY: 100, bubbles: true, cancelable: true });
+    displayElement.dispatchEvent(wheelDown);
+    await flushRaf();
+
+    expect(wsSends.length).toBe(start + 2);
+    expect(wsSends[wsSends.length - 1]).toBe("\x1bOB\x1bOB\x1bOB");
   });
 });
