@@ -373,7 +373,7 @@ Acceptance:
 
 ### Step 10 — Extract protocol handlers (CSI / ESC / OSC)
 
-Status: **IN PROGRESS** (10a implemented, 2025-12-19)
+Status: **IN PROGRESS** (10a-10b implemented, 2025-12-19)
 
 This step makes the biggest readability win, since `handleCsi` is the largest “blob”.
 
@@ -401,6 +401,8 @@ Status: **DONE** (implemented, 2025-12-19)
 - Replace the giant switch with:
   - a `const csiHandlers: Record<CsiMessage['_type'], (actions, msg) => void>`
   - or a `switch` in the new file if you prefer minimal code churn.
+
+Status: **DONE** (implemented, 2025-12-19)
 
 #### 10c — Move ESC and OSC similarly
 

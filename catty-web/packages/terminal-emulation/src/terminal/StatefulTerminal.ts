@@ -39,13 +39,11 @@ import * as bufferOps from "./stateful/bufferOps";
 
 import {
   generateBackgroundColorResponse,
-  generateCursorPositionReport,
-  generateDeviceAttributesPrimaryResponse,
-  generateDeviceAttributesSecondaryResponse,
-  generateDeviceStatusReportResponse,
   generateForegroundColorResponse,
-  generateTerminalSizeResponse,
 } from "./stateful/responses";
+
+import type { TerminalActions } from "./stateful/actions";
+import { handleCsi as handleCsiDispatch } from "./stateful/handlers/csi";
 
 import type {
   CursorState,
@@ -88,6 +86,7 @@ export class StatefulTerminal {
 
   private readonly log = getLogger();
   private readonly parser: Parser;
+  private readonly actions: TerminalActions;
 
   private state: TerminalState;
 
@@ -313,6 +312,84 @@ export class StatefulTerminal {
       scrollbackLimit,
       alternateScreenManager,
     });
+
+    this.actions = {
+      getCols: () => this.cols,
+      getRows: () => this.rows,
+      getCursorX: () => this._cursorX,
+      getCursorY: () => this._cursorY,
+      setCursorX: (x: number) => {
+        this._cursorX = x;
+      },
+      setCursorY: (y: number) => {
+        this._cursorY = y;
+      },
+      setWrapPending: (wrapPending: boolean) => {
+        this.wrapPending = wrapPending;
+      },
+      mapRowParamToCursorY: (row: number) => this.mapRowParamToCursorY(row),
+
+      clampCursor: () => this.clampCursor(),
+      setOriginMode: (enable: boolean) => this.setOriginMode(enable),
+      setAutoWrapMode: (enable: boolean) => this.setAutoWrapMode(enable),
+      setCursorVisibility: (visible: boolean) => this.setCursorVisibility(visible),
+      setApplicationCursorKeys: (enable: boolean) => this.setApplicationCursorKeys(enable),
+      setUtf8Mode: (enable: boolean) => this.setUtf8Mode(enable),
+
+      cursorForwardTab: (count: number) => cursorForwardTab(this.state, this.cols, count),
+      cursorBackwardTab: (count: number) => cursorBackwardTab(this.state, count),
+      clearTabStopAtCursor: () => clearTabStopAtCursor(this.state, this.cols),
+      clearAllTabStops: () => clearAllTabStops(this.state, this.cols),
+
+      setCharacterProtection: (isProtected: boolean) => {
+        this.currentCharacterProtection = isProtected ? "protected" : "unprotected";
+      },
+
+      clearLine: (mode: 0 | 1 | 2) => this.clearLine(mode),
+      clearLineSelective: (mode: 0 | 1 | 2) => this.clearLineSelective(mode),
+      clearDisplay: (mode: 0 | 1 | 2 | 3) => this.clearDisplay(mode),
+      clearDisplaySelective: (mode: 0 | 1 | 2 | 3) => this.clearDisplaySelective(mode),
+
+      insertCharsInLine: (count: number) => this.insertCharsInLine(count),
+      deleteCharsInLine: (count: number) => this.deleteCharsInLine(count),
+      eraseCharacters: (count: number) => this.eraseCharacters(count),
+
+      setScrollRegion: (top?: number, bottom?: number) => this.setScrollRegion(top, bottom),
+      scrollUpInRegion: (lines: number) => this.scrollUpInRegion(lines),
+      scrollDownInRegion: (lines: number) => this.scrollDownInRegion(lines),
+      deleteLinesInRegion: (count: number) => this.deleteLinesInRegion(count),
+      insertLinesInRegion: (count: number) => this.insertLinesInRegion(count),
+
+      saveCursorPosition: () => {
+        this.savedCursor = [this._cursorX, this._cursorY];
+      },
+      restoreCursorPosition: () => {
+        if (this.savedCursor) {
+          this._cursorX = this.savedCursor[0];
+          this._cursorY = this.savedCursor[1];
+          this.clampCursor();
+        }
+      },
+
+      softReset: () => this.softReset(),
+      setCursorStyle: (style: number) => this.setCursorStyle(style),
+
+      switchToAlternateScreen: () => this.switchToAlternateScreen(),
+      switchToAlternateScreenWithCursorSave: () => this.switchToAlternateScreenWithCursorSave(),
+      switchToAlternateScreenWithCursorSaveAndClear: () => this.switchToAlternateScreenWithCursorSaveAndClear(),
+      switchToPrimaryScreen: () => this.switchToPrimaryScreen(),
+      switchToPrimaryScreenWithCursorRestore: () => this.switchToPrimaryScreenWithCursorRestore(),
+
+      generateCharacterSetQueryResponse: () => this.generateCharacterSetQueryResponse(),
+      handleWindowManipulation: (operation: number, params: number[]) => this.handleWindowManipulation(operation, params),
+      handleEnhancedSgrMode: (params: number[]) => this.handleEnhancedSgrMode(params),
+      handlePrivateSgrMode: (params: number[]) => this.handlePrivateSgrMode(params),
+      handleSgrWithIntermediate: (params: number[], intermediate: string) => this.handleSgrWithIntermediate(params, intermediate),
+      handleUnknownViSequence: (sequenceNumber: number) => this.handleUnknownViSequence(sequenceNumber),
+
+      emitResponse: (response: string) => this.emitResponse(response),
+      emitDecMode: (ev: DecModeEvent) => this.emitDecMode(ev),
+    };
 
     if (options.onUpdate) {
       this.updateListeners.add(options.onUpdate);
@@ -1103,279 +1180,7 @@ export class StatefulTerminal {
   }
 
   private handleCsi(msg: CsiMessage): void {
-    switch (msg._type) {
-      case "csi.cursorUp":
-        this._cursorY -= Math.max(1, msg.count);
-        this.clampCursor();
-        return;
-      case "csi.cursorDown":
-        this._cursorY += Math.max(1, msg.count);
-        this.clampCursor();
-        return;
-      case "csi.cursorForward":
-        this._cursorX += Math.max(1, msg.count);
-        this.clampCursor();
-        return;
-      case "csi.cursorBackward":
-        this._cursorX -= Math.max(1, msg.count);
-        this.clampCursor();
-        return;
-      case "csi.cursorNextLine":
-        this._cursorY += Math.max(1, msg.count);
-        this._cursorX = 0;
-        this.clampCursor();
-        return;
-      case "csi.cursorPrevLine":
-        this._cursorY -= Math.max(1, msg.count);
-        this._cursorX = 0;
-        this.clampCursor();
-        return;
-      case "csi.cursorHorizontalAbsolute":
-        this._cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
-        this.wrapPending = false;
-        return;
-      case "csi.verticalPositionAbsolute":
-        this._cursorY = this.mapRowParamToCursorY(msg.row);
-        this.clampCursor();
-        return;
-      case "csi.cursorPosition":
-        this._cursorY = this.mapRowParamToCursorY(msg.row);
-        this._cursorX = Math.max(0, Math.min(this.cols - 1, msg.column - 1));
-        this.clampCursor();
-        return;
-      case "csi.eraseInLine":
-        this.clearLine(msg.mode);
-        return;
-
-      case "csi.selectiveEraseInLine":
-        this.clearLineSelective(msg.mode);
-        return;
-
-      case "csi.cursorForwardTab":
-        cursorForwardTab(this.state, this.cols, msg.count);
-        return;
-
-      case "csi.cursorBackwardTab":
-        cursorBackwardTab(this.state, msg.count);
-        return;
-
-      case "csi.tabClear":
-        if (msg.mode === 3) {
-          clearAllTabStops(this.state, this.cols);
-          return;
-        }
-        clearTabStopAtCursor(this.state, this.cols);
-        return;
-      case "csi.eraseInDisplay":
-        this.clearDisplay(msg.mode);
-        return;
-
-      case "csi.selectiveEraseInDisplay":
-        this.clearDisplaySelective(msg.mode);
-        return;
-
-      case "csi.selectCharacterProtection":
-        this.currentCharacterProtection = msg.protected ? "protected" : "unprotected";
-        return;
-
-      case "csi.insertChars":
-        this.insertCharsInLine(Math.max(1, msg.count));
-        return;
-
-      case "csi.deleteChars":
-        this.deleteCharsInLine(Math.max(1, msg.count));
-        return;
-
-      case "csi.deleteLines":
-        this.deleteLinesInRegion(Math.max(1, msg.count));
-        return;
-
-      case "csi.insertLines":
-        this.insertLinesInRegion(Math.max(1, msg.count));
-        return;
-      case "csi.scrollUp":
-        this.scrollUpInRegion(msg.lines);
-        return;
-
-      case "csi.scrollDown":
-        this.scrollDownInRegion(msg.lines);
-        return;
-      case "csi.saveCursorPosition":
-        this.savedCursor = [this._cursorX, this._cursorY];
-        return;
-      case "csi.restoreCursorPosition":
-        if (this.savedCursor) {
-          this._cursorX = this.savedCursor[0];
-          this._cursorY = this.savedCursor[1];
-          this.clampCursor();
-        }
-        return;
-
-      case "csi.decModeSet":
-        // DECOM (CSI ? 6 h): origin mode
-        if (msg.modes.includes(6)) {
-          this.setOriginMode(true);
-        }
-        // DECAWM (CSI ? 7 h): auto-wrap
-        if (msg.modes.includes(7)) {
-          this.setAutoWrapMode(true);
-        }
-        // DECTCEM (CSI ? 25 h): show cursor
-        if (msg.modes.includes(25)) {
-          this.setCursorVisibility(true);
-        }
-        // Application cursor keys (CSI ? 1 h)
-        if (msg.modes.includes(1)) {
-          this.setApplicationCursorKeys(true);
-        }
-        // UTF-8 mode (CSI ? 2027 h)
-        if (msg.modes.includes(2027)) {
-          this.setUtf8Mode(true);
-        }
-        // Alternate screen buffer modes
-        if (msg.modes.includes(47)) {
-          // DECSET 47: Switch to alternate screen buffer
-          this.switchToAlternateScreen();
-        }
-        if (msg.modes.includes(1047)) {
-          // DECSET 1047: Save cursor and switch to alternate screen buffer
-          this.switchToAlternateScreenWithCursorSave();
-        }
-        if (msg.modes.includes(1049)) {
-          // DECSET 1049: Save cursor, switch to alternate screen, and clear it
-          this.switchToAlternateScreenWithCursorSaveAndClear();
-        }
-        this.emitDecMode({ action: "set", raw: msg.raw, modes: msg.modes });
-        return;
-
-      case "csi.decModeReset":
-        // DECOM (CSI ? 6 l): origin mode
-        if (msg.modes.includes(6)) {
-          this.setOriginMode(false);
-        }
-        // DECAWM (CSI ? 7 l): auto-wrap
-        if (msg.modes.includes(7)) {
-          this.setAutoWrapMode(false);
-        }
-        // DECTCEM (CSI ? 25 l): hide cursor
-        if (msg.modes.includes(25)) {
-          this.setCursorVisibility(false);
-        }
-        // Application cursor keys (CSI ? 1 l)
-        if (msg.modes.includes(1)) {
-          this.setApplicationCursorKeys(false);
-        }
-        // UTF-8 mode (CSI ? 2027 l)
-        if (msg.modes.includes(2027)) {
-          this.setUtf8Mode(false);
-        }
-        // Alternate screen buffer modes
-        if (msg.modes.includes(47)) {
-          // DECRST 47: Switch back to normal screen buffer
-          this.switchToPrimaryScreen();
-        }
-        if (msg.modes.includes(1047)) {
-          // DECRST 1047: Switch to normal screen and restore cursor
-          this.switchToPrimaryScreenWithCursorRestore();
-        }
-        if (msg.modes.includes(1049)) {
-          // DECRST 1049: Switch to normal screen and restore cursor
-          this.switchToPrimaryScreenWithCursorRestore();
-        }
-        this.emitDecMode({ action: "reset", raw: msg.raw, modes: msg.modes });
-        return;
-
-      case "csi.decSoftReset":
-        this.softReset();
-        return;
-
-      case "csi.setCursorStyle":
-        // DECSCUSR (CSI Ps SP q)
-        // Ps:
-        // 0 or 1 = blinking block
-        // 2 = steady block
-        // 3 = blinking underline
-        // 4 = steady underline
-        // 5 = blinking bar
-        // 6 = steady bar
-        this.setCursorStyle(msg.style);
-        return;
-
-      // Device query handling
-      case "csi.deviceAttributesPrimary":
-        // Primary DA query: respond with device attributes
-        this.emitResponse(generateDeviceAttributesPrimaryResponse());
-        return;
-
-      case "csi.deviceAttributesSecondary":
-        // Secondary DA query: respond with terminal version
-        this.emitResponse(generateDeviceAttributesSecondaryResponse());
-        return;
-
-      case "csi.cursorPositionReport":
-        // CPR query: respond with current cursor position
-        this.emitResponse(generateCursorPositionReport(this._cursorX, this._cursorY));
-        return;
-
-      case "csi.deviceStatusReport":
-        // DSR ready query: respond with CSI 0 n
-        this.emitResponse(generateDeviceStatusReportResponse());
-        return;
-
-      case "csi.terminalSizeQuery":
-        // Terminal size query: respond with dimensions
-        this.emitResponse(generateTerminalSizeResponse(this.rows, this.cols));
-        return;
-
-      case "csi.characterSetQuery":
-        // Character set query: respond with current character set
-        this.emitResponse(this.generateCharacterSetQueryResponse());
-        return;
-
-      case "csi.eraseCharacter":
-        this.eraseCharacters(msg.count);
-        return;
-
-      case "csi.insertMode":
-        // IRM (Insert/Replace Mode) - store the mode but don't implement insertion yet
-        // This prevents the sequence from being unknown and potentially causing issues
-        return;
-
-      case "csi.windowManipulation":
-        // Window manipulation commands - handle title stack operations for vi compatibility
-        this.handleWindowManipulation(msg.operation, msg.params);
-        return;
-
-      case "csi.setScrollRegion":
-        this.setScrollRegion(msg.top, msg.bottom);
-        return;
-
-      case "csi.enhancedSgrMode":
-        // Enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m)
-        this.handleEnhancedSgrMode(msg.params);
-        return;
-
-      case "csi.privateSgrMode":
-        // Private SGR sequences with ? prefix (e.g., CSI ? 4 m)
-        this.handlePrivateSgrMode(msg.params);
-        return;
-
-      case "csi.sgrWithIntermediate":
-        // SGR sequences with intermediate characters (e.g., CSI 0 % m)
-        this.handleSgrWithIntermediate(msg.params, msg.intermediate);
-        return;
-
-      case "csi.unknownViSequence":
-        // Unknown vi sequences (e.g., CSI 11M) - gracefully acknowledge but don't implement
-        // These sequences appear in vi usage but are not part of standard terminal specifications
-        this.handleUnknownViSequence(msg.sequenceNumber);
-        return;
-
-      // ignored (for MVP)
-      case "csi.mouseReportingMode":
-      case "csi.unknown":
-        return;
-    }
+    handleCsiDispatch(this.actions, msg);
   }
 
   private handleEsc(msg: EscMessage): void {
