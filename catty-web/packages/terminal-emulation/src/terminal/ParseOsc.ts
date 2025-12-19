@@ -127,6 +127,7 @@ function decodeUtf8Text(text: string): string {
     // For now, return as-is since JavaScript strings are already UTF-16
     // In a real implementation, we might need more sophisticated UTF-8 handling
     return text;
+  // oxlint-disable-next-line no-unused-vars
   } catch (error) {
     // If decoding fails, return the original text
     return text;
