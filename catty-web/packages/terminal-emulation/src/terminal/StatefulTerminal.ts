@@ -4,11 +4,10 @@ import type { TerminalTraceChunk, TraceControlName } from "./TerminalTrace";
 import { traceSettings } from "./traceSettings";
 import { Parser } from "./Parser";
 import type { DcsMessage, EscMessage, CsiMessage, OscMessage, SgrSequence, XtermOscMessage } from "./TerminalEmulationTypes";
-import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
-import { processSgrMessages } from './SgrStateProcessor';
+import { createDefaultSgrState, type SgrState } from "./SgrStyleManager";
+import { processSgrMessages } from "./SgrStateProcessor";
 
 import { AlternateScreenManager } from "./stateful/alternateScreen";
-import { createCellGrid } from "./stateful/screenGrid";
 import {
   clearScrollback as clearScrollbackState,
   getViewportRows as getViewportRowsState,
@@ -31,9 +30,14 @@ import {
   clearTabStopAtCursor,
   cursorBackwardTab,
   cursorForwardTab,
-  initializeTabStops,
   setTabStopAtCursor,
 } from "./stateful/tabStops";
+
+import * as cursorOps from "./stateful/cursor";
+import * as windowManipulation from "./stateful/windowManipulation";
+import * as sgrModes from "./stateful/sgrModes";
+import * as alternateScreenOps from "./stateful/alternateScreenOps";
+import * as resetOps from "./stateful/reset";
 
 import * as bufferOps from "./stateful/bufferOps";
 
@@ -170,14 +174,6 @@ export class StatefulTerminal {
   }
 
   // DECAWM (CSI ? 7 h/l): auto-wrap mode
-  private get autoWrapMode(): boolean {
-    return this.state.autoWrapMode;
-  }
-
-  private set autoWrapMode(v: boolean) {
-    this.state.autoWrapMode = v;
-  }
-
   // Scroll region (DECSTBM)
   private get scrollTop(): number {
     return this.state.scrollTop;
@@ -193,15 +189,6 @@ export class StatefulTerminal {
 
   private set scrollBottom(v: number) {
     this.state.scrollBottom = v;
-  }
-
-  // Tab stops (HTS/TAB). Defaults to every 8 columns.
-  private get tabStops(): boolean[] {
-    return this.state.tabStops;
-  }
-
-  private set tabStops(v: boolean[]) {
-    this.state.tabStops = v;
   }
 
   // Window properties state
@@ -220,22 +207,6 @@ export class StatefulTerminal {
 
   private set characterSets(v: CharacterSetState) {
     this.state.characterSets = v;
-  }
-
-  private get titleStack(): string[] {
-    return this.state.titleStack;
-  }
-
-  private set titleStack(v: string[]) {
-    this.state.titleStack = v;
-  }
-
-  private get iconNameStack(): string[] {
-    return this.state.iconNameStack;
-  }
-
-  private set iconNameStack(v: string[]) {
-    this.state.iconNameStack = v;
   }
 
   // UTF-8 mode state (DECSET/DECRST 2027)
@@ -324,7 +295,7 @@ export class StatefulTerminal {
       setWrapPending: (wrapPending: boolean) => {
         this.wrapPending = wrapPending;
       },
-      mapRowParamToCursorY: (row: number) => this.mapRowParamToCursorY(row),
+      mapRowParamToCursorY: (row: number) => cursorOps.mapRowParamToCursorY(this.state, row),
 
       clampCursor: () => this.clampCursor(),
       setOriginMode: (enable: boolean) => this.setOriginMode(enable),
@@ -615,68 +586,16 @@ export class StatefulTerminal {
    * Implements title/icon name stack operations for vi compatibility
    */
   private handleWindowManipulation(operation: number, params: number[]): void {
-    switch (operation) {
-      case 22:
-        // Push title/icon name to stack
-        if (params.length >= 1) {
-          const subOperation = params[0];
-          if (subOperation === 1) {
-            // CSI 22;1t - Push icon name to stack
-            this.iconNameStack.push(this.windowProperties.iconName);
-            if (this.log.isLevelEnabled("debug")) {
-              this.log.debug(`Pushed icon name to stack: "${this.windowProperties.iconName}"`);
-            }
-          } else if (subOperation === 2) {
-            // CSI 22;2t - Push window title to stack
-            this.titleStack.push(this.windowProperties.title);
-            if (this.log.isLevelEnabled("debug")) {
-              this.log.debug(`Pushed window title to stack: "${this.windowProperties.title}"`);
-            }
-          }
-        }
-        break;
-
-      case 23:
-        // Pop title/icon name from stack
-        if (params.length >= 1) {
-          const subOperation = params[0];
-          if (subOperation === 1) {
-            // CSI 23;1t - Pop icon name from stack
-            const poppedIconName = this.iconNameStack.pop();
-            if (poppedIconName !== undefined) {
-              this.setIconName(poppedIconName);
-              if (this.log.isLevelEnabled("debug")) {
-                this.log.debug(`Popped icon name from stack: "${poppedIconName}"`);
-              }
-            } else {
-              if (this.log.isLevelEnabled("debug")) {
-                this.log.debug("Attempted to pop icon name from empty stack");
-              }
-            }
-          } else if (subOperation === 2) {
-            // CSI 23;2t - Pop window title from stack
-            const poppedTitle = this.titleStack.pop();
-            if (poppedTitle !== undefined) {
-              this.setWindowTitle(poppedTitle);
-              if (this.log.isLevelEnabled("debug")) {
-                this.log.debug(`Popped window title from stack: "${poppedTitle}"`);
-              }
-            } else {
-              if (this.log.isLevelEnabled("debug")) {
-                this.log.debug("Attempted to pop window title from empty stack");
-              }
-            }
-          }
-        }
-        break;
-
-      default:
-        // Other window manipulation commands - gracefully ignore
-        if (this.log.isLevelEnabled("debug")) {
-          this.log.debug(`Window manipulation operation ${operation} with params ${JSON.stringify(params)} - gracefully ignored`);
-        }
-        break;
-    }
+    windowManipulation.handleWindowManipulation(
+      this.state,
+      this.log,
+      {
+        setWindowTitle: (title: string) => this.setWindowTitle(title),
+        setIconName: (iconName: string) => this.setIconName(iconName),
+      },
+      operation,
+      params,
+    );
   }
 
   // Enhanced cursor state management methods
@@ -802,87 +721,35 @@ export class StatefulTerminal {
    * DECSET 47: Switch to alternate screen buffer
    */
   private switchToAlternateScreen(): void {
-    if (!this.alternateScreenManager.isAlternateActive()) {
-      // Save current primary buffer state
-      const primaryBuffer = this.alternateScreenManager.getPrimaryBuffer();
-      primaryBuffer.cursorX = this._cursorX;
-      primaryBuffer.cursorY = this._cursorY;
-      primaryBuffer.wrapPending = this.wrapPending;
-
-      // Switch to alternate buffer
-      this.alternateScreenManager.switchToAlternate();
-      const alternateBuffer = this.alternateScreenManager.getCurrentBuffer();
-
-      // Load alternate buffer state
-      this._cursorX = alternateBuffer.cursorX;
-      this._cursorY = alternateBuffer.cursorY;
-      this.wrapPending = alternateBuffer.wrapPending;
-    }
+    alternateScreenOps.switchToAlternateScreen(this.state, this.alternateScreenManager);
   }
 
   /**
    * DECSET 1047: Save cursor and switch to alternate screen buffer
    */
   private switchToAlternateScreenWithCursorSave(): void {
-    // Save cursor position
-    this.savedCursor = [this._cursorX, this._cursorY];
-
-    // Switch to alternate screen
-    this.switchToAlternateScreen();
+    alternateScreenOps.switchToAlternateScreenWithCursorSave(this.state, this.alternateScreenManager);
   }
 
   /**
    * DECSET 1049: Save cursor, switch to alternate screen, and clear it
    */
   private switchToAlternateScreenWithCursorSaveAndClear(): void {
-    // Save cursor position
-    this.savedCursor = [this._cursorX, this._cursorY];
-
-    // Switch to alternate screen
-    this.switchToAlternateScreen();
-
-    // Clear the alternate screen buffer
-    this.alternateScreenManager.clearAlternateBuffer();
-    this._cursorX = 0;
-    this._cursorY = 0;
-    this.wrapPending = false;
+    alternateScreenOps.switchToAlternateScreenWithCursorSaveAndClear(this.state, this.alternateScreenManager);
   }
 
   /**
    * DECRST 47: Switch back to normal screen buffer
    */
   private switchToPrimaryScreen(): void {
-    if (this.alternateScreenManager.isAlternateActive()) {
-      // Save current alternate buffer state
-      const alternateBuffer = this.alternateScreenManager.getAlternateBuffer();
-      alternateBuffer.cursorX = this._cursorX;
-      alternateBuffer.cursorY = this._cursorY;
-      alternateBuffer.wrapPending = this.wrapPending;
-
-      // Switch to primary buffer
-      this.alternateScreenManager.switchToPrimary();
-      const primaryBuffer = this.alternateScreenManager.getCurrentBuffer();
-
-      // Load primary buffer state
-      this._cursorX = primaryBuffer.cursorX;
-      this._cursorY = primaryBuffer.cursorY;
-      this.wrapPending = primaryBuffer.wrapPending;
-    }
+    alternateScreenOps.switchToPrimaryScreen(this.state, this.alternateScreenManager);
   }
 
   /**
    * DECRST 1047/1049: Switch to normal screen and restore cursor
    */
   private switchToPrimaryScreenWithCursorRestore(): void {
-    // Switch to primary screen
-    this.switchToPrimaryScreen();
-
-    // Restore cursor position
-    if (this.savedCursor) {
-      this._cursorX = this.savedCursor[0];
-      this._cursorY = this.savedCursor[1];
-      this.clampCursor();
-    }
+    alternateScreenOps.switchToPrimaryScreenWithCursorRestore(this.state, this.alternateScreenManager, () => this.clampCursor());
   }
 
   public isAlternateScreenActive(): boolean {
@@ -939,95 +806,12 @@ export class StatefulTerminal {
   }
 
   public reset(): void {
-    // Hard reset (best-effort): return to primary buffer, clear screens, and reset modes/state.
-    this.alternateScreenManager.switchToPrimary();
-
-    const primary = this.alternateScreenManager.getPrimaryBuffer();
-    primary.cells = createCellGrid(this.cols, this.rows);
-    primary.cursorX = 0;
-    primary.cursorY = 0;
-    primary.savedCursor = null;
-    primary.wrapPending = false;
-
-    const alternate = this.alternateScreenManager.getAlternateBuffer();
-    alternate.cells = createCellGrid(this.cols, this.rows);
-    alternate.cursorX = 0;
-    alternate.cursorY = 0;
-    alternate.savedCursor = null;
-    alternate.wrapPending = false;
-
-    this._cursorX = 0;
-    this._cursorY = 0;
-    this.savedCursor = null;
-    this.wrapPending = false;
-    this.cursorStyle = 1;
-    this.cursorVisible = true;
-    this.applicationCursorKeys = false;
-
-    this.originMode = false;
-    this.autoWrapMode = true;
-
-    this.scrollTop = 0;
-    this.scrollBottom = this.rows - 1;
-
-    this.currentSgrState = createDefaultSgrState();
-
-    this.clearScrollback();
-    this.currentCharacterProtection = "unprotected";
-
-    this.windowProperties = {
-      title: "",
-      iconName: ""
-    };
-
-    this.characterSets = {
-      G0: "B",
-      G1: "B",
-      G2: "B",
-      G3: "B",
-      current: "G0",
-    };
-
-    this.utf8Mode = true;
-    this.tabStops = initializeTabStops(this.cols);
-
-    // Clear title/icon name stacks
-    this.titleStack = [];
-    this.iconNameStack = [];
-
+    resetOps.hardReset(this.state, this.cols, this.rows);
     this.emitUpdate();
   }
 
   private softReset(): void {
-    // DECSTR (soft reset): reset modes/state without clearing the screen.
-    this._cursorX = 0;
-    this._cursorY = 0;
-    this.savedCursor = null;
-    this.wrapPending = false;
-    this.cursorStyle = 1;
-    this.cursorVisible = true;
-    this.applicationCursorKeys = false;
-
-    this.originMode = false;
-    this.autoWrapMode = true;
-
-    this.scrollTop = 0;
-    this.scrollBottom = this.rows - 1;
-
-    this.currentCharacterProtection = "unprotected";
-
-    this.currentSgrState = createDefaultSgrState();
-
-    this.characterSets = {
-      G0: "B",
-      G1: "B",
-      G2: "B",
-      G3: "B",
-      current: "G0",
-    };
-
-    this.utf8Mode = true;
-    this.tabStops = initializeTabStops(this.cols);
+    resetOps.softReset(this.state, this.cols, this.rows);
   }
 
   private emitUpdate(): void {
@@ -1120,35 +904,15 @@ export class StatefulTerminal {
   }
 
   private setOriginMode(enable: boolean): void {
-    this.originMode = enable;
-    // vt100/xterm behavior: home the cursor when toggling origin mode.
-    this._cursorX = 0;
-    this._cursorY = enable ? this.scrollTop : 0;
-    this.wrapPending = false;
-    this.clampCursor();
+    cursorOps.setOriginMode(this.state, this.cols, this.rows, enable);
   }
 
   private setAutoWrapMode(enable: boolean): void {
-    this.autoWrapMode = enable;
-    if (!enable) {
-      this.wrapPending = false;
-    }
-  }
-
-  private mapRowParamToCursorY(row1Based: number): number {
-    const base = this.originMode ? this.scrollTop : 0;
-    return base + (row1Based - 1);
+    cursorOps.setAutoWrapMode(this.state, enable);
   }
 
   private clampCursor(): void {
-    this._cursorX = Math.max(0, Math.min(this.cols - 1, this._cursorX));
-    const y = Math.max(0, Math.min(this.rows - 1, this._cursorY));
-    if (this.originMode) {
-      this._cursorY = Math.max(this.scrollTop, Math.min(this.scrollBottom, y));
-    } else {
-      this._cursorY = y;
-    }
-    this.wrapPending = false;
+    cursorOps.clampCursor(this.state, this.cols, this.rows);
   }
 
   private clearLine(mode: 0 | 1 | 2): void {
@@ -1227,60 +991,7 @@ export class StatefulTerminal {
    * These are typically used for advanced terminal features.
    */
   private handleEnhancedSgrMode(params: number[]): void {
-    if (params.length >= 2 && params[0] === 4) {
-      // Enhanced underline mode: CSI > 4 ; n m
-      const underlineType = params[1];
-      
-      if (underlineType >= 0 && underlineType <= 5) {
-        // Valid enhanced underline mode - update SGR state
-        switch (underlineType) {
-          case 0:
-            // No underline
-            this.currentSgrState.underline = false;
-            this.currentSgrState.underlineStyle = null;
-            break;
-          case 1:
-            // Single underline
-            this.currentSgrState.underline = true;
-            this.currentSgrState.underlineStyle = 'single';
-            break;
-          case 2:
-            // Double underline
-            this.currentSgrState.underline = true;
-            this.currentSgrState.underlineStyle = 'double';
-            break;
-          case 3:
-            // Curly underline
-            this.currentSgrState.underline = true;
-            this.currentSgrState.underlineStyle = 'curly';
-            break;
-          case 4:
-            // Dotted underline
-            this.currentSgrState.underline = true;
-            this.currentSgrState.underlineStyle = 'dotted';
-            break;
-          case 5:
-            // Dashed underline
-            this.currentSgrState.underline = true;
-            this.currentSgrState.underlineStyle = 'dashed';
-            break;
-        }
-        
-        if (this.log.isLevelEnabled("debug")) {
-          this.log.debug(`Enhanced underline mode set: type=${underlineType}, style=${this.currentSgrState.underlineStyle}`);
-        }
-      } else {
-        // Invalid underline type - gracefully ignore
-        if (this.log.isLevelEnabled("debug")) {
-          this.log.debug(`Invalid enhanced underline type: ${underlineType}, ignoring`);
-        }
-      }
-    } else {
-      // Other enhanced modes not yet supported - gracefully ignore
-      if (this.log.isLevelEnabled("debug")) {
-        this.log.debug(`Enhanced SGR mode received: ${JSON.stringify({ params })}, not implemented`);
-      }
-    }
+    sgrModes.handleEnhancedSgrMode(this.currentSgrState, this.log, params);
   }
 
   /**
@@ -1288,22 +999,7 @@ export class StatefulTerminal {
    * These are typically used for private/experimental features.
    */
   private handlePrivateSgrMode(params: number[]): void {
-    // Handle specific private SGR modes
-    if (params.length === 1 && params[0] === 4) {
-      // Private underline mode (?4m) - enable underline
-      this.currentSgrState.underline = true;
-      this.currentSgrState.underlineStyle = 'single';
-      
-      if (this.log.isLevelEnabled("debug")) {
-        this.log.debug("Private underline mode (?4m) enabled");
-      }
-      return;
-    }
-    
-    // For other private modes, gracefully ignore
-    if (this.log.isLevelEnabled("debug")) {
-      this.log.debug(`Private SGR mode received: ${JSON.stringify({ params })}, not implemented`);
-    }
+    sgrModes.handlePrivateSgrMode(this.currentSgrState, this.log, params);
   }
 
   /**
@@ -1311,20 +1007,9 @@ export class StatefulTerminal {
    * These are used for special SGR attribute resets or modifications.
    */
   private handleSgrWithIntermediate(params: number[], intermediate: string): void {
-    // Handle specific intermediate character sequences
-    if (intermediate === "%") {
-      // CSI 0 % m - Reset specific attributes
-      if (params.length === 1 && params[0] === 0) {
-        // Reset all SGR attributes (similar to SGR 0)
-        this.currentSgrState = createDefaultSgrState();
-        this.log.debug("SGR reset with % intermediate");
-        return;
-      }
-    }
-
-    // For other intermediate sequences, gracefully ignore
-    if (this.log.isLevelEnabled("debug")) {
-      this.log.debug(`SGR with intermediate received: ${JSON.stringify({ params, intermediate })}`);
+    const updated = sgrModes.handleSgrWithIntermediate(this.log, params, intermediate);
+    if (updated) {
+      this.currentSgrState = updated;
     }
   }
 
@@ -1334,13 +1019,7 @@ export class StatefulTerminal {
    * We gracefully acknowledge them without implementing specific behavior.
    */
   private handleUnknownViSequence(sequenceNumber: number): void {
-    // Log the sequence for debugging purposes
-    if (this.log.isLevelEnabled("debug")) {
-      this.log.debug(`Unknown vi sequence received: CSI ${sequenceNumber}M`);
-    }
-    
-    // Gracefully acknowledge - no specific action needed
-    // The sequence is parsed and handled without causing errors
+    sgrModes.handleUnknownViSequence(this.log, sequenceNumber);
   }
 
 }

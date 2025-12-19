@@ -432,6 +432,8 @@ At this point, the file should be substantially smaller and maintainable.
 Acceptance:
 - `pnpm test` passes.
 
+Status: **DONE** (implemented, 2025-12-19)
+
 ## Suggested “commit sizing” (practical advice)
 
 To keep the refactor safe:
