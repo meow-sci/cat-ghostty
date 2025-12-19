@@ -8,6 +8,7 @@ import { createDefaultSgrState, type SgrState } from './SgrStyleManager';
 import { processSgrMessages } from './SgrStateProcessor';
 
 import { AlternateScreenManager } from "./stateful/alternateScreen";
+import { DEFAULT_SGR_STATE, cloneScreenRow, createCellGrid } from "./stateful/screenGrid";
 
 import type {
   CursorState,
@@ -34,26 +35,6 @@ type UpdateListener = (snapshot: ScreenSnapshot) => void;
 type DecModeListener = (ev: DecModeEvent) => void;
 type ChunkListener = (chunk: TerminalTraceChunk) => void;
 type ResponseListener = (response: string) => void;
-
-const DEFAULT_SGR_STATE: Readonly<SgrState> = Object.freeze(createDefaultSgrState());
-
-function createCellGrid(cols: number, rows: number): ScreenCell[][] {
-  return Array.from({ length: rows }, () =>
-    Array.from({ length: cols }, () => ({ ch: " ", sgrState: DEFAULT_SGR_STATE, isProtected: false })),
-  );
-}
-
-function cloneScreenCell(cell: ScreenCell): ScreenCell {
-  return {
-    ch: cell.ch,
-    sgrState: cell.sgrState ? { ...cell.sgrState } : undefined,
-    isProtected: cell.isProtected,
-  };
-}
-
-function cloneScreenRow(row: ReadonlyArray<ScreenCell>): ScreenCell[] {
-  return row.map(cloneScreenCell);
-}
 
 function clampInt(v: number, min: number, max: number): number {
   if (!Number.isFinite(v)) {

@@ -239,6 +239,8 @@ Acceptance:
 
 ### Step 3 — Extract grid helpers (`createCellGrid`, cloning, `DEFAULT_SGR_STATE`)
 
+Status: **DONE** (implemented, 2025-12-19)
+
 - Create `packages/terminal-emulation/src/terminal/stateful/screenGrid.ts`.
 - Move:
   - `DEFAULT_SGR_STATE` (still `Object.freeze(createDefaultSgrState())`)
