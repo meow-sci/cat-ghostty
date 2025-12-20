@@ -181,6 +181,7 @@ export class TerminalController {
 
     // Ensure display container is positioned for absolute cell spans
     this.displayElement.style.position = this.displayElement.style.position || "relative";
+    this.displayElement.style.whiteSpace = "pre";
 
     const unsubscribe = this.terminal.onUpdate((snapshot) => {
       this.lastSnapshot = snapshot;
@@ -527,9 +528,15 @@ export class TerminalController {
   private setupInputHandlers(): void {
 
     // Keep focus on the input so keyboard works (click anywhere in display).
-    const focusInput = (e?: Event) => {
+    const focusInput = (_e?: Event) => {
+      // If there is a text selection, do not steal focus, as this clears the selection.
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+
       // Avoid text selection / focus oddities when clicking rendered spans.
-      e?.preventDefault?.();
+      // e?.preventDefault?.();
       try {
         // TS lib typing for preventScroll can vary; keep it best-effort.
         (this.inputElement as any).focus?.({ preventScroll: true });
@@ -542,8 +549,8 @@ export class TerminalController {
     this.displayElement.addEventListener("click", focusInput);
     this.removeListeners.push(() => this.displayElement.removeEventListener("click", focusInput));
 
-    this.displayElement.addEventListener("pointerdown", focusInput);
-    this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", focusInput));
+    // this.displayElement.addEventListener("pointerdown", focusInput);
+    // this.removeListeners.push(() => this.displayElement.removeEventListener("pointerdown", focusInput));
 
     // Track whether the pointer is currently over the terminal. Some wheel events
     // (notably on trackpads) can be dispatched with surprising targets; this lets
@@ -652,6 +659,14 @@ export class TerminalController {
         const ctrl = encodeCtrlKey(e);
 
         if (ctrl) {
+          // If text is selected, allow browser copy (Ctrl+C) and don't send ^C.
+          if (ctrl === "\x03") {
+            const selection = window.getSelection();
+            if (selection && !selection.isCollapsed) {
+              return;
+            }
+          }
+
           e.preventDefault();
           this.inputElement.value = "";
           this.websocket.send(ctrl);
@@ -873,6 +888,9 @@ export class TerminalController {
   }
 
   private handleMouseDown(ev: MouseEvent | PointerEvent): void {
+    if (ev.shiftKey) {
+      return;
+    }
     if (!this.mouseEnabled()) {
       return;
     }
@@ -912,6 +930,9 @@ export class TerminalController {
   }
 
   private handleMouseUp(ev: MouseEvent | PointerEvent): void {
+    if (ev.shiftKey) {
+      return;
+    }
     if (!this.mouseEnabled()) {
       return;
     }
@@ -951,6 +972,9 @@ export class TerminalController {
   }
 
   private handleMouseMove(ev: MouseEvent | PointerEvent): void {
+    if (ev.shiftKey) {
+      return;
+    }
     if (!this.mouseEnabled()) {
       return;
     }
@@ -1381,6 +1405,7 @@ export class TerminalController {
         this.cellSpans[idx] = span;
         frag.appendChild(span);
       }
+      frag.appendChild(document.createTextNode("\n"));
     }
 
     const overlay = document.createElement("div");
@@ -1416,7 +1441,7 @@ export class TerminalController {
 
   private renderStateForCell(cell: { ch: string; sgrState?: SgrState | null } | null): { text: string; className: string } {
     if (!cell) {
-      return { text: "", className: "terminal-cell" };
+      return { text: " ", className: "terminal-cell" };
     }
 
     const sgrState = cell.sgrState ?? null;
@@ -1428,7 +1453,7 @@ export class TerminalController {
     const isDefault = !sgrState || this.isDefaultSgrState(sgrState);
 
     if (isSpace && isDefault) {
-      return { text: "", className: "terminal-cell" };
+      return { text: " ", className: "terminal-cell" };
     }
 
     const sgrClass = sgrState && !this.isDefaultSgrState(sgrState)
