@@ -4,11 +4,72 @@ inclusion: always
 
 # C# version Technology Stack
 
-FIXME: TBD with more details
+## Build System & Framework
 
-- dotnet 10
-- C#
-- KSA game custom BRUTAL ImGui
+- **.NET 10** - Latest LTS version with C# 13 language features
+- **MSBuild** - Standard .NET build system with multi-target support
+- **NUnit 4.x** - Testing framework with property-based testing via FsCheck.NUnit
+- **Game Integration** - KSA game custom BRUTAL ImGui framework
+
+## Project Structure Pattern
+
+Multi-project solution using **Class Library + Console App** pattern:
+
+```
+catty-ksa.sln
+├── caTTY.Core/           # Headless terminal logic (Class Library)
+├── caTTY.ImGui/          # ImGui display controller (Class Library) 
+├── caTTY.TestApp/        # Standalone console test app
+└── caTTY.GameMod/        # Game mod DLL output target
+```
+
+## Game Integration Requirements
+
+- **Game Install Path**: `C:\Program Files\Kitten Space Agency\`
+- **Required DLLs**: GLFW, Vulkan, BRUTAL ImGui framework
+- **Build Target**: Game mod DLL for production, console app for development
+- **Reference Pattern**: Local file references to game DLLs in .csproj
+
+## Code Style & Architecture
+
+- **Immutability First**: Prefer `readonly` structs and immutable classes
+- **Pure Functions**: Stateless methods wherever possible (following TypeScript design)
+- **Null Safety**: Enable nullable reference types (`<Nullable>enable</Nullable>`)
+- **Memory Efficiency**: Use `Span<T>` and `ReadOnlySpan<T>` for byte processing
+- **Error Handling**: Use Result<T> pattern instead of exceptions for expected failures
+
+## Testing Conventions
+
+- **Unit Tests**: `Tests/` directory with `<ClassName>Tests.cs` naming
+- **Property Tests**: Use FsCheck.NUnit for property-based testing
+- **Test Categories**: `[Category("Unit")]`, `[Category("Property")]`, `[Category("Integration")]`
+- **Headless Testing**: All core logic testable without ImGui dependencies
+
+## Build Configuration
+
+```xml
+<PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+  <LangVersion>13.0</LangVersion>
+  <Nullable>enable</Nullable>
+  <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  <GenerateDocumentationFile>true</GenerateDocumentationFile>
+</PropertyGroup>
+```
+
+## Memory Management
+
+- **Byte Handling**: Use `ReadOnlySpan<byte>` for terminal data processing
+- **String Processing**: Minimize allocations with `Span<char>` operations  
+- **Buffer Pooling**: Use `ArrayPool<T>` for temporary buffers
+- **Disposal Pattern**: Implement `IDisposable` for resource cleanup
+
+## Translation Strategy
+
+- **1:1 Mapping**: Direct translation from TypeScript classes to C# classes as much as possible.  Switch to C# conventions where appropriate.
+- **Type Adaptation**: `string` → `ReadOnlySpan<char>`, `Uint8Array` → `ReadOnlySpan<byte>`
+- **State Management**: Maintain immutable state pattern from TypeScript version
+- **API Consistency**: Keep method signatures as close as possible to TypeScript
 
 # TypeScript version Technology Stack
 

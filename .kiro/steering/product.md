@@ -37,6 +37,18 @@ The project follows an MVC pattern:
 - TypeScript version
   - WebSocket backend that establishes a real pty and hooks it up to the display controller to shuffle the data
 - C# version
-  - TBD
+  - **Development**: Standalone console application with direct process spawning
+  - **Game Integration**: Hook into game's existing process management or create separate pty process
+  - **Process Management**: Use `System.Diagnostics.Process` for shell spawning
+  - **Data Flow**: Direct byte stream processing (no WebSocket overhead)
+  - **Platform Support**: Windows-first with potential cross-platform expansion
+
+## Game Mod Integration
+
+- **Deployment**: Packaged as DLL and loaded by KSA game engine
+- **UI Integration**: Renders within game's ImGui context
+- **Resource Management**: Shares game's graphics context and memory pools
+- **Input Handling**: Integrates with game's input system for keyboard/mouse events
+- **Lifecycle**: Managed by game's mod loading system
 
   

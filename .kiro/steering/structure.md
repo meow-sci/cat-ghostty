@@ -22,10 +22,31 @@
 - catty-web\app\src\ts\terminal\TerminalController.ts: the web/DOM specific controller for glue code to headless terminal logic
 ```
 
-### Example ImGui application
+### C# caTTY implementation
 
 ```
-- KsaImGuiTestWin/: A simple C# dotnet 10 console application which is properly setup to link against the necessary DLLs for the target ImGui C# based runtime environment.
+- catty-ksa/: .NET solution root
+  - catty-ksa/caTTY.Core/: headless terminal logic (Class Library)
+    - Terminal/: core terminal emulation (Parser, StatefulTerminal)
+    - Input/: keyboard input encoding
+    - Types/: shared data structures and enums
+    - Utils/: utility functions and helpers
+  - catty-ksa/caTTY.ImGui/: ImGui display controller (Class Library)
+    - Controllers/: TerminalController for ImGui integration
+    - Rendering/: ImGui-specific rendering logic
+    - Input/: ImGui input event handling
+  - catty-ksa/caTTY.TestApp/: standalone console application for development
+  - catty-ksa/caTTY.GameMod/: game mod build target (references Core + ImGui)
+  - catty-ksa/Tests/: unit and property-based tests
+```
+
+#### Key Locations
+
+```
+- catty-ksa/caTTY.Core/Terminal/Parser.cs: entrypoint for terminal emulation parsing
+- catty-ksa/caTTY.Core/Terminal/StatefulTerminal.cs: entrypoint for stateful terminal
+- catty-ksa/caTTY.ImGui/Controllers/TerminalController.cs: ImGui display controller
+- catty-ksa/caTTY.TestApp/Program.cs: standalone test application entry point
 ```
 
 
@@ -42,7 +63,39 @@ All business logic must be:
 ### Display controller / glue
 
 - For TypeScript, there is a TerminalController which is the web/DOM display specific bridge and glue code from the headless code
-- For C#, there will be a TerminalController which is the ImGui display specific bridge and glue code
+- For C#, there will be a TerminalController which is the ImGui display specific bridge and glue code from the headless Core library
+
+### C# Project Architecture
+
+#### Multi-Target Build Strategy
+
+- **caTTY.Core**: Pure C# headless logic, no external dependencies
+- **caTTY.ImGui**: ImGui integration layer, references game DLLs
+- **Build Targets**:
+  - Development: Console app (`caTTY.TestApp`) for standalone testing
+  - Production: Game mod DLL (`caTTY.GameMod`) for KSA integration
+
+#### Dependency Flow
+
+```
+caTTY.TestApp ──┐
+                ├─→ caTTY.ImGui ──→ caTTY.Core
+caTTY.GameMod ──┘
+```
+
+#### Game DLL Integration
+
+```xml
+<!-- In caTTY.ImGui.csproj -->
+<ItemGroup>
+  <Reference Include="KSA.ImGui">
+    <HintPath>C:\Program Files\Kitten Space Agency\KSA.ImGui.dll</HintPath>
+  </Reference>
+  <Reference Include="KSA.Graphics">
+    <HintPath>C:\Program Files\Kitten Space Agency\KSA.Graphics.dll</HintPath>
+  </Reference>
+</ItemGroup>
+```
 
 ### Web/Astro Page Components
 
