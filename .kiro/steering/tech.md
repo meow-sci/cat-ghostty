@@ -29,6 +29,7 @@ catty-ksa.sln
 - **Required DLLs**: GLFW, Vulkan, BRUTAL ImGui framework
 - **Build Target**: Game mod DLL for production, console app for development
 - **Reference Pattern**: Local file references to game DLLs in .csproj
+- **Reference Project**: See `KsaExampleMod/` folder for complete working example of KSA game mod structure
 
 ## Code Style & Architecture
 
@@ -56,6 +57,37 @@ catty-ksa.sln
   <GenerateDocumentationFile>true</GenerateDocumentationFile>
 </PropertyGroup>
 ```
+
+## KSA Game Mod Reference Structure
+
+The `KsaExampleMod/` folder provides a complete working reference for KSA game mod projects:
+
+### Key Reference Files
+- **`KsaExampleMod/modone.csproj`**: Complete .csproj with KSA DLL references, build targets, and asset copying
+- **`KsaExampleMod/mod.toml`**: Mod metadata file required by KSA mod system
+- **`KsaExampleMod/Class1.cs`**: Example mod implementation with StarMap attributes
+- **`KsaExampleMod/Patcher.cs`**: Harmony patching example for game integration
+
+### Project Structure Pattern
+```
+KsaExampleMod/
+├── modone.csproj          # Project file with KSA references
+├── modone.sln             # Solution file
+├── mod.toml               # Mod metadata (required by KSA)
+├── Class1.cs              # Main mod class with StarMap attributes
+├── Patcher.cs             # Harmony patching utilities
+├── Fonts/                 # Asset folder (copied to output)
+│   └── JetBrainsMono-Regular.ttf
+├── bin/                   # Build output
+└── obj/                   # Build intermediates
+```
+
+### Critical KSA Integration Elements
+- **KSA DLL References**: Uses `$(KSAFolder)` property for DLL paths
+- **StarMap.API**: Required NuGet package for mod attributes
+- **Lib.Harmony**: Required for runtime patching
+- **Asset Copying**: Custom MSBuild targets for mod.toml and assets
+- **StarMap Attributes**: Required attributes for KSA mod system entry points
 
 ## Memory Management
 

@@ -53,6 +53,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - caTTY.GameMod → caTTY.ImGui → caTTY.Core
   - Add minimal solution folders matching intended layout (Core/ImGui/TestApp/GameMod/Tests)
   - Configure basic build/run commands for local dev (dotnet build/test/run)
+  - **Reference**: Use `KsaExampleMod/` folder as template for KSA game mod project structure
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
 - [ ] 1.2 Implement minimal data structures
@@ -194,6 +195,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Dispose process manager, controller, and any subscriptions
   - Build game mod DLL output
     - Document required DLL references and expected install path assumptions
+  - **Reference**: Follow `KsaExampleMod/Class1.cs` and `KsaExampleMod/Patcher.cs` patterns for StarMap attribute-based implementation
   - _Requirements: 1.1, 1.4, 5.2_
 
 - [ ] 1.10 Test and validate game mod integration

@@ -50,5 +50,10 @@ The project follows an MVC pattern:
 - **Resource Management**: Shares game's graphics context and memory pools
 - **Input Handling**: Integrates with game's input system for keyboard/mouse events
 - **Lifecycle**: Managed by game's mod loading system
+- **Reference Implementation**: Complete working example in `KsaExampleMod/` folder
+  - Shows StarMap attribute-based mod implementation
+  - Demonstrates ImGui integration with OnAfterUi/OnBeforeUi methods
+  - Includes mod.toml metadata file structure
+  - Shows proper resource cleanup and Harmony patching patterns
 
   

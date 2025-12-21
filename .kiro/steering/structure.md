@@ -97,6 +97,13 @@ caTTY.GameMod ──┘
 </ItemGroup>
 ```
 
+**Reference Implementation**: See `KsaExampleMod/modone.csproj` for complete working example of KSA DLL references, including:
+- `$(KSAFolder)` property for flexible installation paths
+- Required KSA DLLs: `KSA.dll`, `Brutal.ImGui.dll`, `Brutal.Core.Common.dll`, `Brutal.Core.Numerics.dll`
+- StarMap.API NuGet package for mod attributes
+- Lib.Harmony NuGet package for runtime patching
+- Custom MSBuild targets for asset copying and mod deployment
+
 ### Web/Astro Page Components
 
 - Astro pages (`.astro`) are minimal entry points

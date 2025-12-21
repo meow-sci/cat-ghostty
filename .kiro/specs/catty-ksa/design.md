@@ -82,6 +82,13 @@ catty-ksa.sln
 └── Tests/                   # Unit and property tests
 ```
 
+**Reference Implementation**: The `KsaExampleMod/` folder in the repository root provides a complete working example of KSA game mod structure. Use it as a reference for:
+- Project file configuration with KSA DLL references (`modone.csproj`)
+- Mod metadata file structure (`mod.toml`)
+- StarMap attribute-based mod implementation (`Class1.cs`)
+- Harmony patching patterns (`Patcher.cs`)
+- Asset management and build targets
+
 ## Components and Interfaces
 
 ### Core Terminal Components
