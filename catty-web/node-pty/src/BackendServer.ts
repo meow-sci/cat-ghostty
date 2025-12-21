@@ -1,6 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IPty, spawn } from '@lydell/node-pty';
 import * as os from 'os';
+import * as child_process from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export interface BackendServerConfig {
   port: number;
@@ -14,6 +17,85 @@ export class BackendServer {
 
   constructor(config: BackendServerConfig) {
     this.config = config;
+  }
+
+  private findWindowsShell(): string {
+    console.log('Finding Windows shell...');
+    // Try to find PowerShell in common locations
+    const possiblePaths = [
+      'powershell.exe', // Try PATH first
+      path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'cmd.exe'),
+      'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+      'C:\\Windows\\System32\\cmd.exe'
+    ];
+
+    console.log('Trying Windows shell paths:', possiblePaths);
+
+    for (const shellPath of possiblePaths) {
+      try {
+        console.log(`Checking shell path: ${shellPath}`);
+        // For simple names like 'powershell.exe', try to find them in PATH
+        if (!path.isAbsolute(shellPath)) {
+          try {
+            child_process.execSync(`where ${shellPath}`, { stdio: 'ignore' });
+            console.log(`Found shell in PATH: ${shellPath}`);
+            return shellPath;
+          } catch {
+            console.log(`Shell not found in PATH: ${shellPath}`);
+            continue;
+          }
+        } else {
+          // For absolute paths, check if file exists
+          if (fs.existsSync(shellPath)) {
+            console.log(`Found shell at: ${shellPath}`);
+            return shellPath;
+          } else {
+            console.log(`Shell not found at: ${shellPath}`);
+          }
+        }
+      } catch (error) {
+        console.log(`Error checking shell ${shellPath}:`, error);
+        continue;
+      }
+    }
+
+    throw new Error('No suitable shell found on Windows. Tried: ' + possiblePaths.join(', '));
+  }
+
+  private findUnixShell(): string {
+    console.log('Finding Unix shell...');
+    // Try user's preferred shell first
+    if (process.env.SHELL) {
+      console.log(`Trying user's preferred shell: ${process.env.SHELL}`);
+      try {
+        child_process.execSync(`which ${process.env.SHELL}`, { stdio: 'ignore' });
+        console.log(`Found user's shell: ${process.env.SHELL}`);
+        return process.env.SHELL;
+      } catch {
+        console.log(`User's shell not found: ${process.env.SHELL}`);
+        // Fall through to try other shells
+      }
+    } else {
+      console.log('No SHELL environment variable set');
+    }
+
+    // Try common shells in order of preference
+    const commonShells = ['zsh', 'bash', 'sh'];
+    console.log('Trying common shells:', commonShells);
+    for (const shell of commonShells) {
+      try {
+        console.log(`Checking shell: ${shell}`);
+        child_process.execSync(`which ${shell}`, { stdio: 'ignore' });
+        console.log(`Found shell: ${shell}`);
+        return shell;
+      } catch {
+        console.log(`Shell not found: ${shell}`);
+        continue;
+      }
+    }
+
+    throw new Error('No suitable shell found. Tried: ' + commonShells.join(', '));
   }
 
   async start(): Promise<void> {
@@ -82,38 +164,114 @@ export class BackendServer {
     console.log(`[${timestamp}] Active connections before: ${this.connections.size}`);
 
     try {
-      // Determine the appropriate shell for the OS
-      const shell = this.config.shell || (os.platform() === 'win32' ? 'powershell.exe' : 'zsh');
+      const isWindows = os.platform() === 'win32';
+      
+      console.log(`[${timestamp}] Platform detected: ${isWindows ? 'Windows' : 'Unix/Mac'}`);
+      console.log(`[${timestamp}] os.platform() = '${os.platform()}'`);
+      console.log(`[${timestamp}] Config shell: ${this.config.shell || 'not set'}`);
+      console.log(`[${timestamp}] Environment variables:`);
+      console.log(`[${timestamp}]   WINDIR: ${process.env.WINDIR || 'not set'}`);
+      console.log(`[${timestamp}]   SHELL: ${process.env.SHELL || 'not set'}`);
+      console.log(`[${timestamp}]   HOME: ${process.env.HOME || 'not set'}`);
+      console.log(`[${timestamp}]   USERPROFILE: ${process.env.USERPROFILE || 'not set'}`);
+      
+      let shell: string;
+      let shellArgs: string[] = [];
+      let term: string;
+      let cwd: string;
+      let env: { [key: string]: string };
 
-      // Create environment with Kitty graphics support indicators
-      const term = 'xterm-256color';
-      const env = {
-        ...process.env,
-        TERM: term,
-        TERM_PROGRAM: 'caTTY',
-        COLORTERM: 'truecolor'
-      } as { [key: string]: string };
-
-      // Remove any environment variables with "npm_" prefix
-      for (const key of Object.keys(env)) {
-        if (key.toLowerCase().startsWith('npm_')) {
-          delete env[key];
+      if (isWindows) {
+        console.log(`[${timestamp}] Entering Windows configuration branch`);
+        // Windows-specific configuration
+        if (this.config.shell) {
+          console.log(`[${timestamp}] Using configured shell: ${this.config.shell}`);
+          shell = this.config.shell;
+        } else {
+          console.log(`[${timestamp}] No configured shell, finding Windows shell...`);
+          shell = this.findWindowsShell();
+        }
+        
+        // For PowerShell, add startup parameters
+        if (shell.toLowerCase().includes('powershell')) {
+          shellArgs = ['-NoLogo', '-NoProfile'];
+          console.log(`[${timestamp}] PowerShell detected, adding args: ${shellArgs.join(' ')}`);
+        }
+        
+        term = 'xterm-256color';
+        cwd = process.env.USERPROFILE || process.env.HOME || process.cwd();
+        
+        // Windows environment setup
+        env = {
+          ...process.env,
+          TERM: term,
+          TERM_PROGRAM: 'caTTY',
+          COLORTERM: 'truecolor',
+          // Windows-specific environment variables
+          FORCE_COLOR: '1',
+          CLICOLOR_FORCE: '1'
+        } as { [key: string]: string };
+        
+        // Remove npm-related environment variables that might interfere
+        for (const key of Object.keys(env)) {
+          if (key.toLowerCase().startsWith('npm_')) {
+            delete env[key];
+          }
+        }
+        
+      } else {
+        console.log(`[${timestamp}] Entering Unix/Mac configuration branch`);
+        // Mac/Unix-specific configuration
+        if (this.config.shell) {
+          console.log(`[${timestamp}] Using configured shell: ${this.config.shell}`);
+          shell = this.config.shell;
+        } else {
+          console.log(`[${timestamp}] No configured shell, finding Unix shell...`);
+          shell = this.findUnixShell();
+        }
+        
+        term = 'xterm-256color';
+        cwd = process.env.HOME || process.cwd();
+        
+        // Unix environment setup
+        env = {
+          ...process.env,
+          TERM: term,
+          TERM_PROGRAM: 'caTTY',
+          COLORTERM: 'truecolor',
+          // Unix-specific environment variables
+          FORCE_COLOR: '1',
+          CLICOLOR_FORCE: '1'
+        } as { [key: string]: string };
+        
+        // Remove npm-related environment variables
+        for (const key of Object.keys(env)) {
+          if (key.toLowerCase().startsWith('npm_')) {
+            delete env[key];
+          }
         }
       }
 
-      // Spawn PTY process with default dimensions
-      const pty = spawn(shell, [], {
+      console.log(`[${timestamp}] Final configuration:`);
+      console.log(`[${timestamp}]   shell: ${shell}`);
+      console.log(`[${timestamp}]   shellArgs: [${shellArgs.join(', ')}]`);
+      console.log(`[${timestamp}]   term: ${term}`);
+      console.log(`[${timestamp}]   cwd: ${cwd}`);
+      console.log(`[${timestamp}]   cols: ${cols}, rows: ${rows}`);
+
+      // Spawn PTY process with platform-specific configuration
+      const pty = spawn(shell, shellArgs, {
         name: term,
         cols,
         rows,
-        cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
-        env: env
+        cwd,
+        env
       });
 
       // Store the connection
       this.connections.set(ws, pty);
 
-      console.log(`[${timestamp}] PTY spawned with PID ${pty.pid} for shell: ${shell} (Connection ID: ${connectionId})`);
+      console.log(`[${timestamp}] PTY spawned with PID ${pty.pid} for shell: ${shell} ${shellArgs.join(' ')} (Connection ID: ${connectionId})`);
       console.log(`[${timestamp}] Active connections after: ${this.connections.size}`);
 
       // Set up event handlers
