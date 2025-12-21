@@ -37,6 +37,7 @@ public static class StandaloneImGui
 
     private static void Init()
     {
+
         Glfw.Init();
 
         Glfw.WindowHint(GlfwWindowHint.ClientApi, 0);
@@ -77,6 +78,11 @@ public static class StandaloneImGui
         Glfw.PollEvents();
         ImGuiBackend.NewFrame();
         ImGui.NewFrame();
+
+        // Fix mouse location for screen scaling on Windows
+        ImGuiScreenScaling.FixMouseLocationForScreenScaling();
+
+
         ImGuiHelper.StartFrame();
 
         OnDrawUi();
