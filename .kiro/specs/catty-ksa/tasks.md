@@ -35,14 +35,17 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
 
 ## Tasks
 
-- [ ] 1. Create minimal working end-to-end terminal with real shell process
-- [ ] 1.1 Set up solution structure and all projects
+**IMPORTANT**: After completing each subtask, you MUST provide a properly formatted git commit message in your response as a summary. Use the format: `[task-id] type: description` (e.g., `[1.1] feat: set up solution structure`), followed by a blank line, then "## Changes Made" with bullet points of specific changes.
+
+- [-] 1. Create minimal working end-to-end terminal with real shell process
+- [x] 1.1 Set up solution structure and all projects
   - Create caTTY-cs.sln solution file
   - Create caTTY.Core class library project with .NET 10 target
   - Create caTTY.TestApp console project
   - Create caTTY.ImGui class library project (placeholder)
   - Create caTTY.GameMod project (placeholder)
-  - Add Tests project (NUnit + FsCheck.NUnit) targeting caTTY.Core only
+  - Add caTTY.Core.Tests project (NUnit + FsCheck.NUnit) for core logic testing
+- Add caTTY.ImGui.Tests project (NUnit + FsCheck.NUnit) for ImGui controller testing
   - Add shared build config (Directory.Build.props or equivalent)
     - Enable nullable, treat warnings as errors, XML docs
     - Set LangVersion and TargetFramework defaults
@@ -51,6 +54,8 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - caTTY.TestApp → caTTY.Core
     - caTTY.ImGui → caTTY.Core
     - caTTY.GameMod → caTTY.ImGui → caTTY.Core
+    - caTTY.Core.Tests → caTTY.Core
+    - caTTY.ImGui.Tests → caTTY.ImGui
   - Add minimal solution folders matching intended layout (Core/ImGui/TestApp/GameMod/Tests)
   - Configure basic build/run commands for local dev (dotnet build/test/run)
   - **Reference**: Use `KsaExampleMod/` folder as template for KSA game mod project structure

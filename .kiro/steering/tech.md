@@ -41,7 +41,7 @@ catty-ksa.sln
 
 ## Testing Conventions
 
-- **Unit Tests**: `Tests/` directory with `<ClassName>Tests.cs` naming
+- **Per-Project Tests**: `caTTY.Core.Tests/`, `caTTY.ImGui.Tests/` with `<ClassName>Tests.cs` naming
 - **Property Tests**: Use FsCheck.NUnit for property-based testing
 - **Test Categories**: `[Category("Unit")]`, `[Category("Property")]`, `[Category("Integration")]`
 - **Headless Testing**: All core logic testable without ImGui dependencies
@@ -102,6 +102,56 @@ KsaExampleMod/
 - **Type Adaptation**: `string` → `ReadOnlySpan<char>`, `Uint8Array` → `ReadOnlySpan<byte>`
 - **State Management**: Maintain immutable state pattern from TypeScript version
 - **API Consistency**: Keep method signatures as close as possible to TypeScript
+
+## Git Commit Requirements
+
+**CRITICAL WORKFLOW REQUIREMENT**: After completing each subtask, you MUST provide a properly formatted git commit message in your response as a summary.
+
+### Git Commit Message Format
+
+```
+[task-id] type: description (80 characters or less)
+
+## Changes Made
+
+- Bullet point list of specific changes
+- Each change should be concrete and actionable
+- Use past tense (e.g., "Added", "Updated", "Fixed")
+- Include file names and key modifications
+```
+
+### Example Git Commit Message
+
+```
+[1.1] feat: set up solution structure with per-project tests
+
+## Changes Made
+
+- Created caTTY-cs.sln with 6 projects and solution folders
+- Added Directory.Build.props with .NET 10 and C# 13 configuration
+- Created .editorconfig with comprehensive C# formatting rules
+- Set up caTTY.Core class library with Terminal/, Input/, Parsing/, Types/, Utils/ folders
+- Set up caTTY.ImGui class library with KSA DLL references
+- Created caTTY.TestApp console application with placeholder Program.cs
+- Set up caTTY.GameMod with StarMap.API and mod.toml configuration
+- Added caTTY.Core.Tests and caTTY.ImGui.Tests with NUnit + FsCheck.NUnit
+- Configured proper project dependencies and build verification
+- Updated README.md with project structure and development workflow
+```
+
+### Commit Message Rules
+
+- **Subject Line**: 80 characters or less, use format: `[task-id] type: description`
+  - Task ID: Use the exact task number (e.g., "1.1", "2.3", "4.11")
+  - Type: Use conventional commit format (feat, fix, refactor, docs, test, etc.)
+  - Example: `[1.1] feat: set up solution structure with per-project tests`
+- **Blank Line**: Always include a blank line after the subject
+- **Body**: Use markdown formatting with "## Changes Made" header
+- **Changes List**: Bullet points with specific, concrete changes
+- **File References**: Include relevant file names and paths
+- **Past Tense**: Use past tense verbs (Added, Updated, Fixed, Created, etc.)
+
+This requirement ensures proper documentation of progress and provides clear commit messages for version control.
 
 # TypeScript version Technology Stack
 

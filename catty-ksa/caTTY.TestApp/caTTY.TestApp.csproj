@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>caTTY.TestApp</AssemblyName>
+    <RootNamespace>caTTY.TestApp</RootNamespace>
+    <Description>Standalone console test application for caTTY terminal emulator</Description>
+    <PackageId>caTTY.TestApp</PackageId>
+    <Product>caTTY Terminal Emulator</Product>
+    <Company>caTTY Project</Company>
+    <Copyright>Copyright © caTTY Project</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj" />
+  </ItemGroup>
+
+</Project>

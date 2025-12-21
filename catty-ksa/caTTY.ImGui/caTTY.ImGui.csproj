@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>caTTY.ImGui</AssemblyName>
+    <RootNamespace>caTTY.ImGui</RootNamespace>
+    <Description>ImGui display controller for caTTY terminal emulator</Description>
+    <PackageId>caTTY.ImGui</PackageId>
+    <Product>caTTY Terminal Emulator</Product>
+    <Company>caTTY Project</Company>
+    <Copyright>Copyright © caTTY Project</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+    <Folder Include="Rendering\" />
+    <Folder Include="Input\" />
+  </ItemGroup>
+
+  <!-- KSA Game DLL References (placeholder - will be populated when needed) -->
+  <ItemGroup>
+    <Reference Include="Brutal.Core.Common">
+      <HintPath>$(KSAFolder)\Brutal.Core.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.Core.Strings">
+      <HintPath>$(KSAFolder)\Brutal.Core.Strings.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.Core.Numerics">
+      <HintPath>$(KSAFolder)\Brutal.Core.Numerics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.ImGui">
+      <HintPath>$(KSAFolder)\Brutal.ImGui.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="KSA">
+      <HintPath>$(KSAFolder)\KSA.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

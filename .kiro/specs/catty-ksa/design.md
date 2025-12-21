@@ -79,7 +79,8 @@ catty-ksa.sln
 │   └── Input/               # ImGui input handling
 ├── caTTY.TestApp/           # Standalone console application
 ├── caTTY.GameMod/           # Game mod build target (DLL output)
-└── Tests/                   # Unit and property tests
+├── caTTY.Core.Tests/        # Unit and property tests for Core
+└── caTTY.ImGui.Tests/       # Unit and property tests for ImGui
 ```
 
 **Reference Implementation**: The `KsaExampleMod/` folder in the repository root provides a complete working example of KSA game mod structure. Use it as a reference for:
@@ -601,20 +602,22 @@ Property tests should focus on:
 
 ```
 Tests/
-├── Unit/
-│   ├── Core/
+├── caTTY.Core.Tests/
+│   ├── Unit/
 │   │   ├── TerminalEmulatorTests.cs
 │   │   ├── ParserTests.cs
 │   │   └── ScreenBufferTests.cs
-│   └── ImGui/
-│       ├── TerminalControllerTests.cs
-│       └── RendererTests.cs
-├── Property/
-│   ├── TerminalBehaviorProperties.cs
-│   ├── ParsingProperties.cs
-│   └── CompatibilityProperties.cs
+│   └── Property/
+│       ├── TerminalBehaviorProperties.cs
+│       ├── ParsingProperties.cs
+│       └── CompatibilityProperties.cs
+├── caTTY.ImGui.Tests/
+│   ├── Unit/
+│   │   ├── TerminalControllerTests.cs
+│   │   └── RendererTests.cs
+│   └── Integration/
+│       └── GameIntegrationTests.cs
 └── Integration/
-    ├── GameIntegrationTests.cs
     └── ProcessManagementTests.cs
 ```
 

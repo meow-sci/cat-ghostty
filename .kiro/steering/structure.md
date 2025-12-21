@@ -37,7 +37,8 @@
     - Input/: ImGui input event handling
   - catty-ksa/caTTY.TestApp/: standalone console application for development
   - catty-ksa/caTTY.GameMod/: game mod build target (references Core + ImGui)
-  - catty-ksa/Tests/: unit and property-based tests
+  - catty-ksa/caTTY.Core.Tests/: unit and property-based tests for Core
+  - catty-ksa/caTTY.ImGui.Tests/: unit and property-based tests for ImGui
 ```
 
 #### Key Locations
@@ -80,7 +81,11 @@ All business logic must be:
 ```
 caTTY.TestApp ──┐
                 ├─→ caTTY.ImGui ──→ caTTY.Core
-caTTY.GameMod ──┘
+caTTY.GameMod ──┘                      ↑
+                                       │
+caTTY.Core.Tests ──────────────────────┘
+                                       
+caTTY.ImGui.Tests ──→ caTTY.ImGui
 ```
 
 #### Game DLL Integration

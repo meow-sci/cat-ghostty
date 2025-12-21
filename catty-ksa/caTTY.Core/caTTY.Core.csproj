@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>caTTY.Core</AssemblyName>
+    <RootNamespace>caTTY.Core</RootNamespace>
+    <Description>Headless terminal emulation core library</Description>
+    <PackageId>caTTY.Core</PackageId>
+    <Product>caTTY Terminal Emulator</Product>
+    <Company>caTTY Project</Company>
+    <Copyright>Copyright © caTTY Project</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Terminal\" />
+    <Folder Include="Input\" />
+    <Folder Include="Parsing\" />
+    <Folder Include="Types\" />
+    <Folder Include="Utils\" />
+  </ItemGroup>
+
+</Project>
