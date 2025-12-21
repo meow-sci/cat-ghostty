@@ -77,6 +77,9 @@ catty-ksa.sln
 │   ├── Controllers/         # Terminal controller
 │   ├── Rendering/           # ImGui rendering logic
 │   └── Input/               # ImGui input handling
+├── caTTY.ImGui.Playground/  # ImGui rendering experiments
+│   ├── Experiments/         # Proof-of-concept rendering tests
+│   └── Rendering/           # Experimental ImGui techniques
 ├── caTTY.TestApp/           # Standalone console application
 ├── caTTY.GameMod/           # Game mod build target (DLL output)
 ├── caTTY.Core.Tests/        # Unit and property tests for Core

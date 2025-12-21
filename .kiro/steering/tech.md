@@ -19,6 +19,7 @@ Multi-project solution using **Class Library + Console App** pattern:
 catty-ksa.sln
 ├── caTTY.Core/           # Headless terminal logic (Class Library)
 ├── caTTY.ImGui/          # ImGui display controller (Class Library) 
+├── caTTY.ImGui.Playground/ # ImGui rendering experiments (Console App)
 ├── caTTY.TestApp/        # Standalone console test app
 └── caTTY.GameMod/        # Game mod DLL output target
 ```

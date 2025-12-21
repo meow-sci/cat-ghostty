@@ -75,15 +75,16 @@ This document specifies the requirements for a C# terminal emulator implementati
 
 ### Requirement 5
 
-**User Story:** As a developer, I want a multi-project solution structure, so that the terminal can be built as both a standalone test application and a game mod.
+**User Story:** As a developer, I want a multi-project solution structure, so that the terminal can be built as both a standalone test application and a game mod, with a dedicated playground for ImGui rendering experiments.
 
 #### Acceptance Criteria
 
 1. WHEN the solution is built THEN the Build System SHALL produce a standalone console application for testing
 2. WHEN the solution is built THEN the Build System SHALL produce a game mod DLL for KSA integration
-3. WHEN the core library is built THEN the Build System SHALL create a library with no external dependencies
-4. WHEN the ImGui library is built THEN the Build System SHALL reference only the core library and KSA game DLLs
-5. WHEN tests are run THEN the Build System SHALL execute tests against the headless core without game dependencies
+3. WHEN the solution is built THEN the Build System SHALL produce an ImGui playground application for rendering experiments
+4. WHEN the core library is built THEN the Build System SHALL create a library with no external dependencies
+5. WHEN the ImGui library is built THEN the Build System SHALL reference only the core library and KSA game DLLs
+6. WHEN tests are run THEN the Build System SHALL execute tests against the headless core without game dependencies
 
 ### Requirement 6
 
@@ -388,3 +389,16 @@ This document specifies the requirements for a C# terminal emulator implementati
 3. WHEN escape sequence parsing is tested THEN the Test Suite SHALL verify compatibility with the TypeScript implementation
 4. WHEN screen operations are tested THEN the Test Suite SHALL validate state consistency and correctness
 5. WHEN the test suite runs THEN the Test Suite SHALL execute without requiring game engine dependencies
+
+### Requirement 31
+
+**User Story:** As a developer, I want an ImGui playground application, so that I can experiment with ImGui rendering techniques for terminal display without implementing the full terminal emulator.
+
+#### Acceptance Criteria
+
+1. WHEN the playground application starts THEN the Playground SHALL initialize a standalone ImGui context using KSA game DLLs
+2. WHEN the playground renders THEN the Playground SHALL display experimental terminal-like grids with text, colors, and styling
+3. WHEN the playground experiments with colors THEN the Playground SHALL test foreground colors, background colors, and text attributes independently
+4. WHEN the playground experiments with text styling THEN the Playground SHALL test bold, italic, underline, and other SGR attributes
+5. WHEN the playground experiments with rendering THEN the Playground SHALL test different approaches to character grid layout and cursor display
+6. WHEN the playground runs THEN the Playground SHALL NOT depend on any terminal emulator core logic or actual terminal functionality

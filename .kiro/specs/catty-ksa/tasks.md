@@ -27,11 +27,12 @@ Based on fresh analysis of the TypeScript implementation complexity, the most co
 
 The task breakdown reflects this complexity analysis while maintaining MVP focus on getting a working terminal as quickly as possible. Key improvements include:
 
-1. **More granular StatefulTerminal breakdown** - Added separate state management task (1.4)
-2. **Enhanced parser complexity handling** - Added UTF-8 support as separate task (2.3-2.4) 
-3. **Better buffer operations granularity** - Split line/character operations (4.11-4.13)
-4. **Improved property test coverage** - Added property test for line/character operations (4.13)
-5. **Earlier UTF-8 handling** - Moved from section 6 to section 2 for better dependency flow
+1. **ImGui rendering playground** - Added dedicated playground project (1.4-1.7) for experimenting with ImGui rendering techniques before implementing the full terminal controller
+2. **More granular StatefulTerminal breakdown** - Added separate state management task (1.8)
+3. **Enhanced parser complexity handling** - Added UTF-8 support as separate task (2.3-2.4) 
+4. **Better buffer operations granularity** - Split line/character operations (4.11-4.13)
+5. **Improved property test coverage** - Added property test for line/character operations (4.13)
+6. **Earlier UTF-8 handling** - Moved from section 6 to section 2 for better dependency flow
 
 ## Tasks
 
@@ -43,6 +44,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Create caTTY.Core class library project with .NET 10 target
   - Create caTTY.TestApp console project
   - Create caTTY.ImGui class library project (placeholder)
+  - Create caTTY.ImGui.Playground console project (placeholder)
   - Create caTTY.GameMod project (placeholder)
   - Add caTTY.Core.Tests project (NUnit + FsCheck.NUnit) for core logic testing
 - Add caTTY.ImGui.Tests project (NUnit + FsCheck.NUnit) for ImGui controller testing
@@ -53,13 +55,14 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Wire up project references to match desired dependency flow
     - caTTY.TestApp → caTTY.Core
     - caTTY.ImGui → caTTY.Core
+    - caTTY.ImGui.Playground → (KSA DLLs only, no caTTY dependencies)
     - caTTY.GameMod → caTTY.ImGui → caTTY.Core
     - caTTY.Core.Tests → caTTY.Core
     - caTTY.ImGui.Tests → caTTY.ImGui
   - Add minimal solution folders matching intended layout (Core/ImGui/TestApp/GameMod/Tests)
   - Configure basic build/run commands for local dev (dotnet build/test/run)
   - **Reference**: Use `KsaExampleMod/` folder as template for KSA game mod project structure
-  - _Requirements: 5.1, 5.2, 5.3, 5.4_
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
 - [x] 1.2 Implement minimal data structures
   - Create Cell struct with character only (no attributes yet)
@@ -102,7 +105,45 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
   - _Requirements: 9.1, 10.1, 10.2, 23.1, 23.2_
 
-- [ ] 1.4 Create basic terminal state management
+- [ ] 1.4 Create ImGui playground application structure
+  - Create caTTY.ImGui.Playground console application project
+  - Add KSA game DLL references (same as caTTY.ImGui and caTTY.GameMod)
+  - Set up basic ImGui initialization and window management
+  - Create placeholder Program.cs with ImGui context setup
+  - Add project to solution and configure build dependencies
+  - **Reference**: Use `KsaExampleMod/modone.csproj` for KSA DLL reference patterns
+  - _Requirements: 31.1, 5.3_
+
+- [ ] 1.5 Implement basic ImGui rendering experiments
+  - Create simple character grid rendering using ImGui text functions
+  - Experiment with different approaches to terminal-like display
+    - Fixed-width font rendering
+    - Character cell positioning and alignment
+    - Grid layout with consistent spacing
+  - Add basic color experiments (foreground/background)
+  - Test different ImGui text rendering methods for performance
+  - Document findings and preferred approaches
+  - _Requirements: 31.2, 31.3_
+
+- [ ] 1.6 Add text styling experiments to playground
+  - Implement bold, italic, underline text rendering experiments
+  - Test different approaches to text attribute application
+  - Experiment with cursor display techniques
+    - Block cursor, underline cursor, beam cursor
+    - Cursor blinking and visibility states
+  - Add interactive controls to toggle different styling options
+  - Document styling capabilities and limitations
+  - _Requirements: 31.4, 31.5_
+
+- [ ] 1.7 Test and validate playground functionality
+  - **USER VALIDATION REQUIRED**: Run playground and verify ImGui rendering works
+  - Test different text styling combinations
+  - Verify color rendering accuracy
+  - Validate cursor display techniques
+  - Document any rendering issues or limitations found
+  - _Requirements: 31.1, 31.2, 31.3, 31.4, 31.5_
+
+- [ ] 1.8 Create basic terminal state management
   - Create TerminalState class with cursor position and basic modes
     - Track tab stops and scroll region placeholders for later tasks
   - Add SGR state tracking (minimal - just current attributes)
@@ -115,7 +156,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
   - _Requirements: 8.1, 8.2, 12.3_
 
-- [ ] 1.5 Implement process management
+- [ ] 1.9 Implement process management
   - Create IProcessManager interface
   - Create ProcessManager class using System.Diagnostics.Process
   - Define a ProcessLaunchOptions model
@@ -144,7 +185,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/node-pty/src/server.ts
   - _Requirements: 27.1, 27.2, 27.3, 28.1, 28.2_
 
-- [ ] 1.6 Create console test application
+- [ ] 1.10 Create console test application
   - Implement Program.cs with terminal and process integration
   - Add simple console output for terminal content display
     - Render the full grid (rows x cols) each refresh (simple but clear)
@@ -157,14 +198,14 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Include a debug toggle to show raw bytes/escape sequences when needed
   - _Requirements: 26.1, 26.2, 26.3, 26.4_
 
-- [ ] 1.7 Test and validate console application
+- [ ] 1.11 Test and validate console application
   - **USER VALIDATION REQUIRED**: Run test application and verify shell works
   - Test basic shell commands (ls, dir, echo)
   - Verify bidirectional data flow
   - Confirm process cleanup on exit
   - Document any issues found during testing
 
-- [ ] 1.8 Create minimal ImGui controller
+- [ ] 1.12 Create minimal ImGui controller
   - Create ITerminalController interface
   - Create ImGuiTerminalController class (basic implementation)
   - Add placeholder KSA game DLL references
@@ -187,7 +228,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/app/src/components/terminal/TerminalPage.tsx
   - _Requirements: 16.1, 17.1, 18.1_
 
-- [ ] 1.9 Create game mod entry point
+- [ ] 1.13 Create game mod entry point
   - Implement game mod initialization in caTTY.GameMod
     - Define a minimal mod API surface (init/update/draw/dispose)
     - Ensure the mod does not block the game loop (no synchronous reads)
@@ -203,7 +244,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Reference**: Follow `KsaExampleMod/Class1.cs` and `KsaExampleMod/Patcher.cs` patterns for StarMap attribute-based implementation
   - _Requirements: 1.1, 1.4, 5.2_
 
-- [ ] 1.10 Test and validate game mod integration
+- [ ] 1.14 Test and validate game mod integration
   - **USER VALIDATION REQUIRED**: Load mod in KSA game and verify it works
   - Test ImGui window display in game
   - Verify shell process works within game context
@@ -211,7 +252,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Confirm mod unloads cleanly
   - Document any game integration issues
 
-- [ ] 1.11 Checkpoint - End-to-end MVP working
+- [ ] 1.15 Checkpoint - End-to-end MVP working
   - Both console test app and game mod working with real shell
   - User has validated both deployment targets work
   - Ready to add more terminal features

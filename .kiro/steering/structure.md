@@ -35,6 +35,9 @@
     - Controllers/: TerminalController for ImGui integration
     - Rendering/: ImGui-specific rendering logic
     - Input/: ImGui input event handling
+  - catty-ksa/caTTY.ImGui.Playground/: ImGui rendering experiments (Console App)
+    - Experiments/: proof-of-concept rendering tests
+    - Rendering/: experimental ImGui rendering techniques
   - catty-ksa/caTTY.TestApp/: standalone console application for development
   - catty-ksa/caTTY.GameMod/: game mod build target (references Core + ImGui)
   - catty-ksa/caTTY.Core.Tests/: unit and property-based tests for Core
@@ -47,6 +50,7 @@
 - catty-ksa/caTTY.Core/Terminal/Parser.cs: entrypoint for terminal emulation parsing
 - catty-ksa/caTTY.Core/Terminal/StatefulTerminal.cs: entrypoint for stateful terminal
 - catty-ksa/caTTY.ImGui/Controllers/TerminalController.cs: ImGui display controller
+- catty-ksa/caTTY.ImGui.Playground/Program.cs: ImGui rendering experiments entry point
 - catty-ksa/caTTY.TestApp/Program.cs: standalone test application entry point
 ```
 
@@ -82,6 +86,8 @@ All business logic must be:
 caTTY.TestApp ──┐
                 ├─→ caTTY.ImGui ──→ caTTY.Core
 caTTY.GameMod ──┘                      ↑
+                                       │
+caTTY.ImGui.Playground ────────────────┘
                                        │
 caTTY.Core.Tests ──────────────────────┘
                                        
