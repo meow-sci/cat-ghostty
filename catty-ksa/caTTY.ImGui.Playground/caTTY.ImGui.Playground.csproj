@@ -1,84 +1,89 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <AssemblyName>caTTY.ImGui</AssemblyName>
-    <RootNamespace>caTTY.ImGui</RootNamespace>
-    <Description>ImGui display controller for caTTY terminal emulator</Description>
-    <PackageId>caTTY.ImGui</PackageId>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>caTTY.ImGui.Playground</AssemblyName>
+    <RootNamespace>caTTY.ImGui.Playground</RootNamespace>
+    <Description>ImGui rendering experiments for caTTY terminal emulator</Description>
+    <PackageId>caTTY.ImGui.Playground</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>caTTY Project</Company>
     <Copyright>Copyright © caTTY Project</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Controllers\" />
+    <Folder Include="Experiments\" />
     <Folder Include="Rendering\" />
-    <Folder Include="Input\" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Managed assembly references (only added if the file exists) -->
     <Reference Include="Brutal.Glfw" Condition="Exists('$(KSAFolder)/Brutal.Glfw.dll')">
       <HintPath>$(KSAFolder)/Brutal.Glfw.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.ImGui.Abstractions" Condition="Exists('$(KSAFolder)/Brutal.ImGui.Abstractions.dll')">
       <HintPath>$(KSAFolder)/Brutal.ImGui.Abstractions.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.ImGui" Condition="Exists('$(KSAFolder)/Brutal.ImGui.dll')">
       <HintPath>$(KSAFolder)/Brutal.ImGui.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.ImGui.Extensions" Condition="Exists('$(KSAFolder)/Brutal.ImGui.Extensions.dll')">
       <HintPath>$(KSAFolder)/Brutal.ImGui.Extensions.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Vulkan.Abstractions" Condition="Exists('$(KSAFolder)/Brutal.Vulkan.Abstractions.dll')">
       <HintPath>$(KSAFolder)/Brutal.Vulkan.Abstractions.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Vulkan" Condition="Exists('$(KSAFolder)/Brutal.Vulkan.dll')">
       <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="VulkanEx" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
       <HintPath>$(KSAFolder)/VulkanEx.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Core.Collections" Condition="Exists('$(KSAFolder)/Brutal.Core.Collections.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Collections.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Core.Common" Condition="Exists('$(KSAFolder)/Brutal.Core.Common.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Common.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Planet.Core" Condition="Exists('$(KSAFolder)/Planet.Core.dll')">
       <HintPath>$(KSAFolder)/Planet.Core.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Planet.Render.Core" Condition="Exists('$(KSAFolder)/Planet.Render.Core.dll')">
       <HintPath>$(KSAFolder)/Planet.Render.Core.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
       <HintPath>$(KSAFolder)/KSA.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Render.Common" Condition="Exists('$(KSAFolder)/Brutal.Render.Common.dll')">
       <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Native DLLs for glfw, vulkan, imgui -->
+    <None Include="$(KSAFolder)/glfw3.dll" Condition="Exists('$(KSAFolder)/glfw3.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(KSAFolder)/imgui.dll" Condition="Exists('$(KSAFolder)/imgui.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

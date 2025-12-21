@@ -40,75 +40,75 @@
 
   <PropertyGroup>
     <!-- Path containing the managed KSA assemblies (Brutal.* .dll) -->
-    <KsaManagedDir>C:\Program Files\Kitten Space Agency</KsaManagedDir>
+    <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Managed assembly references (only added if the file exists) -->
-    <Reference Include="Brutal.Glfw" Condition="Exists('$(KsaManagedDir)/Brutal.Glfw.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Glfw.dll</HintPath>
+    <Reference Include="Brutal.Glfw" Condition="Exists('$(KSAFolder)/Brutal.Glfw.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Glfw.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.ImGui.Abstractions" Condition="Exists('$(KsaManagedDir)/Brutal.ImGui.Abstractions.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.ImGui.Abstractions.dll</HintPath>
+    <Reference Include="Brutal.ImGui.Abstractions" Condition="Exists('$(KSAFolder)/Brutal.ImGui.Abstractions.dll')">
+      <HintPath>$(KSAFolder)/Brutal.ImGui.Abstractions.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.ImGui" Condition="Exists('$(KsaManagedDir)/Brutal.ImGui.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.ImGui.dll</HintPath>
+    <Reference Include="Brutal.ImGui" Condition="Exists('$(KSAFolder)/Brutal.ImGui.dll')">
+      <HintPath>$(KSAFolder)/Brutal.ImGui.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.ImGui.Extensions" Condition="Exists('$(KsaManagedDir)/Brutal.ImGui.Extensions.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.ImGui.Extensions.dll</HintPath>
+    <Reference Include="Brutal.ImGui.Extensions" Condition="Exists('$(KSAFolder)/Brutal.ImGui.Extensions.dll')">
+      <HintPath>$(KSAFolder)/Brutal.ImGui.Extensions.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Vulkan.Abstractions" Condition="Exists('$(KsaManagedDir)/Brutal.Vulkan.Abstractions.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Vulkan.Abstractions.dll</HintPath>
+    <Reference Include="Brutal.Vulkan.Abstractions" Condition="Exists('$(KSAFolder)/Brutal.Vulkan.Abstractions.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Vulkan.Abstractions.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Vulkan" Condition="Exists('$(KsaManagedDir)/Brutal.Vulkan.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Vulkan.dll</HintPath>
+    <Reference Include="Brutal.Vulkan" Condition="Exists('$(KSAFolder)/Brutal.Vulkan.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="VulkanEx" Condition="Exists('$(KsaManagedDir)/VulkanEx.dll')">
-      <HintPath>$(KsaManagedDir)/VulkanEx.dll</HintPath>
+    <Reference Include="VulkanEx" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
+      <HintPath>$(KSAFolder)/VulkanEx.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KsaManagedDir)/Brutal.Core.Numerics.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Core.Numerics.dll</HintPath>
+    <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Core.Collections" Condition="Exists('$(KsaManagedDir)/Brutal.Core.Collections.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Core.Collections.dll</HintPath>
+    <Reference Include="Brutal.Core.Collections" Condition="Exists('$(KSAFolder)/Brutal.Core.Collections.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Collections.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Core.Common" Condition="Exists('$(KsaManagedDir)/Brutal.Core.Common.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Core.Common.dll</HintPath>
+    <Reference Include="Brutal.Core.Common" Condition="Exists('$(KSAFolder)/Brutal.Core.Common.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Common.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Planet.Core" Condition="Exists('$(KsaManagedDir)/Planet.Core.dll')">
-      <HintPath>$(KsaManagedDir)/Planet.Core.dll</HintPath>
+    <Reference Include="Planet.Core" Condition="Exists('$(KSAFolder)/Planet.Core.dll')">
+      <HintPath>$(KSAFolder)/Planet.Core.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Planet.Render.Core" Condition="Exists('$(KsaManagedDir)/Planet.Render.Core.dll')">
-      <HintPath>$(KsaManagedDir)/Planet.Render.Core.dll</HintPath>
+    <Reference Include="Planet.Render.Core" Condition="Exists('$(KSAFolder)/Planet.Render.Core.dll')">
+      <HintPath>$(KSAFolder)/Planet.Render.Core.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="KSA" Condition="Exists('$(KsaManagedDir)/KSA.dll')">
-      <HintPath>$(KsaManagedDir)/KSA.dll</HintPath>
+    <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
+      <HintPath>$(KSAFolder)/KSA.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="Brutal.Render.Common" Condition="Exists('$(KsaManagedDir)/Brutal.Render.Common.dll')">
-      <HintPath>$(KsaManagedDir)/Brutal.Render.Common.dll</HintPath>
+    <Reference Include="Brutal.Render.Common" Condition="Exists('$(KSAFolder)/Brutal.Render.Common.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <!-- Native DLLs for glfw, vulkan, imgui -->
-    <None Include="$(KsaManagedDir)/glfw3.dll">
+    <None Include="$(KSAFolder)/glfw3.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="$(KsaManagedDir)/imgui.dll">
+    <None Include="$(KSAFolder)/imgui.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     
