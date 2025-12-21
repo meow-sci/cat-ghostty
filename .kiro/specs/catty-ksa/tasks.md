@@ -61,7 +61,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Reference**: Use `KsaExampleMod/` folder as template for KSA game mod project structure
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 1.2 Implement minimal data structures
+- [x] 1.2 Implement minimal data structures
   - Create Cell struct with character only (no attributes yet)
     - Define a default/empty cell value (e.g. space)
     - Decide how to represent “unset” vs “space” (usually just space)
@@ -79,7 +79,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/state.ts
   - _Requirements: 7.1, 7.3, 8.1_
 
-- [ ] 1.3 Create minimal terminal emulator core
+- [x] 1.3 Create minimal terminal emulator core
   - Create ITerminalEmulator interface with Write method
     - Expose cols/rows (or Width/Height) so UI and tests can query size
     - Expose a way to read the current screen snapshot for rendering
