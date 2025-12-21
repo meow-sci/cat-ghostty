@@ -3,12 +3,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>caTTY.ImGui.Playground</AssemblyName>
-    <RootNamespace>caTTY.ImGui.Playground</RootNamespace>
+    <RootNamespace>caTTY.Playground</RootNamespace>
     <Description>ImGui rendering experiments for caTTY terminal emulator</Description>
     <PackageId>caTTY.ImGui.Playground</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>caTTY Project</Company>
     <Copyright>Copyright © caTTY Project</Copyright>
+    <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
   </PropertyGroup>
 
   <ItemGroup>
@@ -72,6 +73,10 @@
     </Reference>
     <Reference Include="Brutal.Render.Common" Condition="Exists('$(KSAFolder)/Brutal.Render.Common.dll')">
       <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Brutal.Core.Strings" Condition="Exists('$(KSAFolder)/Brutal.Core.Strings.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Strings.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>

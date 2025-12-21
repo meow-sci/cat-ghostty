@@ -1,0 +1,431 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using Brutal.ImGuiApi;
+using Brutal.Numerics;
+using caTTY.Playground.Rendering;
+using ImGui = Brutal.ImGuiApi.ImGui;
+using float2 = Brutal.Numerics.float2;
+using float4 = Brutal.Numerics.float4;
+
+namespace caTTY.Playground.Experiments;
+
+/// <summary>
+/// Terminal rendering experiments for testing different ImGui approaches.
+/// This class implements the core experiments for task 1.5.
+/// </summary>
+public static class TerminalRenderingExperiments
+{
+    // Experiment state
+    private static int _selectedExperiment = 0;
+    private static readonly string[] _experimentNames = [
+        "Character Grid Basic",
+        "Fixed-Width Font Test", 
+        "Color Experiments",
+        "Grid Alignment Test",
+        "Performance Comparison"
+    ];
+
+    // Terminal simulation data
+    private static readonly int TerminalWidth = 80;
+    private static readonly int TerminalHeight = 24;
+    private static readonly char[,] _terminalBuffer = new char[TerminalHeight, TerminalWidth];
+    private static readonly float4[,] _foregroundColors = new float4[TerminalHeight, TerminalWidth];
+    private static readonly float4[,] _backgroundColors = new float4[TerminalHeight, TerminalWidth];
+
+    // Color palette for experiments (using Brutal.Numerics.float4)
+    private static readonly float4[] _colorPalette = [
+        new(1.0f, 1.0f, 1.0f, 1.0f), // White
+        new(1.0f, 0.0f, 0.0f, 1.0f), // Red
+        new(0.0f, 1.0f, 0.0f, 1.0f), // Green
+        new(0.0f, 0.0f, 1.0f, 1.0f), // Blue
+        new(1.0f, 1.0f, 0.0f, 1.0f), // Yellow
+        new(1.0f, 0.0f, 1.0f, 1.0f), // Magenta
+        new(0.0f, 1.0f, 1.0f, 1.0f), // Cyan
+        new(0.5f, 0.5f, 0.5f, 1.0f), // Gray
+    ];
+
+    // Performance tracking
+    private static readonly List<float> _renderTimes = new();
+    private static DateTime _lastFrameTime = DateTime.Now;
+
+    // Font metrics
+    private static float _fontSize = 16.0f;
+    private static float _charWidth = 0.0f;
+    private static float _lineHeight = 0.0f;
+
+    static TerminalRenderingExperiments()
+    {
+        InitializeTerminalBuffer();
+    }
+
+    /// <summary>
+    /// Runs the terminal rendering experiments.
+    /// </summary>
+    public static void Run()
+    {
+        try
+        {
+            StandaloneImGui.Run(DrawExperiments);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to initialize ImGui context: {ex.Message}");
+            Console.WriteLine("KSA DLLs not available or graphics initialization failed.");
+            Console.WriteLine("To run full experiments, ensure KSA is installed and graphics drivers are available.");
+        }
+    }
+
+    private static void InitializeTerminalBuffer()
+    {
+        var random = new Random();
+        var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>? ";
+
+        for (int row = 0; row < TerminalHeight; row++)
+        {
+            for (int col = 0; col < TerminalWidth; col++)
+            {
+                // Create some pattern for testing
+                if (row == 0 || row == TerminalHeight - 1 || col == 0 || col == TerminalWidth - 1)
+                {
+                    // Border
+                    _terminalBuffer[row, col] = '#';
+                    _foregroundColors[row, col] = _colorPalette[2]; // Green
+                    _backgroundColors[row, col] = new float4(0, 0, 0, 0);
+                }
+                else if (row % 3 == 0 && col % 10 == 0)
+                {
+                    // Markers
+                    _terminalBuffer[row, col] = '+';
+                    _foregroundColors[row, col] = _colorPalette[4]; // Yellow
+                    _backgroundColors[row, col] = _colorPalette[7]; // Gray background
+                }
+                else if (random.NextDouble() < 0.7)
+                {
+                    // Random content
+                    _terminalBuffer[row, col] = chars[random.Next(chars.Length)];
+                    _foregroundColors[row, col] = _colorPalette[random.Next(_colorPalette.Length)];
+                    _backgroundColors[row, col] = random.NextDouble() < 0.1 ? _colorPalette[random.Next(_colorPalette.Length)] : new float4(0, 0, 0, 0);
+                }
+                else
+                {
+                    // Empty space
+                    _terminalBuffer[row, col] = ' ';
+                    _foregroundColors[row, col] = _colorPalette[0]; // White
+                    _backgroundColors[row, col] = new float4(0, 0, 0, 0);
+                }
+            }
+        }
+
+        // Add some test patterns
+        var testLine = "The quick brown fox jumps over the lazy dog 1234567890";
+        for (int i = 0; i < Math.Min(testLine.Length, TerminalWidth - 2); i++)
+        {
+            _terminalBuffer[2, i + 1] = testLine[i];
+            _foregroundColors[2, i + 1] = _colorPalette[0]; // White
+            _backgroundColors[2, i + 1] = new float4(0, 0, 0, 0);
+        }
+
+        // Color test line
+        var colorTestLine = "Color Test: ";
+        for (int i = 0; i < colorTestLine.Length && i < TerminalWidth - 10; i++)
+        {
+            _terminalBuffer[4, i + 1] = colorTestLine[i];
+            _foregroundColors[4, i + 1] = _colorPalette[i % _colorPalette.Length];
+            _backgroundColors[4, i + 1] = new float4(0, 0, 0, 0);
+        }
+    }
+
+    private static void DrawExperiments()
+    {
+        // Track frame time for performance analysis
+        var currentTime = DateTime.Now;
+        var frameTime = (float)(currentTime - _lastFrameTime).TotalMilliseconds;
+        _lastFrameTime = currentTime;
+        _renderTimes.Add(frameTime);
+        if (_renderTimes.Count > 100) _renderTimes.RemoveAt(0);
+
+        // Calculate font metrics
+        _charWidth = _fontSize * 0.6f; // Monospace approximation
+        _lineHeight = _fontSize + 2.0f; // Good vertical spacing
+
+        // Main experiment window
+        ImGui.Begin("Terminal Rendering Experiments");
+
+        ImGui.Text("Terminal Rendering Experiments - Full Implementation");
+        ImGui.Separator();
+
+        // Experiment selector
+        ImGui.Combo("Experiment", ref _selectedExperiment, _experimentNames, _experimentNames.Length);
+        ImGui.Separator();
+
+        // Draw the selected experiment
+        switch (_selectedExperiment)
+        {
+            case 0:
+                DrawCharacterGridBasic();
+                break;
+            case 1:
+                DrawFixedWidthFontTest();
+                break;
+            case 2:
+                DrawColorExperiments();
+                break;
+            case 3:
+                DrawGridAlignmentTest();
+                break;
+            case 4:
+                DrawPerformanceComparison();
+                break;
+        }
+
+        ImGui.End();
+    }
+
+    private static void DrawCharacterGridBasic()
+    {
+        ImGui.Text("Character Grid Basic Rendering");
+        ImGui.Text("Approach: Character-by-character positioning using ImGui DrawList");
+        ImGui.Separator();
+
+        // Get the draw list for custom drawing
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetCursorScreenPos();
+
+        // Draw terminal grid
+        for (int row = 0; row < TerminalHeight; row++)
+        {
+            for (int col = 0; col < TerminalWidth; col++)
+            {
+                var x = windowPos.X + col * _charWidth;
+                var y = windowPos.Y + row * _lineHeight;
+                var pos = new float2(x, y);
+
+                // Draw background if not transparent
+                var bgColor = _backgroundColors[row, col];
+                if (bgColor.W > 0) // Alpha > 0
+                {
+                    var bgRect = new float2(x + _charWidth, y + _lineHeight);
+                    drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                }
+
+                // Draw character
+                var ch = _terminalBuffer[row, col];
+                if (ch != ' ')
+                {
+                    var fgColor = _foregroundColors[row, col];
+                    drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), ch.ToString());
+                }
+            }
+        }
+
+        // Reserve space for the terminal
+        ImGui.Dummy(new float2(TerminalWidth * _charWidth, TerminalHeight * _lineHeight));
+    }
+
+    private static void DrawFixedWidthFontTest()
+    {
+        ImGui.Text("Fixed-Width Font Testing");
+        ImGui.Text("Comparing different font rendering approaches");
+        ImGui.Separator();
+
+        ImGui.Text("Approach 1: ImGui.Text() with monospace assumption");
+        ImGui.Text("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        ImGui.Text("0123456789!@#$%^&*()_+-=");
+        ImGui.Text("||||||||||||||||||||||||||||");
+
+        ImGui.Separator();
+        ImGui.Text("Approach 2: Character-by-character positioning");
+
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetCursorScreenPos();
+        var testText = "Character-by-character: ABCD1234!@#$";
+
+        for (int i = 0; i < testText.Length; i++)
+        {
+            var x = windowPos.X + i * _charWidth;
+            var y = windowPos.Y;
+            var pos = new float2(x, y);
+            drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), testText[i].ToString());
+        }
+
+        ImGui.Dummy(new float2(testText.Length * _charWidth, _lineHeight));
+    }
+
+    private static void DrawColorExperiments()
+    {
+        ImGui.Text("Color Experiments");
+        ImGui.Text("Testing foreground and background colors");
+        ImGui.Separator();
+
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetCursorScreenPos();
+
+        // Color palette display
+        ImGui.Text("Color Palette:");
+        for (int i = 0; i < _colorPalette.Length; i++)
+        {
+            var x = windowPos.X + i * _charWidth * 3;
+            var y = windowPos.Y + _lineHeight;
+            var pos = new float2(x, y);
+            var bgRect = new float2(x + _charWidth * 2, y + _lineHeight);
+
+            // Background color
+            drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(_colorPalette[i]));
+            // Text with contrasting color
+            var textColor = i == 0 ? _colorPalette[1] : _colorPalette[0]; // Use red on white, white on others
+            drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(textColor), $"{i}");
+        }
+
+        ImGui.Dummy(new float2(_colorPalette.Length * _charWidth * 3, _lineHeight * 3));
+
+        // Color combinations test
+        ImGui.Text("Color Combinations:");
+        var testColors = new[] { "Red/Black", "Green/Black", "Blue/White", "Yellow/Blue" };
+        var combinations = new (float4 fg, float4 bg)[]
+        {
+            (_colorPalette[1], new float4(0, 0, 0, 1)), // Red on Black
+            (_colorPalette[2], new float4(0, 0, 0, 1)), // Green on Black  
+            (_colorPalette[3], _colorPalette[0]),        // Blue on White
+            (_colorPalette[4], _colorPalette[3])         // Yellow on Blue
+        };
+
+        var startY = ImGui.GetCursorScreenPos().Y;
+        for (int i = 0; i < combinations.Length; i++)
+        {
+            var x = windowPos.X;
+            var y = startY + i * _lineHeight;
+            var pos = new float2(x, y);
+            var bgRect = new float2(x + testColors[i].Length * _charWidth, y + _lineHeight);
+
+            // Background
+            drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(combinations[i].bg));
+            // Text
+            drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(combinations[i].fg), testColors[i]);
+        }
+
+        ImGui.Dummy(new float2(200, combinations.Length * _lineHeight));
+    }
+
+    private static void DrawGridAlignmentTest()
+    {
+        ImGui.Text("Grid Alignment Testing");
+        ImGui.Text("Verifying character positioning and grid consistency");
+        ImGui.Separator();
+
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetCursorScreenPos();
+
+        // Draw grid lines for alignment verification
+        var gridColor = ImGui.ColorConvertFloat4ToU32(new float4(0.3f, 0.3f, 0.3f, 1.0f));
+        
+        // Vertical lines
+        for (int col = 0; col <= 20; col++)
+        {
+            var x = windowPos.X + col * _charWidth;
+            var startPos = new float2(x, windowPos.Y);
+            var endPos = new float2(x, windowPos.Y + 10 * _lineHeight);
+            drawList.AddLine(startPos, endPos, gridColor);
+        }
+
+        // Horizontal lines
+        for (int row = 0; row <= 10; row++)
+        {
+            var y = windowPos.Y + row * _lineHeight;
+            var startPos = new float2(windowPos.X, y);
+            var endPos = new float2(windowPos.X + 20 * _charWidth, y);
+            drawList.AddLine(startPos, endPos, gridColor);
+        }
+
+        // Draw characters on grid
+        var testPattern = "ABCDEFGHIJKLMNOPQRST";
+        for (int row = 0; row < 10; row++)
+        {
+            for (int col = 0; col < 20; col++)
+            {
+                var x = windowPos.X + col * _charWidth;
+                var y = windowPos.Y + row * _lineHeight;
+                var pos = new float2(x, y);
+                var ch = testPattern[col % testPattern.Length];
+                var color = _colorPalette[(row + col) % _colorPalette.Length];
+                drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(color), ch.ToString());
+            }
+        }
+
+        ImGui.Dummy(new float2(20 * _charWidth, 10 * _lineHeight));
+
+        // Display metrics
+        ImGui.Separator();
+        ImGui.Text($"Font Size: {_fontSize:F1}");
+        ImGui.Text($"Character Width: {_charWidth:F2}");
+        ImGui.Text($"Line Height: {_lineHeight:F2}");
+    }
+
+    private static void DrawPerformanceComparison()
+    {
+        ImGui.Text("Performance Comparison");
+        ImGui.Text("Frame time tracking and rendering performance analysis");
+        ImGui.Separator();
+
+        // Performance metrics
+        if (_renderTimes.Count > 0)
+        {
+            var currentFrameTime = _renderTimes[_renderTimes.Count - 1];
+            var avgFrameTime = _renderTimes.Count > 0 ? _renderTimes.Sum() / _renderTimes.Count : 0;
+            var currentFps = 1000.0f / currentFrameTime;
+            var avgFps = 1000.0f / avgFrameTime;
+
+            ImGui.Text($"Current frame time: {currentFrameTime:F2}ms");
+            ImGui.Text($"Average frame time: {avgFrameTime:F2}ms");
+            ImGui.Text($"Current FPS: {currentFps:F1}");
+            ImGui.Text($"Average FPS: {avgFps:F1}");
+
+            // Frame time graph (simplified)
+            ImGui.Separator();
+            ImGui.Text("Recent frame times:");
+            var recentTimes = _renderTimes.TakeLast(10).ToArray();
+            for (int i = 0; i < recentTimes.Length; i++)
+            {
+                ImGui.Text($"  {i + 1}: {recentTimes[i]:F2}ms");
+            }
+        }
+
+        ImGui.Separator();
+        ImGui.Text("Full Terminal Rendering Test (80x24):");
+        
+        // Render a small version of the full terminal for performance testing
+        var drawList = ImGui.GetWindowDrawList();
+        var windowPos = ImGui.GetCursorScreenPos();
+        var smallCharWidth = _charWidth * 0.5f;
+        var smallLineHeight = _lineHeight * 0.5f;
+
+        for (int row = 0; row < TerminalHeight; row++)
+        {
+            for (int col = 0; col < TerminalWidth; col++)
+            {
+                var x = windowPos.X + col * smallCharWidth;
+                var y = windowPos.Y + row * smallLineHeight;
+                var pos = new float2(x, y);
+
+                // Draw background if not transparent
+                var bgColor = _backgroundColors[row, col];
+                if (bgColor.W > 0)
+                {
+                    var bgRect = new float2(x + smallCharWidth, y + smallLineHeight);
+                    drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                }
+
+                // Draw character
+                var ch = _terminalBuffer[row, col];
+                if (ch != ' ')
+                {
+                    var fgColor = _foregroundColors[row, col];
+                    drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), ch.ToString());
+                }
+            }
+        }
+
+        ImGui.Dummy(new float2(TerminalWidth * smallCharWidth, TerminalHeight * smallLineHeight));
+    }
+}
