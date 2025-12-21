@@ -2,7 +2,15 @@
 inclusion: always
 ---
 
-# Technology Stack
+# C# version Technology Stack
+
+FIXME: TBD with more details
+
+- dotnet 10
+- C#
+- KSA game custom BRUTAL ImGui
+
+# TypeScript version Technology Stack
 
 ## Build System & Framework
 
@@ -31,33 +39,15 @@ inclusion: always
 
 ## Working Directory for caTTY-ts
 
-All commands run from `caTTY-ts/` directory:
+All commands run from `catty-web/` directory:
 
 ```bash
 pnpm install          # Install dependencies
-pnpm dev              # Start dev server at localhost:4321
-pnpm build            # Build production site to ./dist/
-pnpm preview          # Preview production build
-pnpm test             # Run tests in watch mode
-pnpm test-run         # Run tests once (use in CI or for quick checks)
-pnpm tsc              # Type check without emitting files
+pnpm tsc              # compile all projects
+pnpm test             # test all projects
+pnpm run-pty          # run the pty websocket server
+pnpm run-web          # run the astro web app
 ```
-
-## Working Directory for caTTY-node-pty
-
-All commands run from `caTTY-node-pty/` directory:
-
-```bash
-pnpm install          # Install dependencies
-pnpm dev              # Start dev server at localhost:4444
-pnpm test             # Run tests in watch mode
-pnpm test-run         # Run tests once (use in CI or for quick checks)
-pnpm tsc              # Type check without emitting files
-```
-
-The `pnpm dev` server should be used to run the WebSocket process when working with caTTY-ts
-
-
 
 ## Code Style Requirements
 
@@ -86,30 +76,3 @@ The `pnpm dev` server should be used to run the WebSocket process when working w
 ## Backend
 
 - @lydell/node-pty npm package to manage pty shells.
-
-  Example of how to use this is
-
-  ```javascript
-  var os = require('os');
-  var pty = require('node-pty');
-
-  var shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-
-  var ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-color',
-    cols: 80,
-    rows: 30,
-    cwd: process.env.HOME,
-    env: process.env
-  });
-
-  ptyProcess.onData((data) => {
-    process.stdout.write(data);
-  });
-
-  ptyProcess.write('ls\r');
-  ptyProcess.resize(100, 40);
-  ptyProcess.write('ls\r');
-  ```
-
-- `caTTY-node-pty` - project to host the pty websocket server code
