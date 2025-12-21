@@ -6,12 +6,14 @@ using HarmonyLib;
 using System.Reflection;
 using Microsoft.VisualBasic;
 
-namespace modone
+namespace KsaExampleMod
 {
-    public class SimpleMod : IStarMapMod, IStarMapOnUi
+    [StarMapMod]
+    public class SimpleMod
     {
         public bool ImmediateUnload => false;
 
+        [StarMapAfterGui]
         public void OnAfterUi(double dt)
         {
             // The original flags assignement - just to show some options
@@ -38,7 +40,7 @@ namespace modone
                     ImGui.EndMenuBar();
                 }
                 ImGui.Text($"Current Propellant Mass: {vehicle.FlightComputer.PropellantMass:F3}");
-                ImGui.Text($"Total Mass: {vehicle.FlightComputer.TotalMass}");
+                // ImGui.Text($"Total Mass: {vehicle.FlightComputer.TotalMass}");
                 ImGui.Text($"Total Acceleration: {vehicle.FlightComputer.TotalAcceleration}");
                 ImGui.Text($"Current simulation Speed: {Universe.SimulationSpeed.ToString()}");
                 ImGui.Text($"Time: {Universe.GetElapsedSimTime().Days} days");
@@ -47,20 +49,24 @@ namespace modone
             }
         }
 
+        [StarMapBeforeGui]
         public void OnBeforeUi(double dt)
         {
             
         }
 
+        [StarMapAllModsLoaded]
         public void OnFullyLoaded()
         {
             Patcher.Patch();
         }
 
+        [StarMapImmediateLoad]
         public void OnImmediatLoad()
         {
         }
 
+        [StarMapUnload]
         public void Unload()
         {
             Patcher.Unload();

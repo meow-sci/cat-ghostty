@@ -9,24 +9,19 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ModNamespace>modone</ModNamespace>
 
-    <!-- Build output + test output dirs -->
-    <DistDir>$(ProjectDir)$(SendBuildToTestDir)\</DistDir>
-
   </PropertyGroup>
 
   <!-- Copies files -->
 	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-    <MakeDir Directories="$(DistDir)" />
-    <Copy SourceFiles="$(TargetDir)mod.toml" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetDir)mod.toml')" />
-    <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFolder="$(DistDir)" Condition="Exists('$(ProjectDepsFilePath)')" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetPath)')" />
+		<Copy SourceFiles="$(BuildDir)mod.toml" DestinationFolder="$(SendBuildToTestDir)" />
+		<Copy SourceFiles="$(BuildDir)$(ModNamespace).deps.json" DestinationFolder="$(SendBuildToTestDir)" />
+		<Copy SourceFiles="$(BuildDir)$(ModNamespace).dll" DestinationFolder="$(SendBuildToTestDir)" />
     
     <!-- Copy Fonts folder to the build dir-->
     <ItemGroup>
-      <FontFiles Include="$(TargetDir)Fonts\**\*" />
+      <FontFiles Include="$(BuildDir)Fonts\**\*" />
     </ItemGroup>
-		<MakeDir Directories="$(DistDir)Fonts" />
-    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)Fonts\%(RecursiveDir)" />
+    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(SendBuildToTestDir)\Fonts\%(RecursiveDir)" />
 	</Target>
 
 
