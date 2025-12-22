@@ -31,7 +31,9 @@ public static class StandaloneImGui
     Init();
 
     while (!window!.ShouldClose)
+    {
       OnFrame();
+    }
   }
 
   private static void Init()
@@ -112,7 +114,9 @@ public static class StandaloneImGui
     ImGui.UpdatePlatformWindows();
     ImGui.RenderPlatformWindowsDefault();
     if (frameResult != FrameResult.Success)
+    {
       RebuildRenderer();
+    }
   }
 
   private static void RebuildRenderer()
