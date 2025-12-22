@@ -5,6 +5,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- this app.manifest enables PerMonitorV2, calls to Win32 SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) should not be necessary -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <!-- KSA game DLLs are in C:\Program Files\Kitten Space Agency -->
@@ -40,7 +42,6 @@
       <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <!-- VulkanEx.dll is a native/unmanaged module; do not add as a managed Reference. -->
     <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
       <Private>true</Private>
