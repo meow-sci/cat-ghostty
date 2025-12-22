@@ -13,8 +13,10 @@ public static class Program2
   private static void OnDrawUi()
   {
 
-    ImGui.SetNextWindowPos(new float2(0, 0), ImGuiCond.FirstUseEver);
-    ImGui.Begin("Debug", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse);
+    ImGui.SetNextWindowPos(new float2(650, 0), ImGuiCond.FirstUseEver);
+    ImGui.SetNextWindowSize(new float2(100, 100), ImGuiCond.FirstUseEver);
+
+    ImGui.Begin("Debug", ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
     ImGui.Text("Hello from KsaImGuiTestWin!");
     ImGui.End();
 

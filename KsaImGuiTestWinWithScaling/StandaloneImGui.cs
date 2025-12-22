@@ -63,6 +63,7 @@ public static class StandaloneImGui
     ImGui.NewFrame();
 
     // call custom ui code
+    Console.WriteLine($"scale: {window!.ContentScale[0]}");
     OnDrawUi!();
 
     ImGui.Render();
