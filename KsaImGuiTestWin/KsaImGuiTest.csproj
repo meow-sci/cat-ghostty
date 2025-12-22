@@ -7,36 +7,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- KSA DLLs are in C:\Program Files\Kitten Space Agency -->
-  <!-- 
-  likely key DLLs (guessing):
-  
-  Brutal.Glfw.dll
-  Brutal.ImGui.Abstractions.dll
-  Brutal.ImGui.dll
-  Brutal.ImGui.Extensions.dll
-  VulkanEx.dll
-  Brutal.Vulkan.Abstractions.dll
-  Brutal.Vulkan.dll
-
-  note however that Brutal.Glfw.dll may have a native win32 dep? unsure.
-
-  i also see that glfw3.dll, imgui.dll exist in this dir which are probably the windows native libs...
-
-  we're on a mac so our local native libs are:
-  /opt/homebrew/Cellar/glfw/3.4/lib
-  /Users/asherwin/VulkanSDK/1.4.328.1/macOS/lib
-  
-
-
-  -->
-
-  <!--
-    Configure managed and native KSA DLLs.
-    Adjust the paths below if your KSA installation is in a different location.
-    On macOS we copy native dylibs into the managed project's output folder so
-    the runtime loader can find them next to the executable.
-  -->
+  <!-- KSA game DLLs are in C:\Program Files\Kitten Space Agency -->
 
   <PropertyGroup>
     <!-- Path containing the managed KSA assemblies (Brutal.* .dll) -->
@@ -69,10 +40,7 @@
       <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Reference Include="VulkanEx" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
-      <HintPath>$(KSAFolder)/VulkanEx.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+    <!-- VulkanEx.dll is a native/unmanaged module; do not add as a managed Reference. -->
     <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
       <Private>true</Private>
@@ -109,6 +77,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="$(KSAFolder)/imgui.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(KSAFolder)/VulkanEx.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     

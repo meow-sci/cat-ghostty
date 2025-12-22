@@ -10,18 +10,18 @@ using RenderCore;
 
 public static class StandaloneImGui
 {
-  private static GlfwWindow window;
-  private static Renderer renderer;
-  private static RenderPassState rstate;
-  private static Action OnDrawUi;
+  private static GlfwWindow? window;
+  private static Renderer? renderer;
+  private static RenderPassState? rstate;
+  private static Action? OnDrawUi;
 
   public static void Run(Action onDrawUi)
   {
     OnDrawUi = onDrawUi;
     Init();
 
-    while (!window.ShouldClose)
-      OnFrame();
+    while (!window!.ShouldClose){
+      OnFrame();}
   }
 
   private static void Init()
@@ -68,10 +68,10 @@ public static class StandaloneImGui
     ImGui.NewFrame();
     ImGuiHelper.StartFrame();
 
-    OnDrawUi();
+    OnDrawUi!();
 
     ImGui.Render();
-    var (result, frame) = renderer.TryAcquireNextFrame();
+    var (result, frame) = renderer!.TryAcquireNextFrame();
     if (result != FrameResult.Success)
     {
       RebuildRenderer();
@@ -86,7 +86,7 @@ public static class StandaloneImGui
       RenderPass = renderer.MainRenderPass,
       Framebuffer = resources.Framebuffer,
       RenderArea = new(renderer.Extent),
-      ClearValues = rstate.ClearValues.Ptr,
+      ClearValues = rstate!.ClearValues.Ptr,
       ClearValueCount = 2,
     };
 
@@ -104,8 +104,8 @@ public static class StandaloneImGui
 
   private static void RebuildRenderer()
   {
-    renderer.Rebuild(VkPresentModeKHR.FifoKHR);
+    renderer!.Rebuild(VkPresentModeKHR.FifoKHR);
     renderer.Device.WaitIdle();
-    rstate.Pass = renderer.MainRenderPass;
+    rstate!.Pass = renderer.MainRenderPass;
   }
 }
