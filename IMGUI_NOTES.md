@@ -1,1 +1,4 @@
-imgui/ dir is a checkout of v1.92.5
+# online interactive manual 
+
+https://pthom.github.io/imgui_manual_online/manual/imgui_manual.html
+

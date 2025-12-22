@@ -43,8 +43,9 @@ public class Program
         }
         
         Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadKey();
+        Console.WriteLine("Exiting...");
+        // Console.WriteLine("Press any key to exit...");
+        // Console.ReadKey();
     }
 
     private static bool IsKsaAvailable()

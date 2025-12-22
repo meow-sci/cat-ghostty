@@ -7,8 +7,9 @@
     <Description>ImGui rendering experiments for caTTY terminal emulator</Description>
     <PackageId>caTTY.ImGui.Playground</PackageId>
     <Product>caTTY Terminal Emulator</Product>
-    <Company>caTTY Project</Company>
-    <Copyright>Copyright © caTTY Project</Copyright>
+    <Company>meow sci</Company>
+    <!-- this app.manifest enables PerMonitorV2, calls to Win32 SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) should not be necessary -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
   </PropertyGroup>
 
@@ -41,10 +42,6 @@
     </Reference>
     <Reference Include="Brutal.Vulkan" Condition="Exists('$(KSAFolder)/Brutal.Vulkan.dll')">
       <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-    <Reference Include="VulkanEx" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
-      <HintPath>$(KSAFolder)/VulkanEx.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
@@ -87,6 +84,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="$(KSAFolder)/imgui.dll" Condition="Exists('$(KSAFolder)/imgui.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(KSAFolder)/VulkanEx.dll" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
