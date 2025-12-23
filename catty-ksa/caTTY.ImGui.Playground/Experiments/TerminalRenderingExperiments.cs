@@ -25,7 +25,8 @@ public static class TerminalRenderingExperiments
         "Fixed-Width Font Test",
         "Color Experiments",
         "Grid Alignment Test",
-        "Performance Comparison"
+        "Performance Comparison",
+        "Text Styling Experiments"
     ];
 
     // Terminal simulation data
@@ -201,6 +202,9 @@ public static class TerminalRenderingExperiments
                 break;
             case 4:
                 DrawPerformanceComparison();
+                break;
+            case 5:
+                TextStylingExperiments.DrawExperiments();
                 break;
         }
 

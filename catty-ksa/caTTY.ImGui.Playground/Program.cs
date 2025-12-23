@@ -19,6 +19,14 @@ public class Program
         Console.WriteLine("caTTY ImGui Playground - Terminal Rendering Experiments");
         Console.WriteLine("========================================================");
         Console.WriteLine();
+        Console.WriteLine("Available experiments:");
+        Console.WriteLine("- Character Grid Basic");
+        Console.WriteLine("- Fixed-Width Font Test");
+        Console.WriteLine("- Color Experiments");
+        Console.WriteLine("- Grid Alignment Test");
+        Console.WriteLine("- Performance Comparison");
+        Console.WriteLine("- Text Styling Experiments (NEW - Task 1.6)");
+        Console.WriteLine();
         
         TerminalRenderingExperiments.Run();
         
