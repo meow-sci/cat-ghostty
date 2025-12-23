@@ -273,7 +273,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Confirm both applications dispose resources cleanly on exit
   - Document any integration issues or differences between contexts
 
-- [ ] 1.15 Checkpoint - End-to-end MVP working
+- [x] 1.15 Checkpoint - End-to-end MVP working
   - Both standalone BRUTAL ImGui TestApp and game mod working with real shell
   - User has validated both deployment targets work with the same shared ImGui controller
   - Ready to add more terminal features
