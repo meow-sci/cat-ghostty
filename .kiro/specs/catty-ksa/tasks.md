@@ -156,7 +156,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
   - _Requirements: 8.1, 8.2, 12.3_
 
-- [ ] 1.9 Implement process management
+- [x] 1.9 Implement process management
   - Create IProcessManager interface
   - Create ProcessManager class using System.Diagnostics.Process
   - Define a ProcessLaunchOptions model
