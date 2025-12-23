@@ -32,3 +32,9 @@ private static void MaybePopFont(bool wasUsed)
   }
 }
 ```
+
+# Preferred Font
+
+`HackNerdFontMono-Regular.ttf` file with name `HackNerdFontMono-Regular` in code
+
+This is the "Hack" font with nerd extensions (glyphs used in terminals) in regular weight and monospaced.

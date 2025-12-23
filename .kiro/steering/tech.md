@@ -90,6 +90,14 @@ KsaExampleMod/
 - **Asset Copying**: Custom MSBuild targets for mod.toml and assets
 - **StarMap Attributes**: Required attributes for KSA mod system entry points
 
+## BRUTAL ImGui Font Setup
+
+- **Font Loading**: TTF files in `Content/` folder are automatically loaded by BRUTAL ImGui
+- **Font Naming**: Font name matches filename without `.ttf` extension (e.g., `Content/Hack.ttf` → `"Hack"`)
+- **Font Usage**: Use Push/Pop pattern with `FontManager.Fonts.TryGetValue()` and `ImGui.PushFont()`
+- **Reference Documentation**: See `BRUTAL_IMGUI_NOTES.md` for complete font setup examples and code patterns
+- **Preferred Font**: HackNerdFontMono-Regular
+
 ## Memory Management
 
 - **Byte Handling**: Use `ReadOnlySpan<byte>` for terminal data processing
