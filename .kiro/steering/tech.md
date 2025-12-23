@@ -40,6 +40,63 @@ catty-ksa.sln
 - **Memory Efficiency**: Use `Span<T>` and `ReadOnlySpan<T>` for byte processing
 - **Error Handling**: Use Result<T> pattern instead of exceptions for expected failures
 
+## Performance Optimization - Render Loop Allocation Minimization
+
+**CRITICAL PERFORMANCE REQUIREMENT**: The C#/ImGui implementation MUST minimize allocations during the render loop and hot paths to ensure smooth game performance.
+
+### Hot Path Optimization Rules
+
+- **Render Loop**: Code that executes every frame (Update/Render methods) MUST avoid allocations
+- **Input Processing**: Keyboard/mouse event handling MUST use pre-allocated buffers and object pooling
+- **Screen Buffer Access**: Terminal screen queries MUST use span-based access patterns
+- **String Operations**: Text rendering MUST avoid string concatenation and temporary string creation
+- **Collection Operations**: Avoid LINQ, temporary collections, and boxing in hot paths
+
+### Memory Architecture Patterns
+
+- **Pre-allocation Strategy**: Allocate long-lived objects during initialization, reuse during runtime
+- **Object Pooling**: Use `ArrayPool<T>` and custom object pools for frequently used temporary objects
+- **Span-Based APIs**: Use `ReadOnlySpan<char>` and `Span<T>` for all hot path data access
+- **Struct Optimization**: Use `readonly struct` for value types passed frequently
+- **Buffer Reuse**: Maintain reusable buffers for string building, character conversion, and data processing
+
+### Acceptable Allocation Areas
+
+- **Initialization**: Object creation during terminal setup and configuration is acceptable
+- **Long-Lived Objects**: Class instances, buffers, and caches that persist for the application lifetime
+- **Infrequent Operations**: Resize operations, configuration changes, and error handling
+- **Background Processing**: Non-render-loop operations like process I/O and logging
+
+### Implementation Guidelines
+
+```csharp
+// GOOD: Pre-allocated, reusable buffer
+private readonly StringBuilder _stringBuilder = new(1024);
+private readonly char[] _renderBuffer = new char[4096];
+
+public void RenderHotPath()
+{
+    _stringBuilder.Clear(); // Reuse existing capacity
+    // Use spans for data access
+    ReadOnlySpan<Cell> row = screenBuffer.GetRow(rowIndex);
+    // Process without allocations
+}
+
+// BAD: Allocates every frame
+public void RenderBadExample()
+{
+    var text = string.Join("", cells.Select(c => c.Character)); // LINQ + string allocation
+    var colors = new List<Color>(); // New collection every frame
+}
+```
+
+### Memory vs Performance Trade-offs
+
+- **Acceptable RAM Usage**: Sacrifice memory space to reduce allocations (larger pre-allocated buffers)
+- **Cache-Friendly Design**: Structure data for sequential access patterns
+- **Buffer Sizing**: Over-allocate buffers to avoid resize operations during runtime
+- **Object Lifetime**: Prefer longer object lifetimes over frequent create/dispose cycles
+
 ## Testing Conventions
 
 - **Per-Project Tests**: `caTTY.Core.Tests/`, `caTTY.ImGui.Tests/` with `<ClassName>Tests.cs` naming

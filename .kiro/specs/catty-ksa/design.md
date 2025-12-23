@@ -220,6 +220,75 @@ public class SgrParser
 
 ### ImGui Controller Components
 
+#### Performance-Optimized Render Loop Architecture
+
+The ImGui controller is designed with strict allocation minimization for smooth game performance:
+
+```csharp
+public class ImGuiTerminalController : ITerminalController
+{
+    // Pre-allocated buffers for render loop (no allocations during rendering)
+    private readonly StringBuilder _textBuilder = new(4096);
+    private readonly char[] _renderBuffer = new char[8192];
+    private readonly List<ImDrawCmd> _drawCommands = new(256);
+    private readonly Dictionary<Color, uint> _colorCache = new(64);
+    
+    // Reusable spans for hot path operations
+    private Memory<char> _workingMemory;
+    private readonly ArrayPool<char> _charPool = ArrayPool<char>.Shared;
+    
+    public void Render()
+    {
+        if (!IsVisible) return;
+        
+        ImGui.Begin("Terminal", ref _isVisible);
+        
+        // Hot path: zero-allocation rendering using pre-allocated buffers
+        RenderTerminalContent(); // Uses spans and pre-allocated buffers
+        ProcessInputEvents();    // Uses object pooling for event data
+        
+        ImGui.End();
+    }
+    
+    private void RenderTerminalContent()
+    {
+        // Use span-based access to avoid allocations
+        var screenBuffer = _terminal.ScreenBuffer;
+        for (int row = 0; row < screenBuffer.Height; row++)
+        {
+            ReadOnlySpan<ICell> rowSpan = screenBuffer.GetRow(row);
+            RenderRowOptimized(rowSpan, row); // No allocations in inner loop
+        }
+    }
+}
+```
+
+#### Memory-Efficient Buffer Management
+
+```csharp
+public class OptimizedScreenBuffer : IScreenBuffer
+{
+    // Pre-allocated 2D array - no allocations during normal operation
+    private readonly Cell[,] _cells;
+    private readonly int _width, _height;
+    
+    // Cached row spans to avoid repeated span creation
+    private readonly ReadOnlyMemory<Cell>[] _rowMemories;
+    
+    public ReadOnlySpan<Cell> GetRow(int row)
+    {
+        // Return pre-computed span - zero allocation
+        return _rowMemories[row].Span;
+    }
+    
+    public void UpdateCell(int row, int col, Cell cell)
+    {
+        // Direct array access - zero allocation
+        _cells[row, col] = cell;
+    }
+}
+```
+
 #### ITerminalController Interface
 
 ```csharp
@@ -330,23 +399,33 @@ public class ScreenBuffer : IScreenBuffer
     private readonly int _width;
     private readonly int _height;
     
+    // Pre-allocated row memories for zero-allocation span access
+    private readonly ReadOnlyMemory<Cell>[] _rowMemories;
+    
     public ScreenBuffer(int width, int height)
     {
         _width = width;
         _height = height;
         _cells = new Cell[height, width];
+        
+        // Pre-compute row memories to avoid allocation during GetRow calls
+        _rowMemories = new ReadOnlyMemory<Cell>[height];
+        for (int i = 0; i < height; i++)
+        {
+            _rowMemories[i] = MemoryMarshal.CreateReadOnlyMemory(
+                ref _cells[i, 0], width);
+        }
     }
     
     public ReadOnlySpan<Cell> GetRow(int row)
     {
-        // Return span view of row for efficient access
-        return MemoryMarshal.CreateReadOnlySpan(
-            ref _cells[row, 0], _width);
+        // Return pre-computed span - zero allocation in hot path
+        return _rowMemories[row].Span;
     }
 }
 ```
 
-### Scrollback Buffer with Circular Array
+### Allocation-Optimized Scrollback Buffer
 
 ```csharp
 public class ScrollbackBuffer : IScrollbackBuffer
@@ -356,13 +435,168 @@ public class ScrollbackBuffer : IScrollbackBuffer
     private int _head;
     private int _count;
     
+    // Pre-allocated arrays for line reuse
+    private readonly Queue<Cell[]> _recycledArrays = new();
+    
     public void AddLine(ReadOnlySpan<Cell> line)
     {
-        // Efficient circular buffer implementation
         // Reuse arrays to minimize allocations
+        Cell[] lineArray = GetRecycledArray(line.Length);
+        line.CopyTo(lineArray);
+        
+        if (_count < _maxLines)
+        {
+            _lines[_count++] = lineArray;
+        }
+        else
+        {
+            // Recycle the array being replaced
+            RecycleArray(_lines[_head]);
+            _lines[_head] = lineArray;
+            _head = (_head + 1) % _maxLines;
+        }
+    }
+    
+    private Cell[] GetRecycledArray(int length)
+    {
+        // Object pooling pattern for array reuse
+        return _recycledArrays.Count > 0 && _recycledArrays.Peek().Length >= length
+            ? _recycledArrays.Dequeue()
+            : new Cell[Math.Max(length, 80)]; // Pre-allocate common terminal width
     }
 }
 ```
+
+## Performance Optimization Architecture
+
+### Render Loop Allocation Minimization
+
+The terminal emulator architecture is specifically designed to minimize memory allocations during the render loop and other hot paths that execute frequently during game operation.
+
+#### Hot Path Identification
+
+**Critical Hot Paths (Zero Allocation Required):**
+- `ImGuiTerminalController.Render()` - Called every frame
+- `ImGuiTerminalController.Update()` - Called every frame  
+- `ScreenBuffer.GetRow()` - Called for each visible row during rendering
+- `InputHandler.ProcessKeyboard()` - Called on every keystroke
+- `Parser.ParseSequence()` - Called for every incoming byte sequence
+
+**Warm Paths (Minimal Allocation Acceptable):**
+- Terminal resize operations
+- Process I/O handling
+- Configuration changes
+- Error handling and logging
+
+#### Memory Architecture Strategy
+
+**Pre-Allocation Pattern:**
+```csharp
+public class ImGuiTerminalController
+{
+    // Allocated once during initialization, reused throughout lifetime
+    private readonly StringBuilder _stringBuilder = new(4096);
+    private readonly char[] _renderBuffer = new char[8192];
+    private readonly List<RenderCommand> _renderCommands = new(512);
+    private readonly Dictionary<SgrAttributes, uint> _attributeColorCache = new(128);
+    
+    // ArrayPool for temporary allocations
+    private readonly ArrayPool<char> _charPool = ArrayPool<char>.Shared;
+    private readonly ArrayPool<byte> _bytePool = ArrayPool<byte>.Shared;
+}
+```
+
+**Span-Based Data Access:**
+```csharp
+// All screen buffer access uses spans to avoid copying
+public ReadOnlySpan<Cell> GetVisibleRows(int startRow, int endRow)
+{
+    // Return span slice without allocation
+    return _screenData.AsSpan().Slice(startRow * _width, (endRow - startRow) * _width);
+}
+
+// String operations use span-based APIs
+public void ProcessText(ReadOnlySpan<char> text)
+{
+    // Process character by character without string allocation
+    foreach (char c in text)
+    {
+        ProcessCharacter(c); // No substring creation
+    }
+}
+```
+
+**Object Pooling for Temporary Objects:**
+```csharp
+public class EventObjectPool
+{
+    private readonly ConcurrentQueue<KeyboardEvent> _keyboardEvents = new();
+    private readonly ConcurrentQueue<MouseEvent> _mouseEvents = new();
+    
+    public KeyboardEvent RentKeyboardEvent()
+    {
+        return _keyboardEvents.TryDequeue(out var evt) ? evt : new KeyboardEvent();
+    }
+    
+    public void ReturnKeyboardEvent(KeyboardEvent evt)
+    {
+        evt.Reset(); // Clear state for reuse
+        _keyboardEvents.Enqueue(evt);
+    }
+}
+```
+
+#### Buffer Management Strategy
+
+**Screen Buffer Optimization:**
+- Pre-allocate 2D cell array during initialization
+- Use `ReadOnlyMemory<Cell>` for row access to avoid span creation overhead
+- Cache frequently accessed spans and memory regions
+- Implement copy-on-write for buffer operations that modify large regions
+
+**String Building Optimization:**
+- Maintain reusable `StringBuilder` instances with pre-allocated capacity
+- Use `ArrayPool<char>` for temporary character arrays
+- Implement custom string formatting that avoids boxing and temporary strings
+- Cache formatted strings for repeated values (colors, common escape sequences)
+
+**Input Processing Optimization:**
+- Pre-allocate input event objects and reuse through object pooling
+- Use span-based parsing for escape sequence processing
+- Maintain lookup tables for key code to escape sequence mapping
+- Avoid string concatenation in input encoding
+
+#### Memory vs Performance Trade-offs
+
+**Acceptable Memory Usage Increases:**
+- **Larger Buffer Sizes**: Pre-allocate buffers 2-4x larger than minimum required to avoid resize operations
+- **Caching**: Maintain caches for computed values (color conversions, formatted strings, glyph metrics)
+- **Object Pools**: Keep pools of reusable objects even when not actively in use
+- **Lookup Tables**: Use memory for lookup tables to avoid runtime computation
+
+**Performance Benefits:**
+- **Reduced GC Pressure**: Fewer allocations mean less garbage collection overhead
+- **Better Cache Locality**: Pre-allocated, reused objects stay in CPU cache longer
+- **Predictable Performance**: Avoid allocation spikes that cause frame drops
+- **Lower Latency**: No GC pauses during critical rendering operations
+
+#### Implementation Guidelines
+
+**DO:**
+- Use `ReadOnlySpan<T>` and `Span<T>` for all data processing in hot paths
+- Pre-allocate all buffers and collections during initialization
+- Implement object pooling for frequently created/destroyed objects
+- Use `ArrayPool<T>` for temporary arrays
+- Cache computed values that are expensive to recalculate
+- Use `StringBuilder.Clear()` instead of creating new instances
+
+**DON'T:**
+- Use LINQ operations in render loop or hot paths
+- Create temporary strings or collections in frequently called methods
+- Box value types unnecessarily
+- Use `string.Concat()` or `+` operator for string building in hot paths
+- Create delegates or lambdas in hot paths (causes allocation)
+- Use reflection or dynamic operations in performance-critical code
 
 ## Correctness Properties
 
