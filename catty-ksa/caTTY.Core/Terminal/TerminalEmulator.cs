@@ -51,6 +51,11 @@ public class TerminalEmulator : ITerminalEmulator
     public event EventHandler<ResponseEmittedEventArgs>? ResponseEmitted;
 
     /// <summary>
+    /// Event raised when a bell character (BEL, 0x07) is received.
+    /// </summary>
+    public event EventHandler<BellEventArgs>? Bell;
+
+    /// <summary>
     /// Creates a new terminal emulator with the specified dimensions.
     /// </summary>
     /// <param name="width">Width in columns</param>
@@ -136,6 +141,18 @@ public class TerminalEmulator : ITerminalEmulator
         // Handle control characters first
         switch (b)
         {
+            case 0x07: // BEL (Bell)
+                HandleBell();
+                return;
+
+            case 0x08: // BS (Backspace)
+                HandleBackspace();
+                return;
+
+            case 0x09: // HT (Horizontal Tab)
+                HandleTab();
+                return;
+
             case 0x0A: // LF (Line Feed)
                 HandleLineFeed();
                 return;
@@ -149,26 +166,17 @@ public class TerminalEmulator : ITerminalEmulator
 
             default:
                 // Handle other non-printable characters by ignoring them
-                if (b < 0x20 && b != 0x09) // Allow tab (0x09) through for now
+                if (b < 0x20)
                 {
                     return;
                 }
                 break;
         }
 
-        // Handle printable ASCII characters (0x20-0x7E) and tab
-        if ((b >= 0x20 && b <= 0x7E) || b == 0x09)
+        // Handle printable ASCII characters (0x20-0x7E)
+        if (b >= 0x20 && b <= 0x7E)
         {
             char character = (char)b;
-            
-            // Handle tab character
-            if (b == 0x09)
-            {
-                HandleTab();
-                return;
-            }
-
-            // Write the character at the current cursor position
             WriteCharacterAtCursor(character);
         }
         // For unsupported bytes (non-ASCII), we ignore them as specified in task
@@ -213,13 +221,51 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    /// Handles a bell character (BEL) - emit bell event for notification.
+    /// </summary>
+    private void HandleBell()
+    {
+        OnBell();
+    }
+
+    /// <summary>
+    /// Handles a backspace character (BS) - move cursor one position left if not at column 0.
+    /// Uses terminal state for proper cursor management.
+    /// </summary>
+    private void HandleBackspace()
+    {
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+
+        // Move cursor left if not at column 0
+        if (_state.CursorX > 0)
+        {
+            _state.CursorX--;
+        }
+
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
     /// Handles a tab character - move to next tab stop using terminal state.
     /// </summary>
     private void HandleTab()
     {
-        // Find next tab stop using terminal state
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+
+        // Find next tab stop
         int nextTabStop = -1;
-        for (int col = _cursor.Col + 1; col < Width; col++)
+        for (int col = _state.CursorX + 1; col < Width; col++)
         {
             if (col < _state.TabStops.Length && _state.TabStops[col])
             {
@@ -234,26 +280,17 @@ public class TerminalEmulator : ITerminalEmulator
             nextTabStop = Width - 1;
         }
 
-        // Handle wrap pending and right edge behavior
-        if (nextTabStop >= Width)
+        // Move cursor to the tab stop
+        _state.CursorX = nextTabStop;
+
+        // Handle wrap pending if we're at the right edge and auto-wrap is enabled
+        if (_state.CursorX >= Width - 1 && _state.AutoWrapMode)
         {
-            if (_state.AutoWrapMode)
-            {
-                _state.WrapPending = true;
-            }
-            else
-            {
-                _cursor.SetPosition(_cursor.Row, Width - 1);
-            }
-        }
-        else
-        {
-            _cursor.SetPosition(_cursor.Row, nextTabStop);
+            _state.WrapPending = true;
         }
 
-        // Sync cursor with state
-        _state.CursorX = _cursor.Col;
-        _state.CursorY = _cursor.Row;
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
     }
 
     /// <summary>
@@ -338,6 +375,14 @@ public class TerminalEmulator : ITerminalEmulator
     protected void OnResponseEmitted(string responseText)
     {
         ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseText));
+    }
+
+    /// <summary>
+    /// Raises the Bell event.
+    /// </summary>
+    private void OnBell()
+    {
+        Bell?.Invoke(this, new BellEventArgs());
     }
 
     /// <summary>

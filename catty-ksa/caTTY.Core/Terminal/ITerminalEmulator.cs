@@ -59,4 +59,9 @@ public interface ITerminalEmulator : IDisposable
     /// Used for device query replies and other terminal-generated responses.
     /// </summary>
     event EventHandler<ResponseEmittedEventArgs>? ResponseEmitted;
+
+    /// <summary>
+    /// Event raised when a bell character (BEL, 0x07) is received.
+    /// </summary>
+    event EventHandler<BellEventArgs>? Bell;
 }

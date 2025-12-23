@@ -186,6 +186,197 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
+    /// Tests that Write with bell character raises Bell event.
+    /// </summary>
+    [Test]
+    public void Write_WithBell_RaisesBellEvent()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        bool bellEventRaised = false;
+        BellEventArgs? bellEventArgs = null;
+        terminal.Bell += (sender, args) => 
+        {
+            bellEventRaised = true;
+            bellEventArgs = args;
+        };
+        var data = new byte[] { 0x07 }; // BEL
+
+        // Act
+        terminal.Write(data);
+
+        // Assert
+        Assert.That(bellEventRaised, Is.True);
+        Assert.That(bellEventArgs, Is.Not.Null);
+        Assert.That(bellEventArgs.Timestamp, Is.LessThanOrEqualTo(DateTime.UtcNow));
+    }
+
+    /// <summary>
+    /// Tests that Write with backspace character moves cursor left if not at column 0.
+    /// </summary>
+    [Test]
+    public void Write_WithBackspace_MovesCursorLeft()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("ABC"); // Move cursor to column 3
+        var data = new byte[] { 0x08 }; // BS
+
+        // Act
+        terminal.Write(data);
+
+        // Assert
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(2)); // Should move left from 3 to 2
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Row should stay the same
+    }
+
+    /// <summary>
+    /// Tests that Write with backspace character at column 0 does not move cursor.
+    /// </summary>
+    [Test]
+    public void Write_WithBackspaceAtColumnZero_DoesNotMoveCursor()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        // Cursor is already at (0, 0)
+        var data = new byte[] { 0x08 }; // BS
+
+        // Act
+        terminal.Write(data);
+
+        // Assert
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(0)); // Should stay at column 0
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Row should stay the same
+    }
+
+    /// <summary>
+    /// Tests that Write with multiple control characters handles them all correctly.
+    /// </summary>
+    [Test]
+    public void Write_WithMultipleControlCharacters_HandlesAllCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        bool bellEventRaised = false;
+        int bellCount = 0;
+        terminal.Bell += (sender, args) => 
+        {
+            bellEventRaised = true;
+            bellCount++;
+        };
+        var data = new byte[] { 0x07, 0x07, 0x07 }; // Three BEL characters
+
+        // Act
+        terminal.Write(data);
+
+        // Assert
+        Assert.That(bellEventRaised, Is.True);
+        Assert.That(bellCount, Is.EqualTo(3));
+    }
+
+    /// <summary>
+    /// Tests that Write with mixed control characters and text works correctly.
+    /// </summary>
+    [Test]
+    public void Write_WithMixedControlCharactersAndText_WorksCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        var data = new byte[] { (byte)'a', 0x07, (byte)'b', 0x08, (byte)'c' }; // a BEL b BS c
+
+        // Act
+        terminal.Write(data);
+
+        // Assert
+        // Sequence: 'a' at (0,0) → cursor (0,1), BEL → cursor (0,1), 'b' at (0,1) → cursor (0,2), BS → cursor (0,1), 'c' at (0,1) → cursor (0,2)
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('a')); // 'a' remains at (0,0)
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('c')); // 'c' overwrote 'b' at (0,1)
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(2)); // Cursor at column 2 after writing 'c'
+    }
+
+    /// <summary>
+    /// Tests that tab character moves to correct tab stops with default 8-column spacing.
+    /// </summary>
+    [Test]
+    public void Write_WithTabCharacter_MovesToCorrectTabStops()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Act & Assert - Test multiple tab stops
+        terminal.Write("\t"); // Should go to column 8
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(8));
+        
+        terminal.Write("\t"); // Should go to column 16
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(16));
+        
+        terminal.Write("\t"); // Should go to column 24
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(24));
+    }
+
+    /// <summary>
+    /// Tests that tab character at near right edge goes to right edge.
+    /// </summary>
+    [Test]
+    public void Write_WithTabNearRightEdge_GoesToRightEdge()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(10, 24); // Small width
+        terminal.Write("1234567"); // Move to column 7
+
+        // Act
+        terminal.Write("\t"); // Should go to column 8 (next tab stop)
+
+        // Assert
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(8));
+        
+        // Another tab should go to right edge (column 9)
+        terminal.Write("\t");
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(9));
+    }
+
+    /// <summary>
+    /// Tests that backspace clears wrap pending state.
+    /// </summary>
+    [Test]
+    public void Write_WithBackspaceAfterWrapPending_ClearsWrapPending()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(5, 24); // Small width
+        terminal.Write("12345"); // Fill first line, should set wrap pending
+
+        // Act
+        terminal.Write("\x08"); // Backspace
+
+        // Assert
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(3)); // Should move back from 4 to 3
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Should stay on same row
+        
+        // Writing another character should not wrap
+        terminal.Write("X");
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Should still be on row 0
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(4)); // Should be at column 4
+    }
+
+    /// <summary>
+    /// Tests that tab clears wrap pending state.
+    /// </summary>
+    [Test]
+    public void Write_WithTabAfterWrapPending_ClearsWrapPending()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(5, 24); // Small width
+        terminal.Write("12345"); // Fill first line, should set wrap pending
+
+        // Act
+        terminal.Write("\t"); // Tab
+
+        // Assert
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(4)); // Should stay at right edge
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Should stay on same row
+    }
+
+    /// <summary>
     /// Tests that Write with DEL character ignores the character and doesn't move cursor.
     /// </summary>
     [Test]

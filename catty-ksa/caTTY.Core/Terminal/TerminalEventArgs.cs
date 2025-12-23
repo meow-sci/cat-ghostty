@@ -115,3 +115,22 @@ public readonly struct ScreenRegion
     /// <returns>A screen region covering the entire row</returns>
     public static ScreenRegion EntireRow(int row, int width) => new(row, 0, row, width - 1);
 }
+
+/// <summary>
+/// Event arguments for bell character notifications.
+/// </summary>
+public class BellEventArgs : EventArgs
+{
+    /// <summary>
+    /// Gets the time when the bell was triggered.
+    /// </summary>
+    public DateTime Timestamp { get; }
+
+    /// <summary>
+    /// Creates new bell event arguments.
+    /// </summary>
+    public BellEventArgs()
+    {
+        Timestamp = DateTime.UtcNow;
+    }
+}

@@ -279,7 +279,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Ready to add more terminal features
 
 - [ ] 2. Add basic escape sequence parsing and control characters
-- [ ] 2.1 Add basic control character handling
+- [x] 2.1 Add basic control character handling
   - Handle backspace (BS), tab (HT), bell (BEL)
   - Add basic cursor movement for control characters
   - Implement simple tab stops (every 8 columns)
