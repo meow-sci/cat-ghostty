@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Unit;
 [Category("Unit")]
 public class TerminalEmulatorTests
 {
+    /// <summary>
+    /// Tests that TerminalEmulator constructor creates a terminal with valid dimensions.
+    /// </summary>
     [Test]
     public void Constructor_WithValidDimensions_CreatesTerminal()
     {
@@ -24,6 +27,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid width.
+    /// </summary>
     [Test]
     public void Constructor_WithInvalidWidth_ThrowsArgumentOutOfRangeException()
     {
@@ -33,6 +39,9 @@ public class TerminalEmulatorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(1001, 24));
     }
 
+    /// <summary>
+    /// Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid height.
+    /// </summary>
     [Test]
     public void Constructor_WithInvalidHeight_ThrowsArgumentOutOfRangeException()
     {
@@ -42,6 +51,9 @@ public class TerminalEmulatorTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(80, 1001));
     }
 
+    /// <summary>
+    /// Tests that Write with a printable character writes the character at cursor position and advances cursor.
+    /// </summary>
     [Test]
     public void Write_WithPrintableCharacter_WritesCharacterAtCursor()
     {
@@ -58,6 +70,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(1)); // Cursor should advance
     }
 
+    /// <summary>
+    /// Tests that Write with multiple characters writes all characters sequentially.
+    /// </summary>
     [Test]
     public void Write_WithMultipleCharacters_WritesAllCharacters()
     {
@@ -77,6 +92,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that Write with a string writes the string content to the terminal.
+    /// </summary>
     [Test]
     public void Write_WithString_WritesStringContent()
     {
@@ -93,6 +111,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('t'));
     }
 
+    /// <summary>
+    /// Tests that Write with line feed (LF) moves cursor down one row.
+    /// </summary>
     [Test]
     public void Write_WithLineFeed_MovesCursorDown()
     {
@@ -109,6 +130,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(1)); // Column should stay the same
     }
 
+    /// <summary>
+    /// Tests that Write with carriage return (CR) moves cursor to column zero.
+    /// </summary>
     [Test]
     public void Write_WithCarriageReturn_MovesCursorToColumnZero()
     {
@@ -125,6 +149,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that Write with CRLF sequence moves cursor to the beginning of the next line.
+    /// </summary>
     [Test]
     public void Write_WithCRLF_MovesCursorToNextLineStart()
     {
@@ -141,6 +168,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that Write with tab character moves cursor to the next tab stop.
+    /// </summary>
     [Test]
     public void Write_WithTab_MovesCursorToNextTabStop()
     {
@@ -155,6 +185,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.Cursor.Col, Is.EqualTo(8)); // Next tab stop at column 8
     }
 
+    /// <summary>
+    /// Tests that Write with DEL character ignores the character and doesn't move cursor.
+    /// </summary>
     [Test]
     public void Write_WithDEL_IgnoresCharacter()
     {
@@ -171,6 +204,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo(' ')); // Should remain empty
     }
 
+    /// <summary>
+    /// Tests that Write at the right edge of terminal wraps to the next line.
+    /// </summary>
     [Test]
     public void Write_AtRightEdge_WrapsToNextLine()
     {
@@ -187,6 +223,9 @@ public class TerminalEmulatorTests
         Assert.That(terminal.ScreenBuffer.GetCell(1, 0).Character, Is.EqualTo('6'));
     }
 
+    /// <summary>
+    /// Tests that Write raises ScreenUpdated event when content is written.
+    /// </summary>
     [Test]
     public void Write_RaisesScreenUpdatedEvent()
     {
@@ -202,6 +241,9 @@ public class TerminalEmulatorTests
         Assert.That(eventRaised, Is.True);
     }
 
+    /// <summary>
+    /// Tests that Write with empty data does not raise ScreenUpdated event.
+    /// </summary>
     [Test]
     public void Write_WithEmptyData_DoesNotRaiseEvent()
     {
@@ -217,6 +259,9 @@ public class TerminalEmulatorTests
         Assert.That(eventRaised, Is.False);
     }
 
+    /// <summary>
+    /// Tests that Dispose can be called multiple times without throwing.
+    /// </summary>
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
@@ -231,6 +276,9 @@ public class TerminalEmulatorTests
         });
     }
 
+    /// <summary>
+    /// Tests that Write throws ObjectDisposedException after the terminal is disposed.
+    /// </summary>
     [Test]
     public void Write_AfterDispose_ThrowsObjectDisposedException()
     {

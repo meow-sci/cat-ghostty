@@ -7,8 +7,7 @@
     <Description>ImGui display controller for caTTY terminal emulator</Description>
     <PackageId>caTTY.ImGui</PackageId>
     <Product>caTTY Terminal Emulator</Product>
-    <Company>caTTY Project</Company>
-    <Copyright>Copyright © caTTY Project</Copyright>
+    <Company>meow sci</Company>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,10 +46,6 @@
       <HintPath>$(KSAFolder)/Brutal.Vulkan.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="VulkanEx" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
-      <HintPath>$(KSAFolder)/VulkanEx.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
       <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
       <Private>false</Private>
@@ -79,6 +74,19 @@
       <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Native DLLs for glfw, vulkan, imgui -->
+    <None Include="$(KSAFolder)/glfw3.dll" Condition="Exists('$(KSAFolder)/glfw3.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(KSAFolder)/imgui.dll" Condition="Exists('$(KSAFolder)/imgui.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="$(KSAFolder)/VulkanEx.dll" Condition="Exists('$(KSAFolder)/VulkanEx.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

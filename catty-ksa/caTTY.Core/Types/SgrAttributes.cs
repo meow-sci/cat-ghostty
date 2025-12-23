@@ -159,21 +159,84 @@ public enum ColorType
 /// </summary>
 public enum NamedColor
 {
+    /// <summary>
+    /// Black color (SGR 30/40).
+    /// </summary>
     Black,
+    
+    /// <summary>
+    /// Red color (SGR 31/41).
+    /// </summary>
     Red,
+    
+    /// <summary>
+    /// Green color (SGR 32/42).
+    /// </summary>
     Green,
+    
+    /// <summary>
+    /// Yellow color (SGR 33/43).
+    /// </summary>
     Yellow,
+    
+    /// <summary>
+    /// Blue color (SGR 34/44).
+    /// </summary>
     Blue,
+    
+    /// <summary>
+    /// Magenta color (SGR 35/45).
+    /// </summary>
     Magenta,
+    
+    /// <summary>
+    /// Cyan color (SGR 36/46).
+    /// </summary>
     Cyan,
+    
+    /// <summary>
+    /// White color (SGR 37/47).
+    /// </summary>
     White,
+    
+    /// <summary>
+    /// Bright black color (SGR 90/100).
+    /// </summary>
     BrightBlack,
+    
+    /// <summary>
+    /// Bright red color (SGR 91/101).
+    /// </summary>
     BrightRed,
+    
+    /// <summary>
+    /// Bright green color (SGR 92/102).
+    /// </summary>
     BrightGreen,
+    
+    /// <summary>
+    /// Bright yellow color (SGR 93/103).
+    /// </summary>
     BrightYellow,
+    
+    /// <summary>
+    /// Bright blue color (SGR 94/104).
+    /// </summary>
     BrightBlue,
+    
+    /// <summary>
+    /// Bright magenta color (SGR 95/105).
+    /// </summary>
     BrightMagenta,
+    
+    /// <summary>
+    /// Bright cyan color (SGR 96/106).
+    /// </summary>
     BrightCyan,
+    
+    /// <summary>
+    /// Bright white color (SGR 97/107).
+    /// </summary>
     BrightWhite
 }
 
@@ -182,11 +245,34 @@ public enum NamedColor
 /// </summary>
 public enum UnderlineStyle
 {
+    /// <summary>
+    /// No underline.
+    /// </summary>
     None,
+    
+    /// <summary>
+    /// Single underline (SGR 4).
+    /// </summary>
     Single,
+    
+    /// <summary>
+    /// Double underline (SGR 21).
+    /// </summary>
     Double,
+    
+    /// <summary>
+    /// Curly underline (SGR 4:3).
+    /// </summary>
     Curly,
+    
+    /// <summary>
+    /// Dotted underline (SGR 4:4).
+    /// </summary>
     Dotted,
+    
+    /// <summary>
+    /// Dashed underline (SGR 4:5).
+    /// </summary>
     Dashed
 }
 

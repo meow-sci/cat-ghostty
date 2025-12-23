@@ -53,18 +53,27 @@ public class ProcessManagerTests
         }
     }
 
+    /// <summary>
+    /// Sets up test fixtures before each test.
+    /// </summary>
     [SetUp]
     public void SetUp()
     {
         _processManager = new ProcessManager();
     }
 
+    /// <summary>
+    /// Cleans up test fixtures after each test.
+    /// </summary>
     [TearDown]
     public void TearDown()
     {
         _processManager?.Dispose();
     }
 
+    /// <summary>
+    /// Tests that ProcessManager constructor creates a valid instance with expected initial state.
+    /// </summary>
     [Test]
     public void Constructor_CreatesProcessManager()
     {
@@ -77,6 +86,9 @@ public class ProcessManagerTests
         Assert.That(manager.ExitCode, Is.Null);
     }
 
+    /// <summary>
+    /// Tests ConPTY availability detection on the current platform.
+    /// </summary>
     [Test]
     public void ConPtyAvailability_CheckPlatformSupport()
     {
@@ -99,6 +111,9 @@ public class ProcessManagerTests
         }
     }
 
+    /// <summary>
+    /// Tests that CreateDefault returns valid default process launch options.
+    /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreateDefault_ReturnsValidOptions()
     {
@@ -115,6 +130,9 @@ public class ProcessManagerTests
         Assert.That(options.EnvironmentVariables["TERM"], Is.EqualTo("xterm-256color"));
     }
 
+    /// <summary>
+    /// Tests that CreatePowerShell returns valid PowerShell-specific launch options.
+    /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreatePowerShell_ReturnsValidOptions()
     {
@@ -128,6 +146,9 @@ public class ProcessManagerTests
         Assert.That(options.Arguments, Contains.Item("-NoProfile"));
     }
 
+    /// <summary>
+    /// Tests that CreateCustom returns valid custom shell launch options.
+    /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreateCustom_ReturnsValidOptions()
     {
@@ -147,6 +168,9 @@ public class ProcessManagerTests
         Assert.That(options.Arguments, Contains.Item(arg2));
     }
 
+    /// <summary>
+    /// Tests that StartAsync throws ProcessStartException when given an invalid shell path.
+    /// </summary>
     [Test]
     public void StartAsync_WithInvalidShell_ThrowsProcessStartException()
     {
@@ -164,6 +188,9 @@ public class ProcessManagerTests
             () => _processManager!.StartAsync(options));
     }
 
+    /// <summary>
+    /// Tests that StartAsync throws InvalidOperationException when a process is already running.
+    /// </summary>
     [Test]
     public void StartAsync_WhenAlreadyRunning_ThrowsInvalidOperationException()
     {
@@ -194,6 +221,9 @@ public class ProcessManagerTests
         }
     }
 
+    /// <summary>
+    /// Tests that Write throws InvalidOperationException when no process is running.
+    /// </summary>
     [Test]
     public void Write_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
@@ -204,6 +234,9 @@ public class ProcessManagerTests
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
+    /// <summary>
+    /// Tests that Write with byte span throws InvalidOperationException when no process is running.
+    /// </summary>
     [Test]
     public void Write_WithByteSpan_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
@@ -217,6 +250,9 @@ public class ProcessManagerTests
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
+    /// <summary>
+    /// Tests that Resize throws InvalidOperationException when no process is running.
+    /// </summary>
     [Test]
     public void Resize_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
@@ -227,6 +263,9 @@ public class ProcessManagerTests
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
+    /// <summary>
+    /// Tests that StartAsync throws PlatformNotSupportedException on non-Windows platforms.
+    /// </summary>
     [Test]
     public void StartAsync_OnNonWindows_ThrowsPlatformNotSupportedException()
     {
@@ -244,6 +283,9 @@ public class ProcessManagerTests
             () => _processManager!.StartAsync(options));
     }
 
+    /// <summary>
+    /// Tests that StartAsync successfully starts a process with valid shell options.
+    /// </summary>
     [Test]
     public async Task StartAsync_WithValidShell_StartsProcess()
     {
@@ -274,6 +316,9 @@ public class ProcessManagerTests
         }
     }
 
+    /// <summary>
+    /// Tests that StopAsync successfully stops a running process.
+    /// </summary>
     [Test]
     public async Task StopAsync_WithRunningProcess_StopsProcess()
     {
@@ -298,6 +343,9 @@ public class ProcessManagerTests
         Assert.That(_processManager.IsRunning, Is.False);
     }
 
+    /// <summary>
+    /// Tests that StopAsync does not throw when no process is running.
+    /// </summary>
     [Test]
     public async Task StopAsync_WithoutRunningProcess_DoesNotThrow()
     {
@@ -305,6 +353,9 @@ public class ProcessManagerTests
         Assert.DoesNotThrowAsync(() => _processManager!.StopAsync());
     }
 
+    /// <summary>
+    /// Tests that ProcessExited event is raised when a process exits naturally.
+    /// </summary>
     [Test]
     public async Task ProcessExited_Event_RaisedWhenProcessExits()
     {
@@ -344,6 +395,9 @@ public class ProcessManagerTests
         Assert.That(_processManager.IsRunning, Is.False, "Process should not be running after exit");
     }
 
+    /// <summary>
+    /// Tests that DataReceived event is raised when a process outputs data.
+    /// </summary>
     [Test]
     public async Task DataReceived_Event_RaisedWhenProcessOutputsData()
     {
@@ -386,6 +440,9 @@ public class ProcessManagerTests
             $"Should receive some output, got: '{receivedData}'");
     }
 
+    /// <summary>
+    /// Tests that Dispose can be called multiple times without throwing.
+    /// </summary>
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
     {
@@ -397,6 +454,9 @@ public class ProcessManagerTests
         Assert.DoesNotThrow(() => manager.Dispose());
     }
 
+    /// <summary>
+    /// Tests that Write throws ObjectDisposedException after the ProcessManager is disposed.
+    /// </summary>
     [Test]
     public void Write_AfterDispose_ThrowsObjectDisposedException()
     {

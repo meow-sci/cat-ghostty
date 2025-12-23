@@ -8,9 +8,24 @@ namespace caTTY.Core.Types;
 /// </summary>
 public enum CharacterSetKey
 {
+    /// <summary>
+    /// G0 character set (primary).
+    /// </summary>
     G0,
+    
+    /// <summary>
+    /// G1 character set (secondary).
+    /// </summary>
     G1,
+    
+    /// <summary>
+    /// G2 character set (tertiary).
+    /// </summary>
     G2,
+    
+    /// <summary>
+    /// G3 character set (quaternary).
+    /// </summary>
     G3
 }
 
