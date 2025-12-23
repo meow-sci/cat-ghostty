@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="caTTY.Core.Tests/caTTY.Core.Tests.csproj" />
+  <Project Path="caTTY.Core/caTTY.Core.csproj" />
+  <Project Path="caTTY.GameMod/caTTY.GameMod.csproj" />
+  <Project Path="caTTY.ImGui.Playground/caTTY.ImGui.Playground.csproj" />
+  <Project Path="caTTY.ImGui.Tests/caTTY.ImGui.Tests.csproj" />
+  <Project Path="caTTY.ImGui/caTTY.ImGui.csproj" />
+  <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />
+</Solution>
