@@ -4,7 +4,7 @@ namespace caTTY.Core.Types;
 
 /// <summary>
 /// Represents a single character cell in the terminal screen buffer.
-/// This is a minimal implementation containing only the character for now.
+/// Contains the character and its associated SGR attributes.
 /// </summary>
 public readonly struct Cell : IEquatable<Cell>
 {
@@ -14,31 +14,46 @@ public readonly struct Cell : IEquatable<Cell>
     public char Character { get; }
 
     /// <summary>
-    /// Creates a new cell with the specified character.
+    /// The SGR attributes applied to this cell.
+    /// </summary>
+    public SgrAttributes Attributes { get; }
+
+    /// <summary>
+    /// Creates a new cell with the specified character and default attributes.
     /// </summary>
     /// <param name="character">The character to store in this cell</param>
-    public Cell(char character)
+    public Cell(char character) : this(character, SgrAttributes.Default)
     {
-        Character = character;
     }
 
     /// <summary>
-    /// Gets the default empty cell (space character).
-    /// This represents both "unset" and "space" - we treat them the same.
+    /// Creates a new cell with the specified character and attributes.
     /// </summary>
-    public static Cell Empty => new(' ');
+    /// <param name="character">The character to store in this cell</param>
+    /// <param name="attributes">The SGR attributes for this cell</param>
+    public Cell(char character, SgrAttributes attributes)
+    {
+        Character = character;
+        Attributes = attributes;
+    }
 
     /// <summary>
-    /// Creates a cell with a space character.
+    /// Gets the default empty cell (space character with default attributes).
+    /// This represents both "unset" and "space" - we treat them the same.
     /// </summary>
-    public static Cell Space => new(' ');
+    public static Cell Empty => new(' ', SgrAttributes.Default);
+
+    /// <summary>
+    /// Creates a cell with a space character and default attributes.
+    /// </summary>
+    public static Cell Space => new(' ', SgrAttributes.Default);
 
     /// <summary>
     /// Determines whether the specified Cell is equal to the current Cell.
     /// </summary>
     /// <param name="other">The Cell to compare with the current Cell</param>
     /// <returns>True if the specified Cell is equal to the current Cell; otherwise, false</returns>
-    public bool Equals(Cell other) => Character == other.Character;
+    public bool Equals(Cell other) => Character == other.Character && Attributes.Equals(other.Attributes);
 
     /// <summary>
     /// Determines whether the specified object is equal to the current Cell.
@@ -51,7 +66,7 @@ public readonly struct Cell : IEquatable<Cell>
     /// Returns the hash code for this Cell.
     /// </summary>
     /// <returns>A 32-bit signed integer hash code</returns>
-    public override int GetHashCode() => Character.GetHashCode();
+    public override int GetHashCode() => HashCode.Combine(Character, Attributes);
 
     /// <summary>
     /// Determines whether two Cell instances are equal.
@@ -73,5 +88,5 @@ public readonly struct Cell : IEquatable<Cell>
     /// Returns a string representation of the Cell.
     /// </summary>
     /// <returns>A string that represents the current Cell</returns>
-    public override string ToString() => $"Cell('{Character}')";
+    public override string ToString() => $"Cell('{Character}', {Attributes})";
 }

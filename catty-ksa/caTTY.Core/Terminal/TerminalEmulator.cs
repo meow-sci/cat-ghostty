@@ -12,6 +12,7 @@ public class TerminalEmulator : ITerminalEmulator
 {
     private readonly IScreenBuffer _screenBuffer;
     private readonly ICursor _cursor;
+    private readonly TerminalState _state;
     private bool _disposed;
 
     /// <summary>
@@ -33,6 +34,11 @@ public class TerminalEmulator : ITerminalEmulator
     /// Gets the current cursor state.
     /// </summary>
     public ICursor Cursor => _cursor;
+
+    /// <summary>
+    /// Gets the current terminal state.
+    /// </summary>
+    public TerminalState State => _state;
 
     /// <summary>
     /// Event raised when the screen content has been updated and needs refresh.
@@ -59,6 +65,7 @@ public class TerminalEmulator : ITerminalEmulator
 
         _screenBuffer = new ScreenBuffer(width, height);
         _cursor = new Cursor();
+        _state = new TerminalState(width, height);
         _disposed = false;
     }
 
@@ -169,13 +176,18 @@ public class TerminalEmulator : ITerminalEmulator
 
     /// <summary>
     /// Handles a line feed (LF) character - move down and scroll if at bottom.
+    /// Uses terminal state for proper cursor management.
     /// </summary>
     private void HandleLineFeed()
     {
-        if (_cursor.Row < Height - 1)
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+
+        if (_state.CursorY < Height - 1)
         {
             // Move cursor down one row
-            _cursor.Move(1, 0);
+            _state.CursorY++;
         }
         else
         {
@@ -183,73 +195,123 @@ public class TerminalEmulator : ITerminalEmulator
             // For now, just stay at the bottom row
         }
 
-        // Clamp cursor to bounds
-        _cursor.ClampToBounds(Height, Width);
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+        _state.ClampCursor();
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
     }
 
     /// <summary>
     /// Handles a carriage return (CR) character - move to column 0.
+    /// Uses terminal state for proper cursor management.
     /// </summary>
     private void HandleCarriageReturn()
     {
-        _cursor.SetPosition(_cursor.Row, 0);
+        _state.CursorX = 0;
+        _state.CursorY = _cursor.Row;
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
     }
 
     /// <summary>
-    /// Handles a tab character - move to next tab stop (every 8 columns for now).
+    /// Handles a tab character - move to next tab stop using terminal state.
     /// </summary>
     private void HandleTab()
     {
-        // Simple tab stops every 8 columns
-        int nextTabStop = ((_cursor.Col / 8) + 1) * 8;
-        
-        // If we would go past the right edge, handle according to auto-wrap mode
-        // For now, just clamp to the last column
+        // Find next tab stop using terminal state
+        int nextTabStop = -1;
+        for (int col = _cursor.Col + 1; col < Width; col++)
+        {
+            if (col < _state.TabStops.Length && _state.TabStops[col])
+            {
+                nextTabStop = col;
+                break;
+            }
+        }
+
+        // If no tab stop found, go to right edge
+        if (nextTabStop == -1)
+        {
+            nextTabStop = Width - 1;
+        }
+
+        // Handle wrap pending and right edge behavior
         if (nextTabStop >= Width)
         {
-            _cursor.SetPosition(_cursor.Row, Width - 1);
+            if (_state.AutoWrapMode)
+            {
+                _state.WrapPending = true;
+            }
+            else
+            {
+                _cursor.SetPosition(_cursor.Row, Width - 1);
+            }
         }
         else
         {
             _cursor.SetPosition(_cursor.Row, nextTabStop);
         }
+
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
     }
 
     /// <summary>
     /// Writes a character at the current cursor position and advances the cursor.
+    /// Uses terminal state for wrap pending and SGR attributes.
     /// </summary>
     /// <param name="character">The character to write</param>
     private void WriteCharacterAtCursor(char character)
     {
-        // Write the character to the screen buffer
-        var cell = new Cell(character);
-        _screenBuffer.SetCell(_cursor.Row, _cursor.Col, cell);
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
 
-        // Advance the cursor
-        if (_cursor.Col < Width - 1)
+        // Handle wrap pending state - if set, wrap to next line first
+        if (_state.WrapPending)
         {
-            // Move to next column
-            _cursor.Move(0, 1);
-        }
-        else
-        {
-            // At right edge - handle according to auto-wrap mode
-            // For now, we'll implement basic wrapping behavior
-            if (_cursor.Row < Height - 1)
+            _state.WrapPending = false;
+            _state.CursorX = 0;
+            if (_state.CursorY < Height - 1)
             {
-                // Move to beginning of next line
-                _cursor.SetPosition(_cursor.Row + 1, 0);
+                _state.CursorY++;
             }
             else
             {
-                // At bottom-right corner - need to scroll
-                // For now, just stay at the last position
-                // Scrolling will be implemented in future tasks
+                // At bottom - need to scroll (will be implemented in future task)
+                // For now, just stay at the bottom row
             }
         }
 
-        // Ensure cursor stays within bounds
-        _cursor.ClampToBounds(Height, Width);
+        // Clamp cursor position
+        if (_state.CursorX >= Width)
+        {
+            _state.CursorX = Width - 1;
+        }
+
+        // Write the character to the screen buffer with current SGR attributes
+        var cell = new Cell(character, _state.CurrentSgrState);
+        _screenBuffer.SetCell(_state.CursorY, _state.CursorX, cell);
+
+        // Handle cursor advancement and wrap pending
+        if (_state.CursorX == Width - 1)
+        {
+            // At right edge
+            if (_state.AutoWrapMode)
+            {
+                _state.WrapPending = true;
+                // Don't advance cursor yet - wait for next character
+            }
+            // If not in auto-wrap mode, cursor stays at right edge
+        }
+        else
+        {
+            // Normal advancement
+            _state.CursorX++;
+        }
+
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
     }
 
     /// <summary>
