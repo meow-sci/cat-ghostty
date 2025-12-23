@@ -2,15 +2,16 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <AssemblyName>caTTY.GameMod</AssemblyName>
-    <RootNamespace>caTTY.GameMod</RootNamespace>
+    <AssemblyName>caTTY</AssemblyName>
+    <RootNamespace>caTTY</RootNamespace>
     <Description>KSA game mod for caTTY terminal emulator</Description>
-    <PackageId>caTTY.GameMod</PackageId>
+    <PackageId>caTTY</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>caTTY Project</Company>
     <Copyright>Copyright © caTTY Project</Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <ModNamespace>caTTY.GameMod</ModNamespace>
+    <ModNamespace>caTTY</ModNamespace>
+    <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
     
     <!-- Build output + test output dirs -->
     <DistDir>$(ProjectDir)dist\</DistDir>
@@ -22,6 +23,8 @@
     <Copy SourceFiles="$(TargetDir)mod.toml" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetDir)mod.toml')" />
     <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFolder="$(DistDir)" Condition="Exists('$(ProjectDepsFilePath)')" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetPath)')" />
+    <Copy SourceFiles="$(TargetDir)caTTY.Core.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.ImGui.dll" DestinationFolder="$(DistDir)" />
   </Target>
 
   <ItemGroup>
@@ -36,6 +39,26 @@
     <PackageReference Include="StarMap.API" Version="0.3.6">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- KSA DLL references -->
+    <Reference Include="Brutal.Core.Common" Condition="Exists('$(KSAFolder)/Brutal.Core.Common.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.ImGui" Condition="Exists('$(KSAFolder)/Brutal.ImGui.dll')">
+      <HintPath>$(KSAFolder)/Brutal.ImGui.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
+      <HintPath>$(KSAFolder)/KSA.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

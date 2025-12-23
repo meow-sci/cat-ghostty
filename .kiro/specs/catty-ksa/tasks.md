@@ -247,7 +247,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/app/src/components/terminal/TerminalPage.tsx
   - _Requirements: 16.1, 17.1, 18.1_
 
-- [ ] 1.13 Create game mod entry point
+- [x] 1.13 Create game mod entry point
   - Implement game mod initialization in caTTY.GameMod
     - Define a minimal mod API surface (init/update/draw/dispose)
     - Ensure the mod does not block the game loop (no synchronous reads)
