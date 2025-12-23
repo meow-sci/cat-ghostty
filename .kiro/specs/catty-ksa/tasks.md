@@ -44,7 +44,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
 - [x] 1.1 Set up solution structure and all projects
   - Create caTTY-cs.sln solution file
   - Create caTTY.Core class library project with .NET 10 target
-  - Create caTTY.TestApp console project
+  - Create caTTY.TestApp console project (BRUTAL ImGui application with GLFW window)
   - Create caTTY.ImGui class library project (placeholder)
   - Create caTTY.ImGui.Playground console project (placeholder)
   - Create caTTY.GameMod project (placeholder)
@@ -55,7 +55,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Set LangVersion and TargetFramework defaults
   - Add repo-level .editorconfig for C# formatting consistency
   - Wire up project references to match desired dependency flow
-    - caTTY.TestApp → caTTY.Core
+    - caTTY.TestApp → caTTY.ImGui → caTTY.Core (TestApp uses BRUTAL ImGui)
     - caTTY.ImGui → caTTY.Core
     - caTTY.ImGui.Playground → (KSA DLLs only, no caTTY dependencies)
     - caTTY.GameMod → caTTY.ImGui → caTTY.Core
@@ -200,30 +200,33 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/node-pty/src/server.ts (for interface design only)
   - _Requirements: 27.1, 27.2, 27.3, 28.1, 28.2_
 
-- [ ] 1.10 Create console test application
-  - Implement Program.cs with terminal and process integration
-  - Add simple console output for terminal content display
-    - Render the full grid (rows x cols) each refresh (simple but clear)
-    - Ensure cursor position is visible in output (marker or highlight)
-  - Create input loop for sending keystrokes to shell
-    - Use non-line-buffered input (Console.ReadKey(intercept: true))
-    - Handle Ctrl+C without terminating the host process (optionally)
-  - Add basic commands to test shell interaction (ls, echo, etc.)
-  - Display raw terminal output in console
-    - Include a debug toggle to show raw bytes/escape sequences when needed
-  - _Requirements: 26.1, 26.2, 26.3, 26.4_
+- [ ] 1.10 Create standalone BRUTAL ImGui test application
+  - Create Program.cs with BRUTAL ImGui initialization and GLFW window setup
+  - Add KSA game DLL references (same as caTTY.ImGui and caTTY.GameMod)
+  - Initialize standalone ImGui context using BRUTAL ImGui framework
+  - Create main application loop with ImGui rendering
+  - Integrate terminal emulator and process manager
+  - Add ImGui terminal controller for display and input handling
+  - Use the same ImGui controller code that the game mod will use
+  - Add proper resource cleanup and disposal
+  - **Reference**: Use `KsaExampleMod/modone.csproj` for KSA DLL reference patterns
+  - **Reference**: Use existing ImGui playground experiments for ImGui setup patterns
+  - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5_
 
-- [ ] 1.11 Test and validate console application
-  - **USER VALIDATION REQUIRED**: Run test application and verify shell works
-  - Test basic shell commands (ls, dir, echo)
-  - Verify bidirectional data flow
-  - Confirm process cleanup on exit
+- [ ] 1.11 Test and validate BRUTAL ImGui test application
+  - **USER VALIDATION REQUIRED**: Run test application and verify GLFW window opens with ImGui terminal
+  - Test basic shell commands (ls, dir, echo) in the ImGui terminal window
+  - Verify bidirectional data flow between shell and ImGui display
+  - Test keyboard input handling through ImGui
+  - Test terminal rendering with colors and text styling
+  - Confirm process cleanup on application exit
+  - Validate that the same ImGui controller code works in standalone context
   - Document any issues found during testing
 
-- [ ] 1.12 Create minimal ImGui controller
+- [ ] 1.12 Create shared ImGui controller for both TestApp and GameMod
   - Create ITerminalController interface
-  - Create ImGuiTerminalController class (basic implementation)
-  - Add placeholder KSA game DLL references
+  - Create ImGuiTerminalController class (shared implementation for both TestApp and GameMod)
+  - Add KSA game DLL references to caTTY.ImGui project
   - Define the controller data flow boundaries
     - Subscribe to terminal updates and request redraw
     - Emit user input bytes/strings to ProcessManager
@@ -238,6 +241,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Only capture keyboard input when terminal window focused
   - Implement minimal scrollback viewing in UI (optional for MVP)
     - Render only viewport rows provided by terminal
+  - This controller will be used by both the standalone TestApp and the GameMod
   - TypeScript reference: catty-web/app/src/ts/terminal/TerminalController.ts
   - TypeScript reference: catty-web/app/src/components/terminal/Terminal.tsx
   - TypeScript reference: catty-web/app/src/components/terminal/TerminalPage.tsx
@@ -259,17 +263,19 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Reference**: Follow `KsaExampleMod/Class1.cs` and `KsaExampleMod/Patcher.cs` patterns for StarMap attribute-based implementation
   - _Requirements: 1.1, 1.4, 5.2_
 
-- [ ] 1.14 Test and validate game mod integration
+- [ ] 1.14 Test and validate both TestApp and GameMod integration
+  - **USER VALIDATION REQUIRED**: Test standalone BRUTAL ImGui TestApp works correctly
   - **USER VALIDATION REQUIRED**: Load mod in KSA game and verify it works
-  - Test ImGui window display in game
-  - Verify shell process works within game context
-  - Test basic terminal interaction in game
-  - Confirm mod unloads cleanly
-  - Document any game integration issues
+  - Verify both applications use the same ImGui controller and rendering code
+  - Test ImGui window display in both standalone app and game
+  - Verify shell process works in both contexts
+  - Test basic terminal interaction in both applications
+  - Confirm both applications dispose resources cleanly on exit
+  - Document any integration issues or differences between contexts
 
 - [ ] 1.15 Checkpoint - End-to-end MVP working
-  - Both console test app and game mod working with real shell
-  - User has validated both deployment targets work
+  - Both standalone BRUTAL ImGui TestApp and game mod working with real shell
+  - User has validated both deployment targets work with the same shared ImGui controller
   - Ready to add more terminal features
 
 - [ ] 2. Add basic escape sequence parsing and control characters

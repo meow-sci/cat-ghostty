@@ -332,15 +332,15 @@ This document specifies the requirements for a C# terminal emulator implementati
 
 ### Requirement 26
 
-**User Story:** As a developer, I want a standalone console application for testing, so that I can develop and debug the terminal without the game engine.
+**User Story:** As a developer, I want a standalone BRUTAL ImGui test application, so that I can develop and debug the terminal functionality using the same ImGui tech stack as the game mod without running the full game.
 
 #### Acceptance Criteria
 
-1. WHEN the test application starts THEN the Test Application SHALL initialize the headless terminal emulator
-2. WHEN the test application runs THEN the Test Application SHALL provide a simple console interface for terminal interaction
-3. WHEN the test application receives input THEN the Test Application SHALL send it to the terminal emulator
-4. WHEN the terminal emulator outputs data THEN the Test Application SHALL display it in the console
-5. WHEN the test application exits THEN the Test Application SHALL properly dispose of all terminal resources
+1. WHEN the test application starts THEN the Test Application SHALL initialize a standalone BRUTAL ImGui context with GLFW window
+2. WHEN the test application runs THEN the Test Application SHALL use the same BRUTAL ImGui DLLs and runtime as the game mod
+3. WHEN the test application displays the terminal THEN the Test Application SHALL use the same ImGui controller and rendering code as the game mod
+4. WHEN the test application receives input THEN the Test Application SHALL handle keyboard and mouse input through ImGui
+5. WHEN the test application exits THEN the Test Application SHALL properly dispose of all terminal and ImGui resources
 
 ### Requirement 27
 

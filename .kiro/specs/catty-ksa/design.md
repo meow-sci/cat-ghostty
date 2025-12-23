@@ -80,7 +80,7 @@ catty-ksa.sln
 ├── caTTY.ImGui.Playground/  # ImGui rendering experiments
 │   ├── Experiments/         # Proof-of-concept rendering tests
 │   └── Rendering/           # Experimental ImGui techniques
-├── caTTY.TestApp/           # Standalone console application
+├── caTTY.TestApp/           # Standalone BRUTAL ImGui test application
 ├── caTTY.GameMod/           # Game mod build target (DLL output)
 ├── caTTY.Core.Tests/        # Unit and property tests for Core
 └── caTTY.ImGui.Tests/       # Unit and property tests for ImGui

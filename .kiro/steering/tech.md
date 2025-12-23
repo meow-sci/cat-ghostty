@@ -20,7 +20,7 @@ catty-ksa.sln
 ├── caTTY.Core/           # Headless terminal logic (Class Library)
 ├── caTTY.ImGui/          # ImGui display controller (Class Library) 
 ├── caTTY.ImGui.Playground/ # ImGui rendering experiments (Console App)
-├── caTTY.TestApp/        # Standalone console test app
+├── caTTY.TestApp/        # Standalone BRUTAL ImGui test app (Console App with GLFW window)
 └── caTTY.GameMod/        # Game mod DLL output target
 ```
 

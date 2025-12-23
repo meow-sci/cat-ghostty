@@ -51,7 +51,7 @@
 - catty-ksa/caTTY.Core/Terminal/StatefulTerminal.cs: entrypoint for stateful terminal
 - catty-ksa/caTTY.ImGui/Controllers/TerminalController.cs: ImGui display controller
 - catty-ksa/caTTY.ImGui.Playground/Program.cs: ImGui rendering experiments entry point
-- catty-ksa/caTTY.TestApp/Program.cs: standalone test application entry point
+- catty-ksa/caTTY.TestApp/Program.cs: standalone BRUTAL ImGui test application entry point
 ```
 
 
@@ -93,6 +93,8 @@ caTTY.Core.Tests ─────────────────────
                                        
 caTTY.ImGui.Tests ──→ caTTY.ImGui
 ```
+
+**Note**: Both `caTTY.TestApp` and `caTTY.GameMod` use the same BRUTAL ImGui tech stack and share the same `caTTY.ImGui` controller code. The test app provides a standalone GLFW window for development and testing without requiring the full game.
 
 #### Game DLL Integration
 
