@@ -626,7 +626,28 @@ Tests/
 
 ### TypeScript Compatibility Testing
 
-A key aspect of the testing strategy is ensuring behavioral compatibility with the TypeScript implementation:
+A key aspect of the testing strategy is ensuring behavioral compatibility with the TypeScript implementation. The C# implementation must match or exceed the TypeScript test coverage, which includes 42 test files covering:
+
+**Parser Testing Coverage:**
+- Parser state integrity and consistency during mixed operations
+- CSI sequence parsing (cursor movement, screen clearing, scrolling)
+- SGR parsing (colors, styling, underline variants, enhanced modes)
+- OSC sequence parsing (window title, clipboard, hyperlinks)
+- DCS handling (device control strings and responses)
+- ESC sequences (save/restore cursor, character sets)
+
+**Terminal Behavior Coverage:**
+- Cursor operations (positioning, wrapping, visibility, application mode)
+- Screen buffer operations (initialization, resizing, cell integrity)
+- Scrollback management (buffer operations, viewport tracking)
+- Alternate screen (buffer switching, state isolation)
+- Character processing (UTF-8, wide characters, control characters)
+- Line operations (insertion, deletion, content preservation)
+
+**Advanced Feature Coverage:**
+- Tab stop controls, window manipulation, device queries
+- Color systems, selection operations, hyperlink support
+- Enhanced SGR modes, selective erase, character sets
 
 ```csharp
 [Property]
