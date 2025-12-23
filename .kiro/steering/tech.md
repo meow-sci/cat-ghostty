@@ -98,6 +98,20 @@ KsaExampleMod/
 - **Reference Documentation**: See `BRUTAL_IMGUI_NOTES.md` for complete font setup examples and code patterns
 - **Preferred Font**: HackNerdFontMono-Regular
 
+## BRUTAL ImGui Console Application Requirements
+
+**CRITICAL**: BRUTAL ImGui console applications must be run from their project directory as the working directory.
+
+- **Working Directory**: Must be the `.csproj` folder (e.g., `catty-ksa/caTTY.ImGui.Playground/`)
+- **Content Path**: The `Content/` folder must be relative to the current working directory
+- **Execution**: Run `dotnet run` from inside the project folder, not from solution root
+- **Example**: 
+  ```bash
+  cd catty-ksa/caTTY.ImGui.Playground/
+  dotnet run
+  ```
+- **Reason**: BRUTAL ImGui loads fonts and assets from `./Content/` relative to `Environment.CurrentDirectory`
+
 ## Memory Management
 
 - **Byte Handling**: Use `ReadOnlySpan<byte>` for terminal data processing
