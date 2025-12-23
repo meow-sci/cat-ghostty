@@ -47,6 +47,11 @@ public class TerminalController : ITerminalController
     public bool HasFocus => _hasFocus;
 
     /// <summary>
+    /// Event raised when user input should be sent to the process.
+    /// </summary>
+    public event EventHandler<DataInputEventArgs>? DataInput;
+
+    /// <summary>
     /// Creates a new terminal controller.
     /// </summary>
     /// <param name="terminal">The terminal emulator instance</param>
@@ -328,6 +333,10 @@ public class TerminalController : ITerminalController
             try
             {
                 _processManager.Write(text);
+                
+                // Also raise the DataInput event for external subscribers
+                var bytes = Encoding.UTF8.GetBytes(text);
+                DataInput?.Invoke(this, new DataInputEventArgs(text, bytes));
             }
             catch (Exception ex)
             {

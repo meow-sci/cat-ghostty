@@ -3,9 +3,8 @@ using System;
 namespace caTTY.ImGui.Controllers;
 
 /// <summary>
-/// Interface for terminal controllers that handle ImGui display and input.
-/// This interface defines the contract for terminal controllers that can be used
-/// by both the standalone test application and the game mod.
+/// Interface for a terminal controller that handles ImGui display and input.
+/// This controller bridges the headless terminal emulator with ImGui rendering.
 /// </summary>
 public interface ITerminalController : IDisposable
 {
@@ -20,15 +19,63 @@ public interface ITerminalController : IDisposable
     bool HasFocus { get; }
 
     /// <summary>
-    /// Renders the terminal window using ImGui.
-    /// This method should be called every frame when the terminal should be displayed.
+    /// Updates the controller state. Should be called each frame.
+    /// </summary>
+    /// <param name="deltaTime">Time elapsed since last update in seconds</param>
+    void Update(float deltaTime);
+
+    /// <summary>
+    /// Renders the terminal ImGui window and handles input.
+    /// Should be called during the ImGui render phase.
     /// </summary>
     void Render();
 
     /// <summary>
-    /// Updates the terminal controller state.
-    /// This method can be used for time-based updates if needed.
+    /// Event raised when user input should be sent to the process.
+    /// The string contains the encoded bytes/escape sequences to send.
     /// </summary>
-    /// <param name="deltaTime">Time elapsed since last update in seconds</param>
-    void Update(float deltaTime);
+    event EventHandler<DataInputEventArgs>? DataInput;
+}
+
+/// <summary>
+/// Event arguments for data input from the terminal controller.
+/// </summary>
+public class DataInputEventArgs : EventArgs
+{
+    /// <summary>
+    /// The input data as a string (may contain escape sequences).
+    /// </summary>
+    public string Data { get; }
+
+    /// <summary>
+    /// The input data as raw bytes.
+    /// </summary>
+    public byte[] Bytes { get; }
+
+    /// <summary>
+    /// Creates new data input event arguments.
+    /// </summary>
+    /// <param name="data">The input data as a string</param>
+    /// <param name="bytes">The input data as raw bytes</param>
+    public DataInputEventArgs(string data, byte[] bytes)
+    {
+        Data = data;
+        Bytes = bytes;
+    }
+
+    /// <summary>
+    /// Creates new data input event arguments from a string.
+    /// </summary>
+    /// <param name="data">The input data as a string</param>
+    public DataInputEventArgs(string data) : this(data, System.Text.Encoding.UTF8.GetBytes(data))
+    {
+    }
+
+    /// <summary>
+    /// Creates new data input event arguments from bytes.
+    /// </summary>
+    /// <param name="bytes">The input data as raw bytes</param>
+    public DataInputEventArgs(byte[] bytes) : this(System.Text.Encoding.UTF8.GetString(bytes), bytes)
+    {
+    }
 }
