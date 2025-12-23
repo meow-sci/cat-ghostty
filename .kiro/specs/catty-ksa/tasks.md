@@ -815,10 +815,28 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
 
 - [ ] 8. Add comprehensive testing and TypeScript compatibility
 - [ ] 8.1 Create comprehensive unit test suite
-  - Add unit tests for all core terminal components
+  - Add unit tests for all core terminal components matching TypeScript coverage
   - Create tests for ImGui controller integration
   - Add process management unit tests
   - Implement error condition and edge case tests
+  - **CRITICAL**: Match TypeScript test coverage with 42+ test files covering all parser types, terminal behaviors, and advanced features
+  - Add parser state integrity tests (matching Parser.state.property.test.ts)
+  - Add comprehensive CSI sequence tests (matching Parser.csi.test.ts)
+  - Add SGR parsing tests with color variants (matching Parser.sgr.test.ts)
+  - Add OSC sequence tests including hyperlinks (matching Parser.osc.property.test.ts)
+  - Add DCS handling tests (matching DcsHandling.test.ts)
+  - Add cursor positioning tests (matching CursorPositioning.test.ts)
+  - Add alternate screen tests (matching AlternateScreen.test.ts)
+  - Add scrollback tests (matching Scrollback.test.ts)
+  - Add tab stop control tests (matching TabStopControls.test.ts)
+  - Add device query tests (matching DeviceQuery.property.test.ts)
+  - Add window manipulation tests (matching WindowManipulation.test.ts)
+  - Add UTF-8 processing tests (matching Utf8Processing.property.test.ts)
+  - Add selection and text extraction tests
+  - Add character set handling tests
+  - Add enhanced SGR mode tests (matching EnhancedSgrMode.test.ts)
+  - Add selective erase tests (matching SelectiveErase.test.ts)
+  - Add insert/delete character tests (matching InsertDeleteChars.test.ts)
   - _Requirements: 30.1_
 
 - [ ] 8.2 Implement property-based test suite
@@ -826,6 +844,20 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add FsCheck.NUnit integration and configuration
   - Set up test generators for terminal data and sequences
   - Configure minimum 100 iterations per property test
+  - **CRITICAL**: Ensure broad coverage matching TypeScript property tests
+  - Add parser state integrity properties (matching StatefulTerminal.cursor.property.test.ts)
+  - Add cursor behavior properties with round-trip validation
+  - Add color consistency properties (matching SgrColorConsistency.property.test.ts)
+  - Add CSS generation determinism properties (matching CssGenerationDeterminism.property.test.ts)
+  - Add application cursor key properties (matching ApplicationCursorKeys.property.test.ts)
+  - Add theme color resolution properties (matching ThemeColorResolution.property.test.ts)
+  - Add Vi sequence properties (matching ViSequenceProperties.property.test.ts)
+  - Add device query response properties
+  - Add UTF-8 processing properties with wide character handling
+  - Add scrollback buffer properties with circular array validation
+  - Add alternate screen isolation properties
+  - Add terminal state consistency properties during error conditions
+  - Add memory allocation and performance properties
   - _Requirements: 30.2_
 
 - [ ] 8.3 Write remaining property tests for core functionality
@@ -848,6 +880,19 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Property 4: TypeScript compatibility for cursor operations**
   - **Property 5: TypeScript compatibility for scrollback behavior**
   - **Property 6: TypeScript compatibility for alternate screen**
+  - **CRITICAL**: Ensure behavioral compatibility with TypeScript reference implementation
+  - Add escape sequence parsing compatibility tests comparing C# and TypeScript results
+  - Add screen operation compatibility tests validating identical state transitions
+  - Add cursor operation compatibility tests ensuring identical positioning logic
+  - Add scrollback behavior compatibility tests matching TypeScript scrolling semantics
+  - Add alternate screen compatibility tests validating buffer switching behavior
+  - Add SGR parsing compatibility tests ensuring identical color and style handling
+  - Add OSC sequence compatibility tests matching TypeScript OSC processing
+  - Add control character compatibility tests validating identical responses
+  - Add terminal mode compatibility tests ensuring identical mode handling
+  - Add character set compatibility tests matching TypeScript charset behavior
+  - Add UTF-8 processing compatibility tests with wide character handling
+  - Add device query compatibility tests ensuring identical response generation
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
 - [ ] 8.5 Add integration tests for game mod functionality

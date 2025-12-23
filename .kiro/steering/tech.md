@@ -47,6 +47,92 @@ catty-ksa.sln
 - **Test Categories**: `[Category("Unit")]`, `[Category("Property")]`, `[Category("Integration")]`
 - **Headless Testing**: All core logic testable without ImGui dependencies
 
+### Comprehensive Test Coverage Requirements
+
+**CRITICAL**: The C# implementation MUST match or exceed the TypeScript test coverage. The TypeScript version has 42 test files covering:
+
+#### Core Parser Testing (Match TypeScript Coverage)
+- **Parser State Integrity**: Property-based tests for parser state consistency during mixed sequence operations
+- **CSI Sequence Parsing**: Complete coverage of cursor movement, screen clearing, scrolling, and mode sequences
+- **SGR Parsing**: Comprehensive color parsing (8-bit, 24-bit RGB), text styling, underline variants
+- **OSC Sequence Parsing**: Window title, clipboard, hyperlinks, and unknown sequence handling
+- **DCS Handling**: Device Control String parsing and response generation
+- **ESC Sequences**: Save/restore cursor, character set designation, and other non-CSI sequences
+
+#### Terminal Behavior Testing (Match TypeScript Coverage)
+- **Cursor Operations**: Position tracking, wrapping, visibility, application mode, save/restore
+- **Screen Buffer Operations**: Initialization, resizing, cell integrity, bounds checking
+- **Scrollback Management**: Buffer operations, viewport tracking, auto-scroll behavior
+- **Alternate Screen**: Buffer switching, state isolation, scrollback isolation
+- **Character Processing**: UTF-8 handling, wide characters, control characters
+- **Line Operations**: Insertion, deletion, character operations, content preservation
+
+#### Advanced Feature Testing (Match TypeScript Coverage)
+- **Tab Stop Controls**: Default stops, custom stops, clearing operations
+- **Window Manipulation**: Title changes, resize operations, query responses
+- **Device Queries**: Status reports, capability queries, response generation
+- **Color Systems**: Theme resolution, color consistency, enhanced SGR modes
+- **Selection Operations**: Text extraction, line handling, wide character support
+- **Hyperlink Support**: URL association, range tracking, state management
+
+#### Property-Based Testing Requirements
+- **Minimum 100 iterations** per property test (due to randomization)
+- **State Integrity Properties**: Parser state, terminal state, buffer consistency
+- **Round-Trip Properties**: Save/restore operations, serialization/parsing
+- **Compatibility Properties**: Behavior matching with TypeScript implementation
+- **Error Handling Properties**: Graceful handling of malformed input
+- **Performance Properties**: Memory allocation patterns, buffer efficiency
+
+#### Integration Testing Requirements
+- **End-to-End Workflows**: Complete terminal sessions with real shell processes
+- **ImGui Integration**: Rendering accuracy, input handling, focus management
+- **Game Engine Integration**: Resource management, lifecycle handling, error recovery
+- **Process Management**: Shell spawning, data flow, cleanup operations
+
+#### Test Organization Structure
+```
+caTTY.Core.Tests/
+├── Unit/
+│   ├── Parser/
+│   │   ├── CsiParserTests.cs
+│   │   ├── SgrParserTests.cs
+│   │   ├── OscParserTests.cs
+│   │   └── EscParserTests.cs
+│   ├── Terminal/
+│   │   ├── TerminalEmulatorTests.cs
+│   │   ├── ScreenBufferTests.cs
+│   │   ├── CursorTests.cs
+│   │   └── ScrollbackTests.cs
+│   └── Features/
+│       ├── AlternateScreenTests.cs
+│       ├── TabStopTests.cs
+│       └── CharacterSetTests.cs
+├── Property/
+│   ├── ParserStateProperties.cs
+│   ├── TerminalBehaviorProperties.cs
+│   ├── CompatibilityProperties.cs
+│   └── PerformanceProperties.cs
+└── Integration/
+    ├── EndToEndTests.cs
+    └── ProcessIntegrationTests.cs
+
+caTTY.ImGui.Tests/
+├── Unit/
+│   ├── TerminalControllerTests.cs
+│   ├── ImGuiRendererTests.cs
+│   └── InputHandlerTests.cs
+└── Integration/
+    ├── GameIntegrationTests.cs
+    └── ResourceManagementTests.cs
+```
+
+#### Test Coverage Metrics
+- **Parser Coverage**: All escape sequence types from TypeScript implementation
+- **Feature Coverage**: All terminal features with property-based validation
+- **Edge Case Coverage**: Malformed input, boundary conditions, error states
+- **Compatibility Coverage**: Behavior verification against TypeScript reference
+- **Performance Coverage**: Memory allocation, GC pressure, rendering performance
+
 ## Build Configuration
 
 ```xml
