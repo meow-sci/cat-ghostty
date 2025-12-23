@@ -200,7 +200,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/node-pty/src/server.ts (for interface design only)
   - _Requirements: 27.1, 27.2, 27.3, 28.1, 28.2_
 
-- [ ] 1.10 Create standalone BRUTAL ImGui test application
+- [x] 1.10 Create standalone BRUTAL ImGui test application
   - Create Program.cs with BRUTAL ImGui initialization and GLFW window setup
   - Add KSA game DLL references (same as caTTY.ImGui and caTTY.GameMod)
   - Initialize standalone ImGui context using BRUTAL ImGui framework

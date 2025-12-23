@@ -8,6 +8,7 @@
     <PackageId>caTTY.ImGui</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>meow sci</Company>
+    <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
   </PropertyGroup>
 
   <ItemGroup>
@@ -68,6 +69,10 @@
     </Reference>
     <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
       <HintPath>$(KSAFolder)/KSA.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Brutal.Core.Strings" Condition="Exists('$(KSAFolder)/Brutal.Core.Strings.dll')">
+      <HintPath>$(KSAFolder)/Brutal.Core.Strings.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Brutal.Render.Common" Condition="Exists('$(KSAFolder)/Brutal.Render.Common.dll')">
