@@ -296,6 +296,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Specify termination and abort rules
     - Abort control strings on CAN (0x18) / SUB (0x1a)
     - Handle OSC terminators BEL and ST (ESC \\)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/Parser.ts state machine logic and ensure C# implementation matches or improves upon the TypeScript behavior for state transitions and sequence detection
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParserOptions.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParserHandlers.ts
@@ -306,6 +307,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add UTF-8 buffer for partial sequences across Write calls
   - Handle UTF-8 validation and error recovery
   - Integrate UTF-8 decoding with character processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/Parser.ts UTF-8 handling and ensure C# implementation provides equivalent or better UTF-8 processing capabilities
   - _Requirements: 9.3, 9.4_
 
 - [ ] 2.4 Write property test for UTF-8 character handling
@@ -323,6 +325,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define defaulting rules
     - Empty params default to 0 or 1 depending on command
     - Treat trailing separators as an extra 0 param
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts parameter parsing logic and ensure C# implementation handles all parameter types and edge cases identically to the TypeScript version
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
@@ -331,6 +334,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add cursor forward (CSI C), backward (CSI D) sequences
   - Add cursor position (CSI H) sequence handling
   - Update cursor position with bounds checking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor movement handlers and ensure C# implementation provides identical cursor positioning behavior and bounds checking
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
 - [ ] 2.7 Write property test for cursor movement sequences
@@ -342,6 +346,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add erase in line (CSI K) sequence handling
   - Implement clearing logic for different erase modes (0, 1, 2)
   - Update screen buffer with cleared cells
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts erase operations and ensure C# implementation provides identical clearing behavior for all erase modes
   - _Requirements: 11.6, 11.7_
 
 - [ ] 2.9 Write property test for screen clearing operations
@@ -353,6 +358,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Update Write method to detect and parse escape sequences
   - Handle partial sequences across multiple Write calls
   - Test escape sequences with shell commands
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/StatefulTerminal.ts parser integration and ensure C# implementation handles partial sequences and parser state management identically
   - _Requirements: 11.1, 12.1, 13.1_
 
 - [ ] 2.11 Add essential ESC (non-CSI) sequences
@@ -362,6 +368,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement horizontal tab set at cursor (ESC H)
   - Implement reset to initial state (ESC c)
   - Add character set designation parsing (ESC ( X, ESC ) X, ESC * X, ESC + X)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/esc.ts ESC sequence handlers and ensure C# implementation provides identical behavior for all ESC sequences
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/esc.ts
   - _Requirements: 10.1, 10.2, 24.1, 24.2_
@@ -370,6 +377,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement cursor forward tab (CSI I) and cursor backward tab (CSI Z)
   - Implement tab clear (CSI g) for clear-at-cursor and clear-all
   - Integrate with tab stop tracking in terminal state
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/tabStops.ts and handlers/csi.ts tab operations to ensure C# implementation provides identical tab stop behavior
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/tabStops.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 10.4, 11.1_
@@ -379,6 +387,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement DSR queries (CSI 5 n and CSI 6 n) and emit appropriate responses
   - Implement terminal size query (CSI 18 t) and emit appropriate response
   - Ensure responses are routed back to the shell via process stdin
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts and handlers/csi.ts device query handling to ensure C# implementation generates identical response sequences
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 11.1, 11.2, 27.1, 27.2_
@@ -387,12 +396,14 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement selective erase in display/line (CSI ? J / CSI ? K)
   - Implement DECSCA character protection (CSI Ps " q)
   - Ensure protected cells are preserved by selective erase operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts selective erase implementation to ensure C# provides identical character protection behavior
   - _Requirements: 11.6, 11.7_
 
 - [ ] 2.15 Add DCS and control-string handling
   - Extend parser to recognize DCS (ESC P ... ST) and emit parsed DCS messages
   - Implement DECRQSS (DCS $ q ... ST) minimal support for common requests (SGR "m", scroll region "r")
   - Ensure SOS/PM/APC control strings are safely skipped until ST terminator
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/dcs.ts and Parser.ts DCS handling to ensure C# implementation provides identical DCS processing and response generation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/dcs.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
   - _Requirements: 11.1, 13.1_
@@ -415,6 +426,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Create SgrAttributes struct with all text styling properties
   - Add UnderlineStyle enum (none, single, double, curly, dotted, dashed)
   - Update Cell struct to include full SGR attributes
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts and related SGR type definitions to ensure C# data structures match TypeScript capabilities and attribute handling
   - _Requirements: 12.2, 12.3, 12.4, 12.5_
 
 - [ ] 3.2 Implement SGR parameter parsing (basic colors and styles)
@@ -422,6 +434,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add support for both semicolon and colon separators
   - Parse basic text styles (bold, italic, underline, strikethrough)
   - Handle standard 8-color foreground/background (30-37, 40-47)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts SGR parsing logic to ensure C# implementation handles all SGR parameter types and separator formats identically
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts
   - _Requirements: 12.1, 12.2, 12.4, 12.5_
 
@@ -430,6 +443,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add 24-bit RGB color parsing (38;2;r;g;b, 48;2;r;g;b)
   - Handle colon-separated color formats (38:2:r:g:b)
   - Add bright color support (90-97, 100-107)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts extended color parsing to ensure C# implementation supports all color formats and edge cases identically
   - _Requirements: 12.1, 12.4_
 
 - [ ] 3.4 Implement advanced SGR features
@@ -437,6 +451,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement underline style subparameters (4:n)
   - Handle enhanced SGR modes (CSI > 4 ; n m)
   - Add private SGR modes (CSI ? 4 m)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts advanced SGR features to ensure C# implementation supports all advanced SGR modes and underline variants identically
   - _Requirements: 12.1, 12.2_
 
 - [ ] 3.5 Create SGR state processor
@@ -444,6 +459,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement SGR message processing logic
   - Handle attribute reset and individual attribute clearing
   - Add inverse video processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts and SgrStyleManager.ts to ensure C# SGR state management provides identical attribute tracking and processing behavior
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStyleManager.ts
   - _Requirements: 12.2, 12.3_
@@ -453,6 +469,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Update terminal to track current SGR state
   - Apply attributes to characters written after SGR changes
   - Handle SGR reset (CSI 0 m) to restore defaults
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR integration to ensure C# implementation applies SGR attributes to characters identically
   - _Requirements: 12.1, 12.2, 12.3_
 
 - [ ] 3.7 Write property test for SGR parsing and application
@@ -471,6 +488,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Render underline styles conservatively (at least single underline)
   - Test with shell commands that produce colored output
   - Verify SGR attributes are applied correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts, TerminalTheme.ts, and DomStyleManager.ts to ensure C# ImGui rendering provides equivalent color resolution and style application
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/TerminalTheme.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/DomStyleManager.ts
@@ -496,6 +514,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define what a stored scrollback line contains
     - Preserve characters and attributes (not just chars)
     - Ensure line length always equals cols for simple rendering
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts to ensure C# scrollback buffer provides identical circular buffer behavior and line preservation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
   - _Requirements: 14.1, 14.2, 14.5_
 
@@ -504,6 +523,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Move scrolled content to scrollback buffer
   - Handle content preservation during scrolling
   - Add bounds checking for scroll operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts scrolling operations to ensure C# implementation provides identical scrolling behavior and content preservation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
   - _Requirements: 11.8, 11.9, 14.1_
 
@@ -512,6 +532,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add parameter parsing for scroll line counts
   - Integrate scrolling with screen buffer operations
   - Update screen content with scrolling operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll sequence handling to ensure C# implementation provides identical scroll sequence behavior
   - _Requirements: 11.8, 11.9_
 
 - [ ] 4.4 Write property test for scrollback buffer management
@@ -527,6 +548,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement set scroll region (CSI r) sequence
   - Restrict scrolling operations to defined scroll region
   - Handle cursor movement within and outside scroll regions
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll region implementation to ensure C# provides identical scroll region behavior and cursor interaction
   - _Requirements: Requirement 10 from original spec_
 
 - [ ] 4.7 Add viewport management for scrollback navigation
@@ -537,6 +559,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define auto-follow rules
     - If user scrolls up, disable auto-follow until they return to bottom
     - New output should not yank viewport while user is reviewing history
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts viewport management to ensure C# implementation provides identical auto-scroll and viewport behavior
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
   - _Requirements: 14.3, 14.4_
 
@@ -552,6 +575,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define resize policy (simple, MVP-friendly)
     - Height change: preserve top-to-bottom rows where possible
     - Width change: truncate/pad each row; do not attempt complex reflow
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts resize operations to ensure C# implementation provides equivalent content preservation during resize
   - _Requirements: 7.2, 21.5_
 
 - [ ] 4.10 Write property test for screen buffer resize preservation
@@ -563,6 +587,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add delete line (CSI M) sequence with scrolling behavior
   - Handle scroll region boundaries during line operations
   - Update cursor position appropriately after operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts line insertion/deletion to ensure C# implementation provides identical line operation behavior and content shifting
   - _Requirements: 22.1, 22.2_
 
 - [ ] 4.12 Add character insertion and deletion operations
@@ -570,6 +595,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add delete character (CSI P) sequence with content preservation
   - Handle character operations at line boundaries
   - Maintain SGR attributes during character operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts character insertion/deletion to ensure C# implementation provides identical character operation behavior and attribute preservation
   - _Requirements: 22.3, 22.4, 22.5_
 
 - [ ] 4.13 Write property test for line and character operations
@@ -593,6 +619,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement separate primary and alternate screen buffers
   - Add buffer switching methods (activate/deactivate)
   - Preserve cursor and attributes independently per buffer
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
   - _Requirements: 15.1, 15.2, 15.4_
 
@@ -601,6 +628,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Clear alternate buffer on activation
   - Handle buffer switching with proper state preservation
   - Maintain separate cursor positions per buffer
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
   - _Requirements: 15.3, 15.5_
 
 - [ ] 5.3 Add alternate screen control sequences
@@ -611,6 +639,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Ensure correct semantics for 47/1047/1049
     - 1047/1049 preserve/restore cursor as specified
     - 1049 clears alternate screen on entry
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts and handlers/csi.ts to ensure C# implementation provides identical alternate screen control sequence behavior
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 15.1, 15.2, 15.5_
@@ -632,6 +661,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add UTF-8 mode (DECSET/DECRST 2027) state tracking
   - Add cursor style tracking (DECSCUSR)
   - Add save/restore private modes (CSI ? s / CSI ? r) state tracking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts and cursor.ts mode management to ensure C# implementation provides identical terminal mode behavior and state tracking
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
   - _Requirements: 20.1, 20.2, 20.3, 20.4_
@@ -641,6 +671,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add line overflow handling based on auto-wrap mode
   - Update character writing to respect wrapping settings
   - Handle wide character wrapping correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
   - _Requirements: 8.3, 9.5, 20.1_
 
 - [ ] 5.8 Write property test for cursor wrapping behavior
@@ -655,6 +686,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define the exact DECSET/DECRST sequences
     - CSI ? 2004 h enable, CSI ? 2004 l disable
     - When enabled, wrap paste payload with ESC[200~ and ESC[201~
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
   - _Requirements: 20.5_
 
 - [ ] 5.10 Write property test for cursor visibility tracking
@@ -681,6 +713,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define robustness rules
     - Ignore/skip malformed OSC without breaking the stream
     - Cap maximum OSC payload length to prevent memory blowups
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts and Parser.ts OSC handling to ensure C# implementation provides identical OSC parsing behavior and robustness
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
   - _Requirements: 13.1_
@@ -690,6 +723,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Emit title change events with new title text
   - Add title state tracking in terminal
   - Handle empty titles and title reset
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts window title handling to ensure C# implementation provides identical title change behavior and event emission
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts
   - _Requirements: 13.2_
 
@@ -701,6 +735,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define safety limits
     - Cap decoded clipboard size
     - Ignore invalid base64 payloads gracefully
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts clipboard handling to ensure C# implementation provides identical clipboard sequence processing and safety limits
   - _Requirements: 13.4_
 
 - [ ] 6.4 Write property test for OSC parsing and event emission
@@ -715,6 +750,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define association model
     - Track current hyperlink URL as state and apply to subsequent written cells
     - Clear hyperlink state on OSC 8 ;; ST
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts hyperlink handling to ensure C# implementation provides identical URL association and character range tracking
   - _Requirements: 13.3_
 
 - [ ] 6.6 Write property test for OSC hyperlink association
@@ -725,6 +761,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement graceful handling of unknown OSC sequences
   - Log unknown sequences for debugging
   - Continue processing without errors
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts unknown sequence handling to ensure C# implementation provides identical graceful handling behavior
   - _Requirements: 13.5_
 
 - [ ] 6.8 Write property test for unknown OSC sequence handling
@@ -747,6 +784,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Ensure mapping is bypassed when UTF-8 mode is enabled
   - Create character set mapping tables
     - Unit-test a small representative subset of mappings
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts to ensure C# implementation provides identical character set designation, switching, and DEC Special Graphics mapping
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts
   - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5_
 
@@ -778,6 +816,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Shift behavior for navigation keys where applicable
   - Add keypad semantics (minimal)
     - Enter vs Return distinction if available
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts keyboard input handling to ensure C# ImGui implementation provides equivalent key encoding and modifier handling
   - TypeScript reference: catty-web/app/src/ts/terminal/TerminalController.ts
   - _Requirements: 16.2, 16.3, 16.4, 16.5_
 
@@ -790,6 +829,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
     - Normalize line endings (\n) and trim trailing spaces optionally
     - Respect wrapped lines vs explicit newlines (simple rule acceptable)
   - Integrate with game clipboard system
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts selection and copying logic to ensure C# ImGui implementation provides equivalent text extraction and selection behavior
   - _Requirements: 25.1, 25.2, 25.3, 25.4, 25.5_
 
 - [ ] 7.3 Enhance focus and window management
@@ -800,6 +840,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define input capture priority
     - When terminal is focused, suppress game hotkeys bound to typing
     - When terminal is unfocused/hidden, pass all input through to game
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts focus management to ensure C# ImGui implementation provides equivalent focus handling and input priority management
   - _Requirements: 18.2, 18.3, 18.4, 18.5_
 
 - [ ] 7.4 Test and validate input and selection
@@ -820,6 +861,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add process management unit tests
   - Implement error condition and edge case tests
   - **CRITICAL**: Match TypeScript test coverage with 42+ test files covering all parser types, terminal behaviors, and advanced features
+  - **Compare with TypeScript implementation**: Review all TypeScript test files in catty-web/packages/terminal-emulation/src/terminal/__tests__/ to ensure C# test suite provides equivalent or better coverage for all terminal functionality
   - Add parser state integrity tests (matching Parser.state.property.test.ts)
   - Add comprehensive CSI sequence tests (matching Parser.csi.test.ts)
   - Add SGR parsing tests with color variants (matching Parser.sgr.test.ts)
@@ -845,6 +887,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Set up test generators for terminal data and sequences
   - Configure minimum 100 iterations per property test
   - **CRITICAL**: Ensure broad coverage matching TypeScript property tests
+  - **Compare with TypeScript implementation**: Review all TypeScript property test files in catty-web/packages/terminal-emulation/src/terminal/__tests__/ to ensure C# property tests provide equivalent or better coverage for all correctness properties
   - Add parser state integrity properties (matching StatefulTerminal.cursor.property.test.ts)
   - Add cursor behavior properties with round-trip validation
   - Add color consistency properties (matching SgrColorConsistency.property.test.ts)
