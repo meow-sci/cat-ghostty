@@ -286,7 +286,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add event emission for bell character
   - _Requirements: 10.3, 10.4, 10.5, 19.1, 19.2_
 
-- [ ] 2.2 Create escape sequence parser state machine
+- [x] 2.2 Create escape sequence parser state machine
   - Create parser state enum (Ground, Escape, CsiEntry, CsiParam, etc.)
   - Implement basic state machine for escape sequence detection
   - Add escape sequence buffer for partial sequences
