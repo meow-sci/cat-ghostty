@@ -37,11 +37,12 @@ The project follows an MVC pattern:
 - TypeScript version
   - WebSocket backend that establishes a real pty and hooks it up to the display controller to shuffle the data
 - C# version
-  - **Development**: Standalone console application with direct process spawning
-  - **Game Integration**: Hook into game's existing process management or create separate pty process
-  - **Process Management**: Use `System.Diagnostics.Process` for shell spawning
-  - **Data Flow**: Direct byte stream processing (no WebSocket overhead)
-  - **Platform Support**: Windows-first with potential cross-platform expansion
+  - **Development**: Standalone console application with ConPTY process spawning
+  - **Game Integration**: Hook into game's existing process management or create separate ConPTY process
+  - **Process Management**: **Windows ConPTY (Pseudoconsole) exclusively** - Uses Microsoft's ConPTY APIs for true PTY functionality
+  - **PTY Implementation**: `CreatePseudoConsole`, `ResizePseudoConsole`, pipe-based I/O following Microsoft's official documentation
+  - **Data Flow**: Direct ConPTY pipe processing (no WebSocket overhead)
+  - **Platform Support**: **Windows 10 1809+ only** - ConPTY is the exclusive PTY backend, no fallback to process redirection
 
 ## Game Mod Integration
 

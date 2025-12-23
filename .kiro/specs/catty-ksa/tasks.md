@@ -4,6 +4,8 @@
 
 This implementation plan creates a C# terminal emulator for the KSA game engine through incremental development. The plan prioritizes getting a minimal working MVP with real shell process integration as quickly as possible to validate the entire technology stack end-to-end. Each major task number represents a working program milestone that can be validated by the user.
 
+**CRITICAL PLATFORM REQUIREMENT**: This implementation uses **Windows ConPTY (Pseudoconsole) exclusively** for PTY functionality. The target platform is **Windows 10 version 1809+ only**. No cross-platform support or fallback to basic process redirection is provided. ConPTY provides true terminal emulation following Microsoft's official documentation.
+
 Based on fresh analysis of the TypeScript implementation complexity, the most complex areas have been identified and broken down appropriately:
 
 **High Complexity Areas (requiring granular breakdown):**
@@ -156,33 +158,46 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
   - _Requirements: 8.1, 8.2, 12.3_
 
-- [x] 1.9 Implement process management
+- [x] 1.9 Implement process management using Windows ConPTY
+  - **CRITICAL**: Use Windows ConPTY (Pseudoconsole) exclusively - no fallback to System.Diagnostics.Process redirection
+  - **Platform Requirement**: Windows 10 version 1809+ only - throw PlatformNotSupportedException on other platforms
   - Create IProcessManager interface
-  - Create ProcessManager class using System.Diagnostics.Process
+  - Create ProcessManager class using Windows ConPTY APIs
+    - Add P/Invoke declarations for CreatePseudoConsole, ResizePseudoConsole, ClosePseudoConsole
+    - Add P/Invoke declarations for CreatePipe, ReadFile, WriteFile, process creation APIs
+    - Implement proper ConPTY handle and pipe resource management
   - Define a ProcessLaunchOptions model
     - Shell selection (pwsh/powershell/cmd) and arguments
-    - Working directory, env vars, initial cols/rows (if supported)
-  - Add shell spawning (PowerShell for Windows)
-    - Use redirected stdin/stdout/stderr
-    - Disable shell execute, create no window (for game mod)
-  - Implement stdout/stderr read loops
-    - Non-blocking/async reads
+    - Working directory, env vars, initial cols/rows for ConPTY creation
+  - Add shell spawning using ConPTY
+    - Create pseudoconsole with CreatePseudoConsole API
+    - Use PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE for process creation
+    - Implement pipe-based I/O (not stream redirection)
+  - Implement ConPTY output read loops
+    - Use ReadFile on ConPTY output pipe
+    - Non-blocking/async reads with proper Win32 error handling
     - Forward output bytes to terminal Write(ReadOnlySpan<byte>)
-  - Implement stdin write path for user input
-    - Send encoded bytes to process stdin
-    - Flush behavior and backpressure handling
-  - Support terminal-generated responses (query replies) back to process stdin
+  - Implement ConPTY input write path for user input
+    - Use WriteFile to ConPTY input pipe
+    - Send encoded bytes directly to ConPTY
+    - Proper error handling for broken pipes
+  - Support terminal-generated responses (query replies) back to ConPTY input
     - Add OnTerminalResponse event/callback hook
     - Ensure response writes do not interleave incorrectly with user input
-  - Add process lifecycle management
-    - Start/Stop/Dispose semantics
+  - Add ConPTY process lifecycle management
+    - Start/Stop/Dispose semantics with proper ConPTY cleanup
     - Detect exit, capture exit code, raise ProcessExited event
     - Cancellation tokens for read loops
-  - Add error handling surface
-    - Report start failures (file not found, access denied)
+  - Add ConPTY-specific error handling
+    - Create ConPtyException with Win32 error codes
+    - Report ConPTY creation failures, pipe errors, process start failures
     - Handle broken pipe / exited process during writes
-  - TypeScript reference: catty-web/node-pty/src/BackendServer.ts
-  - TypeScript reference: catty-web/node-pty/src/server.ts
+  - Implement true terminal resizing
+    - Use ResizePseudoConsole API for dynamic terminal size changes
+    - Proper terminal dimension reporting to child processes
+  - **Reference**: Follow Microsoft's ConPTY documentation exactly: https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
+  - TypeScript reference: catty-web/node-pty/src/BackendServer.ts (for interface design only)
+  - TypeScript reference: catty-web/node-pty/src/server.ts (for interface design only)
   - _Requirements: 27.1, 27.2, 27.3, 28.1, 28.2_
 
 - [ ] 1.10 Create console test application

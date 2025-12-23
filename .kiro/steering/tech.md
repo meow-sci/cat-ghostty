@@ -112,7 +112,26 @@ KsaExampleMod/
   ```
 - **Reason**: BRUTAL ImGui loads fonts and assets from `./Content/` relative to `Environment.CurrentDirectory`
 
-## Memory Management
+## Windows ConPTY (Pseudoconsole) Requirements
+
+**CRITICAL**: The C# version uses Windows ConPTY exclusively for PTY functionality. No fallback to basic process redirection.
+
+- **Platform Support**: **Windows 10 version 1809+ only** - ConPTY is required, no cross-platform support
+- **PTY Implementation**: Uses Microsoft's official ConPTY APIs following their documentation exactly
+- **Core APIs**: `CreatePseudoConsole`, `ResizePseudoConsole`, `ClosePseudoConsole`
+- **Communication**: Pipe-based I/O using `CreatePipe`, `ReadFile`, `WriteFile` (not stream redirection)
+- **Process Creation**: Uses `PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE` for proper PTY attachment
+- **Error Handling**: `ConPtyException` with Win32 error codes for ConPTY-specific failures
+- **Resource Management**: Proper cleanup of ConPTY handles and pipes following Microsoft's lifecycle guidelines
+- **Testing**: Platform-aware tests that detect ConPTY availability and skip appropriately on unsupported systems
+
+### ConPTY Benefits Over Process Redirection
+- **True terminal emulation**: Child processes see a real terminal environment
+- **Proper terminal size reporting**: Applications can query dimensions correctly via console APIs
+- **Better TUI compatibility**: Works with complex terminal applications that require PTY features
+- **Signal handling**: Ctrl+C and other terminal signals work properly
+- **Terminal control sequences**: Full support for escape sequences and terminal modes
+- **Resizing support**: Dynamic terminal resizing via `ResizePseudoConsole`
 
 - **Byte Handling**: Use `ReadOnlySpan<byte>` for terminal data processing
 - **String Processing**: Minimize allocations with `Span<char>` operations  
