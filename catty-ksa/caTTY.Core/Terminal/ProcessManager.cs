@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,17 +9,122 @@ using System.Threading.Tasks;
 namespace caTTY.Core.Terminal;
 
 /// <summary>
-/// Manages shell processes and provides bidirectional data flow.
-/// Uses System.Diagnostics.Process for cross-platform shell spawning.
+/// Manages shell processes using Windows Pseudoconsole (ConPTY) for true PTY functionality.
+/// Follows Microsoft's recommended approach from:
+/// https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
 /// </summary>
 public class ProcessManager : IProcessManager
 {
+    // Windows ConPTY P/Invoke declarations
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags, out IntPtr phPC);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern int ResizePseudoConsole(IntPtr hPC, COORD size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern void ClosePseudoConsole(IntPtr hPC);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CreatePipe(out IntPtr hReadPipe, out IntPtr hWritePipe, IntPtr lpPipeAttributes, uint nSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool InitializeProcThreadAttributeList(IntPtr lpAttributeList, int dwAttributeCount, int dwFlags, ref IntPtr lpSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool UpdateProcThreadAttribute(IntPtr lpAttributeList, uint dwFlags, IntPtr Attribute, IntPtr lpValue, IntPtr cbSize, IntPtr lpPreviousValue, IntPtr lpReturnSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool DeleteProcThreadAttributeList(IntPtr lpAttributeList);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool CreateProcessW(
+        string? lpApplicationName,
+        string lpCommandLine,
+        IntPtr lpProcessAttributes,
+        IntPtr lpThreadAttributes,
+        bool bInheritHandles,
+        uint dwCreationFlags,
+        IntPtr lpEnvironment,
+        string? lpCurrentDirectory,
+        ref STARTUPINFOEX lpStartupInfo,
+        out PROCESS_INFORMATION lpProcessInformation);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool ReadFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToRead, out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool WriteFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToWrite, out uint lpNumberOfBytesWritten, IntPtr lpOverlapped);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct COORD
+    {
+        public short X;
+        public short Y;
+
+        public COORD(short x, short y)
+        {
+            X = x;
+            Y = y;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct STARTUPINFOEX
+    {
+        public STARTUPINFO StartupInfo;
+        public IntPtr lpAttributeList;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct STARTUPINFO
+    {
+        public int cb;
+        public string lpReserved;
+        public string lpDesktop;
+        public string lpTitle;
+        public int dwX;
+        public int dwY;
+        public int dwXSize;
+        public int dwYSize;
+        public int dwXCountChars;
+        public int dwYCountChars;
+        public int dwFillAttribute;
+        public int dwFlags;
+        public short wShowWindow;
+        public short cbReserved2;
+        public IntPtr lpReserved2;
+        public IntPtr hStdInput;
+        public IntPtr hStdOutput;
+        public IntPtr hStdError;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PROCESS_INFORMATION
+    {
+        public IntPtr hProcess;
+        public IntPtr hThread;
+        public int dwProcessId;
+        public int dwThreadId;
+    }
+
+    private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+    private const IntPtr PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = (IntPtr)0x00020016;
+
+    private IntPtr _pseudoConsole = IntPtr.Zero;
+    private IntPtr _inputWriteHandle = IntPtr.Zero;
+    private IntPtr _outputReadHandle = IntPtr.Zero;
+    private IntPtr _inputReadHandle = IntPtr.Zero;
+    private IntPtr _outputWriteHandle = IntPtr.Zero;
     private Process? _process;
     private readonly object _processLock = new();
     private CancellationTokenSource? _readCancellationSource;
-    private Task? _stdoutReadTask;
-    private Task? _stderrReadTask;
+    private Task? _outputReadTask;
     private bool _disposed;
+    private COORD _currentSize;
 
     /// <summary>
     /// Gets whether a shell process is currently running.
@@ -89,16 +195,22 @@ public class ProcessManager : IProcessManager
     public event EventHandler<ProcessErrorEventArgs>? ProcessError;
 
     /// <summary>
-    /// Starts a new shell process with the specified options.
+    /// Starts a new shell process with the specified options using Windows ConPTY.
     /// </summary>
     /// <param name="options">Launch options for the shell process</param>
     /// <param name="cancellationToken">Cancellation token for the operation</param>
     /// <returns>A task that completes when the process has started</returns>
     /// <exception cref="InvalidOperationException">Thrown if a process is already running</exception>
     /// <exception cref="ProcessStartException">Thrown if the process fails to start</exception>
+    /// <exception cref="PlatformNotSupportedException">Thrown on non-Windows platforms</exception>
     public async Task StartAsync(ProcessLaunchOptions options, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("ConPTY is only supported on Windows 10 version 1809 and later");
+        }
 
         lock (_processLock)
         {
@@ -110,55 +222,104 @@ public class ProcessManager : IProcessManager
 
         try
         {
-            var (shellPath, shellArgs) = ResolveShellCommand(options);
+            // Store terminal size
+            _currentSize = new COORD((short)options.InitialWidth, (short)options.InitialHeight);
+
+            // Create communication pipes
+            if (!CreatePipe(out _inputReadHandle, out _inputWriteHandle, IntPtr.Zero, 0))
+            {
+                throw new ProcessStartException($"Failed to create input pipe: {Marshal.GetLastWin32Error()}");
+            }
+
+            if (!CreatePipe(out _outputReadHandle, out _outputWriteHandle, IntPtr.Zero, 0))
+            {
+                CleanupHandles();
+                throw new ProcessStartException($"Failed to create output pipe: {Marshal.GetLastWin32Error()}");
+            }
+
+            // Create pseudoconsole
+            var result = CreatePseudoConsole(_currentSize, _inputReadHandle, _outputWriteHandle, 0, out _pseudoConsole);
+            if (result != 0)
+            {
+                CleanupHandles();
+                throw new ProcessStartException($"Failed to create pseudoconsole: {result}");
+            }
+
+            // Close the handles that were passed to the pseudoconsole (as per Microsoft docs)
+            CloseHandle(_inputReadHandle);
+            CloseHandle(_outputWriteHandle);
+            _inputReadHandle = IntPtr.Zero;
+            _outputWriteHandle = IntPtr.Zero;
+
+            // Prepare startup information
+            var startupInfo = new STARTUPINFOEX();
+            startupInfo.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
+
+            // Initialize process thread attribute list
+            IntPtr attributeListSize = IntPtr.Zero;
+            InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
             
-            var processStartInfo = new ProcessStartInfo
+            startupInfo.lpAttributeList = Marshal.AllocHGlobal(attributeListSize);
+            if (!InitializeProcThreadAttributeList(startupInfo.lpAttributeList, 1, 0, ref attributeListSize))
             {
-                FileName = shellPath,
-                Arguments = shellArgs?.Length > 0 ? string.Join(" ", shellArgs) : string.Empty,
-                WorkingDirectory = options.WorkingDirectory ?? Environment.CurrentDirectory,
-                UseShellExecute = options.UseShellExecute,
-                CreateNoWindow = !options.CreateWindow,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardInputEncoding = Encoding.UTF8,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
-
-            // Set environment variables
-            foreach (var kvp in options.EnvironmentVariables)
-            {
-                processStartInfo.Environment[kvp.Key] = kvp.Value;
+                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+                CleanupPseudoConsole();
+                throw new ProcessStartException($"Failed to initialize attribute list: {Marshal.GetLastWin32Error()}");
             }
 
-            // Set terminal dimensions if supported (Windows only for now)
-            if (OperatingSystem.IsWindows())
+            // Set pseudoconsole attribute
+            if (!UpdateProcThreadAttribute(
+                startupInfo.lpAttributeList,
+                0,
+                PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                _pseudoConsole,
+                (IntPtr)IntPtr.Size,
+                IntPtr.Zero,
+                IntPtr.Zero))
             {
-                processStartInfo.Environment["COLUMNS"] = options.InitialWidth.ToString();
-                processStartInfo.Environment["LINES"] = options.InitialHeight.ToString();
+                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+                CleanupPseudoConsole();
+                throw new ProcessStartException($"Failed to set pseudoconsole attribute: {Marshal.GetLastWin32Error()}");
             }
 
-            var process = new Process { StartInfo = processStartInfo };
+            // Resolve shell command
+            var (shellPath, shellArgs) = ResolveShellCommand(options);
+            var commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
 
-            // Set up process exit handling
+            // Create the process
+            var processInfo = new PROCESS_INFORMATION();
+            if (!CreateProcessW(
+                null,
+                commandLine,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                false,
+                EXTENDED_STARTUPINFO_PRESENT,
+                IntPtr.Zero,
+                options.WorkingDirectory ?? Environment.CurrentDirectory,
+                ref startupInfo,
+                out processInfo))
+            {
+                var error = Marshal.GetLastWin32Error();
+                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+                CleanupPseudoConsole();
+                throw new ProcessStartException($"Failed to create process: {error}");
+            }
+
+            // Clean up startup info
+            DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+            Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+
+            // Wrap the process handle in a Process object for lifecycle management
+            var process = Process.GetProcessById(processInfo.dwProcessId);
             process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
 
-            // Start the process
-            if (!process.Start())
-            {
-                throw new ProcessStartException($"Failed to start shell process: {shellPath}", shellPath);
-            }
-
-            // Validate that the process started correctly
-            if (process.StandardOutput == null || process.StandardError == null || process.StandardInput == null)
-            {
-                process.Kill();
-                process.Dispose();
-                throw new ProcessStartException($"Process streams not available for shell: {shellPath}", shellPath);
-            }
+            // Close process and thread handles (we have the Process object now)
+            CloseHandle(processInfo.hProcess);
+            CloseHandle(processInfo.hThread);
 
             lock (_processLock)
             {
@@ -166,15 +327,14 @@ public class ProcessManager : IProcessManager
                 _readCancellationSource = new CancellationTokenSource();
             }
 
-            // Start reading stdout and stderr asynchronously
+            // Start reading output
             var readToken = _readCancellationSource.Token;
-            _stdoutReadTask = ReadStreamAsync(process.StandardOutput.BaseStream, false, readToken);
-            _stderrReadTask = ReadStreamAsync(process.StandardError.BaseStream, true, readToken);
+            _outputReadTask = ReadOutputAsync(readToken);
 
             // Wait a short time to ensure the process started successfully
             await Task.Delay(100, cancellationToken);
 
-            // Check if process exited immediately (but handle the case where it's already disposed)
+            // Check if process exited immediately
             try
             {
                 if (process.HasExited)
@@ -186,8 +346,7 @@ public class ProcessManager : IProcessManager
             }
             catch (InvalidOperationException)
             {
-                // Process has already exited and been disposed - this is actually normal for short-lived commands
-                // We'll let the process exit event handler deal with cleanup
+                // Process has already exited and been disposed - let the exit handler deal with cleanup
             }
         }
         catch (Exception ex) when (!(ex is ProcessStartException))
@@ -198,7 +357,7 @@ public class ProcessManager : IProcessManager
     }
 
     /// <summary>
-    /// Stops the currently running shell process.
+    /// Stops the currently running shell process and cleans up ConPTY resources.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation</param>
     /// <returns>A task that completes when the process has stopped</returns>
@@ -230,28 +389,13 @@ public class ProcessManager : IProcessManager
             {
                 try
                 {
-                    // Send Ctrl+C to the process (Windows)
-                    if (OperatingSystem.IsWindows())
+                    // For ConPTY processes, we can try CloseMainWindow first, then Kill if needed
+                    processToStop.CloseMainWindow();
+                    
+                    // Wait a short time for graceful shutdown
+                    if (!processToStop.WaitForExit(2000))
                     {
-                        // For Windows, we'll use CloseMainWindow first, then Kill if needed
-                        processToStop.CloseMainWindow();
-                        
-                        // Wait a short time for graceful shutdown
-                        if (!processToStop.WaitForExit(2000))
-                        {
-                            processToStop.Kill(entireProcessTree: true);
-                        }
-                    }
-                    else
-                    {
-                        // For Unix-like systems, send SIGTERM first
-                        processToStop.Kill(entireProcessTree: false);
-                        
-                        // Wait for graceful shutdown
-                        if (!processToStop.WaitForExit(2000))
-                        {
-                            processToStop.Kill(entireProcessTree: true);
-                        }
+                        processToStop.Kill(entireProcessTree: true);
                     }
                 }
                 catch (InvalidOperationException)
@@ -260,24 +404,12 @@ public class ProcessManager : IProcessManager
                 }
             }
 
-            // Wait for read tasks to complete
-            if (_stdoutReadTask != null)
+            // Wait for read task to complete
+            if (_outputReadTask != null)
             {
                 try
                 {
-                    await _stdoutReadTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected when cancellation is requested
-                }
-            }
-
-            if (_stderrReadTask != null)
-            {
-                try
-                {
-                    await _stderrReadTask;
+                    await _outputReadTask;
                 }
                 catch (OperationCanceledException)
                 {
@@ -292,7 +424,7 @@ public class ProcessManager : IProcessManager
     }
 
     /// <summary>
-    /// Writes data to the shell process stdin.
+    /// Writes data to the shell process stdin via ConPTY.
     /// </summary>
     /// <param name="data">The data to write</param>
     /// <exception cref="InvalidOperationException">Thrown if no process is running</exception>
@@ -312,16 +444,27 @@ public class ProcessManager : IProcessManager
             throw new InvalidOperationException("No process is currently running");
         }
 
+        if (_inputWriteHandle == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Input handle is not available");
+        }
+
         try
         {
-            // Write data to stdin
-            currentProcess.StandardInput.BaseStream.Write(data);
-            currentProcess.StandardInput.BaseStream.Flush();
+            var buffer = data.ToArray();
+            if (!WriteFile(_inputWriteHandle, buffer, (uint)buffer.Length, out var bytesWritten, IntPtr.Zero))
+            {
+                var error = Marshal.GetLastWin32Error();
+                var processId = currentProcess.Id;
+                var writeException = new ProcessWriteException($"Failed to write to ConPTY input: Win32 error {error}", processId);
+                OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
+                throw writeException;
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!(ex is ProcessWriteException))
         {
             var processId = currentProcess.Id;
-            var writeException = new ProcessWriteException($"Failed to write to process stdin: {ex.Message}", ex, processId);
+            var writeException = new ProcessWriteException($"Failed to write to ConPTY input: {ex.Message}", ex, processId);
             OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
             throw writeException;
         }
@@ -343,16 +486,21 @@ public class ProcessManager : IProcessManager
     }
 
     /// <summary>
-    /// Resizes the shell process terminal dimensions.
-    /// Note: This is a no-op for now as System.Diagnostics.Process doesn't support PTY resizing.
-    /// Future implementations may use platform-specific APIs.
+    /// Resizes the pseudoconsole terminal dimensions.
+    /// Uses Windows ConPTY ResizePseudoConsole API for proper terminal resizing.
     /// </summary>
     /// <param name="width">New width in columns</param>
     /// <param name="height">New height in rows</param>
     /// <exception cref="InvalidOperationException">Thrown if no process is running</exception>
+    /// <exception cref="PlatformNotSupportedException">Thrown on non-Windows platforms</exception>
     public void Resize(int width, int height)
     {
         ThrowIfDisposed();
+
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("ConPTY resizing is only supported on Windows");
+        }
 
         Process? currentProcess;
         lock (_processLock)
@@ -365,25 +513,31 @@ public class ProcessManager : IProcessManager
             throw new InvalidOperationException("No process is currently running");
         }
 
-        // Note: System.Diagnostics.Process doesn't support PTY resizing directly.
-        // This would require platform-specific implementations using:
-        // - Windows: SetConsoleScreenBufferSize, SetConsoleWindowInfo
-        // - Unix: ioctl with TIOCSWINSZ
-        // For now, this is a no-op, but the interface is defined for future implementation.
+        if (_pseudoConsole == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Pseudoconsole is not available");
+        }
+
+        var newSize = new COORD((short)width, (short)height);
+        var result = ResizePseudoConsole(_pseudoConsole, newSize);
         
-        // We could potentially send SIGWINCH on Unix systems, but that requires
-        // more complex process group management that System.Diagnostics.Process doesn't provide.
+        if (result != 0)
+        {
+            throw new InvalidOperationException($"Failed to resize pseudoconsole: Win32 error {result}");
+        }
+
+        _currentSize = newSize;
     }
 
     /// <summary>
     /// Resolves the shell command and arguments based on the launch options.
     /// </summary>
     /// <param name="options">The launch options</param>
-    /// <returns>A tuple of shell path and arguments</returns>
+    /// <returns>A tuple of shell path and arguments string</returns>
     /// <exception cref="ProcessStartException">Thrown if the shell cannot be resolved</exception>
-    private static (string shellPath, string[] arguments) ResolveShellCommand(ProcessLaunchOptions options)
+    private static (string shellPath, string arguments) ResolveShellCommand(ProcessLaunchOptions options)
     {
-        return options.ShellType switch
+        var (shellPath, argsArray) = options.ShellType switch
         {
             ShellType.Auto => ResolveAutoShell(options),
             ShellType.PowerShell => ResolvePowerShell(options),
@@ -392,6 +546,9 @@ public class ProcessManager : IProcessManager
             ShellType.Custom => ResolveCustomShell(options),
             _ => throw new ProcessStartException($"Unsupported shell type: {options.ShellType}")
         };
+
+        var arguments = argsArray?.Length > 0 ? string.Join(" ", argsArray) : string.Empty;
+        return (shellPath, arguments);
     }
 
     /// <summary>
@@ -545,34 +702,51 @@ public class ProcessManager : IProcessManager
     }
 
     /// <summary>
-    /// Reads data from a stream asynchronously and raises DataReceived events.
+    /// Reads data from the ConPTY output pipe asynchronously and raises DataReceived events.
     /// </summary>
-    /// <param name="stream">The stream to read from</param>
-    /// <param name="isError">Whether this is stderr (true) or stdout (false)</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    private async Task ReadStreamAsync(Stream stream, bool isError, CancellationToken cancellationToken)
+    private async Task ReadOutputAsync(CancellationToken cancellationToken)
     {
         const int bufferSize = 4096;
         var buffer = new byte[bufferSize];
 
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested && _outputReadHandle != IntPtr.Zero)
             {
-                var bytesRead = await stream.ReadAsync(buffer, 0, bufferSize, cancellationToken);
-                
-                if (bytesRead == 0)
+                if (ReadFile(_outputReadHandle, buffer, bufferSize, out var bytesRead, IntPtr.Zero))
                 {
-                    // End of stream
+                    if (bytesRead == 0)
+                    {
+                        // End of stream
+                        break;
+                    }
+
+                    // Create a copy of the data to avoid buffer reuse issues
+                    var data = new byte[bytesRead];
+                    Array.Copy(buffer, 0, data, 0, (int)bytesRead);
+
+                    // Raise the DataReceived event (ConPTY output is never "error" stream)
+                    OnDataReceived(new DataReceivedEventArgs(data, false));
+                }
+                else
+                {
+                    var error = Marshal.GetLastWin32Error();
+                    if (error == 109) // ERROR_BROKEN_PIPE
+                    {
+                        // Process has exited
+                        break;
+                    }
+                    
+                    OnProcessError(new ProcessErrorEventArgs(
+                        new InvalidOperationException($"ReadFile failed with error {error}"),
+                        $"Error reading from ConPTY output: Win32 error {error}",
+                        ProcessId));
                     break;
                 }
 
-                // Create a copy of the data to avoid buffer reuse issues
-                var data = new byte[bytesRead];
-                Array.Copy(buffer, 0, data, 0, bytesRead);
-
-                // Raise the DataReceived event
-                OnDataReceived(new DataReceivedEventArgs(data, isError));
+                // Small delay to prevent tight loop
+                await Task.Delay(1, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -581,7 +755,7 @@ public class ProcessManager : IProcessManager
         }
         catch (Exception ex)
         {
-            OnProcessError(new ProcessErrorEventArgs(ex, $"Error reading from {(isError ? "stderr" : "stdout")}: {ex.Message}", ProcessId));
+            OnProcessError(new ProcessErrorEventArgs(ex, $"Error reading from ConPTY output: {ex.Message}", ProcessId));
         }
     }
 
@@ -620,7 +794,7 @@ public class ProcessManager : IProcessManager
     }
 
     /// <summary>
-    /// Cleans up process resources.
+    /// Cleans up process resources including ConPTY handles.
     /// </summary>
     private void CleanupProcess()
     {
@@ -637,8 +811,53 @@ public class ProcessManager : IProcessManager
                 _process = null;
             }
 
-            _stdoutReadTask = null;
-            _stderrReadTask = null;
+            _outputReadTask = null;
+
+            CleanupPseudoConsole();
+        }
+    }
+
+    /// <summary>
+    /// Cleans up ConPTY-specific resources.
+    /// </summary>
+    private void CleanupPseudoConsole()
+    {
+        if (_pseudoConsole != IntPtr.Zero)
+        {
+            ClosePseudoConsole(_pseudoConsole);
+            _pseudoConsole = IntPtr.Zero;
+        }
+
+        CleanupHandles();
+    }
+
+    /// <summary>
+    /// Cleans up pipe handles.
+    /// </summary>
+    private void CleanupHandles()
+    {
+        if (_inputWriteHandle != IntPtr.Zero)
+        {
+            CloseHandle(_inputWriteHandle);
+            _inputWriteHandle = IntPtr.Zero;
+        }
+
+        if (_outputReadHandle != IntPtr.Zero)
+        {
+            CloseHandle(_outputReadHandle);
+            _outputReadHandle = IntPtr.Zero;
+        }
+
+        if (_inputReadHandle != IntPtr.Zero)
+        {
+            CloseHandle(_inputReadHandle);
+            _inputReadHandle = IntPtr.Zero;
+        }
+
+        if (_outputWriteHandle != IntPtr.Zero)
+        {
+            CloseHandle(_outputWriteHandle);
+            _outputWriteHandle = IntPtr.Zero;
         }
     }
 
