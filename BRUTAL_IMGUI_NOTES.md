@@ -33,7 +33,7 @@ private static void MaybePopFont(bool wasUsed)
 }
 ```
 
-# Preferred Font
+## Preferred Font
 
 `HackNerdFontMono-Regular.ttf` file with name `HackNerdFontMono-Regular` in code
 
