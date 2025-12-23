@@ -209,7 +209,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add ImGui terminal controller for display and input handling
   - Use the same ImGui controller code that the game mod will use
   - Add proper resource cleanup and disposal
-  - **Reference**: Use `KsaExampleMod/modone.csproj` for KSA DLL reference patterns
+  - **Reference**: Use `catty-ksa/caTTY.ImGui.Playground/caTTY.ImGui.Playground.csproj` for KSA DLL reference patterns and how to setup the project code to run the Glfw window, Vulkan and BRUTAL ImGui code
   - **Reference**: Use existing ImGui playground experiments for ImGui setup patterns
   - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5_
 
