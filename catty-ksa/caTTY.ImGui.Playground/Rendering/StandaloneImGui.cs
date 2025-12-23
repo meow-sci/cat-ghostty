@@ -46,7 +46,7 @@ public static class StandaloneImGui
     window = Glfw.CreateWindow(new()
     {
       Title = "ImGui Test",
-      Size = new int2(1200, 800),
+      Size = new int2(2000, 1200),
     });
 
     renderer = new Renderer(window, VkFormat.D32SFloat, VkPresentModeKHR.FifoKHR, VulkanHelpers.Api.VERSION_1_3);
@@ -62,16 +62,20 @@ public static class StandaloneImGui
     };
 
     ImGui.CreateContext();
+
     var io = ImGui.GetIO();
     io.ConfigDpiScaleFonts = true;
     io.ConfigDpiScaleViewports = true;
     io.ConfigFlags |= ImGuiConfigFlags.ViewportsEnable;
+    io.IniFilename = null;
+    io.IniSavingRate = 0;
 
     ImGuiBackend.Initialize(window, renderer);
 
     // This requires the working directory to be set to the KSA install (or the cwd having a Content folder with at least one ttf)
     KSA.Program.ConsoleWindow = new(); // required so fontmanager doesn't throw
     FontManager.Initialize(renderer.Device);
+    Console.WriteLine("after fonts");
   }
 
   private static void OnFrame()

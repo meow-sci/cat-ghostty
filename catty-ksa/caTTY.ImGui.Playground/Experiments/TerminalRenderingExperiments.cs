@@ -5,6 +5,7 @@ using System.Numerics;
 using Brutal.ImGuiApi;
 using Brutal.Numerics;
 using caTTY.Playground.Rendering;
+using KSA;
 using ImGui = Brutal.ImGuiApi.ImGui;
 using float2 = Brutal.Numerics.float2;
 using float4 = Brutal.Numerics.float4;
@@ -21,7 +22,7 @@ public static class TerminalRenderingExperiments
     private static int _selectedExperiment = 0;
     private static readonly string[] _experimentNames = [
         "Character Grid Basic",
-        "Fixed-Width Font Test", 
+        "Fixed-Width Font Test",
         "Color Experiments",
         "Grid Alignment Test",
         "Performance Comparison"
@@ -51,7 +52,7 @@ public static class TerminalRenderingExperiments
     private static DateTime _lastFrameTime = DateTime.Now;
 
     // Font metrics
-    private static float _fontSize = 16.0f;
+    private static float _fontSize = 32.0f;
     private static float _charWidth = 0.0f;
     private static float _lineHeight = 0.0f;
 
@@ -67,7 +68,9 @@ public static class TerminalRenderingExperiments
     {
         try
         {
+
             StandaloneImGui.Run(DrawExperiments);
+
         }
         catch (Exception ex)
         {
@@ -137,8 +140,29 @@ public static class TerminalRenderingExperiments
         }
     }
 
+    private static void PushHackFont(out bool fontUsed, float? size = null)
+    {
+        if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr fontPtr))
+        {
+            ImGui.PushFont(fontPtr, size ?? _fontSize);
+            fontUsed = true;
+            return;
+        }
+
+        fontUsed = false;
+    }
+
+    private static void MaybePopFont(bool wasUsed)
+    {
+        if (wasUsed) {
+            ImGui.PopFont();
+        }
+    }
+
     private static void DrawExperiments()
     {
+        PushHackFont(out bool fontUsed);
+
         // Track frame time for performance analysis
         var currentTime = DateTime.Now;
         var frameTime = (float)(currentTime - _lastFrameTime).TotalMilliseconds;
@@ -179,6 +203,8 @@ public static class TerminalRenderingExperiments
                 DrawPerformanceComparison();
                 break;
         }
+
+        MaybePopFont(fontUsed);
 
         ImGui.End();
     }
@@ -286,7 +312,7 @@ public static class TerminalRenderingExperiments
         var combinations = new (float4 fg, float4 bg)[]
         {
             (_colorPalette[1], new float4(0, 0, 0, 1)), // Red on Black
-            (_colorPalette[2], new float4(0, 0, 0, 1)), // Green on Black  
+            (_colorPalette[2], new float4(0, 0, 0, 1)), // Green on Black
             (_colorPalette[3], _colorPalette[0]),        // Blue on White
             (_colorPalette[4], _colorPalette[3])         // Yellow on Blue
         };
@@ -319,7 +345,7 @@ public static class TerminalRenderingExperiments
 
         // Draw grid lines for alignment verification
         var gridColor = ImGui.ColorConvertFloat4ToU32(new float4(0.3f, 0.3f, 0.3f, 1.0f));
-        
+
         // Vertical lines
         for (int col = 0; col <= 20; col++)
         {
@@ -392,13 +418,15 @@ public static class TerminalRenderingExperiments
         }
 
         ImGui.Separator();
-        ImGui.Text("Full Terminal Rendering Test (80x24):");
-        
+        ImGui.Text("Terminal Rendering Test (80x24):");
+
         // Render a small version of the full terminal for performance testing
         var drawList = ImGui.GetWindowDrawList();
         var windowPos = ImGui.GetCursorScreenPos();
         var smallCharWidth = _charWidth * 0.5f;
         var smallLineHeight = _lineHeight * 0.5f;
+
+        PushHackFont(out bool fontUsed, _fontSize * 0.5f);
 
         for (int row = 0; row < TerminalHeight; row++)
         {
@@ -425,6 +453,8 @@ public static class TerminalRenderingExperiments
                 }
             }
         }
+
+        MaybePopFont(fontUsed);
 
         ImGui.Dummy(new float2(TerminalWidth * smallCharWidth, TerminalHeight * smallLineHeight));
     }
