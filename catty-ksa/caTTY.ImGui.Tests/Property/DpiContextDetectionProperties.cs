@@ -89,9 +89,9 @@ public class DpiContextDetectionProperties
             var config = TerminalRenderingConfig.CreateForGameMod(dpiScale);
 
             // Standard metrics (what TestApp uses)
-            const float standardFontSize = 16.0f;
-            const float standardCharWidth = 9.6f;
-            const float standardLineHeight = 18.0f;
+            const float standardFontSize = 32.0f;
+            const float standardCharWidth = 19.2f;
+            const float standardLineHeight = 36.0f;
 
             // Calculate expected compensated values
             var expectedFontSize = standardFontSize / dpiScale;
@@ -147,9 +147,9 @@ public class DpiContextDetectionProperties
         {
             var config = TerminalRenderingConfig.CreateForTestApp();
 
-            var fontSizeStandard = Math.Abs(config.FontSize - 16.0f) < 0.001f;
-            var charWidthStandard = Math.Abs(config.CharacterWidth - 9.6f) < 0.001f;
-            var lineHeightStandard = Math.Abs(config.LineHeight - 18.0f) < 0.001f;
+            var fontSizeStandard = Math.Abs(config.FontSize - 32.0f) < 0.001f;
+            var charWidthStandard = Math.Abs(config.CharacterWidth - 19.2f) < 0.001f;
+            var lineHeightStandard = Math.Abs(config.LineHeight - 36.0f) < 0.001f;
             var noAutoDetect = !config.AutoDetectDpiScaling;
             var scalingFactorOne = Math.Abs(config.DpiScalingFactor - 1.0f) < 0.001f;
 
@@ -186,9 +186,9 @@ public class DpiContextDetectionProperties
                                     config.DpiScalingFactor > 0;
 
                 // In test environment, we expect either TestApp or GameMod-style fallback config
-                var configReasonable = (config.FontSize >= 8.0f && config.FontSize <= 16.0f) &&
-                                     (config.CharacterWidth >= 4.8f && config.CharacterWidth <= 9.6f) &&
-                                     (config.LineHeight >= 9.0f && config.LineHeight <= 18.0f);
+                var configReasonable = (config.FontSize >= 8.0f && config.FontSize <= 32.0f) &&
+                                     (config.CharacterWidth >= 4.8f && config.CharacterWidth <= 19.2f) &&
+                                     (config.LineHeight >= 9.0f && config.LineHeight <= 36.0f);
 
                 return metricsPositive && configReasonable;
             }
@@ -279,9 +279,9 @@ public class DpiContextDetectionProperties
     /// </summary>
     private static bool ValidateTestAppMetrics(TerminalRenderingConfig config)
     {
-        return Math.Abs(config.FontSize - 16.0f) < 0.001f &&
-               Math.Abs(config.CharacterWidth - 9.6f) < 0.001f &&
-               Math.Abs(config.LineHeight - 18.0f) < 0.001f &&
+        return Math.Abs(config.FontSize - 32.0f) < 0.001f &&
+               Math.Abs(config.CharacterWidth - 19.2f) < 0.001f &&
+               Math.Abs(config.LineHeight - 36.0f) < 0.001f &&
                Math.Abs(config.DpiScalingFactor - 1.0f) < 0.001f;
     }
 
@@ -290,9 +290,9 @@ public class DpiContextDetectionProperties
     /// </summary>
     private static bool ValidateGameModMetrics(TerminalRenderingConfig config, float dpiScale)
     {
-        var expectedFontSize = 16.0f / dpiScale;
-        var expectedCharWidth = 9.6f / dpiScale;
-        var expectedLineHeight = 18.0f / dpiScale;
+        var expectedFontSize = 32.0f / dpiScale;
+        var expectedCharWidth = 19.2f / dpiScale;
+        var expectedLineHeight = 36.0f / dpiScale;
 
         return Math.Abs(config.FontSize - expectedFontSize) < 0.001f &&
                Math.Abs(config.CharacterWidth - expectedCharWidth) < 0.001f &&

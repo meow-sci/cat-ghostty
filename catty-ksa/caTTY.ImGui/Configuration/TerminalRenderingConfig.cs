@@ -13,19 +13,19 @@ public class TerminalRenderingConfig
     /// Gets or sets the font size in points for terminal text rendering.
     /// Default value is 16.0f.
     /// </summary>
-    public float FontSize { get; set; } = 16.0f;
+    public float FontSize { get; set; } = 32.0f;
 
     /// <summary>
     /// Gets or sets the character width in pixels for monospace character spacing.
     /// Default value is 9.6f (typical monospace approximation).
     /// </summary>
-    public float CharacterWidth { get; set; } = 9.6f;
+    public float CharacterWidth { get; set; } = 19.2f;
 
     /// <summary>
     /// Gets or sets the line height in pixels for vertical character spacing.
     /// Default value is 18.0f.
     /// </summary>
-    public float LineHeight { get; set; } = 18.0f;
+    public float LineHeight { get; set; } = 36.0f;
 
     /// <summary>
     /// Gets or sets whether to automatically detect DPI scaling from the execution context.
@@ -50,9 +50,9 @@ public class TerminalRenderingConfig
     {
         return new TerminalRenderingConfig
         {
-            FontSize = 16.0f,
-            CharacterWidth = 9.6f,
-            LineHeight = 18.0f,
+            FontSize = 32.0f,
+            CharacterWidth = 19.2f,
+            LineHeight = 36.0f,
             AutoDetectDpiScaling = false,
             DpiScalingFactor = 1.0f
         };
@@ -65,16 +65,16 @@ public class TerminalRenderingConfig
     /// <param name="dpiScale">The DPI scaling factor to compensate for (typically 2.0f for 200% scaling).</param>
     /// <returns>A TerminalRenderingConfig configured for GameMod usage with DPI compensation.</returns>
     /// <exception cref="ArgumentException">Thrown when dpiScale is less than or equal to 0.</exception>
-    public static TerminalRenderingConfig CreateForGameMod(float dpiScale = 2.0f)
+    public static TerminalRenderingConfig CreateForGameMod(float dpiScale = 1.0f)
     {
         if (dpiScale <= 0)
             throw new ArgumentException("DPI scale factor must be greater than 0", nameof(dpiScale));
 
         return new TerminalRenderingConfig
         {
-            FontSize = 16.0f / dpiScale,
-            CharacterWidth = 9.6f / dpiScale,
-            LineHeight = 18.0f / dpiScale,
+            FontSize = 32.0f / dpiScale,
+            CharacterWidth = 19.2f / dpiScale,
+            LineHeight = 36.0f / dpiScale,
             AutoDetectDpiScaling = false,
             DpiScalingFactor = dpiScale
         };
@@ -89,9 +89,9 @@ public class TerminalRenderingConfig
     {
         return new TerminalRenderingConfig
         {
-            FontSize = 16.0f,
-            CharacterWidth = 9.6f,
-            LineHeight = 18.0f,
+            FontSize = 32.0f,
+            CharacterWidth = 19.2f,
+            LineHeight = 36.0f,
             AutoDetectDpiScaling = true,
             DpiScalingFactor = 1.0f
         };
@@ -104,10 +104,10 @@ public class TerminalRenderingConfig
     /// <exception cref="ArgumentException">Thrown when any metric is outside acceptable bounds.</exception>
     public void Validate()
     {
-        if (FontSize <= 0 || FontSize > 72)
-            throw new ArgumentException($"FontSize must be between 0 and 72, but was {FontSize}", nameof(FontSize));
+        if (FontSize <= 0 || FontSize > 128)
+            throw new ArgumentException($"FontSize must be between 0 and 128, but was {FontSize}", nameof(FontSize));
 
-        if (CharacterWidth <= 0 || CharacterWidth > 50)
+        if (CharacterWidth <= 0 || CharacterWidth > 100)
             throw new ArgumentException($"CharacterWidth must be between 0 and 50, but was {CharacterWidth}", nameof(CharacterWidth));
 
         if (LineHeight <= 0 || LineHeight > 100)

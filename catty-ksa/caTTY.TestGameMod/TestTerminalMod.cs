@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 using Brutal.ImGuiApi;
-using StarMap.API;
+using Brutal.Numerics;
 using KSA;
+using StarMap.API;
 
 namespace caTTY.GameMod;
 
@@ -29,6 +25,8 @@ public class TerminalMod
   /// </summary>
   public bool ImmediateUnload => false;
 
+  private Boolean _showUi = false;
+
   /// <summary>
   /// Called after the GUI is rendered.
   /// </summary>
@@ -45,7 +43,17 @@ public class TerminalMod
       // Handle terminal toggle keybind (F12)
       if (Brutal.ImGuiApi.ImGui.IsKeyPressed(ImGuiKey.F12))
       {
+        _showUi = !_showUi;
+      }
 
+      if (_showUi)
+      {
+        PushHackFont(out bool fontUsed, 40.0f);
+        ImGui.SetNextWindowSize(new float2(400, 400), ImGuiCond.FirstUseEver);
+        ImGui.Begin("TestCaTTY Win");
+        ImGui.Text("Test text");
+        ImGui.End();
+        MaybePopFont(fontUsed);
       }
 
     }
@@ -168,36 +176,31 @@ public class TerminalMod
 
           if (fontFiles.Length > 0)
           {
-            unsafe
+
+            var io = ImGui.GetIO();
+            var atlas = io.Fonts;
+
+            for (int i = 0; i < fontFiles.Length; i++)
             {
-              ImGuiIO* io = Brutal.ImGuiApi.ImGui.GetIO();
-              if (io != null)
+              string fontPath = fontFiles[i];
+              string fontName = Path.GetFileNameWithoutExtension(fontPath);
+
+              Console.WriteLine($"TestCaTTY GameMod: Loading font: {fontPath}");
+
+
+              if (File.Exists(fontPath))
               {
-                ImFontAtlasPtr atlas = io->Fonts;
+                // Use a reasonable default font size (14pt)
+                float fontSize = 14.0f;
+                ImString fontPathStr = new ImString(fontPath);
+                ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
+                _loadedFonts[fontName] = font;
 
-                for (int i = 0; i < fontFiles.Length; i++)
-                {
-                  string fontPath = fontFiles[i];
-                  string fontName = Path.GetFileNameWithoutExtension(fontPath);
-
-                  Console.WriteLine($"TestCaTTY GameMod: Loading font: {fontPath}");
-
-
-                  if (File.Exists(fontPath))
-                  {
-                    // Use a reasonable default font size (14pt)
-                    float fontSize = 14.0f;
-                    ImString fontPathStr = new ImString(fontPath);
-                    ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
-                    _loadedFonts[fontName] = font;
-
-                    Console.WriteLine($"TestCaTTY GameMod: Loaded font '{fontName}' from {fontPath}");
-                  }
-                }
-
-                Console.WriteLine($"TestCaTTY GameMod: Loaded {_loadedFonts.Count} fonts - {string.Join(", ", _loadedFonts.Keys)}");
+                Console.WriteLine($"TestCaTTY GameMod: Loaded font '{fontName}' from {fontPath}");
               }
             }
+
+            Console.WriteLine($"TestCaTTY GameMod: Loaded {_loadedFonts.Count} fonts - {string.Join(", ", _loadedFonts.Keys)}");
           }
           else
           {
@@ -217,6 +220,25 @@ public class TerminalMod
       Console.WriteLine($"TestCaTTY GameMod: Error loading fonts: {ex.Message}");
     }
   }
+
+  private static void PushHackFont(out bool fontUsed, float size)
+{
+  if (FontManager.Fonts.TryGetValue("HackNerdFontMono-BoldItalic", out ImFontPtr fontPtr))
+  {
+    ImGui.PushFont(fontPtr, size);
+    fontUsed = true;
+    return;
+  }
+
+  fontUsed = false;
+}
+
+private static void MaybePopFont(bool wasUsed)
+{
+  if (wasUsed) {
+    ImGui.PopFont();
+  }
+}
 
   /// <summary>
   /// Gets a loaded font by name, or null if not found.

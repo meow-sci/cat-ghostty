@@ -116,15 +116,15 @@ public class TerminalControllerConfigurationProperties
                 var gameModConfig = TerminalRenderingConfig.CreateForGameMod(dpiScale);
 
                 // Verify TestApp uses standard metrics
-                var testAppStandard = Math.Abs(testAppConfig.FontSize - 16.0f) < 0.001f &&
-                                    Math.Abs(testAppConfig.CharacterWidth - 9.6f) < 0.001f &&
-                                    Math.Abs(testAppConfig.LineHeight - 18.0f) < 0.001f &&
+                var testAppStandard = Math.Abs(testAppConfig.FontSize - 32.0f) < 0.001f &&
+                                    Math.Abs(testAppConfig.CharacterWidth - 19.2f) < 0.001f &&
+                                    Math.Abs(testAppConfig.LineHeight - 36.0f) < 0.001f &&
                                     Math.Abs(testAppConfig.DpiScalingFactor - 1.0f) < 0.001f;
 
                 // Verify GameMod uses compensated metrics
-                var expectedFontSize = 16.0f / dpiScale;
-                var expectedCharWidth = 9.6f / dpiScale;
-                var expectedLineHeight = 18.0f / dpiScale;
+                var expectedFontSize = 32.0f / dpiScale;
+                var expectedCharWidth = 19.2f / dpiScale;
+                var expectedLineHeight = 36.0f / dpiScale;
 
                 var gameModCompensated = Math.Abs(gameModConfig.FontSize - expectedFontSize) < 0.001f &&
                                        Math.Abs(gameModConfig.CharacterWidth - expectedCharWidth) < 0.001f &&
@@ -153,15 +153,15 @@ public class TerminalControllerConfigurationProperties
     public FsCheck.Property ConfigurationValidation_ShouldEnforceValidBounds()
     {
         // Generate configurations that may be invalid
-        var fontSizeGen = Gen.Choose(-10, 100).Select(x => (float)x);
-        var charWidthGen = Gen.Choose(-5, 60).Select(x => x / 10.0f);
+        var fontSizeGen = Gen.Choose(-10, 129).Select(x => (float)x);
+        var charWidthGen = Gen.Choose(-5, 101).Select(x => x / 10.0f);
         var lineHeightGen = Gen.Choose(-10, 120).Select(x => (float)x);
         var dpiScaleGen = Gen.Choose(-2, 5).Select(x => (float)x);
 
         var configGen = Gen.Fresh(() =>
         {
-            var fontSize = Gen.Choose(-10, 100).Select(x => (float)x).Sample(0, 1).First();
-            var charWidth = Gen.Choose(-5, 60).Select(x => x / 10.0f).Sample(0, 1).First();
+            var fontSize = Gen.Choose(-10, 129).Select(x => (float)x).Sample(0, 1).First();
+            var charWidth = Gen.Choose(-5, 101).Select(x => x / 10.0f).Sample(0, 1).First();
             var lineHeight = Gen.Choose(-10, 120).Select(x => (float)x).Sample(0, 1).First();
             var dpiScale = Gen.Choose(-2, 5).Select(x => (float)x).Sample(0, 1).First();
 
@@ -180,8 +180,8 @@ public class TerminalControllerConfigurationProperties
             try
             {
                 // Determine if configuration should be valid
-                var shouldBeValid = config.FontSize > 0 && config.FontSize <= 72 &&
-                                  config.CharacterWidth > 0 && config.CharacterWidth <= 50 &&
+                var shouldBeValid = config.FontSize > 0 && config.FontSize <= 129 &&
+                                  config.CharacterWidth > 0 && config.CharacterWidth <= 100 &&
                                   config.LineHeight > 0 && config.LineHeight <= 100 &&
                                   config.DpiScalingFactor > 0;
 
@@ -476,8 +476,8 @@ public class TerminalControllerConfigurationProperties
         // Generate configurations that may be invalid for runtime updates
         var configGen = Gen.Fresh(() =>
         {
-            var fontSize = Gen.Choose(-10, 100).Select(x => (float)x).Sample(0, 1).First();
-            var charWidth = Gen.Choose(-5, 60).Select(x => x / 10.0f).Sample(0, 1).First();
+            var fontSize = Gen.Choose(-10, 129).Select(x => (float)x).Sample(0, 1).First();
+            var charWidth = Gen.Choose(-5, 101).Select(x => x / 10.0f).Sample(0, 1).First();
             var lineHeight = Gen.Choose(-10, 120).Select(x => (float)x).Sample(0, 1).First();
             var dpiScale = Gen.Choose(-2, 5).Select(x => (float)x).Sample(0, 1).First();
 
@@ -496,8 +496,8 @@ public class TerminalControllerConfigurationProperties
             try
             {
                 // Determine if configuration should be valid for runtime updates
-                var shouldBeValid = config.FontSize > 0 && config.FontSize <= 72 &&
-                                  config.CharacterWidth > 0 && config.CharacterWidth <= 50 &&
+                var shouldBeValid = config.FontSize > 0 && config.FontSize <= 128 &&
+                                  config.CharacterWidth > 0 && config.CharacterWidth <= 100 &&
                                   config.LineHeight > 0 && config.LineHeight <= 100 &&
                                   config.DpiScalingFactor > 0;
 
