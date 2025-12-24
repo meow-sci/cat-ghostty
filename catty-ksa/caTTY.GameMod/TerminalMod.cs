@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Brutal.ImGuiApi;
 using StarMap.API;
@@ -22,6 +25,10 @@ public class TerminalMod
     private bool _isInitialized = false;
     private bool _isDisposed = false;
     private bool _terminalVisible = false;
+    
+    // Font loading
+    private static Dictionary<string, ImFontPtr> _loadedFonts = new Dictionary<string, ImFontPtr>();
+    private static bool _fontsLoaded = false;
 
     /// <summary>
     /// Gets a value indicating whether the mod should be unloaded immediately.
@@ -57,6 +64,7 @@ public class TerminalMod
         catch (Exception ex)
         {
             Console.WriteLine($"caTTY GameMod OnAfterUi error: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
             // Don't let exceptions crash the game
         }
     }
@@ -129,6 +137,9 @@ public class TerminalMod
 
         try
         {
+            // Load fonts first
+            LoadFonts();
+
             // Create terminal emulator (80x24 is a standard terminal size)
             _terminal = new TerminalEmulator(80, 24);
 
@@ -235,6 +246,88 @@ public class TerminalMod
     {
         // The controller already sends data to the process manager,
         // but we could add additional processing here if needed
+    }
+
+    /// <summary>
+    /// Loads fonts explicitly for the game mod.
+    /// Based on BRUTAL ImGui font loading pattern for game mods.
+    /// </summary>
+    private static void LoadFonts()
+    {
+        if (_fontsLoaded)
+            return;
+
+        try
+        {
+            // Get the directory where the mod DLL is located
+            string? dllDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            
+            if (!string.IsNullOrEmpty(dllDir))
+            {
+                string fontsDir = Path.Combine(dllDir, "Fonts");
+                
+                if (Directory.Exists(fontsDir))
+                {
+                    // Get all .ttf and .otf files from Fonts folder
+                    var ttfFiles = Directory.GetFiles(fontsDir, "*.ttf");
+                    var otfFiles = Directory.GetFiles(fontsDir, "*.otf");
+                    var fontFiles = ttfFiles.Concat(otfFiles).ToArray();
+                    
+                    if (fontFiles.Length > 0)
+                    {
+                        unsafe
+                        {
+                            ImGuiIO* io = Brutal.ImGuiApi.ImGui.GetIO();
+                            if (io != null)
+                            {
+                                ImFontAtlasPtr atlas = io->Fonts;
+                                
+                                for (int i = 0; i < fontFiles.Length; i++)
+                                {
+                                    string fontPath = fontFiles[i];
+                                    string fontName = Path.GetFileNameWithoutExtension(fontPath);
+                                    
+                                    if (File.Exists(fontPath))
+                                    {
+                                        // Use a reasonable default font size (14pt)
+                                        float fontSize = 14.0f;
+                                        ImString fontPathStr = new ImString(fontPath);
+                                        ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
+                                        _loadedFonts[fontName] = font;
+                                        
+                                        Console.WriteLine($"caTTY GameMod: Loaded font '{fontName}' from {fontPath}");
+                                    }
+                                }
+                                
+                                Console.WriteLine($"caTTY GameMod: Loaded {_loadedFonts.Count} fonts - {string.Join(", ", _loadedFonts.Keys)}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("caTTY GameMod: No font files found in Fonts folder");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"caTTY GameMod: Fonts directory not found at: {fontsDir}");
+                }
+            }
+            
+            _fontsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"caTTY GameMod: Error loading fonts: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Gets a loaded font by name, or null if not found.
+    /// </summary>
+    public static ImFontPtr? GetFont(string fontName)
+    {
+        return _loadedFonts.TryGetValue(fontName, out ImFontPtr font) ? font : null;
     }
 
     /// <summary>

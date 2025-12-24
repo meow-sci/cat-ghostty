@@ -12,6 +12,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ModNamespace>caTTY</ModNamespace>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     
     <!-- Build output + test output dirs -->
     <DistDir>$(ProjectDir)dist\</DistDir>
@@ -23,8 +24,18 @@
     <Copy SourceFiles="$(TargetDir)mod.toml" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetDir)mod.toml')" />
     <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFolder="$(DistDir)" Condition="Exists('$(ProjectDepsFilePath)')" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetPath)')" />
+    <Copy SourceFiles="$(TargetDir)caTTY.pdb" DestinationFolder="$(DistDir)" />
     <Copy SourceFiles="$(TargetDir)caTTY.Core.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.Core.pdb" DestinationFolder="$(DistDir)" />
     <Copy SourceFiles="$(TargetDir)caTTY.ImGui.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.ImGui.pdb" DestinationFolder="$(DistDir)" />
+    
+    <!-- Copy Fonts folder to the build dir-->
+    <ItemGroup>
+      <FontFiles Include="$(TargetDir)Fonts\**\*" />
+    </ItemGroup>
+    <MakeDir Directories="$(DistDir)Fonts" />
+    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)Fonts\%(RecursiveDir)" />
   </Target>
 
   <ItemGroup>
@@ -65,6 +76,9 @@
     <!-- Copies mod.toml to the output dir -->
     <None Update="mod.toml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
