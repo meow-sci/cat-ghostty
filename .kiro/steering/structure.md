@@ -27,10 +27,12 @@
 ```
 - catty-ksa/: .NET solution root
   - catty-ksa/caTTY.Core/: headless terminal logic (Class Library)
-    - Terminal/: core terminal emulation (Parser, StatefulTerminal)
+    - Terminal/: core terminal emulation (TerminalEmulator, TerminalState)
+    - Parsing/: escape sequence parsers (Parser, CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder)
     - Input/: keyboard input encoding
     - Types/: shared data structures and enums
     - Utils/: utility functions and helpers
+    - Managers/: state management components (ScreenBufferManager, CursorManager, ScrollbackManager, AlternateScreenManager, ModeManager, AttributeManager)
   - catty-ksa/caTTY.ImGui/: ImGui display controller (Class Library)
     - Controllers/: TerminalController for ImGui integration
     - Rendering/: ImGui-specific rendering logic
@@ -47,8 +49,13 @@
 #### Key Locations
 
 ```
-- catty-ksa/caTTY.Core/Terminal/Parser.cs: entrypoint for terminal emulation parsing
-- catty-ksa/caTTY.Core/Terminal/StatefulTerminal.cs: entrypoint for stateful terminal
+- catty-ksa/caTTY.Core/Terminal/TerminalEmulator.cs: main terminal emulator class
+- catty-ksa/caTTY.Core/Parsing/Parser.cs: main parser state machine coordinator
+- catty-ksa/caTTY.Core/Parsing/CsiParser.cs: CSI sequence parsing
+- catty-ksa/caTTY.Core/Parsing/SgrParser.cs: SGR attribute parsing
+- catty-ksa/caTTY.Core/Parsing/OscParser.cs: OSC sequence parsing
+- catty-ksa/caTTY.Core/Managers/ScreenBufferManager.cs: screen buffer operations
+- catty-ksa/caTTY.Core/Managers/CursorManager.cs: cursor state management
 - catty-ksa/caTTY.ImGui/Controllers/TerminalController.cs: ImGui display controller
 - catty-ksa/caTTY.ImGui.Playground/Program.cs: ImGui rendering experiments entry point
 - catty-ksa/caTTY.TestApp/Program.cs: standalone BRUTAL ImGui test application entry point
@@ -95,6 +102,33 @@ caTTY.ImGui.Tests ──→ caTTY.ImGui
 ```
 
 **Note**: Both `caTTY.TestApp` and `caTTY.GameMod` use the same BRUTAL ImGui tech stack and share the same `caTTY.ImGui` controller code. The test app provides a standalone GLFW window for development and testing without requiring the full game.
+
+#### Code Organization Principles
+
+**Modular Design**: Break large classes into focused, single-responsibility components to improve maintainability and testability.
+
+**Parser Architecture**: The terminal parser should be decomposed into specialized parsers:
+- **Main Parser**: State machine coordination and byte routing
+- **CsiParser**: CSI sequence parsing and parameter extraction
+- **SgrParser**: SGR attribute parsing and color handling
+- **OscParser**: OSC sequence parsing and command extraction
+- **EscParser**: ESC sequence parsing and character set handling
+- **DcsParser**: DCS sequence parsing and device control
+- **Utf8Decoder**: UTF-8 multi-byte sequence handling
+
+**Terminal State Management**: Terminal state should be organized into focused managers:
+- **ScreenBufferManager**: Screen buffer operations and cell management
+- **CursorManager**: Cursor positioning and visibility state
+- **ScrollbackManager**: Scrollback buffer and viewport management
+- **AlternateScreenManager**: Primary/alternate buffer switching
+- **ModeManager**: Terminal mode state tracking
+- **AttributeManager**: SGR attribute state management
+
+**Component Size Guidelines**:
+- **Single classes should not exceed 400 lines** (excluding comments and whitespace)
+- **Methods should not exceed 50 lines** (excluding comments and whitespace)
+- **Classes with more than 10 public methods** should be considered for decomposition
+- **Files with more than 5 classes** should be split into separate files
 
 #### Game DLL Integration
 

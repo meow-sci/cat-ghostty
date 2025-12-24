@@ -328,9 +328,24 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define defaulting rules
     - Empty params default to 0 or 1 depending on command
     - Treat trailing separators as an extra 0 param
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated CsiParser class
+    - Extract CSI parsing logic from main Parser class into caTTY.Core/Parsing/CsiParser.cs
+    - CsiParser should handle all CSI sequence parsing and parameter extraction
+    - CsiParser should not exceed 200 lines (excluding comments)
+    - Main Parser should delegate CSI parsing to CsiParser instance
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts parameter parsing logic and ensure C# implementation handles all parameter types and edge cases identically to the TypeScript version
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [ ] 2.5.1 Create dedicated UTF-8 decoder class
+  - Extract UTF-8 decoding logic from main Parser class into caTTY.Core/Parsing/Utf8Decoder.cs
+  - Create IUtf8Decoder interface for testability
+  - Implement Utf8Decoder class with focused UTF-8 handling responsibilities
+  - Utf8Decoder should handle multi-byte sequence detection, validation, and decoding
+  - Utf8Decoder should not exceed 150 lines (excluding comments)
+  - Main Parser should delegate UTF-8 processing to Utf8Decoder instance
+  - Add comprehensive unit tests for Utf8Decoder in isolation
+  - _Requirements: 9.3, 9.4_
 
 - [ ] 2.6 Add basic cursor movement CSI sequences
   - Implement cursor up (CSI A), down (CSI B) sequences
@@ -423,12 +438,58 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Terminal responds to common device/status queries without hanging
   - Both deployment targets validated by user
 
+- [ ] 2.18 Decompose Parser class for better maintainability
+  - **CRITICAL CODE ORGANIZATION**: Break down the main Parser class which has grown too large
+  - Extract EscParser class into caTTY.Core/Parsing/EscParser.cs
+    - Handle all ESC sequence parsing (save/restore cursor, character sets, etc.)
+    - Create IEscParser interface for testability
+    - EscParser should not exceed 200 lines (excluding comments)
+  - Extract DcsParser class into caTTY.Core/Parsing/DcsParser.cs
+    - Handle all DCS sequence parsing and device control
+    - Create IDcsParser interface for testability
+    - DcsParser should not exceed 150 lines (excluding comments)
+  - Refactor main Parser class to coordinate between specialized parsers
+    - Parser should act as state machine coordinator only
+    - Parser should delegate to CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder
+    - Parser should not exceed 300 lines after refactoring (excluding comments)
+  - Add comprehensive unit tests for each specialized parser in isolation
+  - Ensure all existing functionality continues to work after decomposition
+  - _Requirements: Code organization and maintainability_
+
+- [ ] 2.19 Create terminal state management classes
+  - **CRITICAL CODE ORGANIZATION**: Break down terminal state management into focused managers
+  - Create ScreenBufferManager class in caTTY.Core/Managers/ScreenBufferManager.cs
+    - Handle all screen buffer operations (cell access, clearing, resizing)
+    - Create IScreenBufferManager interface for testability
+    - ScreenBufferManager should not exceed 300 lines (excluding comments)
+  - Create CursorManager class in caTTY.Core/Managers/CursorManager.cs
+    - Handle all cursor positioning, visibility, and movement operations
+    - Create ICursorManager interface for testability
+    - CursorManager should not exceed 200 lines (excluding comments)
+  - Create ModeManager class in caTTY.Core/Managers/ModeManager.cs
+    - Handle all terminal mode state tracking (auto-wrap, cursor keys, etc.)
+    - Create IModeManager interface for testability
+    - ModeManager should not exceed 250 lines (excluding comments)
+  - Create AttributeManager class in caTTY.Core/Managers/AttributeManager.cs
+    - Handle all SGR attribute state management and application
+    - Create IAttributeManager interface for testability
+    - AttributeManager should not exceed 200 lines (excluding comments)
+  - Refactor TerminalEmulator to use these focused managers
+  - Add comprehensive unit tests for each manager in isolation
+  - _Requirements: Code organization and maintainability_
+
 - [ ] 3. Add comprehensive SGR (text styling) support
 - [ ] 3.1 Create SGR data structures and color system
   - Create Color union type (default, indexed, RGB)
   - Create SgrAttributes struct with all text styling properties
   - Add UnderlineStyle enum (none, single, double, curly, dotted, dashed)
   - Update Cell struct to include full SGR attributes
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated SgrParser class
+    - Extract SGR parsing logic into caTTY.Core/Parsing/SgrParser.cs
+    - Create ISgrParser interface for testability
+    - SgrParser should handle all SGR parameter parsing and attribute processing
+    - SgrParser should not exceed 300 lines (excluding comments)
+    - Main Parser should delegate SGR parsing to SgrParser instance
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts and related SGR type definitions to ensure C# data structures match TypeScript capabilities and attribute handling
   - _Requirements: 12.2, 12.3, 12.4, 12.5_
 
@@ -517,6 +578,12 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define what a stored scrollback line contains
     - Preserve characters and attributes (not just chars)
     - Ensure line length always equals cols for simple rendering
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated ScrollbackManager class
+    - Extract scrollback logic into caTTY.Core/Managers/ScrollbackManager.cs
+    - Create IScrollbackManager interface for testability
+    - ScrollbackManager should handle all scrollback buffer operations and viewport management
+    - ScrollbackManager should not exceed 250 lines (excluding comments)
+    - TerminalEmulator should delegate scrollback operations to ScrollbackManager instance
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts to ensure C# scrollback buffer provides identical circular buffer behavior and line preservation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
   - _Requirements: 14.1, 14.2, 14.5_
@@ -622,6 +689,12 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Implement separate primary and alternate screen buffers
   - Add buffer switching methods (activate/deactivate)
   - Preserve cursor and attributes independently per buffer
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated AlternateScreenManager class
+    - Extract alternate screen logic into caTTY.Core/Managers/AlternateScreenManager.cs
+    - Create IAlternateScreenManager interface for testability
+    - AlternateScreenManager should handle all buffer switching and state isolation
+    - AlternateScreenManager should not exceed 200 lines (excluding comments)
+    - TerminalEmulator should delegate alternate screen operations to AlternateScreenManager instance
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
   - _Requirements: 15.1, 15.2, 15.4_
@@ -716,6 +789,12 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Define robustness rules
     - Ignore/skip malformed OSC without breaking the stream
     - Cap maximum OSC payload length to prevent memory blowups
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated OscParser class
+    - Extract OSC parsing logic into caTTY.Core/Parsing/OscParser.cs
+    - Create IOscParser interface for testability
+    - OscParser should handle all OSC sequence parsing and command extraction
+    - OscParser should not exceed 250 lines (excluding comments)
+    - Main Parser should delegate OSC parsing to OscParser instance
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts and Parser.ts OSC handling to ensure C# implementation provides identical OSC parsing behavior and robustness
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
@@ -1015,6 +1094,27 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
 - Each major task number (1-8) results in a working program with incrementally more features
 - Subtasks are kept small to optimize AI/LLM context window usage
 - Complex areas identified from TypeScript analysis have been broken down into granular subtasks
+
+## CRITICAL CODE ORGANIZATION REQUIREMENTS
+
+**MANDATORY REFACTORING**: The current Parser class (600+ lines) and future large classes MUST be decomposed to maintain code quality:
+
+### Parser Decomposition (Tasks 2.18)
+- **Current Issue**: Parser.cs has grown to over 600 lines and handles multiple responsibilities
+- **Required Action**: Break into specialized parsers (CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder)
+- **Benefit**: Improved testability, maintainability, and adherence to single responsibility principle
+
+### State Management Decomposition (Task 2.19)
+- **Proactive Measure**: Prevent TerminalEmulator and related state classes from becoming monolithic
+- **Required Action**: Create focused managers (ScreenBufferManager, CursorManager, ScrollbackManager, etc.)
+- **Benefit**: Clear separation of concerns and easier unit testing
+
+### Ongoing Vigilance
+- **Monitor Class Sizes**: Any class exceeding 400 lines requires immediate refactoring
+- **Enforce Interfaces**: All managers and parsers must implement focused interfaces
+- **Maintain Tests**: Each decomposed component must have comprehensive unit tests
+
+This refactoring is essential for long-term maintainability and follows industry best practices for complex terminal emulation software.
 
 ## CRITICAL BUILD AND TEST REQUIREMENTS
 

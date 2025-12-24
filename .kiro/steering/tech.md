@@ -40,6 +40,57 @@ catty-ksa.sln
 - **Memory Efficiency**: Use `Span<T>` and `ReadOnlySpan<T>` for byte processing
 - **Error Handling**: Use Result<T> pattern instead of exceptions for expected failures
 
+## Code Organization & Maintainability
+
+**CRITICAL**: Maintain strict code organization standards to prevent classes from growing too large and becoming unmaintainable.
+
+### Class Size Guidelines
+
+- **Single classes should not exceed 400 lines** (excluding comments and whitespace)
+- **Methods should not exceed 50 lines** (excluding comments and whitespace)
+- **Classes with more than 10 public methods** should be considered for decomposition
+- **Files with more than 5 classes** should be split into separate files
+
+### Modular Design Principles
+
+- **Single Responsibility**: Each class has one focused, well-defined responsibility
+- **Interface Segregation**: Create focused interfaces for each component
+- **Dependency Injection**: Components depend on interfaces, not concrete implementations
+- **Composition over Inheritance**: Prefer composition and delegation over class inheritance
+
+### Parser Architecture Requirements
+
+**CRITICAL**: The terminal parser MUST be decomposed into specialized parsers to avoid monolithic classes:
+
+- **Main Parser**: State machine coordination and byte routing only (max 300 lines)
+- **CsiParser**: CSI sequence parsing and parameter extraction (max 200 lines)
+- **SgrParser**: SGR attribute parsing and color handling (max 300 lines)
+- **OscParser**: OSC sequence parsing and command extraction (max 250 lines)
+- **EscParser**: ESC sequence parsing and character set handling (max 200 lines)
+- **DcsParser**: DCS sequence parsing and device control (max 150 lines)
+- **Utf8Decoder**: UTF-8 multi-byte sequence handling (max 150 lines)
+
+### State Management Architecture Requirements
+
+**CRITICAL**: Terminal state MUST be organized into focused managers to avoid monolithic state classes:
+
+- **ScreenBufferManager**: Screen buffer operations and cell management (max 300 lines)
+- **CursorManager**: Cursor positioning and visibility state (max 200 lines)
+- **ScrollbackManager**: Scrollback buffer and viewport management (max 250 lines)
+- **AlternateScreenManager**: Primary/alternate buffer switching (max 200 lines)
+- **ModeManager**: Terminal mode state tracking (max 250 lines)
+- **AttributeManager**: SGR attribute state management (max 200 lines)
+
+### Refactoring Requirements
+
+When any class exceeds its size limit:
+
+1. **Immediate Action Required**: The class MUST be refactored before adding new functionality
+2. **Extract Focused Classes**: Break down into smaller, single-responsibility classes
+3. **Create Interfaces**: Define clear interfaces for each extracted component
+4. **Update Tests**: Ensure comprehensive test coverage for each new component
+5. **Maintain Functionality**: All existing functionality must continue to work after refactoring
+
 ## Performance Optimization - Render Loop Allocation Minimization
 
 **CRITICAL PERFORMANCE REQUIREMENT**: The C#/ImGui implementation MUST minimize allocations during the render loop and hot paths to ensure smooth game performance.

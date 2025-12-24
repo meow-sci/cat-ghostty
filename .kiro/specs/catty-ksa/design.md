@@ -95,6 +95,49 @@ catty-ksa.sln
 
 ## Components and Interfaces
 
+### Code Organization Principles
+
+**Modular Architecture**: The C# implementation follows strict modular design principles to ensure maintainability and testability:
+
+- **Single Responsibility**: Each class has a focused, well-defined responsibility
+- **Size Constraints**: Classes are kept small and manageable (typically under 400 lines)
+- **Interface Segregation**: Interfaces are focused and specific to their use cases
+- **Dependency Injection**: Components depend on interfaces, not concrete implementations
+
+**Parser Decomposition**: The terminal parser is decomposed into specialized parsers to avoid monolithic classes:
+
+```csharp
+// Main parser coordinates state machine and delegates to specialized parsers
+public class Parser
+{
+    private readonly ICsiParser _csiParser;
+    private readonly ISgrParser _sgrParser;
+    private readonly IOscParser _oscParser;
+    private readonly IEscParser _escParser;
+    private readonly IDcsParser _dcsParser;
+    private readonly IUtf8Decoder _utf8Decoder;
+    
+    // State machine coordination only - delegates parsing to specialists
+}
+```
+
+**State Management Decomposition**: Terminal state is managed by focused managers:
+
+```csharp
+// Terminal emulator coordinates between specialized managers
+public class TerminalEmulator
+{
+    private readonly IScreenBufferManager _screenBufferManager;
+    private readonly ICursorManager _cursorManager;
+    private readonly IScrollbackManager _scrollbackManager;
+    private readonly IAlternateScreenManager _alternateScreenManager;
+    private readonly IModeManager _modeManager;
+    private readonly IAttributeManager _attributeManager;
+    
+    // Coordinates operations between managers
+}
+```
+
 ### Core Terminal Components
 
 #### ITerminalEmulator Interface
@@ -175,50 +218,169 @@ public readonly struct SgrAttributes
 
 ### Parser Components
 
-#### IEscapeSequenceParser Interface
+#### Main Parser Interface
 
 ```csharp
-public interface IEscapeSequenceParser
+public interface IParser
 {
-    ParseResult Parse(ReadOnlySpan<byte> data, ITerminalState state);
-}
-
-public enum ParseResult
-{
-    Incomplete,
-    Complete,
-    Invalid
+    void PushBytes(ReadOnlySpan<byte> data);
+    void PushByte(byte data);
+    void FlushIncompleteSequences();
 }
 ```
 
-#### CSI Parser Implementation
+#### Specialized Parser Interfaces
 
 ```csharp
-public class CsiParser : IEscapeSequenceParser
+public interface ICsiParser
 {
-    public ParseResult Parse(ReadOnlySpan<byte> data, ITerminalState state)
-    {
-        // Parse CSI sequences: ESC [ parameters command
-        // Implementation mirrors TypeScript CsiParser logic
-    }
+    CsiMessage ParseCsiSequence(ReadOnlySpan<byte> sequence);
+    bool TryParseParameters(ReadOnlySpan<char> parameterString, out int[] parameters);
+}
+
+public interface ISgrParser
+{
+    SgrSequence ParseSgrSequence(ReadOnlySpan<int> parameters, SgrAttributes current);
+    SgrAttributes ApplyAttributes(SgrAttributes current, SgrMessage message);
+}
+
+public interface IOscParser
+{
+    OscMessage ParseOscSequence(ReadOnlySpan<byte> sequence, string terminator);
+    bool TryParseCommand(ReadOnlySpan<char> payload, out int command, out string parameters);
+}
+
+public interface IEscParser
+{
+    EscMessage ParseEscSequence(ReadOnlySpan<byte> sequence);
+    bool IsCharacterSetDesignation(ReadOnlySpan<byte> sequence);
+}
+
+public interface IDcsParser
+{
+    DcsMessage ParseDcsSequence(ReadOnlySpan<byte> sequence, string terminator);
+    bool TryParseCommand(ReadOnlySpan<char> payload, out string command, out string[] parameters);
+}
+
+public interface IUtf8Decoder
+{
+    bool TryDecodeSequence(ReadOnlySpan<byte> bytes, out int codePoint, out int bytesConsumed);
+    bool IsValidUtf8Start(byte b);
+    int GetExpectedLength(byte startByte);
 }
 ```
 
-#### SGR Parser Implementation
+#### Parser Implementation Strategy
+
+Each specialized parser focuses on a specific type of escape sequence:
+
+- **CsiParser**: Handles CSI sequences (ESC [ ... final), parameter parsing, and command identification
+- **SgrParser**: Handles SGR sequences (CSI ... m), color parsing, and attribute management
+- **OscParser**: Handles OSC sequences (ESC ] ... ST/BEL), command parsing, and payload extraction
+- **EscParser**: Handles ESC sequences (ESC ...), character set designation, and cursor operations
+- **DcsParser**: Handles DCS sequences (ESC P ... ST), device control, and query responses
+- **Utf8Decoder**: Handles UTF-8 multi-byte sequences, validation, and code point extraction
+
+### State Management Components
+
+#### Manager Interfaces
 
 ```csharp
-public class SgrParser
+public interface IScreenBufferManager
 {
-    public SgrAttributes ParseSgrSequence(ReadOnlySpan<int> parameters, SgrAttributes current)
-    {
-        // Parse SGR parameters and return updated attributes
-        // Handles both semicolon and colon separators
-        // Implementation mirrors TypeScript SGR parsing
-    }
+    int Width { get; }
+    int Height { get; }
+    
+    ICell GetCell(int row, int col);
+    void SetCell(int row, int col, ICell cell);
+    void Clear();
+    void ClearRegion(int startRow, int startCol, int endRow, int endCol);
+    void ScrollUp(int lines);
+    void ScrollDown(int lines);
+    void Resize(int width, int height);
+    
+    ReadOnlySpan<ICell> GetRow(int row);
+    void CopyTo(Span<ICell> destination, int startRow, int endRow);
+}
+
+public interface ICursorManager
+{
+    int Row { get; set; }
+    int Column { get; set; }
+    bool Visible { get; set; }
+    
+    void MoveTo(int row, int col);
+    void MoveUp(int lines);
+    void MoveDown(int lines);
+    void MoveLeft(int columns);
+    void MoveRight(int columns);
+    void SavePosition();
+    void RestorePosition();
+    void ClampToBuffer(int width, int height);
+}
+
+public interface IScrollbackManager
+{
+    int MaxLines { get; }
+    int CurrentLines { get; }
+    int ViewportOffset { get; set; }
+    
+    void AddLine(ReadOnlySpan<ICell> line);
+    ReadOnlySpan<ICell> GetLine(int index);
+    void Clear();
+    void SetViewportOffset(int offset);
+    bool IsAtBottom { get; }
+}
+
+public interface IAlternateScreenManager
+{
+    bool IsAlternateActive { get; }
+    
+    void ActivateAlternate();
+    void DeactivateAlternate();
+    IScreenBufferManager GetCurrentBuffer();
+    IScreenBufferManager GetPrimaryBuffer();
+    IScreenBufferManager GetAlternateBuffer();
+}
+
+public interface IModeManager
+{
+    bool AutoWrapMode { get; set; }
+    bool ApplicationCursorKeys { get; set; }
+    bool BracketedPasteMode { get; set; }
+    bool CursorVisible { get; set; }
+    bool OriginMode { get; set; }
+    bool Utf8Mode { get; set; }
+    
+    void SetMode(int mode, bool enabled);
+    bool GetMode(int mode);
+    void SaveModes();
+    void RestoreModes();
+}
+
+public interface IAttributeManager
+{
+    SgrAttributes CurrentAttributes { get; set; }
+    
+    void ApplySgrMessage(SgrMessage message);
+    void ResetAttributes();
+    SgrAttributes GetDefaultAttributes();
+    void SetForegroundColor(Color color);
+    void SetBackgroundColor(Color color);
+    void SetTextStyle(bool bold, bool italic, bool underline);
 }
 ```
 
-### ImGui Controller Components
+#### Manager Implementation Strategy
+
+Each manager focuses on a specific aspect of terminal state:
+
+- **ScreenBufferManager**: Manages the 2D character grid, cell operations, and buffer resizing
+- **CursorManager**: Tracks cursor position, visibility, and movement operations
+- **ScrollbackManager**: Handles scrollback buffer, viewport management, and history navigation
+- **AlternateScreenManager**: Manages primary/alternate buffer switching and state isolation
+- **ModeManager**: Tracks all terminal modes and their state changes
+- **AttributeManager**: Manages SGR attributes and their application to characters
 
 #### Performance-Optimized Render Loop Architecture
 
