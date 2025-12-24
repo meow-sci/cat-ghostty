@@ -127,7 +127,7 @@ public class TerminalEmulatorTests
 
         // Assert
         Assert.That(terminal.Cursor.Row, Is.EqualTo(1));
-        Assert.That(terminal.Cursor.Col, Is.EqualTo(0)); // Line feed moves to beginning of next line
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(1)); // Line feed only moves down, keeps same column
     }
 
     /// <summary>

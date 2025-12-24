@@ -93,7 +93,7 @@ public class ShellCommandSimulationTests
         
         // Act - Simulate clear command (clear screen + home cursor)
         _terminal.Write("\x1b[2J\x1b[H");
-        _terminal.Write("After clear\nNew content");
+        _terminal.Write("After clear\r\nNew content");  // Use CR+LF for proper line ending
 
         // Assert
         // Old content should be gone
@@ -180,8 +180,8 @@ public class ShellCommandSimulationTests
     {
         // Simulate output with tabs, newlines, and cursor movements
         var output = new StringBuilder();
-        output.Append("Column1\tColumn2\tColumn3\n");  // Tab-separated columns
-        output.Append("Data1\tData2\tData3\n");
+        output.Append("Column1\tColumn2\tColumn3\r\n");  // Tab-separated columns with proper line ending
+        output.Append("Data1\tData2\tData3\r\n");
         output.Append("\x1b[1A");                      // Move up one line
         output.Append("\x1b[20G");                     // Move to column 20
         output.Append("*MODIFIED*");                   // Mark as modified

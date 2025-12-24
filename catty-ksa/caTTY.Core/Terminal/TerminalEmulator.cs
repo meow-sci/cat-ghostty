@@ -160,27 +160,32 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
-    /// Handles a line feed (LF) character - move down and to beginning of line, scroll if at bottom.
+    /// Handles a line feed (LF) character - move down one line, keeping same column.
+    /// In raw terminal mode, LF only moves down without changing column position.
     /// Uses terminal state for proper cursor management.
     /// </summary>
     internal void HandleLineFeed()
     {
-        if (_cursor.Row < Height - 1)
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        if (_state.CursorY < Height - 1)
         {
-            // Move cursor down one row and to beginning of line
-            _cursor.SetPosition(_cursor.Row + 1, 0);
+            // Move cursor down one row, keep same column
+            _state.CursorY++;
         }
         else
         {
             // At bottom row - need to scroll (will be implemented in future task)
-            // For now, just stay at the bottom row and move to beginning
-            _cursor.SetPosition(_cursor.Row, 0);
+            // For now, just stay at the bottom row
         }
         
-        // Sync state with cursor
-        _state.CursorX = _cursor.Col;
-        _state.CursorY = _cursor.Row;
+        // Clear wrap pending state
         _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
     }
 
     /// <summary>

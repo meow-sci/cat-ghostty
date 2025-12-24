@@ -88,6 +88,8 @@ public class TerminalController : ITerminalController
             // Display terminal info
             BrutalImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
             BrutalImGui.SameLine();
+            BrutalImGui.Text($"Cursor: ({_terminal.Cursor.Row}, {_terminal.Cursor.Col})");
+            BrutalImGui.SameLine();
             BrutalImGui.Text($"Process: {(_processManager.IsRunning ? $"Running (PID: {_processManager.ProcessId})" : "Stopped")}");
             
             if (_processManager.ExitCode.HasValue)
@@ -169,19 +171,17 @@ public class TerminalController : ITerminalController
         var y = windowPos.Y + row * _lineHeight;
         var pos = new float2(x, y);
         
-        // Draw background if not default
-        var bgColor = ConvertColor(cell.Attributes.BackgroundColor);
-        if (bgColor.W > 0) // Has background color
-        {
-            var bgRect = new float2(x + _charWidth, y + _lineHeight);
-            drawList.AddRectFilled(pos, bgRect, BrutalImGui.ColorConvertFloat4ToU32(bgColor));
-        }
+        // Get colors with proper defaults
+        var bgColor = ConvertColor(cell.Attributes.BackgroundColor, isBackground: true);
+        var fgColor = ConvertColor(cell.Attributes.ForegroundColor, isBackground: false);
         
-        // Draw character if not space
+        // Always draw background (black by default)
+        var bgRect = new float2(x + _charWidth, y + _lineHeight);
+        drawList.AddRectFilled(pos, bgRect, BrutalImGui.ColorConvertFloat4ToU32(bgColor));
+        
+        // Draw character if not space or null
         if (cell.Character != ' ' && cell.Character != '\0')
         {
-            var fgColor = ConvertColor(cell.Attributes.ForegroundColor);
-            
             // Apply text styling
             if (cell.Attributes.Bold)
             {
@@ -204,11 +204,10 @@ public class TerminalController : ITerminalController
             {
                 // Swap foreground and background
                 var temp = fgColor;
-                fgColor = bgColor.W > 0 ? bgColor : new float4(0, 0, 0, 1);
+                fgColor = bgColor;
                 bgColor = temp;
                 
                 // Redraw background with swapped color
-                var bgRect = new float2(x + _charWidth, y + _lineHeight);
                 drawList.AddRectFilled(pos, bgRect, BrutalImGui.ColorConvertFloat4ToU32(bgColor));
             }
             
@@ -244,10 +243,15 @@ public class TerminalController : ITerminalController
             return;
             
         var cursor = _terminal.Cursor;
-        var x = windowPos.X + cursor.Col * _charWidth;
-        var y = windowPos.Y + cursor.Row * _lineHeight;
         
-        // Draw cursor as a filled rectangle
+        // Ensure cursor position is within bounds
+        var cursorCol = Math.Max(0, Math.Min(cursor.Col, _terminal.Width - 1));
+        var cursorRow = Math.Max(0, Math.Min(cursor.Row, _terminal.Height - 1));
+        
+        var x = windowPos.X + cursorCol * _charWidth;
+        var y = windowPos.Y + cursorRow * _lineHeight;
+        
+        // Draw cursor as a filled rectangle (white with some transparency)
         var cursorColor = BrutalImGui.ColorConvertFloat4ToU32(new float4(1.0f, 1.0f, 1.0f, 0.8f));
         var cursorPos = new float2(x, y);
         var cursorRect = new float2(x + _charWidth, y + _lineHeight);
@@ -348,17 +352,24 @@ public class TerminalController : ITerminalController
     /// <summary>
     /// Converts a terminal color to ImGui float4 color.
     /// </summary>
-    private static float4 ConvertColor(caTTY.Core.Types.Color? color)
+    private static float4 ConvertColor(caTTY.Core.Types.Color? color, bool isBackground = false)
     {
         if (!color.HasValue)
-            return new float4(0.8f, 0.8f, 0.8f, 1.0f); // Default light gray
+        {
+            // Use proper terminal defaults: white text on black background
+            return isBackground 
+                ? new float4(0.0f, 0.0f, 0.0f, 1.0f)  // Black background
+                : new float4(1.0f, 1.0f, 1.0f, 1.0f); // White foreground
+        }
             
         return color.Value.Type switch
         {
             ColorType.Named => ConvertNamedColor(color.Value.NamedColor),
             ColorType.Indexed => ConvertIndexedColor(color.Value.Index),
             ColorType.Rgb => new float4(color.Value.Red / 255.0f, color.Value.Green / 255.0f, color.Value.Blue / 255.0f, 1.0f),
-            _ => new float4(0.8f, 0.8f, 0.8f, 1.0f)
+            _ => isBackground 
+                ? new float4(0.0f, 0.0f, 0.0f, 1.0f)  // Black background
+                : new float4(1.0f, 1.0f, 1.0f, 1.0f)  // White foreground
         };
     }
 
