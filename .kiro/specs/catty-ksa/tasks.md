@@ -359,7 +359,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Property 13: Cursor movement sequences**
   - **Validates: Requirements 8.4, 11.1, 11.2, 11.3, 11.4, 11.5**
 
-- [ ] 2.8 Add basic screen clearing CSI sequences
+- [x] 2.8 Add basic screen clearing CSI sequences
   - Implement erase in display (CSI J) sequence handling
   - Add erase in line (CSI K) sequence handling
   - Implement clearing logic for different erase modes (0, 1, 2)

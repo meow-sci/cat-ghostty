@@ -135,6 +135,44 @@ public class CsiParserBasicTests
     }
 
     [Test]
+    public void ParseCsiSequence_EraseInLine_ParsesCorrectly()
+    {
+        // Test all erase in line modes
+        var modes = new[] { 0, 1, 2 };
+        var expectedSequences = new[] { "\x1b[K", "\x1b[1K", "\x1b[2K" };
+        
+        for (int i = 0; i < modes.Length; i++)
+        {
+            var sequence = Encoding.ASCII.GetBytes(expectedSequences[i]);
+            var result = _parser.ParseCsiSequence(sequence, expectedSequences[i]);
+            
+            Assert.That(result.Type, Is.EqualTo("csi.eraseInLine"));
+            Assert.That(result.Implemented, Is.True);
+            Assert.That(result.Mode, Is.EqualTo(modes[i]));
+        }
+    }
+
+    [Test]
+    public void ParseCsiSequence_SelectiveEraseSequences_ParsesCorrectly()
+    {
+        // Selective erase in display
+        var selectiveEraseDisplay = Encoding.ASCII.GetBytes("\x1b[?2J");
+        var result1 = _parser.ParseCsiSequence(selectiveEraseDisplay, "\x1b[?2J");
+        
+        Assert.That(result1.Type, Is.EqualTo("csi.selectiveEraseInDisplay"));
+        Assert.That(result1.Implemented, Is.True);
+        Assert.That(result1.Mode, Is.EqualTo(2));
+
+        // Selective erase in line
+        var selectiveEraseLine = Encoding.ASCII.GetBytes("\x1b[?1K");
+        var result2 = _parser.ParseCsiSequence(selectiveEraseLine, "\x1b[?1K");
+        
+        Assert.That(result2.Type, Is.EqualTo("csi.selectiveEraseInLine"));
+        Assert.That(result2.Implemented, Is.True);
+        Assert.That(result2.Mode, Is.EqualTo(1));
+    }
+
+    [Test]
     public void ParseCsiSequence_UnknownSequence_ReturnsUnknown()
     {
         var sequence = Encoding.ASCII.GetBytes("\x1b[99z");

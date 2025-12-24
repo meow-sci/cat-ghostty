@@ -112,6 +112,24 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.SetCursorPosition(message.Row ?? 1, message.Column ?? 1);
                 break;
                 
+            case "csi.eraseInDisplay":
+                _terminal.ClearDisplay(message.Mode ?? 0);
+                break;
+                
+            case "csi.eraseInLine":
+                _terminal.ClearLine(message.Mode ?? 0);
+                break;
+                
+            case "csi.selectiveEraseInDisplay":
+                // TODO: Implement selective erase (task 2.14)
+                _logger.LogDebug("Selective erase in display not yet implemented: {Raw}", message.Raw);
+                break;
+                
+            case "csi.selectiveEraseInLine":
+                // TODO: Implement selective erase (task 2.14)
+                _logger.LogDebug("Selective erase in line not yet implemented: {Raw}", message.Raw);
+                break;
+                
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

@@ -465,6 +465,108 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    /// Clears the display according to the specified erase mode.
+    /// Implements CSI J (Erase in Display) sequence.
+    /// </summary>
+    /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
+    internal void ClearDisplay(int mode)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear wrap pending state
+        _state.WrapPending = false;
+        
+        // Create empty cell with current SGR attributes
+        var emptyCell = new Cell(' ', _state.CurrentSgrState);
+        
+        switch (mode)
+        {
+            case 0: // From cursor to end of display
+                ClearLine(0); // Clear from cursor to end of current line
+                // Clear all lines below cursor
+                for (int row = _state.CursorY + 1; row < Height; row++)
+                {
+                    for (int col = 0; col < Width; col++)
+                    {
+                        _screenBuffer.SetCell(row, col, emptyCell);
+                    }
+                }
+                break;
+                
+            case 1: // From start of display to cursor
+                // Clear all lines above cursor
+                for (int row = 0; row < _state.CursorY; row++)
+                {
+                    for (int col = 0; col < Width; col++)
+                    {
+                        _screenBuffer.SetCell(row, col, emptyCell);
+                    }
+                }
+                ClearLine(1); // Clear from start of current line to cursor
+                break;
+                
+            case 2: // Entire display
+                _screenBuffer.Clear();
+                break;
+                
+            case 3: // Entire display and scrollback (xterm extension)
+                // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
+                _screenBuffer.Clear();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Clears the current line according to the specified erase mode.
+    /// Implements CSI K (Erase in Line) sequence.
+    /// </summary>
+    /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
+    internal void ClearLine(int mode)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear wrap pending state
+        _state.WrapPending = false;
+        
+        // Bounds check
+        if (_state.CursorY < 0 || _state.CursorY >= Height)
+        {
+            return;
+        }
+        
+        // Create empty cell with current SGR attributes
+        var emptyCell = new Cell(' ', _state.CurrentSgrState);
+        
+        switch (mode)
+        {
+            case 0: // From cursor to end of line
+                for (int col = _state.CursorX; col < Width; col++)
+                {
+                    _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                }
+                break;
+                
+            case 1: // From start of line to cursor
+                for (int col = 0; col <= _state.CursorX && col < Width; col++)
+                {
+                    _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                }
+                break;
+                
+            case 2: // Entire line
+                for (int col = 0; col < Width; col++)
+                {
+                    _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                }
+                break;
+        }
+    }
+
+    /// <summary>
     /// Raises the Bell event.
     /// </summary>
     private void OnBell()
