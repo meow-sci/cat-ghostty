@@ -11,5 +11,6 @@
   <Project Path="caTTY.ImGui.Tests/caTTY.ImGui.Tests.csproj" />
   <Project Path="caTTY.ImGui/caTTY.ImGui.csproj" />
   <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />
+  <Project Path="caTTY.TestGameMod.ImGui/caTTY.TestGameMod.ImGui.csproj" />
   <Project Path="caTTY.TestGameMod/caTTY.TestGameMod.csproj" />
 </Solution>

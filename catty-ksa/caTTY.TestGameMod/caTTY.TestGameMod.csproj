@@ -15,8 +15,8 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     
     <!-- Build output + test output dirs -->
-    <DistDir>$(ProjectDir)dist\</DistDir>
-    <!-- <DistDir>C:\Program Files\Kitten Space Agency\Content\TestCaTTY\</DistDir> -->
+    <!-- <DistDir>$(ProjectDir)dist\</DistDir> -->
+    <DistDir>C:\Program Files\Kitten Space Agency\Content\TestCaTTY\</DistDir>
   </PropertyGroup>
 
   <!-- Copies files for mod deployment -->
@@ -26,6 +26,8 @@
     <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFolder="$(DistDir)" Condition="Exists('$(ProjectDepsFilePath)')" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetPath)')" />
     <Copy SourceFiles="$(TargetDir)TestCaTTY.pdb" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.ImGui.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.ImGui.pdb" DestinationFolder="$(DistDir)" />
     
     <!-- Copy Fonts folder to the build dir-->
     <ItemGroup>
@@ -34,6 +36,10 @@
     <MakeDir Directories="$(DistDir)Fonts" />
     <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)Fonts\%(RecursiveDir)" />
   </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\caTTY.TestGameMod.ImGui\caTTY.TestGameMod.ImGui.csproj" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Nuget package references -->

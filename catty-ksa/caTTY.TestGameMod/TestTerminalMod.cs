@@ -1,6 +1,7 @@
 using System.Reflection;
 using Brutal.ImGuiApi;
 using Brutal.Numerics;
+using caTTY.TestGameMod.ImGui;
 using KSA;
 using StarMap.API;
 
@@ -27,6 +28,8 @@ public class TerminalMod
 
   private Boolean _showUi = false;
 
+  private TestModFonts controller = new TestModFonts();
+
   /// <summary>
   /// Called after the GUI is rendered.
   /// </summary>
@@ -48,12 +51,15 @@ public class TerminalMod
 
       if (_showUi)
       {
-        PushHackFont(out bool fontUsed, 40.0f);
-        ImGui.SetNextWindowSize(new float2(400, 400), ImGuiCond.FirstUseEver);
-        ImGui.Begin("TestCaTTY Win");
-        ImGui.Text("Test text");
-        ImGui.End();
-        MaybePopFont(fontUsed);
+
+        controller.Render();
+
+        // PushHackFont(out bool fontUsed, 40.0f);
+        // ImGui.SetNextWindowSize(new float2(400, 400), ImGuiCond.FirstUseEver);
+        // ImGui.Begin("TestCaTTY Win");
+        // ImGui.Text("Test text");
+        // ImGui.End();
+        // MaybePopFont(fontUsed);
       }
 
     }
