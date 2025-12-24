@@ -171,13 +171,15 @@ public class TerminalEmulator : ITerminalEmulator
 
         if (_state.CursorY < Height - 1)
         {
-            // Move cursor down one row
+            // Move cursor down one row and to beginning of line
             _state.CursorY++;
+            _state.CursorX = 0; // Line feed moves to beginning of next line
         }
         else
         {
             // At bottom row - need to scroll (will be implemented in future task)
-            // For now, just stay at the bottom row
+            // For now, just stay at the bottom row and move to beginning
+            _state.CursorX = 0;
         }
 
         // Update cursor to match state
@@ -456,6 +458,26 @@ public class TerminalEmulator : ITerminalEmulator
         // Update state
         _state.CursorX = targetCol;
         _state.CursorY = targetRow;
+        
+        // Clear wrap pending state since we're setting absolute position
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Sets the cursor to an absolute column position on the current row.
+    /// Implements CSI G (Cursor Horizontal Absolute) sequence.
+    /// </summary>
+    /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
+    internal void SetCursorColumn(int column)
+    {
+        // Convert from 1-based to 0-based coordinates and clamp to bounds
+        var targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
+        
+        // Update state - keep current row, change column
+        _state.CursorX = targetCol;
         
         // Clear wrap pending state since we're setting absolute position
         _state.WrapPending = false;

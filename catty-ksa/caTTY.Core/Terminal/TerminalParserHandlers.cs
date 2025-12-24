@@ -112,6 +112,24 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.SetCursorPosition(message.Row ?? 1, message.Column ?? 1);
                 break;
                 
+            case "csi.cursorHorizontalAbsolute":
+                _terminal.SetCursorColumn(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorNextLine":
+                _terminal.MoveCursorDown(message.Count ?? 1);
+                _terminal.SetCursorColumn(1); // Move to beginning of line
+                break;
+                
+            case "csi.cursorPrevLine":
+                _terminal.MoveCursorUp(message.Count ?? 1);
+                _terminal.SetCursorColumn(1); // Move to beginning of line
+                break;
+                
+            case "csi.verticalPositionAbsolute":
+                _terminal.SetCursorPosition(message.Count ?? 1, _terminal.Cursor.Col + 1);
+                break;
+                
             case "csi.eraseInDisplay":
                 _terminal.ClearDisplay(message.Mode ?? 0);
                 break;
