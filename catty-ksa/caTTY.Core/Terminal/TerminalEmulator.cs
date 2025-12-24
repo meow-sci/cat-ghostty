@@ -1,6 +1,9 @@
 using System;
 using System.Text;
 using caTTY.Core.Types;
+using caTTY.Core.Parsing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace caTTY.Core.Terminal;
 
@@ -13,6 +16,8 @@ public class TerminalEmulator : ITerminalEmulator
     private readonly IScreenBuffer _screenBuffer;
     private readonly ICursor _cursor;
     private readonly TerminalState _state;
+    private readonly Parser _parser;
+    private readonly ILogger _logger;
     private bool _disposed;
 
     /// <summary>
@@ -60,8 +65,9 @@ public class TerminalEmulator : ITerminalEmulator
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
+    /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height)
+    public TerminalEmulator(int width, int height, ILogger? logger = null)
     {
         if (width < 1 || width > 1000)
             throw new ArgumentOutOfRangeException(nameof(width), "Width must be between 1 and 1000");
@@ -71,6 +77,19 @@ public class TerminalEmulator : ITerminalEmulator
         _screenBuffer = new ScreenBuffer(width, height);
         _cursor = new Cursor();
         _state = new TerminalState(width, height);
+        _logger = logger ?? NullLogger.Instance;
+        
+        // Initialize parser with terminal handlers
+        var handlers = new TerminalParserHandlers(this, _logger);
+        var parserOptions = new ParserOptions
+        {
+            Handlers = handlers,
+            Logger = _logger,
+            EmitNormalBytesDuringEscapeSequence = false,
+            ProcessC0ControlsDuringEscapeSequence = true
+        };
+        _parser = new Parser(parserOptions);
+        
         _disposed = false;
     }
 
@@ -86,12 +105,8 @@ public class TerminalEmulator : ITerminalEmulator
         if (data.IsEmpty)
             return;
 
-        // For now, we'll process each byte individually
-        // Future tasks will add proper UTF-8 decoding and escape sequence parsing
-        foreach (byte b in data)
-        {
-            ProcessByte(b);
-        }
+        // Use parser for proper UTF-8 decoding and escape sequence handling
+        _parser.PushBytes(data);
 
         // Notify that the screen has been updated
         OnScreenUpdated();
@@ -114,6 +129,18 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    /// Flushes any incomplete UTF-8 sequences in the parser.
+    /// This should be called when no more input is expected to ensure
+    /// incomplete sequences are handled gracefully.
+    /// </summary>
+    public void FlushIncompleteSequences()
+    {
+        ThrowIfDisposed();
+        _parser.FlushIncompleteSequences();
+        OnScreenUpdated();
+    }
+
+    /// <summary>
     /// Resizes the terminal to the specified dimensions.
     /// </summary>
     /// <param name="width">New width in columns</param>
@@ -133,60 +160,10 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
-    /// Processes a single byte of input.
-    /// </summary>
-    /// <param name="b">The byte to process</param>
-    private void ProcessByte(byte b)
-    {
-        // Handle control characters first
-        switch (b)
-        {
-            case 0x07: // BEL (Bell)
-                HandleBell();
-                return;
-
-            case 0x08: // BS (Backspace)
-                HandleBackspace();
-                return;
-
-            case 0x09: // HT (Horizontal Tab)
-                HandleTab();
-                return;
-
-            case 0x0A: // LF (Line Feed)
-                HandleLineFeed();
-                return;
-
-            case 0x0D: // CR (Carriage Return)
-                HandleCarriageReturn();
-                return;
-
-            case 0x7F: // DEL - ignore as specified in task
-                return;
-
-            default:
-                // Handle other non-printable characters by ignoring them
-                if (b < 0x20)
-                {
-                    return;
-                }
-                break;
-        }
-
-        // Handle printable ASCII characters (0x20-0x7E)
-        if (b >= 0x20 && b <= 0x7E)
-        {
-            char character = (char)b;
-            WriteCharacterAtCursor(character);
-        }
-        // For unsupported bytes (non-ASCII), we ignore them as specified in task
-    }
-
-    /// <summary>
     /// Handles a line feed (LF) character - move down and scroll if at bottom.
     /// Uses terminal state for proper cursor management.
     /// </summary>
-    private void HandleLineFeed()
+    internal void HandleLineFeed()
     {
         // Sync state with cursor
         _state.CursorX = _cursor.Col;
@@ -213,7 +190,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// Handles a carriage return (CR) character - move to column 0.
     /// Uses terminal state for proper cursor management.
     /// </summary>
-    private void HandleCarriageReturn()
+    internal void HandleCarriageReturn()
     {
         _state.CursorX = 0;
         _state.CursorY = _cursor.Row;
@@ -223,7 +200,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// <summary>
     /// Handles a bell character (BEL) - emit bell event for notification.
     /// </summary>
-    private void HandleBell()
+    internal void HandleBell()
     {
         OnBell();
     }
@@ -232,7 +209,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// Handles a backspace character (BS) - move cursor one position left if not at column 0.
     /// Uses terminal state for proper cursor management.
     /// </summary>
-    private void HandleBackspace()
+    internal void HandleBackspace()
     {
         // Sync state with cursor
         _state.CursorX = _cursor.Col;
@@ -254,7 +231,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// <summary>
     /// Handles a tab character - move to next tab stop using terminal state.
     /// </summary>
-    private void HandleTab()
+    internal void HandleTab()
     {
         // Sync state with cursor
         _state.CursorX = _cursor.Col;
@@ -298,7 +275,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// Uses terminal state for wrap pending and SGR attributes.
     /// </summary>
     /// <param name="character">The character to write</param>
-    private void WriteCharacterAtCursor(char character)
+    internal void WriteCharacterAtCursor(char character)
     {
         // Sync cursor with state
         _state.CursorX = _cursor.Col;

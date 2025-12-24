@@ -302,7 +302,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParserHandlers.ts
   - _Requirements: 11.1, 12.1, 13.1_
 
-- [ ] 2.3 Add UTF-8 decoding support to parser
+- [x] 2.3 Add UTF-8 decoding support to parser
   - Implement UTF-8 multi-byte sequence detection
   - Add UTF-8 buffer for partial sequences across Write calls
   - Handle UTF-8 validation and error recovery
@@ -310,9 +310,12 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/Parser.ts UTF-8 handling and ensure C# implementation provides equivalent or better UTF-8 processing capabilities
   - _Requirements: 9.3, 9.4_
 
-- [ ] 2.4 Write property test for UTF-8 character handling
+- [x] 2.4 Write property test for UTF-8 character handling ✅
   - **Property 16: UTF-8 character handling**
   - **Validates: Requirements 9.3, 9.4**
+  - **Status**: COMPLETED - All 5 property tests pass (100 iterations each)
+  - **Coverage**: UTF-8 decoding, sequence splitting, wide characters, invalid byte recovery, mixed content
+  - **Fixed**: Cursor reference bug in property tests causing false failures
 
 - [ ] 2.5 Implement CSI parameter parsing
   - Create CSI parameter parsing logic

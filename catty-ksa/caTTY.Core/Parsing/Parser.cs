@@ -54,6 +54,19 @@ public class Parser
     }
 
     /// <summary>
+    /// Flushes any incomplete UTF-8 sequences at the end of input.
+    /// This should be called when no more input is expected to ensure
+    /// incomplete sequences are handled gracefully.
+    /// </summary>
+    public void FlushIncompleteSequences()
+    {
+        if (_utf8Buffer.Count > 0)
+        {
+            FlushUtf8Buffer();
+        }
+    }
+
+    /// <summary>
     /// Processes a single byte through the parser state machine.
     /// </summary>
     /// <param name="data">The byte to process</param>
@@ -129,6 +142,12 @@ public class Parser
         if (b == 0x1b) // ESC
         {
             StartEscapeSequence(b);
+            return;
+        }
+
+        // DEL (0x7F) should be ignored in terminal emulation
+        if (b == 0x7F)
+        {
             return;
         }
 
@@ -563,6 +582,13 @@ public class Parser
             if ((b & 0xE0) == 0xC0)
             {
                 // 2-byte sequence: 110xxxxx
+                // But 0xC0 and 0xC1 are invalid (overlong encodings)
+                if (b == 0xC0 || b == 0xC1)
+                {
+                    // Invalid UTF-8 start byte, treat as single byte
+                    _handlers.HandleNormalByte(b);
+                    return true;
+                }
                 _utf8ExpectedLength = 2;
             }
             else if ((b & 0xF0) == 0xE0)
@@ -573,11 +599,18 @@ public class Parser
             else if ((b & 0xF8) == 0xF0)
             {
                 // 4-byte sequence: 11110xxx
+                // But bytes >= 0xF5 are invalid (beyond Unicode range)
+                if (b >= 0xF5)
+                {
+                    // Invalid UTF-8 start byte, treat as single byte
+                    _handlers.HandleNormalByte(b);
+                    return true;
+                }
                 _utf8ExpectedLength = 4;
             }
             else
             {
-                // Invalid UTF-8 start byte, treat as single byte
+                // Invalid UTF-8 start byte (including orphaned continuation bytes), treat as single byte
                 _handlers.HandleNormalByte(b);
                 return true;
             }
