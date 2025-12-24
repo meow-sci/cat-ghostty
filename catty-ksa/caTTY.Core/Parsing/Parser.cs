@@ -25,9 +25,9 @@ public class Parser
     private readonly StringBuilder _dcsParamBuffer = new();
     private string[] _dcsParameters = Array.Empty<string>();
 
-    // UTF-8 decoding state
-    private readonly List<byte> _utf8Buffer = new();
-    private int _utf8ExpectedLength = 0;
+    // UTF-8 decoding
+    private readonly IUtf8Decoder _utf8Decoder;
+    private readonly ICsiParser _csiParser;
 
     /// <summary>
     /// Creates a new parser with the specified options.
@@ -39,6 +39,8 @@ public class Parser
         _logger = options.Logger ?? throw new ArgumentNullException(nameof(options.Logger));
         _emitNormalBytesDuringEscapeSequence = options.EmitNormalBytesDuringEscapeSequence;
         _processC0ControlsDuringEscapeSequence = options.ProcessC0ControlsDuringEscapeSequence;
+        _utf8Decoder = options.Utf8Decoder ?? new Utf8Decoder();
+        _csiParser = options.CsiParser ?? new CsiParser();
     }
 
     /// <summary>
@@ -60,9 +62,13 @@ public class Parser
     /// </summary>
     public void FlushIncompleteSequences()
     {
-        if (_utf8Buffer.Count > 0)
+        if (_utf8Decoder.FlushIncompleteSequence(out var invalidBytes))
         {
-            FlushUtf8Buffer();
+            // Send each invalid byte as a separate character
+            foreach (var b in invalidBytes)
+            {
+                _handlers.HandleNormalByte(b);
+            }
         }
     }
 
@@ -553,139 +559,25 @@ public class Parser
     /// <param name="b">The byte to process</param>
     private void HandleNormalByte(byte b)
     {
-        // Handle UTF-8 multi-byte sequences
-        if (HandleUtf8Byte(b))
+        // Use the dedicated UTF-8 decoder
+        if (_utf8Decoder.ProcessByte(b, out int codePoint))
         {
-            return;
+            _handlers.HandleNormalByte(codePoint);
         }
-
-        // Single ASCII byte
-        _handlers.HandleNormalByte(b);
     }
 
     /// <summary>
-    /// Handles UTF-8 multi-byte sequence decoding.
+    /// Resets the parser to normal state and clears all buffers.
     /// </summary>
-    /// <param name="b">The byte to process</param>
-    /// <returns>True if the byte was part of a UTF-8 sequence</returns>
-    private bool HandleUtf8Byte(byte b)
+    private void ResetEscapeState()
     {
-        // If we're not in a UTF-8 sequence and this is ASCII, let it pass through
-        if (_utf8ExpectedLength == 0 && b < 0x80)
-        {
-            return false; // Not a UTF-8 sequence, handle as normal ASCII
-        }
-
-        // Start of a new UTF-8 sequence
-        if (_utf8ExpectedLength == 0)
-        {
-            if ((b & 0xE0) == 0xC0)
-            {
-                // 2-byte sequence: 110xxxxx
-                // But 0xC0 and 0xC1 are invalid (overlong encodings)
-                if (b == 0xC0 || b == 0xC1)
-                {
-                    // Invalid UTF-8 start byte, treat as single byte
-                    _handlers.HandleNormalByte(b);
-                    return true;
-                }
-                _utf8ExpectedLength = 2;
-            }
-            else if ((b & 0xF0) == 0xE0)
-            {
-                // 3-byte sequence: 1110xxxx
-                _utf8ExpectedLength = 3;
-            }
-            else if ((b & 0xF8) == 0xF0)
-            {
-                // 4-byte sequence: 11110xxx
-                // But bytes >= 0xF5 are invalid (beyond Unicode range)
-                if (b >= 0xF5)
-                {
-                    // Invalid UTF-8 start byte, treat as single byte
-                    _handlers.HandleNormalByte(b);
-                    return true;
-                }
-                _utf8ExpectedLength = 4;
-            }
-            else
-            {
-                // Invalid UTF-8 start byte (including orphaned continuation bytes), treat as single byte
-                _handlers.HandleNormalByte(b);
-                return true;
-            }
-
-            _utf8Buffer.Clear();
-            _utf8Buffer.Add(b);
-            return true;
-        }
-
-        // Continuation byte in UTF-8 sequence
-        if ((b & 0xC0) != 0x80)
-        {
-            // Invalid continuation byte, flush buffer and start over
-            FlushUtf8Buffer();
-            return HandleUtf8Byte(b); // Retry with this byte
-        }
-
-        _utf8Buffer.Add(b);
-
-        // Check if we have a complete UTF-8 sequence
-        if (_utf8Buffer.Count == _utf8ExpectedLength)
-        {
-            DecodeUtf8Sequence();
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Decodes a complete UTF-8 sequence and sends the code points to the handler.
-    /// </summary>
-    private void DecodeUtf8Sequence()
-    {
-        try
-        {
-            var utf8Array = _utf8Buffer.ToArray();
-            var decoded = Encoding.UTF8.GetString(utf8Array);
-
-            // Send each Unicode character as its code point
-            for (int i = 0; i < decoded.Length; i++)
-            {
-                var codePoint = char.ConvertToUtf32(decoded, i);
-                _handlers.HandleNormalByte(codePoint);
-
-                // Skip the next character if this was a surrogate pair
-                if (codePoint > 0xFFFF)
-                {
-                    i++;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "UTF-8 decoding failed, treating bytes as individual characters");
-            // Decoding failed, treat each byte as a separate character
-            FlushUtf8Buffer();
-        }
-
-        // Reset UTF-8 state
-        _utf8Buffer.Clear();
-        _utf8ExpectedLength = 0;
-    }
-
-    /// <summary>
-    /// Flushes the UTF-8 buffer by sending each byte as a separate character (fallback).
-    /// </summary>
-    private void FlushUtf8Buffer()
-    {
-        // Send each byte in the buffer as a separate character (fallback)
-        foreach (var b in _utf8Buffer)
-        {
-            _handlers.HandleNormalByte(b);
-        }
-        _utf8Buffer.Clear();
-        _utf8ExpectedLength = 0;
+        _state = ParserState.Normal;
+        _escapeSequence.Clear();
+        _csiSequence.Clear();
+        _controlStringKind = null;
+        _dcsCommand = null;
+        _dcsParamBuffer.Clear();
+        _dcsParameters = Array.Empty<string>();
     }
 
     /// <summary>
@@ -782,16 +674,8 @@ public class Parser
             return;
         }
 
-        // TODO: Parse other CSI sequences (will be implemented in task 2.5)
-        var message = new CsiMessage
-        {
-            Type = "csi.unknown",
-            Raw = raw,
-            Implemented = false,
-            FinalByte = finalByte,
-            Parameters = Array.Empty<int>()
-        };
-
+        // Parse CSI sequence using the dedicated CSI parser
+        var message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
         _handlers.HandleCsi(message);
         ResetEscapeState();
     }
@@ -816,20 +700,6 @@ public class Parser
         _logger.LogDebug("DCS ({Terminator}): {Raw}", terminator, raw);
         _handlers.HandleDcs(message);
         ResetEscapeState();
-    }
-
-    /// <summary>
-    /// Resets the parser to normal state and clears all buffers.
-    /// </summary>
-    private void ResetEscapeState()
-    {
-        _state = ParserState.Normal;
-        _escapeSequence.Clear();
-        _csiSequence.Clear();
-        _controlStringKind = null;
-        _dcsCommand = null;
-        _dcsParamBuffer.Clear();
-        _dcsParameters = Array.Empty<string>();
     }
 
     /// <summary>

@@ -317,7 +317,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Coverage**: UTF-8 decoding, sequence splitting, wide characters, invalid byte recovery, mixed content
   - **Fixed**: Cursor reference bug in property tests causing false failures
 
-- [ ] 2.5 Implement CSI parameter parsing
+- [x] 2.5 Implement CSI parameter parsing
   - Create CSI parameter parsing logic
   - Handle numeric parameters and separators (semicolon/colon)
   - Add parameter validation and bounds checking
@@ -337,7 +337,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 2.5.1 Create dedicated UTF-8 decoder class
+- [x] 2.5.1 Create dedicated UTF-8 decoder class
   - Extract UTF-8 decoding logic from main Parser class into caTTY.Core/Parsing/Utf8Decoder.cs
   - Create IUtf8Decoder interface for testability
   - Implement Utf8Decoder class with focused UTF-8 handling responsibilities

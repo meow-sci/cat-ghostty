@@ -29,4 +29,16 @@ public class ParserOptions
     /// Handlers for processing parsed sequences and control characters.
     /// </summary>
     public IParserHandlers Handlers { get; set; } = null!;
+
+    /// <summary>
+    /// UTF-8 decoder for multi-byte sequence handling.
+    /// If null, a default Utf8Decoder will be created.
+    /// </summary>
+    public IUtf8Decoder? Utf8Decoder { get; set; }
+
+    /// <summary>
+    /// CSI parser for CSI sequence handling.
+    /// If null, a default CsiParser will be created.
+    /// </summary>
+    public ICsiParser? CsiParser { get; set; }
 }
