@@ -84,8 +84,52 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleEsc(EscMessage message)
     {
-        // TODO: Implement ESC sequence handling (task 2.11)
-        _logger.LogDebug("ESC sequence: {Type} - {Raw}", message.Type, message.Raw);
+        switch (message.Type)
+        {
+            case "esc.saveCursor":
+                _terminal.SaveCursorPosition();
+                break;
+                
+            case "esc.restoreCursor":
+                _terminal.RestoreCursorPosition();
+                break;
+                
+            case "esc.index":
+                _terminal.HandleIndex();
+                break;
+                
+            case "esc.reverseIndex":
+                _terminal.HandleReverseIndex();
+                break;
+                
+            case "esc.nextLine":
+                _terminal.HandleCarriageReturn();
+                _terminal.HandleLineFeed();
+                break;
+                
+            case "esc.horizontalTabSet":
+                _terminal.SetTabStopAtCursor();
+                break;
+                
+            case "esc.resetToInitialState":
+                _terminal.ResetToInitialState();
+                break;
+                
+            case "esc.designateCharacterSet":
+                if (message.Slot != null && message.Charset != null)
+                {
+                    _terminal.DesignateCharacterSet(message.Slot, message.Charset);
+                }
+                else
+                {
+                    _logger.LogWarning("Character set designation missing slot or charset: {Raw}", message.Raw);
+                }
+                break;
+                
+            default:
+                _logger.LogDebug("ESC sequence: {Type} - {Raw}", message.Type, message.Raw);
+                break;
+        }
     }
 
     public void HandleCsi(CsiMessage message)

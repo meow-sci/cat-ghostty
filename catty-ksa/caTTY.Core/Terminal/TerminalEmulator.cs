@@ -160,32 +160,50 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
-    /// Handles a line feed (LF) character - move down and scroll if at bottom.
+    /// Handles a line feed (LF) character - move down and to beginning of line, scroll if at bottom.
     /// Uses terminal state for proper cursor management.
     /// </summary>
     internal void HandleLineFeed()
     {
-        // Sync state with cursor
-        _state.CursorX = _cursor.Col;
-        _state.CursorY = _cursor.Row;
-
-        if (_state.CursorY < Height - 1)
+        if (_cursor.Row < Height - 1)
         {
             // Move cursor down one row and to beginning of line
-            _state.CursorY++;
-            _state.CursorX = 0; // Line feed moves to beginning of next line
+            _cursor.SetPosition(_cursor.Row + 1, 0);
         }
         else
         {
             // At bottom row - need to scroll (will be implemented in future task)
             // For now, just stay at the bottom row and move to beginning
-            _state.CursorX = 0;
+            _cursor.SetPosition(_cursor.Row, 0);
         }
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        _state.WrapPending = false;
+    }
 
-        // Update cursor to match state
-        _cursor.SetPosition(_state.CursorY, _state.CursorX);
-        _state.ClampCursor();
-        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    /// <summary>
+    /// Handles index operation (ESC D) - move cursor down one line without changing column.
+    /// Used by ESC D sequence.
+    /// </summary>
+    internal void HandleIndex()
+    {
+        if (_cursor.Row < Height - 1)
+        {
+            // Move cursor down one row, keep same column
+            _cursor.SetPosition(_cursor.Row + 1, _cursor.Col);
+        }
+        else
+        {
+            // At bottom row - need to scroll (will be implemented in future task)
+            // For now, just stay at the bottom row
+        }
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        _state.WrapPending = false;
     }
 
     /// <summary>
@@ -584,6 +602,128 @@ public class TerminalEmulator : ITerminalEmulator
                 {
                     _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
                 }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Saves the current cursor position for later restoration with ESC 8.
+    /// Implements ESC 7 (Save Cursor) sequence.
+    /// </summary>
+    internal void SaveCursorPosition()
+    {
+        // Save current cursor position in terminal state
+        _state.SavedCursor = (_cursor.Col, _cursor.Row);
+    }
+
+    /// <summary>
+    /// Restores the previously saved cursor position.
+    /// Implements ESC 8 (Restore Cursor) sequence.
+    /// </summary>
+    internal void RestoreCursorPosition()
+    {
+        if (_state.SavedCursor.HasValue)
+        {
+            var (x, y) = _state.SavedCursor.Value;
+            
+            // Clamp to bounds
+            x = Math.Max(0, Math.Min(Width - 1, x));
+            y = Math.Max(0, Math.Min(Height - 1, y));
+            
+            // Update cursor directly
+            _cursor.SetPosition(y, x);
+            
+            // Sync state with cursor
+            _state.CursorX = x;
+            _state.CursorY = y;
+            _state.WrapPending = false;
+        }
+    }
+
+    /// <summary>
+    /// Handles reverse index (ESC M) - move cursor up; if at top margin, scroll region down.
+    /// Used by full-screen applications like less to scroll the display down within the scroll region.
+    /// </summary>
+    internal void HandleReverseIndex()
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear wrap pending state
+        _state.WrapPending = false;
+        
+        if (_state.CursorY <= _state.ScrollTop)
+        {
+            // At top of scroll region - scroll the region down
+            _state.CursorY = _state.ScrollTop;
+            // TODO: Implement scroll region down operation (will be implemented in task 4.6)
+            // For now, just stay at the top
+        }
+        else
+        {
+            // Move cursor up one line
+            _state.CursorY = Math.Max(_state.ScrollTop, _state.CursorY - 1);
+        }
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Sets a tab stop at the current cursor position.
+    /// Implements ESC H (Horizontal Tab Set) sequence.
+    /// </summary>
+    internal void SetTabStopAtCursor()
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Set tab stop at current cursor position
+        if (_state.CursorX >= 0 && _state.CursorX < _state.TabStops.Length)
+        {
+            _state.TabStops[_state.CursorX] = true;
+        }
+    }
+
+    /// <summary>
+    /// Resets the terminal to its initial state.
+    /// Implements ESC c (Reset to Initial State) sequence.
+    /// </summary>
+    internal void ResetToInitialState()
+    {
+        // Reset terminal state
+        _state.Reset();
+        
+        // Clear the screen buffer
+        _screenBuffer.Clear();
+        
+        // Update cursor to match reset state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Designates a character set to a specific G slot.
+    /// Implements ESC ( X, ESC ) X, ESC * X, ESC + X sequences.
+    /// </summary>
+    /// <param name="slot">The G slot to designate (G0, G1, G2, G3)</param>
+    /// <param name="charset">The character set identifier</param>
+    internal void DesignateCharacterSet(string slot, string charset)
+    {
+        switch (slot)
+        {
+            case "G0":
+                _state.CharacterSets.G0 = charset;
+                break;
+            case "G1":
+                _state.CharacterSets.G1 = charset;
+                break;
+            case "G2":
+                _state.CharacterSets.G2 = charset;
+                break;
+            case "G3":
+                _state.CharacterSets.G3 = charset;
                 break;
         }
     }

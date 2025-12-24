@@ -379,7 +379,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/StatefulTerminal.ts parser integration and ensure C# implementation handles partial sequences and parser state management identically
   - _Requirements: 11.1, 12.1, 13.1_
 
-- [ ] 2.11 Add essential ESC (non-CSI) sequences
+- [x] 2.11 Add essential ESC (non-CSI) sequences
   - Implement save/restore cursor (ESC 7 / ESC 8)
   - Implement index and reverse index (ESC D / ESC M)
   - Implement next line (ESC E)
