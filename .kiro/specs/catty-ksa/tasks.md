@@ -367,7 +367,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts erase operations and ensure C# implementation provides identical clearing behavior for all erase modes
   - _Requirements: 11.6, 11.7_
 
-- [ ] 2.9 Write property test for screen clearing operations
+- [x] 2.9 Write property test for screen clearing operations
   - **Property 19: Screen clearing operations**
   - **Validates: Requirements 11.6, 11.7**
 
