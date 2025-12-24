@@ -417,7 +417,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts selective erase implementation to ensure C# provides identical character protection behavior
   - _Requirements: 11.6, 11.7_
 
-- [ ] 2.15 Add DCS and control-string handling
+- [x] 2.15 Add DCS and control-string handling
   - Extend parser to recognize DCS (ESC P ... ST) and emit parsed DCS messages
   - Implement DECRQSS (DCS $ q ... ST) minimal support for common requests (SGR "m", scroll region "r")
   - Ensure SOS/PM/APC control strings are safely skipped until ST terminator
