@@ -12,10 +12,11 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <ModNamespace>caTTY</ModNamespace>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     
     <!-- Build output + test output dirs -->
-    <DistDir>$(ProjectDir)dist\</DistDir>
+    <!-- <DistDir>$(ProjectDir)dist\</DistDir> -->
+    <DistDir>C:\Program Files\Kitten Space Agency\Content\caTTY\</DistDir>
   </PropertyGroup>
 
   <!-- Copies files for mod deployment -->

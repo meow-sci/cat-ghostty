@@ -10,7 +10,7 @@
     <Company>TestCaTTY Project</Company>
     <Copyright>Copyright © meow sci</Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <ModNamespace>caTTY</ModNamespace>
+    <ModNamespace>TestCaTTY</ModNamespace>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     

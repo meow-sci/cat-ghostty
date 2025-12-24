@@ -1,8 +1,5 @@
-using System;
-using System.Numerics;
 using System.Text;
 using Brutal.ImGuiApi;
-using Brutal.Numerics;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
 using caTTY.ImGui.Configuration;

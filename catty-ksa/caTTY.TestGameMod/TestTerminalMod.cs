@@ -4,7 +4,7 @@ using Brutal.Numerics;
 using KSA;
 using StarMap.API;
 
-namespace caTTY.GameMod;
+namespace TestCaTTY.GameMod;
 
 /// <summary>
 /// KSA game mod for caTTY terminal emulator.
