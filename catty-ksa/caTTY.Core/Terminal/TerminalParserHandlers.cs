@@ -90,8 +90,33 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleCsi(CsiMessage message)
     {
-        // TODO: Implement CSI sequence handling (task 2.5, 2.6, 2.8)
-        _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);
+        switch (message.Type)
+        {
+            case "csi.cursorUp":
+                _terminal.MoveCursorUp(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorDown":
+                _terminal.MoveCursorDown(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorForward":
+                _terminal.MoveCursorForward(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorBackward":
+                _terminal.MoveCursorBackward(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorPosition":
+                _terminal.SetCursorPosition(message.Row ?? 1, message.Column ?? 1);
+                break;
+                
+            default:
+                // TODO: Implement other CSI sequence handling (task 2.8, etc.)
+                _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);
+                break;
+        }
     }
 
     public void HandleOsc(OscMessage message)

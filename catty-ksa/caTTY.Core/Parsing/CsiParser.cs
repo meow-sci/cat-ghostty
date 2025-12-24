@@ -102,7 +102,8 @@ public class CsiParser : ICsiParser
         {
             if (string.IsNullOrEmpty(part))
             {
-                // Empty parameter - skip but don't fail
+                // Empty parameter - treat as 0 (will be defaulted later)
+                paramList.Add(0);
                 continue;
             }
 
@@ -110,7 +111,11 @@ public class CsiParser : ICsiParser
             {
                 paramList.Add(value);
             }
-            // Invalid numbers are ignored (following TypeScript behavior)
+            else
+            {
+                // Invalid numbers are treated as 0 (following TypeScript behavior)
+                paramList.Add(0);
+            }
         }
 
         parameters = paramList.ToArray();
@@ -301,6 +306,10 @@ public class CsiParser : ICsiParser
 
     private static CsiMessage CreateCursorPositionMessage(string raw, byte finalByte, int[] parameters)
     {
+        // Default missing or zero parameters to 1 (following TypeScript behavior)
+        var row = parameters.Length > 0 && parameters[0] > 0 ? parameters[0] : 1;
+        var column = parameters.Length > 1 && parameters[1] > 0 ? parameters[1] : 1;
+        
         return new CsiMessage
         {
             Type = "csi.cursorPosition",
@@ -308,8 +317,8 @@ public class CsiParser : ICsiParser
             Implemented = true,
             FinalByte = finalByte,
             Parameters = parameters,
-            Row = parameters.Length > 0 ? parameters[0] : 1,
-            Column = parameters.Length > 1 ? parameters[1] : 1
+            Row = row,
+            Column = column
         };
     }
 

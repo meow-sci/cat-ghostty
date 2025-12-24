@@ -355,6 +355,116 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    /// Moves the cursor up by the specified number of lines.
+    /// </summary>
+    /// <param name="count">Number of lines to move up (minimum 1)</param>
+    internal void MoveCursorUp(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Move cursor up, clamping to top boundary
+        _state.CursorY = Math.Max(0, _state.CursorY - count);
+        
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Moves the cursor down by the specified number of lines.
+    /// </summary>
+    /// <param name="count">Number of lines to move down (minimum 1)</param>
+    internal void MoveCursorDown(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Move cursor down, clamping to bottom boundary
+        _state.CursorY = Math.Min(Height - 1, _state.CursorY + count);
+        
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Moves the cursor forward (right) by the specified number of columns.
+    /// </summary>
+    /// <param name="count">Number of columns to move forward (minimum 1)</param>
+    internal void MoveCursorForward(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Move cursor forward, clamping to right boundary
+        _state.CursorX = Math.Min(Width - 1, _state.CursorX + count);
+        
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Moves the cursor backward (left) by the specified number of columns.
+    /// </summary>
+    /// <param name="count">Number of columns to move backward (minimum 1)</param>
+    internal void MoveCursorBackward(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Sync state with cursor
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Move cursor backward, clamping to left boundary
+        _state.CursorX = Math.Max(0, _state.CursorX - count);
+        
+        // Clear wrap pending state since we're moving the cursor
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Sets the cursor to an absolute position.
+    /// </summary>
+    /// <param name="row">Target row (1-based, will be converted to 0-based)</param>
+    /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
+    internal void SetCursorPosition(int row, int column)
+    {
+        // Convert from 1-based to 0-based coordinates and clamp to bounds
+        var targetRow = Math.Max(0, Math.Min(Height - 1, row - 1));
+        var targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
+        
+        // Update state
+        _state.CursorX = targetCol;
+        _state.CursorY = targetRow;
+        
+        // Clear wrap pending state since we're setting absolute position
+        _state.WrapPending = false;
+        
+        // Update cursor to match state
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
     /// Raises the Bell event.
     /// </summary>
     private void OnBell()

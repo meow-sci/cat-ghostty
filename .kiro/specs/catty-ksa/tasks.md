@@ -347,7 +347,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - Add comprehensive unit tests for Utf8Decoder in isolation
   - _Requirements: 9.3, 9.4_
 
-- [ ] 2.6 Add basic cursor movement CSI sequences
+- [x] 2.6 Add basic cursor movement CSI sequences
   - Implement cursor up (CSI A), down (CSI B) sequences
   - Add cursor forward (CSI C), backward (CSI D) sequences
   - Add cursor position (CSI H) sequence handling
@@ -355,7 +355,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor movement handlers and ensure C# implementation provides identical cursor positioning behavior and bounds checking
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 2.7 Write property test for cursor movement sequences
+- [x] 2.7 Write property test for cursor movement sequences
   - **Property 13: Cursor movement sequences**
   - **Validates: Requirements 8.4, 11.1, 11.2, 11.3, 11.4, 11.5**
 
