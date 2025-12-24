@@ -202,13 +202,57 @@ internal class TerminalParserHandlers : IParserHandlers
                 break;
                 
             case "csi.selectiveEraseInDisplay":
-                // TODO: Implement selective erase (task 2.14)
-                _logger.LogDebug("Selective erase in display not yet implemented: {Raw}", message.Raw);
+                _terminal.ClearDisplaySelective(message.Mode ?? 0);
                 break;
                 
             case "csi.selectiveEraseInLine":
-                // TODO: Implement selective erase (task 2.14)
-                _logger.LogDebug("Selective erase in line not yet implemented: {Raw}", message.Raw);
+                _terminal.ClearLineSelective(message.Mode ?? 0);
+                break;
+                
+            case "csi.selectCharacterProtection":
+                // DECSCA - Select Character Protection Attribute
+                if (message.Protected.HasValue)
+                {
+                    _terminal.SetCharacterProtection(message.Protected.Value);
+                    _logger.LogDebug("Set character protection: {Protected}", message.Protected.Value);
+                }
+                break;
+                
+            // Device query sequences
+            case "csi.deviceAttributesPrimary":
+                // Primary DA query: respond with device attributes
+                var primaryResponse = DeviceResponses.GenerateDeviceAttributesPrimaryResponse();
+                _terminal.EmitResponse(primaryResponse);
+                break;
+                
+            case "csi.deviceAttributesSecondary":
+                // Secondary DA query: respond with terminal version
+                var secondaryResponse = DeviceResponses.GenerateDeviceAttributesSecondaryResponse();
+                _terminal.EmitResponse(secondaryResponse);
+                break;
+                
+            case "csi.cursorPositionReport":
+                // CPR query: respond with current cursor position
+                var cprResponse = DeviceResponses.GenerateCursorPositionReport(_terminal.Cursor.Col, _terminal.Cursor.Row);
+                _terminal.EmitResponse(cprResponse);
+                break;
+                
+            case "csi.deviceStatusReport":
+                // DSR ready query: respond with CSI 0 n
+                var dsrResponse = DeviceResponses.GenerateDeviceStatusReportResponse();
+                _terminal.EmitResponse(dsrResponse);
+                break;
+                
+            case "csi.terminalSizeQuery":
+                // Terminal size query: respond with dimensions
+                var sizeResponse = DeviceResponses.GenerateTerminalSizeResponse(_terminal.Height, _terminal.Width);
+                _terminal.EmitResponse(sizeResponse);
+                break;
+                
+            case "csi.characterSetQuery":
+                // Character set query: respond with current character set
+                var charsetResponse = DeviceResponses.GenerateCharacterSetQueryResponse();
+                _terminal.EmitResponse(charsetResponse);
                 break;
                 
             default:

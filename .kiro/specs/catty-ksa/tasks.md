@@ -400,7 +400,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 10.4, 11.1_
 
-- [ ] 2.13 Add device query sequences and responses (CSI)
+- [x] 2.13 Add device query sequences and responses (CSI)
   - Implement DA queries (CSI c and CSI > c) and emit appropriate responses
   - Implement DSR queries (CSI 5 n and CSI 6 n) and emit appropriate responses
   - Implement terminal size query (CSI 18 t) and emit appropriate response
@@ -410,7 +410,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 11.1, 11.2, 27.1, 27.2_
 
-- [ ] 2.14 Add selective erase and character protection
+- [x] 2.14 Add selective erase and character protection
   - Implement selective erase in display/line (CSI ? J / CSI ? K)
   - Implement DECSCA character protection (CSI Ps " q)
   - Ensure protected cells are preserved by selective erase operations

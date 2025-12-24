@@ -323,8 +323,8 @@ public class TerminalEmulator : ITerminalEmulator
             _state.CursorX = Width - 1;
         }
 
-        // Write the character to the screen buffer with current SGR attributes
-        var cell = new Cell(character, _state.CurrentSgrState);
+        // Write the character to the screen buffer with current SGR attributes and protection status
+        var cell = new Cell(character, _state.CurrentSgrState, _state.CurrentCharacterProtection);
         _screenBuffer.SetCell(_state.CursorY, _state.CursorX, cell);
 
         // Handle cursor advancement and wrap pending
@@ -346,6 +346,16 @@ public class TerminalEmulator : ITerminalEmulator
 
         // Update cursor to match state
         _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Emits a response string back to the shell process.
+    /// Used for device queries and other terminal responses.
+    /// </summary>
+    /// <param name="responseText">The response text to emit</param>
+    internal void EmitResponse(string responseText)
+    {
+        OnResponseEmitted(responseText);
     }
 
     /// <summary>
@@ -518,8 +528,8 @@ public class TerminalEmulator : ITerminalEmulator
         // Clear wrap pending state
         _state.WrapPending = false;
         
-        // Create empty cell with current SGR attributes
-        var emptyCell = new Cell(' ', _state.CurrentSgrState);
+        // Create empty cell with current SGR attributes (unprotected)
+        var emptyCell = new Cell(' ', _state.CurrentSgrState, false);
         
         switch (mode)
         {
@@ -578,8 +588,8 @@ public class TerminalEmulator : ITerminalEmulator
             return;
         }
         
-        // Create empty cell with current SGR attributes
-        var emptyCell = new Cell(' ', _state.CurrentSgrState);
+        // Create empty cell with current SGR attributes (unprotected)
+        var emptyCell = new Cell(' ', _state.CurrentSgrState, false);
         
         switch (mode)
         {
@@ -604,6 +614,152 @@ public class TerminalEmulator : ITerminalEmulator
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Clears the display selectively according to the specified erase mode.
+    /// Implements CSI ? J (Selective Erase in Display) sequence.
+    /// Only erases unprotected cells, preserving protected cells.
+    /// </summary>
+    /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
+    internal void ClearDisplaySelective(int mode)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear wrap pending state
+        _state.WrapPending = false;
+        
+        // Create empty cell with current SGR attributes (unprotected)
+        var emptyCell = new Cell(' ', _state.CurrentSgrState, false);
+        
+        switch (mode)
+        {
+            case 0: // From cursor to end of display
+                ClearLineSelective(0); // Clear from cursor to end of current line
+                // Clear all lines below cursor
+                for (int row = _state.CursorY + 1; row < Height; row++)
+                {
+                    for (int col = 0; col < Width; col++)
+                    {
+                        var currentCell = _screenBuffer.GetCell(row, col);
+                        if (!currentCell.IsProtected)
+                        {
+                            _screenBuffer.SetCell(row, col, emptyCell);
+                        }
+                    }
+                }
+                break;
+                
+            case 1: // From start of display to cursor
+                // Clear all lines above cursor
+                for (int row = 0; row < _state.CursorY; row++)
+                {
+                    for (int col = 0; col < Width; col++)
+                    {
+                        var currentCell = _screenBuffer.GetCell(row, col);
+                        if (!currentCell.IsProtected)
+                        {
+                            _screenBuffer.SetCell(row, col, emptyCell);
+                        }
+                    }
+                }
+                ClearLineSelective(1); // Clear from start of current line to cursor
+                break;
+                
+            case 2: // Entire display
+            case 3: // Entire display and scrollback (xterm extension)
+                if (mode == 3)
+                {
+                    // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
+                }
+                
+                // Clear entire display selectively
+                for (int row = 0; row < Height; row++)
+                {
+                    for (int col = 0; col < Width; col++)
+                    {
+                        var currentCell = _screenBuffer.GetCell(row, col);
+                        if (!currentCell.IsProtected)
+                        {
+                            _screenBuffer.SetCell(row, col, emptyCell);
+                        }
+                    }
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Clears the current line selectively according to the specified erase mode.
+    /// Implements CSI ? K (Selective Erase in Line) sequence.
+    /// Only erases unprotected cells, preserving protected cells.
+    /// </summary>
+    /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
+    internal void ClearLineSelective(int mode)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear wrap pending state
+        _state.WrapPending = false;
+        
+        // Bounds check
+        if (_state.CursorY < 0 || _state.CursorY >= Height)
+        {
+            return;
+        }
+        
+        // Create empty cell with current SGR attributes (unprotected)
+        var emptyCell = new Cell(' ', _state.CurrentSgrState, false);
+        
+        switch (mode)
+        {
+            case 0: // From cursor to end of line
+                for (int col = _state.CursorX; col < Width; col++)
+                {
+                    var currentCell = _screenBuffer.GetCell(_state.CursorY, col);
+                    if (!currentCell.IsProtected)
+                    {
+                        _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                    }
+                }
+                break;
+                
+            case 1: // From start of line to cursor
+                for (int col = 0; col <= _state.CursorX && col < Width; col++)
+                {
+                    var currentCell = _screenBuffer.GetCell(_state.CursorY, col);
+                    if (!currentCell.IsProtected)
+                    {
+                        _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                    }
+                }
+                break;
+                
+            case 2: // Entire line
+                for (int col = 0; col < Width; col++)
+                {
+                    var currentCell = _screenBuffer.GetCell(_state.CursorY, col);
+                    if (!currentCell.IsProtected)
+                    {
+                        _screenBuffer.SetCell(_state.CursorY, col, emptyCell);
+                    }
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Sets the character protection attribute for subsequently written characters.
+    /// Implements DECSCA (CSI Ps " q) sequence.
+    /// </summary>
+    /// <param name="isProtected">Whether new characters should be protected from selective erase</param>
+    internal void SetCharacterProtection(bool isProtected)
+    {
+        _state.CurrentCharacterProtection = isProtected;
     }
 
     /// <summary>
