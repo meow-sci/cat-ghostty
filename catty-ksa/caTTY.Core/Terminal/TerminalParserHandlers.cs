@@ -182,6 +182,25 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.ClearLine(message.Mode ?? 0);
                 break;
                 
+            case "csi.cursorForwardTab":
+                _terminal.CursorForwardTab(message.Count ?? 1);
+                break;
+                
+            case "csi.cursorBackwardTab":
+                _terminal.CursorBackwardTab(message.Count ?? 1);
+                break;
+                
+            case "csi.tabClear":
+                if (message.Mode == 3)
+                {
+                    _terminal.ClearAllTabStops();
+                }
+                else
+                {
+                    _terminal.ClearTabStopAtCursor();
+                }
+                break;
+                
             case "csi.selectiveEraseInDisplay":
                 // TODO: Implement selective erase (task 2.14)
                 _logger.LogDebug("Selective erase in display not yet implemented: {Raw}", message.Raw);

@@ -688,6 +688,112 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    /// Moves cursor forward to the next tab stop.
+    /// Implements CSI I (Cursor Forward Tab) sequence.
+    /// </summary>
+    /// <param name="count">Number of tab stops to move forward</param>
+    internal void CursorForwardTab(int count)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        var n = Math.Max(1, count);
+        
+        if (_state.CursorX < 0)
+        {
+            _state.CursorX = 0;
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            int nextStop = -1;
+            for (int x = _state.CursorX + 1; x < Width; x++)
+            {
+                if (x < _state.TabStops.Length && _state.TabStops[x])
+                {
+                    nextStop = x;
+                    break;
+                }
+            }
+            _state.CursorX = nextStop == -1 ? (Width - 1) : nextStop;
+        }
+
+        _state.WrapPending = false;
+        
+        // Update cursor position
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Moves cursor backward to the previous tab stop.
+    /// Implements CSI Z (Cursor Backward Tab) sequence.
+    /// </summary>
+    /// <param name="count">Number of tab stops to move backward</param>
+    internal void CursorBackwardTab(int count)
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        var n = Math.Max(1, count);
+        
+        if (_state.CursorX < 0)
+        {
+            _state.CursorX = 0;
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            int prevStop = -1;
+            for (int x = _state.CursorX - 1; x >= 0; x--)
+            {
+                if (x < _state.TabStops.Length && _state.TabStops[x])
+                {
+                    prevStop = x;
+                    break;
+                }
+            }
+            _state.CursorX = prevStop == -1 ? 0 : prevStop;
+        }
+
+        _state.WrapPending = false;
+        
+        // Update cursor position
+        _cursor.SetPosition(_state.CursorY, _state.CursorX);
+    }
+
+    /// <summary>
+    /// Clears the tab stop at the current cursor position.
+    /// Implements CSI g (Tab Clear) sequence with mode 0.
+    /// </summary>
+    internal void ClearTabStopAtCursor()
+    {
+        // Sync cursor with state
+        _state.CursorX = _cursor.Col;
+        _state.CursorY = _cursor.Row;
+        
+        // Clear tab stop at current cursor position
+        if (_state.CursorX >= 0 && _state.CursorX < _state.TabStops.Length)
+        {
+            _state.TabStops[_state.CursorX] = false;
+        }
+    }
+
+    /// <summary>
+    /// Clears all tab stops.
+    /// Implements CSI 3 g (Tab Clear) sequence with mode 3.
+    /// </summary>
+    internal void ClearAllTabStops()
+    {
+        // Clear all tab stops
+        for (int i = 0; i < _state.TabStops.Length; i++)
+        {
+            _state.TabStops[i] = false;
+        }
+    }
+
+    /// <summary>
     /// Resets the terminal to its initial state.
     /// Implements ESC c (Reset to Initial State) sequence.
     /// </summary>

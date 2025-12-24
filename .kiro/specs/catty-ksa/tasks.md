@@ -391,7 +391,7 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/esc.ts
   - _Requirements: 10.1, 10.2, 24.1, 24.2_
 
-- [ ] 2.12 Add tab stop CSI sequences
+- [x] 2.12 Add tab stop CSI sequences
   - Implement cursor forward tab (CSI I) and cursor backward tab (CSI Z)
   - Implement tab clear (CSI g) for clear-at-cursor and clear-all
   - Integrate with tab stop tracking in terminal state
