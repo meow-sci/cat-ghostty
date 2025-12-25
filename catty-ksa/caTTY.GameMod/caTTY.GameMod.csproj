@@ -3,20 +3,20 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>caTTY</AssemblyName>
-    <RootNamespace>caTTY</RootNamespace>
+    <RootNamespace>caTTY.GameMod</RootNamespace>
     <Description>KSA game mod for caTTY terminal emulator</Description>
-    <PackageId>caTTY</PackageId>
+    <PackageId>caTTY.GameMod</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>caTTY Project</Company>
-    <Copyright>Copyright © caTTY Project</Copyright>
+    <Copyright>Copyright © meow sci</Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <ModNamespace>caTTY</ModNamespace>
+    <ModNamespace>caTTY.GameMod</ModNamespace>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     
     <!-- Build output + test output dirs -->
-    <DistDir>$(ProjectDir)dist\</DistDir>
-    <!-- <DistDir>C:\Program Files\Kitten Space Agency\Content\caTTY\</DistDir> -->
+    <!-- <DistDir>$(ProjectDir)dist\</DistDir> -->
+    <DistDir>C:\Program Files\Kitten Space Agency\Content\caTTY\</DistDir>
   </PropertyGroup>
 
   <!-- Copies files for mod deployment -->
@@ -28,19 +28,29 @@
     <Copy SourceFiles="$(TargetDir)caTTY.pdb" DestinationFolder="$(DistDir)" />
     <Copy SourceFiles="$(TargetDir)caTTY.Core.dll" DestinationFolder="$(DistDir)" />
     <Copy SourceFiles="$(TargetDir)caTTY.Core.pdb" DestinationFolder="$(DistDir)" />
-    <Copy SourceFiles="$(TargetDir)caTTY.ImGui.dll" DestinationFolder="$(DistDir)" />
-    <Copy SourceFiles="$(TargetDir)caTTY.ImGui.pdb" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.Display.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.Display.pdb" DestinationFolder="$(DistDir)" />
     
     <!-- Copy Fonts folder to the build dir-->
     <ItemGroup>
-      <FontFiles Include="$(TargetDir)Fonts\**\*" />
+      <FontFiles Include="$(TargetDir)TerminalFonts\**\*" />
     </ItemGroup>
-    <MakeDir Directories="$(DistDir)Fonts" />
-    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)Fonts\%(RecursiveDir)" />
+    <MakeDir Directories="$(DistDir)TerminalFonts" />
+    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)TerminalFonts\%(RecursiveDir)" />
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="..\caTTY.ImGui\caTTY.ImGui.csproj" />
+    <ProjectReference Include="..\caTTY.Display\caTTY.Display.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copies mod.toml to the output dir -->
+    <None Update="mod.toml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="TerminalFonts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -71,16 +81,6 @@
       <HintPath>$(KSAFolder)/KSA.dll</HintPath>
       <Private>false</Private>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Copies mod.toml to the output dir -->
-    <None Update="mod.toml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Fonts\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

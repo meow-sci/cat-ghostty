@@ -15,8 +15,8 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     
     <!-- Build output + test output dirs -->
-    <!-- <DistDir>$(ProjectDir)dist\</DistDir> -->
-    <DistDir>C:\Program Files\Kitten Space Agency\Content\TestCaTTY\</DistDir>
+    <DistDir>$(ProjectDir)dist\</DistDir>
+    <!-- <DistDir>C:\Program Files\Kitten Space Agency\Content\TestCaTTY\</DistDir> -->
   </PropertyGroup>
 
   <!-- Copies files for mod deployment -->
@@ -26,19 +26,29 @@
     <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFolder="$(DistDir)" Condition="Exists('$(ProjectDepsFilePath)')" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DistDir)" Condition="Exists('$(TargetPath)')" />
     <Copy SourceFiles="$(TargetDir)TestCaTTY.pdb" DestinationFolder="$(DistDir)" />
-    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.ImGui.dll" DestinationFolder="$(DistDir)" />
-    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.ImGui.pdb" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.Display.dll" DestinationFolder="$(DistDir)" />
+    <Copy SourceFiles="$(TargetDir)caTTY.TestGameMod.Display.pdb" DestinationFolder="$(DistDir)" />
     
     <!-- Copy Fonts folder to the build dir-->
     <ItemGroup>
-      <FontFiles Include="$(TargetDir)Fonts\**\*" />
+      <FontFiles Include="$(TargetDir)TerminalFonts\**\*" />
     </ItemGroup>
-    <MakeDir Directories="$(DistDir)Fonts" />
-    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)Fonts\%(RecursiveDir)" />
+    <MakeDir Directories="$(DistDir)TerminalFonts" />
+    <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)TerminalFonts\%(RecursiveDir)" />
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="..\caTTY.TestGameMod.ImGui\caTTY.TestGameMod.ImGui.csproj" />
+    <ProjectReference Include="..\caTTY.TestGameMod.Display\caTTY.TestGameMod.Display.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copies mod.toml to the output dir -->
+    <None Update="mod.toml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="TerminalFonts\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -69,16 +79,6 @@
       <HintPath>$(KSAFolder)/KSA.dll</HintPath>
       <Private>false</Private>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Copies mod.toml to the output dir -->
-    <None Update="mod.toml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Fonts\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

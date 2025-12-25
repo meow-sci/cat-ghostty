@@ -1,11 +1,8 @@
 using System.Text;
 using Brutal.ImGuiApi;
 using KSA;
-using BrutalImGui = Brutal.ImGuiApi.ImGui;
-using float2 = Brutal.Numerics.float2;
-using float4 = Brutal.Numerics.float4;
 
-namespace caTTY.TestGameMod.ImGui;
+namespace caTTY.TestGameMod.Display;
 
 /// <summary>
 /// ImGui terminal controller that handles display and input for the terminal emulator.
@@ -18,7 +15,7 @@ public class TestModFonts
   private bool _disposed = false;
 
   // Font and rendering settings (now config-based)
-  private float _fontSize = 64.0f;
+  private float _fontSize = 32.0f;
   private float _charWidth = 19.2f;
   private float _lineHeight = 36.0f;
 
@@ -72,30 +69,25 @@ public class TestModFonts
     // Push monospace font if available
     PushMonospaceFont(out bool fontUsed);
 
-    try
-    {
-      // Create terminal window
-      BrutalImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+    // Create terminal window
+    ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
-      // Track focus state
-      _hasFocus = BrutalImGui.IsWindowFocused();
+    // Track focus state
+    _hasFocus = ImGui.IsWindowFocused();
 
-      // Display terminal info
-      BrutalImGui.Text($"Terminal: 80x24");
-      BrutalImGui.SameLine();
+    // Display terminal info
+    ImGui.Text($"Terminal: 80x24");
+    ImGui.SameLine();
 
 
+    ImGui.End();
 
-      BrutalImGui.End();
-    }
-    finally
-    {
-      MaybePopFont(fontUsed);
-    }
+    MaybePopFont(fontUsed);
+
   }
 
 
-  
+
   /// <summary>
   /// Pushes a monospace font if available.
   /// </summary>
@@ -106,7 +98,7 @@ public class TestModFonts
     {
       if (FontManager.Fonts.TryGetValue("HackNerdFontMono-BoldItalic", out ImFontPtr fontPtr))
       {
-        BrutalImGui.PushFont(fontPtr, _fontSize);
+        ImGui.PushFont(fontPtr, _fontSize);
         fontUsed = true;
         return;
       }
@@ -132,7 +124,7 @@ public class TestModFonts
           var result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-BoldItalic" });
           if (result is ImFontPtr font)
           {
-            BrutalImGui.PushFont(font, _fontSize);
+            ImGui.PushFont(font, _fontSize);
             fontUsed = true;
             return;
           }
@@ -142,7 +134,9 @@ public class TestModFonts
     catch (Exception ex)
     {
       // GameMod font loading not available or failed
-      System.Diagnostics.Debug.WriteLine($"GameMod font loading failed: {ex.Message}");
+      Console.WriteLine($"GameMod font loading failed: {ex.Message}");
+      Console.WriteLine(ex.StackTrace);
+
     }
 
     fontUsed = false;
@@ -155,7 +149,7 @@ public class TestModFonts
   {
     if (wasUsed)
     {
-      BrutalImGui.PopFont();
+      ImGui.PopFont();
     }
   }
 

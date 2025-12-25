@@ -1,6 +1,4 @@
-using System;
-
-namespace caTTY.ImGui.Configuration;
+namespace caTTY.Display.Configuration;
 
 /// <summary>
 /// Configuration class that encapsulates all rendering-related settings for the terminal controller.

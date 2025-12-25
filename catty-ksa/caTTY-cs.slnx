@@ -9,8 +9,8 @@
   <Project Path="caTTY.GameMod/caTTY.GameMod.csproj" />
   <Project Path="caTTY.ImGui.Playground/caTTY.ImGui.Playground.csproj" />
   <Project Path="caTTY.ImGui.Tests/caTTY.ImGui.Tests.csproj" />
-  <Project Path="caTTY.ImGui/caTTY.ImGui.csproj" />
+  <Project Path="caTTY.Display/caTTY.Display.csproj" />
   <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />
-  <Project Path="caTTY.TestGameMod.ImGui/caTTY.TestGameMod.ImGui.csproj" />
+  <Project Path="caTTY.TestGameMod.Display/caTTY.TestGameMod.Display.csproj" />
   <Project Path="caTTY.TestGameMod/caTTY.TestGameMod.csproj" />
 </Solution>

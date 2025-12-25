@@ -2,13 +2,12 @@ using System.Text;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
-using caTTY.ImGui.Configuration;
+using caTTY.Display.Configuration;
 using KSA;
-using BrutalImGui = Brutal.ImGuiApi.ImGui;
 using float2 = Brutal.Numerics.float2;
 using float4 = Brutal.Numerics.float4;
 
-namespace caTTY.ImGui.Controllers;
+namespace caTTY.Display.Controllers;
 
 /// <summary>
 /// ImGui terminal controller that handles display and input for the terminal emulator.
@@ -163,25 +162,25 @@ public class TerminalController : ITerminalController
     try
     {
       // Create terminal window
-      BrutalImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
       // Track focus state
-      _hasFocus = BrutalImGui.IsWindowFocused();
+      _hasFocus = ImGui.IsWindowFocused();
 
       // Display terminal info
-      BrutalImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
-      BrutalImGui.SameLine();
-      BrutalImGui.Text($"Cursor: ({_terminal.Cursor.Row}, {_terminal.Cursor.Col})");
-      BrutalImGui.SameLine();
-      BrutalImGui.Text($"Process: {(_processManager.IsRunning ? $"Running (PID: {_processManager.ProcessId})" : "Stopped")}");
+      ImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
+      ImGui.SameLine();
+      ImGui.Text($"Cursor: ({_terminal.Cursor.Row}, {_terminal.Cursor.Col})");
+      ImGui.SameLine();
+      ImGui.Text($"Process: {(_processManager.IsRunning ? $"Running (PID: {_processManager.ProcessId})" : "Stopped")}");
 
       if (_processManager.ExitCode.HasValue)
       {
-        BrutalImGui.SameLine();
-        BrutalImGui.Text($"Exit Code: {_processManager.ExitCode}");
+        ImGui.SameLine();
+        ImGui.Text($"Exit Code: {_processManager.ExitCode}");
       }
 
-      BrutalImGui.Separator();
+      ImGui.Separator();
 
       // Render terminal content
       RenderTerminalContent();
@@ -192,7 +191,7 @@ public class TerminalController : ITerminalController
         HandleInput();
       }
 
-      BrutalImGui.End();
+      ImGui.End();
     }
     finally
     {
@@ -216,15 +215,15 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalContent()
   {
-    var drawList = BrutalImGui.GetWindowDrawList();
-    var windowPos = BrutalImGui.GetCursorScreenPos();
+    var drawList = ImGui.GetWindowDrawList();
+    var windowPos = ImGui.GetCursorScreenPos();
 
     // Calculate terminal area
     var terminalWidth = _terminal.Width * _charWidth;
     var terminalHeight = _terminal.Height * _lineHeight;
 
     // Draw terminal background
-    var bgColor = BrutalImGui.ColorConvertFloat4ToU32(new float4(0.0f, 0.0f, 0.0f, 1.0f));
+    var bgColor = ImGui.ColorConvertFloat4ToU32(new float4(0.0f, 0.0f, 0.0f, 1.0f));
     var terminalRect = new float2(windowPos.X + terminalWidth, windowPos.Y + terminalHeight);
     drawList.AddRectFilled(windowPos, terminalRect, bgColor);
 
@@ -242,7 +241,7 @@ public class TerminalController : ITerminalController
     RenderCursor(drawList, windowPos);
 
     // Reserve space for the terminal
-    BrutalImGui.Dummy(new float2(terminalWidth, terminalHeight));
+    ImGui.Dummy(new float2(terminalWidth, terminalHeight));
   }
 
   /// <summary>
@@ -260,7 +259,7 @@ public class TerminalController : ITerminalController
 
     // Always draw background (black by default)
     var bgRect = new float2(x + _charWidth, y + _lineHeight);
-    drawList.AddRectFilled(pos, bgRect, BrutalImGui.ColorConvertFloat4ToU32(bgColor));
+    drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
 
     // Draw character if not space or null
     if (cell.Character != ' ' && cell.Character != '\0')
@@ -291,11 +290,11 @@ public class TerminalController : ITerminalController
         bgColor = temp;
 
         // Redraw background with swapped color
-        drawList.AddRectFilled(pos, bgRect, BrutalImGui.ColorConvertFloat4ToU32(bgColor));
+        drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
       }
 
       // Draw the character
-      drawList.AddText(pos, BrutalImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+      drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
 
       // Draw underline if needed
       if (cell.Attributes.Underline)
@@ -303,7 +302,7 @@ public class TerminalController : ITerminalController
         var underlineY = y + _lineHeight - 2;
         var underlineStart = new float2(x, underlineY);
         var underlineEnd = new float2(x + _charWidth, underlineY);
-        drawList.AddLine(underlineStart, underlineEnd, BrutalImGui.ColorConvertFloat4ToU32(fgColor));
+        drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(fgColor));
       }
 
       // Draw strikethrough if needed
@@ -312,7 +311,7 @@ public class TerminalController : ITerminalController
         var strikeY = y + _lineHeight / 2;
         var strikeStart = new float2(x, strikeY);
         var strikeEnd = new float2(x + _charWidth, strikeY);
-        drawList.AddLine(strikeStart, strikeEnd, BrutalImGui.ColorConvertFloat4ToU32(fgColor));
+        drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(fgColor));
       }
     }
   }
@@ -335,7 +334,7 @@ public class TerminalController : ITerminalController
     var y = windowPos.Y + cursorRow * _lineHeight;
 
     // Draw cursor as a filled rectangle (white with some transparency)
-    var cursorColor = BrutalImGui.ColorConvertFloat4ToU32(new float4(1.0f, 1.0f, 1.0f, 0.8f));
+    var cursorColor = ImGui.ColorConvertFloat4ToU32(new float4(1.0f, 1.0f, 1.0f, 0.8f));
     var cursorPos = new float2(x, y);
     var cursorRect = new float2(x + _charWidth, y + _lineHeight);
 
@@ -347,7 +346,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void HandleInput()
   {
-    var io = BrutalImGui.GetIO();
+    var io = ImGui.GetIO();
 
     // Handle text input
     if (io.InputQueueCharacters.Count > 0)
@@ -363,31 +362,31 @@ public class TerminalController : ITerminalController
     }
 
     // Handle special keys
-    if (BrutalImGui.IsKeyPressed(ImGuiKey.Enter))
+    if (ImGui.IsKeyPressed(ImGuiKey.Enter))
     {
       SendToProcess("\r\n");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.Backspace))
+    else if (ImGui.IsKeyPressed(ImGuiKey.Backspace))
     {
       SendToProcess("\b");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.Tab))
+    else if (ImGui.IsKeyPressed(ImGuiKey.Tab))
     {
       SendToProcess("\t");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.UpArrow))
+    else if (ImGui.IsKeyPressed(ImGuiKey.UpArrow))
     {
       SendToProcess("\x1b[A");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.DownArrow))
+    else if (ImGui.IsKeyPressed(ImGuiKey.DownArrow))
     {
       SendToProcess("\x1b[B");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.RightArrow))
+    else if (ImGui.IsKeyPressed(ImGuiKey.RightArrow))
     {
       SendToProcess("\x1b[C");
     }
-    else if (BrutalImGui.IsKeyPressed(ImGuiKey.LeftArrow))
+    else if (ImGui.IsKeyPressed(ImGuiKey.LeftArrow))
     {
       SendToProcess("\x1b[D");
     }
@@ -395,15 +394,15 @@ public class TerminalController : ITerminalController
     // Handle Ctrl combinations
     if (io.KeyCtrl)
     {
-      if (BrutalImGui.IsKeyPressed(ImGuiKey.C))
+      if (ImGui.IsKeyPressed(ImGuiKey.C))
       {
         SendToProcess("\x03"); // Ctrl+C
       }
-      else if (BrutalImGui.IsKeyPressed(ImGuiKey.D))
+      else if (ImGui.IsKeyPressed(ImGuiKey.D))
       {
         SendToProcess("\x04"); // Ctrl+D
       }
-      else if (BrutalImGui.IsKeyPressed(ImGuiKey.Z))
+      else if (ImGui.IsKeyPressed(ImGuiKey.Z))
       {
         SendToProcess("\x1a"); // Ctrl+Z
       }
@@ -519,9 +518,9 @@ public class TerminalController : ITerminalController
     // First try the standard FontManager (works in standalone apps)
     try
     {
-      if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr fontPtr))
+      if (FontManager.Fonts.TryGetValue("HackNerdFontMono-BoldItalic", out ImFontPtr fontPtr))
       {
-        BrutalImGui.PushFont(fontPtr, _fontSize);
+        ImGui.PushFont(fontPtr, _fontSize);
         fontUsed = true;
         return;
       }
@@ -544,10 +543,10 @@ public class TerminalController : ITerminalController
         var getFontMethod = gameModType.GetMethod("GetFont", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
         if (getFontMethod != null)
         {
-          var result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-Regular" });
+          var result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-BoldItalic" });
           if (result is ImFontPtr font)
           {
-            BrutalImGui.PushFont(font, _fontSize);
+            ImGui.PushFont(font, _fontSize);
             fontUsed = true;
             return;
           }
@@ -557,7 +556,9 @@ public class TerminalController : ITerminalController
     catch (Exception ex)
     {
       // GameMod font loading not available or failed
-      System.Diagnostics.Debug.WriteLine($"GameMod font loading failed: {ex.Message}");
+      Console.WriteLine($"GameMod font loading failed: {ex.Message}");
+      Console.WriteLine(ex.StackTrace);
+
     }
 
     fontUsed = false;
@@ -570,7 +571,7 @@ public class TerminalController : ITerminalController
   {
     if (wasUsed)
     {
-      BrutalImGui.PopFont();
+      ImGui.PopFont();
     }
   }
 

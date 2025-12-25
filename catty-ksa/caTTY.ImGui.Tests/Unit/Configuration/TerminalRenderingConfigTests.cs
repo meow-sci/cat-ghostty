@@ -1,6 +1,6 @@
 using System;
 using NUnit.Framework;
-using caTTY.ImGui.Configuration;
+using caTTY.Display.Configuration;
 
 namespace caTTY.ImGui.Tests.Unit.Configuration;
 

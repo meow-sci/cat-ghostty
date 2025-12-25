@@ -2,15 +2,24 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <AssemblyName>caTTY.TestGameMod.ImGui</AssemblyName>
-    <RootNamespace>caTTY.TestGameMod.ImGui</RootNamespace>
-    <Description>ImGui display controller for caTTY terminal emulator</Description>
-    <PackageId>caTTY.TestGameMod.ImGui</PackageId>
+    <AssemblyName>caTTY.Display</AssemblyName>
+    <RootNamespace>caTTY.Display</RootNamespace>
+    <Description>Display controller for caTTY terminal emulator</Description>
+    <PackageId>caTTY.Display</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>meow sci</Company>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+    <Folder Include="Rendering\" />
+    <Folder Include="Input\" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Managed assembly references (only added if the file exists) -->

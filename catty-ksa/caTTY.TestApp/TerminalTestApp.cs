@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using caTTY.Core.Terminal;
-using caTTY.ImGui.Controllers;
+using caTTY.Display.Controllers;
 using caTTY.TestApp.Rendering;
 
 namespace caTTY.TestApp;

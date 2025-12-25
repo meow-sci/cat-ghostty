@@ -1,6 +1,4 @@
-using System;
-
-namespace caTTY.ImGui.Controllers;
+namespace caTTY.Display.Controllers;
 
 /// <summary>
 /// Interface for a terminal controller that handles ImGui display and input.

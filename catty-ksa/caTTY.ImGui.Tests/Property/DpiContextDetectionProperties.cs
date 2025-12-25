@@ -2,8 +2,8 @@ using System;
 using NUnit.Framework;
 using FsCheck;
 using FsCheck.NUnit;
-using caTTY.ImGui.Configuration;
-using ExecutionContext = caTTY.ImGui.Configuration.ExecutionContext;
+using caTTY.Display.Configuration;
+using ExecutionContext = caTTY.Display.Configuration.ExecutionContext;
 
 namespace caTTY.ImGui.Tests.Property;
 

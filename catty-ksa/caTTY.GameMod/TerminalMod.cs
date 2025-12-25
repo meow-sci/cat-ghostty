@@ -2,7 +2,7 @@ using System.Reflection;
 using Brutal.ImGuiApi;
 using StarMap.API;
 using caTTY.Core.Terminal;
-using caTTY.ImGui.Controllers;
+using caTTY.Display.Controllers;
 
 namespace caTTY.GameMod;
 
@@ -258,7 +258,7 @@ public class TerminalMod
 
       if (!string.IsNullOrEmpty(dllDir))
       {
-        string fontsDir = Path.Combine(dllDir, "Fonts");
+        string fontsDir = Path.Combine(dllDir, "TerminalFonts");
 
         if (Directory.Exists(fontsDir))
         {

@@ -1,4 +1,3 @@
-using System;
 using Brutal.GlfwApi;
 using Brutal.ImGuiApi;
 using Brutal.Numerics;
@@ -7,7 +6,6 @@ using Brutal.VulkanApi.Abstractions;
 using Core;
 using KSA;
 using RenderCore;
-using BrutalImGui = Brutal.ImGuiApi.ImGui;
 
 namespace caTTY.TestApp.Rendering;
 
@@ -78,9 +76,9 @@ public static class StandaloneImGui
         };
 
         // Initialize ImGui context
-        BrutalImGui.CreateContext();
+        ImGui.CreateContext();
 
-        var io = BrutalImGui.GetIO();
+        var io = ImGui.GetIO();
         io.ConfigDpiScaleFonts = true;
         io.ConfigDpiScaleViewports = true;
         io.ConfigFlags |= ImGuiConfigFlags.ViewportsEnable;
@@ -105,14 +103,14 @@ public static class StandaloneImGui
         
         // Start ImGui frame
         ImGuiBackend.NewFrame();
-        BrutalImGui.NewFrame();
+        ImGui.NewFrame();
         ImGuiHelper.StartFrame();
 
         // Draw the UI
         OnDrawUi!();
 
         // Render ImGui
-        BrutalImGui.Render();
+        ImGui.Render();
         
         // Acquire next frame from renderer
         var (result, frame) = renderer!.TryAcquireNextFrame();
@@ -144,8 +142,8 @@ public static class StandaloneImGui
 
         // Submit frame
         var frameResult = renderer.TrySubmitFrame();
-        BrutalImGui.UpdatePlatformWindows();
-        BrutalImGui.RenderPlatformWindowsDefault();
+        ImGui.UpdatePlatformWindows();
+        ImGui.RenderPlatformWindowsDefault();
         
         if (frameResult != FrameResult.Success)
         {

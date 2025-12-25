@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\caTTY.ImGui\caTTY.ImGui.csproj" />
+    <ProjectReference Include="..\caTTY.Display\caTTY.Display.csproj" />
   </ItemGroup>
 
   <ItemGroup>

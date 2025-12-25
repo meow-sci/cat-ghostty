@@ -2,9 +2,9 @@ using System;
 using NUnit.Framework;
 using FsCheck;
 using FsCheck.NUnit;
-using caTTY.ImGui.Configuration;
+using caTTY.Display.Configuration;
 
-namespace caTTY.ImGui.Tests.Property;
+namespace caTTY.Display.Tests.Property;
 
 /// <summary>
 /// Property-based tests for TerminalController configuration acceptance and application.

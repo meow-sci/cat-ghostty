@@ -1,8 +1,6 @@
 using System.Reflection;
 using Brutal.ImGuiApi;
-using Brutal.Numerics;
-using caTTY.TestGameMod.ImGui;
-using KSA;
+using caTTY.TestGameMod.Display;
 using StarMap.API;
 
 namespace TestCaTTY.GameMod;
@@ -44,7 +42,7 @@ public class TerminalMod
     try
     {
       // Handle terminal toggle keybind (F12)
-      if (Brutal.ImGuiApi.ImGui.IsKeyPressed(ImGuiKey.F12))
+      if (ImGui.IsKeyPressed(ImGuiKey.F12))
       {
         _showUi = !_showUi;
       }
@@ -170,7 +168,7 @@ public class TerminalMod
 
       if (!string.IsNullOrEmpty(dllDir))
       {
-        string fontsDir = Path.Combine(dllDir, "Fonts");
+        string fontsDir = Path.Combine(dllDir, "TerminalFonts");
         Console.WriteLine($"TestCaTTY GameMod: Loading fonts from directory: {fontsDir}");
 
         if (Directory.Exists(fontsDir))
@@ -225,33 +223,6 @@ public class TerminalMod
     {
       Console.WriteLine($"TestCaTTY GameMod: Error loading fonts: {ex.Message}");
     }
-  }
-
-  private static void PushHackFont(out bool fontUsed, float size)
-{
-  if (FontManager.Fonts.TryGetValue("HackNerdFontMono-BoldItalic", out ImFontPtr fontPtr))
-  {
-    ImGui.PushFont(fontPtr, size);
-    fontUsed = true;
-    return;
-  }
-
-  fontUsed = false;
-}
-
-private static void MaybePopFont(bool wasUsed)
-{
-  if (wasUsed) {
-    ImGui.PopFont();
-  }
-}
-
-  /// <summary>
-  /// Gets a loaded font by name, or null if not found.
-  /// </summary>
-  public static ImFontPtr? GetFont(string fontName)
-  {
-    return _loadedFonts.TryGetValue(fontName, out ImFontPtr font) ? font : null;
   }
 
   /// <summary>
