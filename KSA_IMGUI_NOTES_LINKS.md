@@ -9,19 +9,19 @@
 
 # key code bits that might be helpful
 
-```cs
+```csharp
 ImGui.GetStyle().ScaleAllSizes(dpiScale);
 ```
 
-```cs
+```csharp
 io.FontGlobalScale // can't figure out where this is in BRUTAL ImGui
 ```
 
-```cs
+```csharp
 Console.WriteLine($"Window size: {window.Width}x{window.Height}");
 Console.WriteLine($"Framebuffer size: {window.FramebufferSize.X}x{window.FramebufferSize.Y}");
 ```
 
-```cs
+```csharp
 var dpiScale = window.ContentScale[0];
 ```

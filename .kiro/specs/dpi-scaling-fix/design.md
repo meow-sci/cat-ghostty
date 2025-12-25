@@ -165,7 +165,7 @@ public static class DpiContextDetector
         // Try to detect DPI scaling from ImGui context if available
         try
         {
-            var io = BrutalImGui.GetIO();
+            var io = ImGui.GetIO();
             if (io.DisplayFramebufferScale.X > 1.0f)
                 return io.DisplayFramebufferScale.X;
         }
