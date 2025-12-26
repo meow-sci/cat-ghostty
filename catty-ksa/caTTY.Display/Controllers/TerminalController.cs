@@ -32,6 +32,9 @@ public class TerminalController : ITerminalController
     private ImFontPtr _italicFont;
     private ImFontPtr _boldItalicFont;
 
+    // Font loading state
+    private bool _fontsLoaded = false;
+
     // Font and rendering settings (now config-based)
     private bool _isVisible = true;
 
@@ -91,11 +94,11 @@ public class TerminalController : ITerminalController
         _config.Validate();
         _fontConfig.Validate();
 
-        // Load fonts from ImGui font system
-        LoadFonts();
+        // Note: Font loading is deferred until first render call when ImGui context is ready
+        // LoadFonts(); // Moved to EnsureFontsLoaded()
 
-        // Calculate character metrics from loaded fonts
-        CalculateCharacterMetrics();
+        // Calculate character metrics will be done after fonts are loaded
+        // CalculateCharacterMetrics(); // Moved to EnsureFontsLoaded()
 
         // Apply configuration to rendering metrics
         CurrentFontSize = _fontConfig.FontSize;
@@ -182,6 +185,9 @@ public class TerminalController : ITerminalController
         {
             return;
         }
+
+        // Ensure fonts are loaded before rendering (deferred loading)
+        EnsureFontsLoaded();
 
         // Push monospace font if available
         PushMonospaceFont(out bool fontUsed);
@@ -318,6 +324,9 @@ public class TerminalController : ITerminalController
             // Update font configuration
             _fontConfig = newFontConfig;
 
+            // Reset font loading state to trigger reload
+            _fontsLoaded = false;
+
             // Reload fonts from ImGui font system immediately
             LoadFonts();
 
@@ -369,6 +378,46 @@ public class TerminalController : ITerminalController
             
             // Re-throw the exception to notify caller of the failure
             throw new InvalidOperationException($"Failed to update font configuration: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    ///     Ensures fonts are loaded when ImGui context is ready.
+    ///     This method performs deferred font loading on first render call.
+    /// </summary>
+    private void EnsureFontsLoaded()
+    {
+        if (_fontsLoaded)
+        {
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine("TerminalController: Performing deferred font loading...");
+            
+            // Load fonts from ImGui font system
+            LoadFonts();
+
+            // Calculate character metrics from loaded fonts
+            CalculateCharacterMetrics();
+
+            // Log configuration for debugging
+            LogFontConfiguration();
+
+            _fontsLoaded = true;
+            Console.WriteLine("TerminalController: Deferred font loading completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error during deferred font loading: {ex.Message}");
+            
+            // Set fallback values to prevent crashes
+            CurrentCharacterWidth = _config.CharacterWidth;
+            CurrentLineHeight = _config.LineHeight;
+            
+            // Mark as loaded to prevent repeated attempts
+            _fontsLoaded = true;
         }
     }
 

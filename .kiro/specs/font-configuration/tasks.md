@@ -113,7 +113,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Document when to use explicit vs automatic configuration
   - _Requirements: 3.4, 4.4_
 
-- [ ] 3.4 Write property test for backward compatibility
+- [x] 3.4 Write property test for backward compatibility
   - **Property 5: Backward Compatibility and API Stability**
   - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
@@ -141,7 +141,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Validates: Requirements 1.5, 6.1, 6.4, 6.5**
 
 - [ ] 5. Integration testing and validation
-- [ ] 5.1 Test TestApp with new font configuration system
+- [x] 5.1 Test TestApp with new font configuration system
   - **USER VALIDATION REQUIRED**: Run TestApp and verify font rendering works correctly
   - Verify that TestApp uses appropriate development fonts
   - Check console output for correct font configuration logging
