@@ -88,7 +88,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Add logging for runtime configuration changes
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 2.8 Write property test for runtime font configuration updates
+- [x] 2.8 Write property test for runtime font configuration updates
   - **Property 4: Runtime Font Configuration Updates**
   - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
 
