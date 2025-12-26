@@ -7,14 +7,67 @@ namespace caTTY.Display.Configuration;
 /// <summary>
 /// Utility class for detecting execution context and creating appropriate font configurations.
 /// Uses assembly inspection to determine whether the application is running in TestApp or GameMod context.
+/// 
+/// This class provides automatic font configuration selection based on the execution environment,
+/// allowing applications to use context-appropriate fonts without manual configuration.
+/// 
+/// <para><strong>Usage Scenarios:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Development:</strong> Use automatic detection for convenience and rapid prototyping</description></item>
+/// <item><description><strong>Testing:</strong> Verify that different contexts receive appropriate font configurations</description></item>
+/// <item><description><strong>Hybrid Applications:</strong> Start with automatic detection, then customize as needed</description></item>
+/// </list>
+/// 
+/// <para><strong>Detection Logic:</strong></para>
+/// <list type="number">
+/// <item><description>Inspects loaded assemblies for KSA-related names (KSA, Kitten, Space, Agency, BRUTAL, StarMap)</description></item>
+/// <item><description>Checks for TestApp-specific assemblies (TestApp, Playground)</description></item>
+/// <item><description>Falls back to entry assembly name inspection</description></item>
+/// <item><description>Returns Unknown if context cannot be determined</description></item>
+/// </list>
+/// 
+/// <para><strong>Configuration Mapping:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>GameMod Context:</strong> Uses smaller font size (14.0f) optimized for game integration</description></item>
+/// <item><description><strong>TestApp Context:</strong> Uses larger font size (16.0f) optimized for development</description></item>
+/// <item><description><strong>Unknown Context:</strong> Defaults to TestApp settings for safety</description></item>
+/// </list>
 /// </summary>
 public static class FontContextDetector
 {
     /// <summary>
     /// Detects the current execution context and creates an appropriate font configuration.
     /// Combines context detection with configuration creation for convenience.
+    /// 
+    /// This is the primary method for automatic font configuration. It analyzes the current
+    /// execution environment and returns a TerminalFontConfig optimized for that context.
+    /// 
+    /// <para><strong>When to use this method:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Development and testing scenarios where convenience is prioritized</description></item>
+    /// <item><description>Applications that need to work in both TestApp and GameMod contexts</description></item>
+    /// <item><description>Rapid prototyping where specific font requirements are not critical</description></item>
+    /// <item><description>As a starting point for hybrid configuration approaches</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Alternative approaches:</strong></para>
+    /// <list type="bullet">
+    /// <item><description>Use <see cref="TerminalFontConfig.CreateForTestApp"/> for explicit TestApp configuration</description></item>
+    /// <item><description>Use <see cref="TerminalFontConfig.CreateForGameMod"/> for explicit GameMod configuration</description></item>
+    /// <item><description>Create custom <see cref="TerminalFontConfig"/> for specific requirements</description></item>
+    /// </list>
     /// </summary>
     /// <returns>A TerminalFontConfig instance optimized for the detected execution context.</returns>
+    /// <example>
+    /// <code>
+    /// // Automatic detection (recommended for development)
+    /// var fontConfig = FontContextDetector.DetectAndCreateConfig();
+    /// var controller = new TerminalController(terminal, processManager, fontConfig);
+    /// 
+    /// // Alternative: Use default constructor which calls this method automatically
+    /// var controller = new TerminalController(terminal, processManager);
+    /// </code>
+    /// </example>
     public static TerminalFontConfig DetectAndCreateConfig()
     {
         var context = DetectExecutionContext();
