@@ -6,11 +6,15 @@ namespace caTTY.Core.Parsing;
 
 /// <summary>
 ///     Escape sequence parser state machine for terminal emulation.
+///     Coordinates between specialized parsers for different sequence types.
 ///     Based on the TypeScript Parser implementation with identical state transitions and sequence detection.
 /// </summary>
 public class Parser
 {
     private readonly ICsiParser _csiParser;
+    private readonly IEscParser _escParser;
+    private readonly IDcsParser _dcsParser;
+    private readonly IOscParser _oscParser;
     private readonly StringBuilder _csiSequence = new();
     private readonly StringBuilder _dcsParamBuffer = new();
     private readonly bool _emitNormalBytesDuringEscapeSequence;
@@ -41,6 +45,9 @@ public class Parser
         _processC0ControlsDuringEscapeSequence = options.ProcessC0ControlsDuringEscapeSequence;
         _utf8Decoder = options.Utf8Decoder ?? new Utf8Decoder();
         _csiParser = options.CsiParser ?? new CsiParser();
+        _escParser = options.EscParser ?? new EscParser(_logger);
+        _dcsParser = options.DcsParser ?? new DcsParser(_logger);
+        _oscParser = options.OscParser ?? new OscParser(_logger);
     }
 
     /// <summary>
@@ -84,7 +91,6 @@ public class Parser
     /// <summary>
     ///     Main state machine processor for handling bytes based on current parser state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void ProcessByte(byte b)
     {
         if (b > 255)
@@ -98,35 +104,27 @@ public class Parser
             case ParserState.Normal:
                 HandleNormalState(b);
                 break;
-
             case ParserState.Escape:
                 HandleEscapeState(b);
                 break;
-
             case ParserState.CsiEntry:
                 HandleCsiState(b);
                 break;
-
             case ParserState.Osc:
                 HandleOscState(b);
                 break;
-
             case ParserState.OscEscape:
                 HandleOscEscapeState(b);
                 break;
-
             case ParserState.Dcs:
                 HandleDcsState(b);
                 break;
-
             case ParserState.DcsEscape:
                 HandleDcsEscapeState(b);
                 break;
-
             case ParserState.ControlString:
                 HandleControlStringState(b);
                 break;
-
             case ParserState.ControlStringEscape:
                 HandleControlStringEscapeState(b);
                 break;
@@ -136,7 +134,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in normal text processing state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleNormalState(byte b)
     {
         // C0 controls (including BEL/BS/TAB/LF/CR) execute immediately in normal mode
@@ -163,7 +160,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in escape sequence state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleEscapeState(byte b)
     {
         // Optional: still execute C0 controls while parsing ESC sequences (common terminal behavior)
@@ -178,7 +174,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in CSI sequence state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleCsiState(byte b)
     {
         // Optional: still execute C0 controls while parsing CSI (common terminal behavior)
@@ -193,24 +188,15 @@ public class Parser
     /// <summary>
     ///     Handles bytes in OSC sequence state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleOscState(byte b)
     {
-        // Guard against bytes outside the allowed OSC byte range (0x20 - 0x7E)
-        // Special allowances for BEL (0x07) and ESC (0x1b) must be allowed, these are valid terminators
-        if (b != 0x07 && b != 0x1b && (b < 0x20 || b > 0x7e))
+        if (_oscParser.ProcessOscByte(b, _escapeSequence, out OscMessage? message))
         {
-            _logger.LogWarning("OSC: byte out of range 0x{Byte:X2}", b);
-            MaybeEmitNormalByteDuringEscapeSequence(b);
-            return;
-        }
-
-        _escapeSequence.Add(b);
-
-        // OSC terminators: BEL or ST (ESC \)
-        if (b == 0x07) // BEL
-        {
-            FinishOscSequence("BEL");
+            if (message != null)
+            {
+                _handlers.HandleOsc(message);
+            }
+            ResetEscapeState();
             return;
         }
 
@@ -223,22 +209,15 @@ public class Parser
     /// <summary>
     ///     Handles bytes in OSC escape state (checking for ST terminator).
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleOscEscapeState(byte b)
     {
-        // We just saw an ESC while inside OSC. If next byte is "\" then it's ST terminator.
-        // Otherwise, it was a literal ESC in the OSC payload and we continue in OSC.
-        _escapeSequence.Add(b);
-
-        if (b == 0x5c) // \
+        if (_oscParser.ProcessOscEscapeByte(b, _escapeSequence, out OscMessage? message))
         {
-            FinishOscSequence("ST");
-            return;
-        }
-
-        if (b == 0x07) // BEL
-        {
-            FinishOscSequence("BEL");
+            if (message != null)
+            {
+                _handlers.HandleOsc(message);
+            }
+            ResetEscapeState();
             return;
         }
 
@@ -249,50 +228,27 @@ public class Parser
     /// <summary>
     ///     Handles bytes in DCS sequence state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleDcsState(byte b)
     {
-        // CAN (0x18) / SUB (0x1a) abort a control string per ECMA-48
-        if (b == 0x18 || b == 0x1a)
+        if (_dcsParser.ProcessDcsByte(b, _escapeSequence, ref _dcsCommand, _dcsParamBuffer, ref _dcsParameters, out DcsMessage? message))
         {
-            ResetEscapeState();
-            return;
+            // Sequence aborted (CAN/SUB)
+            if (message == null)
+            {
+                ResetEscapeState();
+                return;
+            }
         }
-
-        _escapeSequence.Add(b);
 
         if (b == 0x1b) // ESC
         {
             _state = ParserState.DcsEscape;
-            return;
-        }
-
-        // Parse the DCS "function identifier" (params/intermediates/final) once
-        if (_dcsCommand == null)
-        {
-            // Final byte (0x40-0x7E) ends the identifier
-            if (b >= 0x40 && b <= 0x7e)
-            {
-                _dcsCommand = ((char)b).ToString();
-                _dcsParameters = _dcsParamBuffer.Length == 0
-                    ? Array.Empty<string>()
-                    : _dcsParamBuffer.ToString().Split(';');
-                return;
-            }
-
-            // Parameter bytes are typically 0x30-0x3F (digits and delimiters)
-            // We keep it simple and buffer printable parameter bytes
-            if (b >= 0x20 && b <= 0x3f)
-            {
-                _dcsParamBuffer.Append((char)b);
-            }
         }
     }
 
     /// <summary>
     ///     Handles bytes in DCS escape state (checking for ST terminator).
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleDcsEscapeState(byte b)
     {
         // We just saw an ESC while inside DCS. If next byte is "\" then it's ST terminator.
@@ -318,7 +274,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in control string state (SOS/PM/APC).
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleControlStringState(byte b)
     {
         // CAN (0x18) / SUB (0x1a) abort a control string per ECMA-48
@@ -339,7 +294,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in control string escape state (checking for ST terminator).
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleControlStringEscapeState(byte b)
     {
         _escapeSequence.Add(b);
@@ -366,7 +320,6 @@ public class Parser
     /// <summary>
     ///     Handles bytes in CSI sequence, building the sequence until final byte.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleCsiByte(byte b)
     {
         // Guard against bytes outside the allowed CSI byte range (0x20 - 0x7E)
@@ -391,18 +344,9 @@ public class Parser
     /// <summary>
     ///     Handles ESC byte, accumulating into escape sequence and determining next state.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleEscapeByte(byte b)
     {
-        // Guard against bytes outside the allowed ESC byte range (0x20 - 0x7E)
-        if (b < 0x20 || b > 0x7e)
-        {
-            _logger.LogWarning("ESC: byte out of range 0x{Byte:X2}", b);
-            MaybeEmitNormalByteDuringEscapeSequence(b);
-            return;
-        }
-
-        // First byte after ESC decides the submode for CSI/OSC
+        // First byte after ESC decides the submode
         if (_escapeSequence.Count == 1)
         {
             if (b == 0x5b) // [
@@ -424,9 +368,6 @@ public class Parser
             if (b == 0x50) // P
             {
                 _escapeSequence.Add(b);
-                _dcsCommand = null;
-                _dcsParamBuffer.Clear();
-                _dcsParameters = Array.Empty<string>();
                 _state = ParserState.Dcs;
                 return;
             }
@@ -445,106 +386,15 @@ public class Parser
                 _state = ParserState.ControlString;
                 return;
             }
-
-            // Handle single-byte ESC sequences
-            HandleSingleByteEscSequence(b);
-            return;
         }
 
-        // Handle multi-byte ESC sequences (like character set designation)
-        HandleMultiByteEscSequence(b);
-    }
-
-    /// <summary>
-    ///     Handles single-byte ESC sequences that complete immediately.
-    /// </summary>
-    /// <param name="b">The final byte of the sequence</param>
-    private void HandleSingleByteEscSequence(byte b)
-    {
-        _escapeSequence.Add(b);
-        string raw = BytesToString(_escapeSequence);
-
-        EscMessage? message = b switch
+        // Use the specialized ESC parser for all other ESC sequences
+        if (_escParser.ProcessEscByte(b, _escapeSequence, out EscMessage? message))
         {
-            0x37 => new EscMessage { Type = "esc.saveCursor", Raw = raw, Implemented = true }, // ESC 7
-            0x38 => new EscMessage { Type = "esc.restoreCursor", Raw = raw, Implemented = true }, // ESC 8
-            0x4d => new EscMessage { Type = "esc.reverseIndex", Raw = raw, Implemented = true }, // ESC M
-            0x44 => new EscMessage { Type = "esc.index", Raw = raw, Implemented = true }, // ESC D
-            0x45 => new EscMessage { Type = "esc.nextLine", Raw = raw, Implemented = true }, // ESC E
-            0x48 => new EscMessage { Type = "esc.horizontalTabSet", Raw = raw, Implemented = true }, // ESC H
-            0x63 => new EscMessage { Type = "esc.resetToInitialState", Raw = raw, Implemented = true }, // ESC c
-            // Character set designation sequences need one more byte
-            0x28 or 0x29 or 0x2a or 0x2b => null, // (, ), *, +
-            _ => null
-        };
-
-        if (message != null)
-        {
-            _handlers.HandleEsc(message);
-            ResetEscapeState();
-            return;
-        }
-
-        // Character set designation sequences need one more byte
-        if (b == 0x28 || b == 0x29 || b == 0x2a || b == 0x2b)
-        {
-            // Need one more byte for the character set identifier
-            return;
-        }
-
-        // Unknown ESC sequence - log and reset
-        _logger.LogDebug("ESC (opaque): {Raw}", raw);
-        ResetEscapeState();
-    }
-
-    /// <summary>
-    ///     Handles multi-byte ESC sequences like character set designation.
-    /// </summary>
-    /// <param name="b">The current byte being processed</param>
-    private void HandleMultiByteEscSequence(byte b)
-    {
-        // Second byte after ESC for character set designation
-        if (_escapeSequence.Count == 2)
-        {
-            byte firstByte = _escapeSequence[1];
-            if (firstByte == 0x28 || firstByte == 0x29 || firstByte == 0x2a || firstByte == 0x2b)
+            if (message != null)
             {
-                _escapeSequence.Add(b);
-                string raw = BytesToString(_escapeSequence);
-
-                // Determine which G slot is being designated
-                string slot = firstByte switch
-                {
-                    0x28 => "G0",
-                    0x29 => "G1",
-                    0x2a => "G2",
-                    0x2b => "G3",
-                    _ => "G0"
-                };
-
-                string charset = ((char)b).ToString();
-                var message = new EscMessage
-                {
-                    Type = "esc.designateCharacterSet",
-                    Raw = raw,
-                    Slot = slot,
-                    Charset = charset,
-                    Implemented = true
-                };
-
                 _handlers.HandleEsc(message);
-                ResetEscapeState();
-                return;
             }
-        }
-
-        _escapeSequence.Add(b);
-
-        // Basic ESC sequence: intermediates 0x20-0x2F, final 0x30-0x7E
-        if (b >= 0x30 && b <= 0x7e)
-        {
-            string raw = BytesToString(_escapeSequence);
-            _logger.LogDebug("ESC (opaque): {Raw}", raw);
             ResetEscapeState();
         }
     }
@@ -552,7 +402,6 @@ public class Parser
     /// <summary>
     ///     Handles normal printable bytes and UTF-8 sequences.
     /// </summary>
-    /// <param name="b">The byte to process</param>
     private void HandleNormalByte(byte b)
     {
         // Use the dedicated UTF-8 decoder
@@ -574,13 +423,12 @@ public class Parser
         _dcsCommand = null;
         _dcsParamBuffer.Clear();
         _dcsParameters = Array.Empty<string>();
+        _dcsParser.Reset();
     }
 
     /// <summary>
     ///     Handles C0 control characters except ESC.
     /// </summary>
-    /// <param name="b">The control character byte</param>
-    /// <returns>True if the byte was handled as a control character</returns>
     private bool HandleC0ExceptEscape(byte b)
     {
         switch (b)
@@ -615,30 +463,13 @@ public class Parser
     }
 
     /// <summary>
-    ///     Starts a new escape sequence.
+    ///     Starts a new escape sequence and resets state.
     /// </summary>
-    /// <param name="b">The ESC byte (0x1b)</param>
     private void StartEscapeSequence(byte b)
     {
         _state = ParserState.Escape;
         _escapeSequence.Clear();
         _escapeSequence.Add(b);
-    }
-
-    /// <summary>
-    ///     Finishes an OSC sequence and sends it to the handler.
-    /// </summary>
-    /// <param name="terminator">The terminator type ("BEL" or "ST")</param>
-    private void FinishOscSequence(string terminator)
-    {
-        string raw = BytesToString(_escapeSequence);
-        var message = new OscMessage { Type = "osc", Raw = raw, Terminator = terminator, Implemented = false };
-
-        // TODO: Try to parse as xterm OSC extension (will be implemented in task 6.1)
-        _logger.LogDebug("OSC (opaque, {Terminator}): {Raw}", terminator, raw);
-        _handlers.HandleOsc(message);
-
-        ResetEscapeState();
     }
 
     /// <summary>
@@ -658,34 +489,23 @@ public class Parser
                 Type = "sgr", Implemented = false, Raw = raw, Messages = Array.Empty<SgrMessage>()
             };
             _handlers.HandleSgr(sgrSequence);
-            ResetEscapeState();
-            return;
         }
-
-        // Parse CSI sequence using the dedicated CSI parser
-        CsiMessage message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
-        _handlers.HandleCsi(message);
+        else
+        {
+            // Parse CSI sequence using the dedicated CSI parser
+            CsiMessage message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
+            _handlers.HandleCsi(message);
+        }
+        
         ResetEscapeState();
     }
 
     /// <summary>
     ///     Finishes a DCS sequence and sends it to the handler.
     /// </summary>
-    /// <param name="terminator">The terminator type ("ST")</param>
     private void FinishDcsSequence(string terminator)
     {
-        string raw = BytesToString(_escapeSequence);
-        var message = new DcsMessage
-        {
-            Type = "dcs",
-            Raw = raw,
-            Terminator = terminator,
-            Implemented = false,
-            Command = _dcsCommand ?? string.Empty,
-            Parameters = _dcsParameters
-        };
-
-        _logger.LogDebug("DCS ({Terminator}): {Raw}", terminator, raw);
+        DcsMessage message = _dcsParser.CreateDcsMessage(_escapeSequence, terminator, _dcsCommand, _dcsParameters);
         _handlers.HandleDcs(message);
         ResetEscapeState();
     }
@@ -693,7 +513,6 @@ public class Parser
     /// <summary>
     ///     Optionally emits a normal byte during escape sequence processing.
     /// </summary>
-    /// <param name="b">The byte to potentially emit</param>
     private void MaybeEmitNormalByteDuringEscapeSequence(byte b)
     {
         if (_emitNormalBytesDuringEscapeSequence)
@@ -705,8 +524,6 @@ public class Parser
     /// <summary>
     ///     Converts a list of bytes to a string representation.
     /// </summary>
-    /// <param name="bytes">The bytes to convert</param>
-    /// <returns>The string representation</returns>
     private static string BytesToString(IEnumerable<byte> bytes)
     {
         return string.Concat(bytes.Select(b => (char)b));

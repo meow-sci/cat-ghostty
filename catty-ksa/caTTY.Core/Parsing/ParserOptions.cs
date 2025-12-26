@@ -41,4 +41,22 @@ public class ParserOptions
     ///     If null, a default CsiParser will be created.
     /// </summary>
     public ICsiParser? CsiParser { get; set; }
+
+    /// <summary>
+    ///     ESC parser for ESC sequence handling.
+    ///     If null, a default EscParser will be created.
+    /// </summary>
+    public IEscParser? EscParser { get; set; }
+
+    /// <summary>
+    ///     DCS parser for DCS sequence handling.
+    ///     If null, a default DcsParser will be created.
+    /// </summary>
+    public IDcsParser? DcsParser { get; set; }
+
+    /// <summary>
+    ///     OSC parser for OSC sequence handling.
+    ///     If null, a default OscParser will be created.
+    /// </summary>
+    public IOscParser? OscParser { get; set; }
 }

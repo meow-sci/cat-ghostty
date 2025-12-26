@@ -467,12 +467,12 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Validate both console app and game mod still work
   - Document any parsing issues found
 
-- [ ] 2.17 Checkpoint - Basic escape sequence parsing working
+- [x] 2.17 Checkpoint - Basic escape sequence parsing working
   - Terminal handles basic CSI sequences and control characters
   - Terminal responds to common device/status queries without hanging
   - Both deployment targets validated by user
 
-- [ ] 2.18 Decompose Parser class for better maintainability
+- [x] 2.18 Decompose Parser class for better maintainability
   - **CRITICAL CODE ORGANIZATION**: Break down the main Parser class which has grown too large
   - Extract EscParser class into caTTY.Core/Parsing/EscParser.cs
     - Handle all ESC sequence parsing (save/restore cursor, character sets, etc.)
