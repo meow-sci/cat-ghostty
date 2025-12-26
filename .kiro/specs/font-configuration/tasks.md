@@ -35,8 +35,8 @@ The approach uses configuration injection to allow different contexts to specify
   - **Property 2: Context Detection and Default Configuration**
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
 
-- [ ] 2. Enhance TerminalController with font configuration support
-- [ ] 2.1 Add font configuration support to TerminalController
+- [x] 2. Enhance TerminalController with font configuration support
+- [x] 2.1 Add font configuration support to TerminalController
   - Add new constructor accepting `TerminalFontConfig` parameter
   - Maintain existing constructors for backward compatibility (delegate to new constructor with default config)
   - Add private fields for `_regularFont`, `_boldFont`, `_italicFont`, `_boldItalicFont` (ImFontPtr)
@@ -48,7 +48,7 @@ The approach uses configuration injection to allow different contexts to specify
   - Add read-only properties to expose current font configuration for debugging
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 4.3, 4.4, 5.1, 6.1, 6.5_
 
-- [ ] 2.2 Write property test for font configuration acceptance and application
+- [x] 2.2 Write property test for font configuration acceptance and application
   - **Property 1: Font Configuration Acceptance and Application**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 2.1, 2.2**
 

@@ -18,12 +18,19 @@ namespace caTTY.Display.Controllers;
 public class TerminalController : ITerminalController
 {
     private readonly TerminalRenderingConfig _config;
+    private TerminalFontConfig _fontConfig;
 
     // Input handling
     private readonly StringBuilder _inputBuffer = new();
     private readonly IProcessManager _processManager;
     private readonly ITerminalEmulator _terminal;
     private bool _disposed;
+
+    // Font pointers for different styles
+    private ImFontPtr _regularFont;
+    private ImFontPtr _boldFont;
+    private ImFontPtr _italicFont;
+    private ImFontPtr _boldItalicFont;
 
     // Font and rendering settings (now config-based)
     private bool _isVisible = true;
@@ -35,33 +42,67 @@ public class TerminalController : ITerminalController
     /// <param name="terminal">The terminal emulator instance</param>
     /// <param name="processManager">The process manager instance</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager)
-        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig())
+        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig())
     {
     }
 
     /// <summary>
-    ///     Creates a new terminal controller with the specified configuration.
+    ///     Creates a new terminal controller with the specified rendering configuration.
+    ///     Uses automatic font detection for font configuration.
     /// </summary>
     /// <param name="terminal">The terminal emulator instance</param>
     /// <param name="processManager">The process manager instance</param>
     /// <param name="config">The rendering configuration to use</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
         TerminalRenderingConfig config)
+        : this(terminal, processManager, config, FontContextDetector.DetectAndCreateConfig())
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new terminal controller with the specified font configuration.
+    ///     Uses automatic DPI detection for rendering configuration.
+    /// </summary>
+    /// <param name="terminal">The terminal emulator instance</param>
+    /// <param name="processManager">The process manager instance</param>
+    /// <param name="fontConfig">The font configuration to use</param>
+    public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
+        TerminalFontConfig fontConfig)
+        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), fontConfig)
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new terminal controller with the specified configurations.
+    /// </summary>
+    /// <param name="terminal">The terminal emulator instance</param>
+    /// <param name="processManager">The process manager instance</param>
+    /// <param name="config">The rendering configuration to use</param>
+    /// <param name="fontConfig">The font configuration to use</param>
+    public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
+        TerminalRenderingConfig config, TerminalFontConfig fontConfig)
     {
         _terminal = terminal ?? throw new ArgumentNullException(nameof(terminal));
         _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
 
-        // Validate configuration
+        // Validate configurations
         _config.Validate();
+        _fontConfig.Validate();
+
+        // Load fonts from ImGui font system
+        LoadFonts();
+
+        // Calculate character metrics from loaded fonts
+        CalculateCharacterMetrics();
 
         // Apply configuration to rendering metrics
-        CurrentFontSize = _config.FontSize;
-        CurrentCharacterWidth = _config.CharacterWidth;
-        CurrentLineHeight = _config.LineHeight;
+        CurrentFontSize = _fontConfig.FontSize;
 
         // Log configuration for debugging
         LogConfiguration();
+        LogFontConfiguration();
 
         // Subscribe to terminal events
         _terminal.ScreenUpdated += OnScreenUpdated;
@@ -87,6 +128,31 @@ public class TerminalController : ITerminalController
     ///     Gets the current DPI scaling factor for debugging purposes.
     /// </summary>
     public float CurrentDpiScalingFactor => _config.DpiScalingFactor;
+
+    /// <summary>
+    ///     Gets the current font configuration for debugging purposes.
+    /// </summary>
+    public TerminalFontConfig CurrentFontConfig => _fontConfig;
+
+    /// <summary>
+    ///     Gets the current regular font name for debugging purposes.
+    /// </summary>
+    public string CurrentRegularFontName => _fontConfig.RegularFontName;
+
+    /// <summary>
+    ///     Gets the current bold font name for debugging purposes.
+    /// </summary>
+    public string CurrentBoldFontName => _fontConfig.BoldFontName;
+
+    /// <summary>
+    ///     Gets the current italic font name for debugging purposes.
+    /// </summary>
+    public string CurrentItalicFontName => _fontConfig.ItalicFontName;
+
+    /// <summary>
+    ///     Gets the current bold+italic font name for debugging purposes.
+    /// </summary>
+    public string CurrentBoldItalicFontName => _fontConfig.BoldItalicFontName;
 
     /// <summary>
     ///     Gets or sets whether the terminal window is visible.
@@ -216,6 +282,197 @@ public class TerminalController : ITerminalController
     }
 
     /// <summary>
+    ///     Updates the font configuration at runtime.
+    /// </summary>
+    /// <param name="newFontConfig">The new font configuration to apply</param>
+    /// <exception cref="ArgumentNullException">Thrown when newFontConfig is null</exception>
+    /// <exception cref="ArgumentException">Thrown when newFontConfig contains invalid values</exception>
+    public void UpdateFontConfig(TerminalFontConfig newFontConfig)
+    {
+        if (newFontConfig == null)
+        {
+            throw new ArgumentNullException(nameof(newFontConfig));
+        }
+
+        // Validate the new configuration
+        newFontConfig.Validate();
+
+        // Update font configuration
+        _fontConfig = newFontConfig;
+
+        // Reload fonts from ImGui font system
+        LoadFonts();
+
+        // Recalculate character metrics based on new fonts
+        CalculateCharacterMetrics();
+
+        // Update font size
+        CurrentFontSize = _fontConfig.FontSize;
+
+        // Log the configuration change
+        Console.WriteLine("TerminalController: Runtime font configuration updated");
+        LogFontConfiguration();
+    }
+
+    /// <summary>
+    ///     Loads fonts from the ImGui font system by name.
+    /// </summary>
+    private void LoadFonts()
+    {
+        try
+        {
+            // Try to find fonts by name, fall back to default if not found
+            var defaultFont = ImGui.GetFont();
+            
+            var regularFont = FindFont(_fontConfig.RegularFontName);
+            _regularFont = regularFont.HasValue ? regularFont.Value : defaultFont;
+                
+            var boldFont = FindFont(_fontConfig.BoldFontName);
+            _boldFont = boldFont.HasValue ? boldFont.Value : _regularFont;
+                
+            var italicFont = FindFont(_fontConfig.ItalicFontName);
+            _italicFont = italicFont.HasValue ? italicFont.Value : _regularFont;
+                
+            var boldItalicFont = FindFont(_fontConfig.BoldItalicFontName);
+            _boldItalicFont = boldItalicFont.HasValue ? boldItalicFont.Value : _regularFont;
+
+            Console.WriteLine("TerminalController: Fonts loaded successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error loading fonts: {ex.Message}");
+            
+            // Fallback to default font for all styles
+            var defaultFont = ImGui.GetFont();
+            _regularFont = defaultFont;
+            _boldFont = defaultFont;
+            _italicFont = defaultFont;
+            _boldItalicFont = defaultFont;
+        }
+    }
+
+    /// <summary>
+    ///     Finds a font by name in the ImGui font atlas.
+    /// </summary>
+    /// <param name="fontName">The name of the font to find</param>
+    /// <returns>The font pointer if found, null otherwise</returns>
+    private ImFontPtr? FindFont(string fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName))
+        {
+            return null;
+        }
+
+        try
+        {
+            // First try the standard FontManager (works in standalone apps)
+            if (FontManager.Fonts.TryGetValue(fontName, out ImFontPtr fontPtr))
+            {
+                return fontPtr;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: FontManager.Fonts not available for '{fontName}': {ex.Message}");
+        }
+
+        try
+        {
+            // Try the GameMod's font loading system (works in game mod context)
+            var gameModType = Type.GetType("caTTY.GameMod.TerminalMod, caTTY");
+            if (gameModType != null)
+            {
+                MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
+                if (getFontMethod != null)
+                {
+                    object? result = getFontMethod.Invoke(null, new object[] { fontName });
+                    if (result is ImFontPtr font)
+                    {
+                        return font;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: GameMod font loading failed for '{fontName}': {ex.Message}");
+        }
+
+        // Try to iterate through ImGui font atlas (fallback method)
+        try
+        {
+            var io = ImGui.GetIO();
+            var fonts = io.Fonts;
+            
+            // This is a simplified approach - in a real implementation,
+            // we would need to iterate through the font atlas and match names
+            // For now, return null to indicate font not found
+            Console.WriteLine($"TerminalController: Font '{fontName}' not found in ImGui font atlas");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error searching ImGui font atlas for '{fontName}': {ex.Message}");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Calculates character metrics from the loaded fonts.
+    /// </summary>
+    private void CalculateCharacterMetrics()
+    {
+        try
+        {
+            // Use the regular font for metric calculations
+            ImGui.PushFont(_regularFont, CurrentFontSize);
+            
+            try
+            {
+                // Calculate character width and height from the regular font
+                var testChar = 'M'; // Use 'M' as it's typically the widest character
+                var textSize = ImGui.CalcTextSize(testChar.ToString());
+                
+                CurrentCharacterWidth = textSize.X;
+                CurrentLineHeight = textSize.Y * 1.2f; // Add some line spacing
+                
+                Console.WriteLine($"TerminalController: Calculated metrics - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
+            }
+            finally
+            {
+                ImGui.PopFont();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error calculating character metrics: {ex.Message}");
+            
+            // Fallback to DPI-based metrics from config
+            CurrentCharacterWidth = _config.CharacterWidth;
+            CurrentLineHeight = _config.LineHeight;
+            
+            Console.WriteLine($"TerminalController: Using fallback metrics - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
+        }
+    }
+
+    /// <summary>
+    ///     Selects the appropriate font based on SGR attributes.
+    /// </summary>
+    /// <param name="attributes">The SGR attributes of the character</param>
+    /// <returns>The appropriate font pointer for the attributes</returns>
+    private ImFontPtr SelectFont(SgrAttributes attributes)
+    {
+        if (attributes.Bold && attributes.Italic)
+            return _boldItalicFont;
+        else if (attributes.Bold)
+            return _boldFont;
+        else if (attributes.Italic)
+            return _italicFont;
+        else
+            return _regularFont;
+    }
+
+    /// <summary>
     ///     Logs the current configuration for debugging purposes.
     /// </summary>
     private void LogConfiguration()
@@ -229,6 +486,29 @@ public class TerminalController : ITerminalController
         {
             // Ignore logging failures to prevent crashes
             Debug.WriteLine($"Failed to log configuration: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Logs the current font configuration for debugging purposes.
+    /// </summary>
+    private void LogFontConfiguration()
+    {
+        try
+        {
+            Console.WriteLine($"TerminalController Font Config:");
+            Console.WriteLine($"  Regular: {_fontConfig.RegularFontName}");
+            Console.WriteLine($"  Bold: {_fontConfig.BoldFontName}");
+            Console.WriteLine($"  Italic: {_fontConfig.ItalicFontName}");
+            Console.WriteLine($"  BoldItalic: {_fontConfig.BoldItalicFontName}");
+            Console.WriteLine($"  FontSize: {_fontConfig.FontSize}");
+            Console.WriteLine($"  AutoDetectContext: {_fontConfig.AutoDetectContext}");
+            Console.WriteLine($"  Calculated CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
+        }
+        catch (Exception ex)
+        {
+            // Ignore logging failures to prevent crashes
+            Debug.WriteLine($"Failed to log font configuration: {ex.Message}");
         }
     }
 
@@ -286,6 +566,9 @@ public class TerminalController : ITerminalController
         // Draw character if not space or null
         if (cell.Character != ' ' && cell.Character != '\0')
         {
+            // Select appropriate font based on SGR attributes
+            var font = SelectFont(cell.Attributes);
+            
             // Apply text styling
             if (cell.Attributes.Bold)
             {
@@ -315,8 +598,16 @@ public class TerminalController : ITerminalController
                 drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
             }
 
-            // Draw the character
-            drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+            // Draw the character with selected font
+            ImGui.PushFont(font, CurrentFontSize);
+            try
+            {
+                drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+            }
+            finally
+            {
+                ImGui.PopFont();
+            }
 
             // Draw underline if needed
             if (cell.Attributes.Underline)
@@ -540,10 +831,22 @@ public class TerminalController : ITerminalController
     /// </summary>
     private void PushMonospaceFont(out bool fontUsed)
     {
-        // First try the standard FontManager (works in standalone apps)
         try
         {
-            if (FontManager.Fonts.TryGetValue("HackNerdFontMono-BoldItalic", out ImFontPtr fontPtr))
+            // Use the regular font from our font configuration
+            ImGui.PushFont(_regularFont, CurrentFontSize);
+            fontUsed = true;
+            return;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error pushing configured font: {ex.Message}");
+        }
+
+        // Fallback: First try the standard FontManager (works in standalone apps)
+        try
+        {
+            if (FontManager.Fonts.TryGetValue(_fontConfig.RegularFontName, out ImFontPtr fontPtr))
             {
                 ImGui.PushFont(fontPtr, CurrentFontSize);
                 fontUsed = true;
@@ -554,7 +857,6 @@ public class TerminalController : ITerminalController
         {
             // FontManager.Fonts may not be available in game mod context
             Console.WriteLine($"FontManager.Fonts not available: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
         }
 
         // Try the GameMod's font loading system (works in game mod context)
@@ -567,7 +869,7 @@ public class TerminalController : ITerminalController
                 MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
                 if (getFontMethod != null)
                 {
-                    object? result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-BoldItalic" });
+                    object? result = getFontMethod.Invoke(null, new object[] { _fontConfig.RegularFontName });
                     if (result is ImFontPtr font)
                     {
                         ImGui.PushFont(font, CurrentFontSize);
@@ -581,7 +883,6 @@ public class TerminalController : ITerminalController
         {
             // GameMod font loading not available or failed
             Console.WriteLine($"GameMod font loading failed: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
         }
 
         fontUsed = false;
