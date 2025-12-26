@@ -81,7 +81,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 7: Character Metrics Calculation**
   - **Validates: Requirements 2.3, character positioning accuracy**
 
-- [ ] 2.7 Add runtime font configuration update support
+- [x] 2.7 Add runtime font configuration update support
   - Implement validation in `UpdateFontConfig()` method
   - Ensure immediate font reloading and metrics recalculation
   - Maintain cursor position accuracy during font changes

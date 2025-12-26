@@ -294,24 +294,82 @@ public class TerminalController : ITerminalController
             throw new ArgumentNullException(nameof(newFontConfig));
         }
 
-        // Validate the new configuration
-        newFontConfig.Validate();
+        try
+        {
+            // Validate the new configuration before applying any changes
+            newFontConfig.Validate();
 
-        // Update font configuration
-        _fontConfig = newFontConfig;
+            // Store current cursor position for accuracy maintenance
+            ICursor cursor = _terminal.Cursor;
+            int currentCursorRow = cursor.Row;
+            int currentCursorCol = cursor.Col;
+            
+            // Store previous metrics for comparison logging
+            float previousCharWidth = CurrentCharacterWidth;
+            float previousLineHeight = CurrentLineHeight;
+            float previousFontSize = CurrentFontSize;
+            string previousRegularFont = _fontConfig.RegularFontName;
 
-        // Reload fonts from ImGui font system
-        LoadFonts();
+            // Log the configuration change attempt
+            Console.WriteLine("TerminalController: Attempting runtime font configuration update");
+            Console.WriteLine($"  Previous: Font={previousRegularFont}, Size={previousFontSize:F1}, CharWidth={previousCharWidth:F1}, LineHeight={previousLineHeight:F1}");
+            Console.WriteLine($"  New: Font={newFontConfig.RegularFontName}, Size={newFontConfig.FontSize:F1}");
 
-        // Recalculate character metrics based on new fonts
-        CalculateCharacterMetrics();
+            // Update font configuration
+            _fontConfig = newFontConfig;
 
-        // Update font size
-        CurrentFontSize = _fontConfig.FontSize;
+            // Reload fonts from ImGui font system immediately
+            LoadFonts();
 
-        // Log the configuration change
-        Console.WriteLine("TerminalController: Runtime font configuration updated");
-        LogFontConfiguration();
+            // Recalculate character metrics based on new fonts immediately
+            CalculateCharacterMetrics();
+
+            // Update font size immediately
+            CurrentFontSize = _fontConfig.FontSize;
+
+            // Verify cursor position accuracy after font changes
+            // The cursor position in terminal coordinates should remain the same,
+            // but the pixel position will change based on new character metrics
+            ICursor updatedCursor = _terminal.Cursor;
+            bool cursorPositionMaintained = (updatedCursor.Row == currentCursorRow && 
+                                           updatedCursor.Col == currentCursorCol);
+
+            if (!cursorPositionMaintained)
+            {
+                Console.WriteLine($"TerminalController: Warning - Cursor position changed during font update. " +
+                                $"Before: ({currentCursorRow}, {currentCursorCol}), After: ({updatedCursor.Row}, {updatedCursor.Col})");
+            }
+
+            // Calculate new pixel position for cursor (for logging purposes)
+            float newCursorPixelX = currentCursorCol * CurrentCharacterWidth;
+            float newCursorPixelY = currentCursorRow * CurrentLineHeight;
+
+            // Log successful configuration change with detailed metrics
+            Console.WriteLine("TerminalController: Runtime font configuration updated successfully");
+            Console.WriteLine($"  Applied: Font={_fontConfig.RegularFontName}, Size={CurrentFontSize:F1}, CharWidth={CurrentCharacterWidth:F1}, LineHeight={CurrentLineHeight:F1}");
+            Console.WriteLine($"  Cursor position maintained: {cursorPositionMaintained} at terminal coords ({currentCursorRow}, {currentCursorCol})");
+            Console.WriteLine($"  New cursor pixel position: ({newCursorPixelX:F1}, {newCursorPixelY:F1})");
+            Console.WriteLine($"  Metrics change: CharWidth {previousCharWidth:F1} -> {CurrentCharacterWidth:F1} ({(CurrentCharacterWidth - previousCharWidth):+F1;-F1;0})");
+            Console.WriteLine($"  Metrics change: LineHeight {previousLineHeight:F1} -> {CurrentLineHeight:F1} ({(CurrentLineHeight - previousLineHeight):+F1;-F1;0})");
+
+            // Log detailed font configuration for debugging
+            LogFontConfiguration();
+        }
+        catch (ArgumentException ex)
+        {
+            // Log validation failure and re-throw
+            Console.WriteLine($"TerminalController: Font configuration validation failed: {ex.Message}");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected errors during font configuration update
+            Console.WriteLine($"TerminalController: Unexpected error during font configuration update: {ex.Message}");
+            Console.WriteLine($"TerminalController: Font configuration may be in an inconsistent state");
+            
+            // Re-throw the exception to notify caller of the failure
+            throw new InvalidOperationException($"Failed to update font configuration: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
