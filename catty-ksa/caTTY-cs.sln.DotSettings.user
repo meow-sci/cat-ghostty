@@ -1,6 +1,25 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AAssert_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E3_003Fresharper_002Dhost_003FSourcesCache_003F46a322d26154b982566e1817203e5452c91223f93b0e392d9c5b4806696fdc1_003FAssert_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AFontManager_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E3_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003Ffc6990b00a7d46e5ba9d56461dbf24f6612000_003F63_003Fba35df4e_003FFontManager_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
-	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3ed30e55_002Dd82a_002D434c_002Db019_002D1843339f499e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="ProcessManagerTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;ProjectFolder&gt;7A6EF668-1825-3C39-B847-C6D276286AF6/d:Unit&lt;/ProjectFolder&gt;&#xD;
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003ATestContext_002Ecs_002Fl_003A_002E_002E_003F_002E_002E_003F_002E_002E_003F_002E_002E_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E3_003Fresharper_002Dhost_003FSourcesCache_003Fdaacea0e8a3ea7a0b181786fab4d068592275894a217ceeeba786e86f2_003FTestContext_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3ed30e55_002Dd82a_002D434c_002Db019_002D1843339f499e/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="ProcessManagerTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;Or&gt;&#xD;
+    &lt;ProjectFolder&gt;7A6EF668-1825-3C39-B847-C6D276286AF6/d:Unit&lt;/ProjectFolder&gt;&#xD;
+    &lt;ProjectFile&gt;26123BD8-64B0-A706-B981-7837CF370F5D/d:Property/f:DpiContextDetectionProperties.cs&lt;/ProjectFile&gt;&#xD;
+  &lt;/Or&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=d40e50a4_002D022b_002D41bd_002Dabe6_002D33893212ea17/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Session" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;Or&gt;&#xD;
+    &lt;And&gt;&#xD;
+      &lt;Or&gt;&#xD;
+        &lt;ProjectFolder&gt;7A6EF668-1825-3C39-B847-C6D276286AF6/d:Unit&lt;/ProjectFolder&gt;&#xD;
+        &lt;ProjectFile&gt;26123BD8-64B0-A706-B981-7837CF370F5D/d:Property/f:DpiContextDetectionProperties.cs&lt;/ProjectFile&gt;&#xD;
+      &lt;/Or&gt;&#xD;
+      &lt;TestAncestor&gt;&#xD;
+        &lt;TestId&gt;NUnit3x::7A6EF668-1825-3C39-B847-C6D276286AF6::net10.0::caTTY.Core.Tests.Unit.Parsing.CsiParserBasicTests.CsiParser_CanBeCreated&lt;/TestId&gt;&#xD;
+      &lt;/TestAncestor&gt;&#xD;
+    &lt;/And&gt;&#xD;
+    &lt;ProjectFile&gt;7A6EF668-1825-3C39-B847-C6D276286AF6/d:Unit/f:Utf8SpecificDebuggingTests.cs&lt;/ProjectFile&gt;&#xD;
+    &lt;ProjectFile&gt;7A6EF668-1825-3C39-B847-C6D276286AF6/d:Unit/f:Utf8DebuggingTests.cs&lt;/ProjectFile&gt;&#xD;
+  &lt;/Or&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

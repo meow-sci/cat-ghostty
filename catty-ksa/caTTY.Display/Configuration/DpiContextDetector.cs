@@ -44,8 +44,7 @@ public static class DpiContextDetector
         ExecutionContext context = DetectExecutionContext();
         float dpiScale = DetectDpiScaling();
 
-        Console.WriteLine($"context was detected as {context}, dpiScale={dpiScale}");
-
+        // Context detection completed (verbose logging removed for test performance)
         LogDetectionResults(context, dpiScale);
 
         TerminalRenderingConfig result = context switch
@@ -56,7 +55,7 @@ public static class DpiContextDetector
             _ => TerminalRenderingConfig.CreateDefault()
         };
 
-        Console.WriteLine($"config: {result}");
+        // Configuration created (verbose logging removed for test performance)
         return result;
     }
 
@@ -72,12 +71,7 @@ public static class DpiContextDetector
         {
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
-            // Print each loaded assembly for diagnostics
-            foreach (var assembly in assemblies)
-            {
-                string asmName = assembly?.GetName()?.Name ?? assembly?.FullName ?? "<unknown>";
-                Console.WriteLine($"DpiContextDetector: Loaded assembly: {asmName}");
-            }
+            // Assembly inspection for context detection (logging removed for test performance)
 
 
             // Check for KSA-specific assemblies that indicate GameMod context
@@ -91,7 +85,7 @@ public static class DpiContextDetector
 
             if (hasKsaAssemblies)
             {
-                Console.WriteLine("DpiContextDetector: Detected GameMod context (KSA assemblies found)");
+                // GameMod context detected (logging removed for test performance)
                 return ExecutionContext.GameMod;
             }
 
@@ -105,7 +99,7 @@ public static class DpiContextDetector
 
             if (hasTestAppAssemblies)
             {
-                Console.WriteLine("DpiContextDetector: Detected TestApp context");
+                // TestApp context detected (logging removed for test performance)
                 return ExecutionContext.TestApp;
             }
 
@@ -117,17 +111,17 @@ public static class DpiContextDetector
                 if (entryName.Contains("caTTY.TestApp", StringComparison.OrdinalIgnoreCase) ||
                     entryName.Contains("caTTY.ImGui.Playground", StringComparison.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine("DpiContextDetector: Detected TestApp context from entry assembly");
+                    // TestApp context detected from entry assembly (logging removed for test performance)
                     return ExecutionContext.TestApp;
                 }
             }
 
-            Console.WriteLine("DpiContextDetector: Unable to determine execution context");
+            // Unable to determine execution context (logging removed for test performance)
             return ExecutionContext.Unknown;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"DpiContextDetector: Error detecting execution context: {ex.Message}");
+            // Error detecting execution context (logging removed for test performance)
             return ExecutionContext.Unknown;
         }
     }
@@ -145,10 +139,9 @@ public static class DpiContextDetector
             // Use reflection to safely call BrutalImGui.GetIO() without causing assembly loading issues
             return DetectDpiScalingViaReflection();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(
-                $"DpiContextDetector: ImGui context unavailable ({ex.Message}), using fallback detection");
+            // ImGui context unavailable, using fallback detection (logging removed for test performance)
             return DetectSystemDpiScaling();
         }
     }
@@ -175,16 +168,13 @@ public static class DpiContextDetector
             // For now, we'll use a reasonable default for GameMod context
             // since this is typically called when ImGui context isn't available
 
-            // Common DPI scaling factors: 1.0 (100%), 1.25 (125%), 1.5 (150%), 2.0 (200%)
-            // Default to 2.0x for GameMod scenarios where ImGui context detection fails
+            // Using fallback DPI scaling (logging removed for test performance)
             const float fallbackScale = 2.0f;
-
-            Console.WriteLine($"DpiContextDetector: Using fallback DPI scaling: {fallbackScale:F1}x");
             return fallbackScale;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"DpiContextDetector: System DPI detection failed ({ex.Message}), using default 2.0x");
+            // System DPI detection failed, using default (logging removed for test performance)
             return 2.0f;
         }
     }
@@ -197,7 +187,7 @@ public static class DpiContextDetector
     /// <returns>A fallback TerminalRenderingConfig.</returns>
     private static TerminalRenderingConfig CreateFallbackConfig(float dpiScale)
     {
-        Console.WriteLine($"DpiContextDetector: Creating fallback configuration with DPI scale {dpiScale:F1}x");
+        // Creating fallback configuration (logging removed for test performance)
 
         // If DPI scaling is detected, assume we're in a GameMod-like context
         if (dpiScale > 1.1f)
@@ -217,23 +207,8 @@ public static class DpiContextDetector
     /// <param name="dpiScale">The detected DPI scaling factor.</param>
     private static void LogDetectionResults(ExecutionContext context, float dpiScale)
     {
-        Console.WriteLine("=== DPI Context Detection Results ===");
-        Console.WriteLine($"Execution Context: {context}");
-        Console.WriteLine($"DPI Scaling Factor: {dpiScale:F2}x");
-
-        string expectedConfig = context switch
-        {
-            ExecutionContext.TestApp => "Standard metrics (16.0f font, 9.6f width, 18.0f height)",
-            ExecutionContext.GameMod =>
-                $"Compensated metrics ({16.0f / dpiScale:F1}f font, {9.6f / dpiScale:F1}f width, {18.0f / dpiScale:F1}f height)",
-            ExecutionContext.Unknown => dpiScale > 1.1f
-                ? "GameMod-style compensated metrics"
-                : "TestApp-style standard metrics",
-            _ => "Default configuration"
-        };
-
-        Console.WriteLine($"Configuration: {expectedConfig}");
-        Console.WriteLine("=====================================");
+        // Detection results logging removed for test performance
+        // Results: Context={context}, DPI={dpiScale:F2}x
     }
 
     /// <summary>

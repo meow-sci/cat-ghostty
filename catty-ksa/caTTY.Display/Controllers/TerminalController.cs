@@ -101,8 +101,8 @@ public class TerminalController : ITerminalController
         CurrentFontSize = _fontConfig.FontSize;
 
         // Log configuration for debugging
-        LogConfiguration();
-        LogFontConfiguration();
+        // LogConfiguration();
+        // LogFontConfiguration();
 
         // Subscribe to terminal events
         _terminal.ScreenUpdated += OnScreenUpdated;
@@ -277,8 +277,8 @@ public class TerminalController : ITerminalController
         CurrentLineHeight = newConfig.LineHeight;
 
         // Log the configuration change
-        Console.WriteLine("TerminalController: Runtime configuration updated");
-        LogConfiguration();
+        // Console.WriteLine("TerminalController: Runtime configuration updated");
+        // LogConfiguration();
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using caTTY.Core.Terminal;
+using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.TestApp.Rendering;
 
@@ -73,8 +74,12 @@ public class TerminalTestApp : IDisposable
 
         Console.WriteLine("Initializing BRUTAL ImGui context...");
 
-        // Create terminal controller
-        _controller = new TerminalController(_terminal, _processManager);
+        // Create font configuration for TestApp
+        var fontConfig = TerminalFontConfig.CreateForTestApp();
+        Console.WriteLine($"TestApp using font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
+
+        // Create terminal controller with explicit font configuration
+        _controller = new TerminalController(_terminal, _processManager, fontConfig);
 
         // Run the ImGui application loop
         StandaloneImGui.Run(() => _controller.Render());

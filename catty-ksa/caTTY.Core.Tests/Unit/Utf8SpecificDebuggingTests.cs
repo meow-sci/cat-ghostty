@@ -1,9 +1,36 @@
+using System;
 using System.Text;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
 using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit;
+
+internal static class LocalTestLogger
+{
+    // Set TEST_VERBOSE=1 in environment to enable debug output.
+    internal static readonly bool Verbose;
+
+    static LocalTestLogger()
+    {
+        try
+        {
+            Verbose = Environment.GetEnvironmentVariable("TEST_VERBOSE") == "1";
+        }
+        catch
+        {
+            Verbose = false;
+        }
+    }
+
+    internal static void LogVerbose(string message)
+    {
+        if (Verbose)
+        {
+            TestContext.WriteLine(message);
+        }
+    }
+}
 
 /// <summary>
 ///     Debugging tests for specific UTF-8 failure cases.
@@ -23,24 +50,24 @@ public class Utf8SpecificDebuggingTests
         byte[] invalidSequence = { 192, 219 };
         terminal.Write(invalidSequence);
 
-        // Debug output
+        // Debug output (suppressed unless TEST_VERBOSE=1)
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterInvalid = (cursor.Row, cursor.Col); // Capture values, not reference
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
-        TestContext.WriteLine($"Bytes: {string.Join(", ", invalidSequence)}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
+        LocalTestLogger.LogVerbose($"Bytes: {string.Join(", ", invalidSequence)}");
+        LocalTestLogger.LogVerbose(
             $"Cursor valid: {cursorAfterInvalid.Row >= 0 && cursorAfterInvalid.Row < terminal.Height && cursorAfterInvalid.Col >= 0 && cursorAfterInvalid.Col < terminal.Width}");
 
         // Try recovery
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Detailed comparison: {recoveryCursor.Col} > {cursorAfterInvalid.Col} = {recoveryCursor.Col > cursorAfterInvalid.Col}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose(
             $"Row comparison: {recoveryCursor.Row} > {cursorAfterInvalid.Row} = {recoveryCursor.Row > cursorAfterInvalid.Row}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > cursorAfterInvalid.Col || recoveryCursor.Row > cursorAfterInvalid.Row}");
 
         // Assert - This should pass if the terminal handles invalid UTF-8 gracefully
@@ -59,22 +86,22 @@ public class Utf8SpecificDebuggingTests
         // This looks like a 2-byte UTF-8 start byte (110xxxxx pattern)
         // But 0xC0 is actually an invalid UTF-8 start byte (overlong encoding)
 
-        TestContext.WriteLine($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Byte 219 (0xDB) binary: {Convert.ToString(219, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Byte 219 (0xDB) binary: {Convert.ToString(219, 2).PadLeft(8, '0')}");
 
         // Check if 219 looks like a continuation byte
-        TestContext.WriteLine($"219 & 0xC0 = {219 & 0xC0} (should be 128 for continuation byte)");
-        TestContext.WriteLine($"Is 219 a valid continuation byte: {(219 & 0xC0) == 0x80}");
+        LocalTestLogger.LogVerbose($"219 & 0xC0 = {219 & 0xC0} (should be 128 for continuation byte)");
+        LocalTestLogger.LogVerbose($"Is 219 a valid continuation byte: {(219 & 0xC0) == 0x80}");
 
         // Try to decode with .NET
         try
         {
             string decoded = Encoding.UTF8.GetString(new byte[] { 192, 219 });
-            TestContext.WriteLine($"UTF-8 decoded: '{decoded}' (length: {decoded.Length})");
+            LocalTestLogger.LogVerbose($"UTF-8 decoded: '{decoded}' (length: {decoded.Length})");
         }
         catch (Exception ex)
         {
-            TestContext.WriteLine($"UTF-8 decoding failed: {ex.Message}");
+            LocalTestLogger.LogVerbose($"UTF-8 decoding failed: {ex.Message}");
         }
     }
 
@@ -95,18 +122,18 @@ public class Utf8SpecificDebuggingTests
         // Debug output
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterInvalid = (cursor.Row, cursor.Col);
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
-        TestContext.WriteLine($"Byte 243 (0xF3) binary: {Convert.ToString(243, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Is 4-byte start: {(243 & 0xF8) == 0xF0}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
+        LocalTestLogger.LogVerbose($"Byte 243 (0xF3) binary: {Convert.ToString(243, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Is 4-byte start: {(243 & 0xF8) == 0xF0}");
+        LocalTestLogger.LogVerbose(
             $"Cursor valid: {cursorAfterInvalid.Row >= 0 && cursorAfterInvalid.Row < terminal.Height && cursorAfterInvalid.Col >= 0 && cursorAfterInvalid.Col < terminal.Width}");
 
         // Try recovery
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > cursorAfterInvalid.Col || recoveryCursor.Row > cursorAfterInvalid.Row}");
 
         // Assert - This should pass if the terminal handles incomplete UTF-8 gracefully
@@ -133,20 +160,20 @@ public class Utf8SpecificDebuggingTests
         // Debug output
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterInvalid = (cursor.Row, cursor.Col);
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
-        TestContext.WriteLine($"Bytes: {string.Join(", ", invalidSequence)}");
-        TestContext.WriteLine($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Byte 133 (0x85) binary: {Convert.ToString(133, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Is 133 continuation: {(133 & 0xC0) == 0x80}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterInvalid.Row}, {cursorAfterInvalid.Col})");
+        LocalTestLogger.LogVerbose($"Bytes: {string.Join(", ", invalidSequence)}");
+        LocalTestLogger.LogVerbose($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Byte 133 (0x85) binary: {Convert.ToString(133, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Is 133 continuation: {(133 & 0xC0) == 0x80}");
+        LocalTestLogger.LogVerbose(
             $"Cursor valid: {cursorAfterInvalid.Row >= 0 && cursorAfterInvalid.Row < terminal.Height && cursorAfterInvalid.Col >= 0 && cursorAfterInvalid.Col < terminal.Width}");
 
         // Try recovery
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > cursorAfterInvalid.Col || recoveryCursor.Row > cursorAfterInvalid.Row}");
 
         // Assert - This should pass if the terminal handles invalid UTF-8 gracefully
@@ -173,20 +200,20 @@ public class Utf8SpecificDebuggingTests
         // Debug output
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterSequence = (cursor.Row, cursor.Col);
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
-        TestContext.WriteLine($"Bytes: {string.Join(", ", sequence)}");
-        TestContext.WriteLine($"Byte 158 (0x9E) binary: {Convert.ToString(158, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Is 158 continuation: {(158 & 0xC0) == 0x80}");
-        TestContext.WriteLine("Expected: 3 characters (158 as invalid + A + B)");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
+        LocalTestLogger.LogVerbose($"Bytes: {string.Join(", ", sequence)}");
+        LocalTestLogger.LogVerbose($"Byte 158 (0x9E) binary: {Convert.ToString(158, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Is 158 continuation: {(158 & 0xC0) == 0x80}");
+        LocalTestLogger.LogVerbose("Expected: 3 characters (158 as invalid + A + B)");
+        LocalTestLogger.LogVerbose(
             $"Cursor valid: {cursorAfterSequence.Row >= 0 && cursorAfterSequence.Row < terminal.Height && cursorAfterSequence.Col >= 0 && cursorAfterSequence.Col < terminal.Width}");
 
         // Try recovery
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > cursorAfterSequence.Col || recoveryCursor.Row > cursorAfterSequence.Row}");
 
         // Assert - This should pass if the terminal handles invalid UTF-8 gracefully
@@ -213,20 +240,20 @@ public class Utf8SpecificDebuggingTests
         // Debug output
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterSequence = (cursor.Row, cursor.Col);
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
-        TestContext.WriteLine($"Bytes: {string.Join(", ", sequence)}");
-        TestContext.WriteLine($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Byte 176 (0xB0) binary: {Convert.ToString(176, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Is 176 continuation: {(176 & 0xC0) == 0x80}");
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
+        LocalTestLogger.LogVerbose($"Bytes: {string.Join(", ", sequence)}");
+        LocalTestLogger.LogVerbose($"Byte 192 (0xC0) binary: {Convert.ToString(192, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Byte 176 (0xB0) binary: {Convert.ToString(176, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Is 176 continuation: {(176 & 0xC0) == 0x80}");
 
         // Try recovery
         (int Row, int Col) beforeRecovery = (cursor.Row, cursor.Col);
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Before recovery: ({beforeRecovery.Row}, {beforeRecovery.Col})");
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Before recovery: ({beforeRecovery.Row}, {beforeRecovery.Col})");
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > beforeRecovery.Col || recoveryCursor.Row > beforeRecovery.Row}");
 
         // Assert - This should pass if the terminal handles invalid UTF-8 gracefully
@@ -253,20 +280,20 @@ public class Utf8SpecificDebuggingTests
         // Debug output
         ICursor cursor = terminal.Cursor;
         (int Row, int Col) cursorAfterSequence = (cursor.Row, cursor.Col);
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
-        TestContext.WriteLine($"Byte 194 (0xC2) binary: {Convert.ToString(194, 2).PadLeft(8, '0')}");
-        TestContext.WriteLine($"Is 2-byte start: {(194 & 0xE0) == 0xC0}");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
+        LocalTestLogger.LogVerbose($"Final cursor: ({cursorAfterSequence.Row}, {cursorAfterSequence.Col})");
+        LocalTestLogger.LogVerbose($"Byte 194 (0xC2) binary: {Convert.ToString(194, 2).PadLeft(8, '0')}");
+        LocalTestLogger.LogVerbose($"Is 2-byte start: {(194 & 0xE0) == 0xC0}");
+        LocalTestLogger.LogVerbose(
             $"Cursor valid: {cursorAfterSequence.Row >= 0 && cursorAfterSequence.Row < terminal.Height && cursorAfterSequence.Col >= 0 && cursorAfterSequence.Col < terminal.Width}");
 
         // Try recovery
         (int Row, int Col) beforeRecovery = (cursor.Row, cursor.Col);
         terminal.Write("RECOVERY_TEST");
         ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Before recovery: ({beforeRecovery.Row}, {beforeRecovery.Col})");
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
+        LocalTestLogger.LogVerbose($"Before recovery: ({beforeRecovery.Row}, {beforeRecovery.Col})");
+        LocalTestLogger.LogVerbose($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
+        LocalTestLogger.LogVerbose(
             $"Recovery successful: {recoveryCursor.Col > beforeRecovery.Col || recoveryCursor.Row > beforeRecovery.Row}");
 
         // Assert - This should pass if the terminal handles incomplete UTF-8 gracefully
@@ -297,27 +324,14 @@ public class Utf8SpecificDebuggingTests
         bool cursorValid = cursorAfterFlush.Row >= 0 && cursorAfterFlush.Row < terminal.Height &&
                            cursorAfterFlush.Col >= 0 && cursorAfterFlush.Col < terminal.Width;
 
-        TestContext.WriteLine($"After flush cursor: ({cursorAfterFlush.Row}, {cursorAfterFlush.Col})");
-        TestContext.WriteLine($"Cursor valid: {cursorValid}");
-
         // Verify we can still write valid content (exactly like property test)
         terminal.Write("RECOVERY_TEST");
         ICursor finalCursor = terminal.Cursor;
         (int Row, int Col) finalCursorValues = (finalCursor.Row, finalCursor.Col); // Capture values, not reference
 
-        // Debug the comparison in detail
-        TestContext.WriteLine($"Final cursor: ({finalCursorValues.Row}, {finalCursorValues.Col})");
-        TestContext.WriteLine(
-            $"Cursor col comparison: {finalCursorValues.Col} > {cursorAfterFlush.Col} = {finalCursorValues.Col > cursorAfterFlush.Col}");
-        TestContext.WriteLine(
-            $"Cursor row comparison: {finalCursorValues.Row} > {cursorAfterFlush.Row} = {finalCursorValues.Row > cursorAfterFlush.Row}");
-
         bool recoverySuccessful =
             finalCursorValues.Col > cursorAfterFlush.Col || finalCursorValues.Row > cursorAfterFlush.Row;
 
-        TestContext.WriteLine($"Final cursor: ({finalCursor.Row}, {finalCursor.Col})");
-        TestContext.WriteLine($"Recovery successful: {recoverySuccessful}");
-        TestContext.WriteLine($"Overall result: {cursorValid && recoverySuccessful}");
 
         // This should match the property test logic exactly
         Assert.That(cursorValid, Is.True, "Cursor should be valid");

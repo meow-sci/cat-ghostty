@@ -8,6 +8,13 @@ The approach uses configuration injection to allow different contexts to specify
 
 ## Tasks
 
+**CONSOLE OUTPUT REQUIREMENTS**: All unit tests and property-based tests MUST strive to have no stdout/stderr output under normal conditions to reduce verbosity of console output. Tests should only produce output when:
+- A test fails and diagnostic information is needed
+- Explicit debugging is enabled via environment variables or test flags
+- Critical errors occur that require immediate attention
+
+This requirement applies to all test tasks throughout the implementation plan.
+
 - [x] 1. Create font configuration infrastructure
 - [x] 1.1 Create TerminalFontConfig class
   - Create `caTTY.Display/Configuration/TerminalFontConfig.cs`
@@ -85,51 +92,51 @@ The approach uses configuration injection to allow different contexts to specify
   - **Property 4: Runtime Font Configuration Updates**
   - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
 
-- [ ] 3. Update TestApp and GameMod to use new font configuration
-- [ ] 3.1 Update TestApp to use explicit font configuration
+- [x] 3. Update TestApp and GameMod to use new font configuration
+- [x] 3.1 Update TestApp to use explicit font configuration
   - Modify `TerminalTestApp.cs` to create `TerminalFontConfig.CreateForTestApp()`
   - Pass font configuration to TerminalController constructor
   - Verify TestApp continues to work without visual changes
   - Add logging to confirm TestApp is using correct fonts
   - _Requirements: 3.1, 4.1_
 
-- [ ] 3.2 Update GameMod to use game-appropriate font configuration
+- [x] 3.2 Update GameMod to use game-appropriate font configuration
   - Modify `TerminalMod.cs` to create `TerminalFontConfig.CreateForGameMod()`
   - Pass font configuration to TerminalController constructor
   - Add font configuration logging for debugging
   - Ensure GameMod uses appropriate fonts for game context
   - _Requirements: 3.2, 4.2_
 
-- [ ] 3.3 Add automatic detection fallback option
+- [x] 3.3 Add automatic detection fallback option
   - Create alternative initialization path using `FontContextDetector.DetectAndCreateConfig()`
   - Add this as a third option for users who prefer automatic detection
   - Document when to use explicit vs automatic configuration
   - _Requirements: 3.4, 4.4_
 
-- [ ] 3.4 Write property test for backward compatibility
+- [x] 3.4 Write property test for backward compatibility
   - **Property 5: Backward Compatibility and API Stability**
   - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
-- [ ] 4. Add comprehensive validation and error handling
-- [ ] 4.1 Implement font configuration validation and bounds checking
+- [x] 4. Add comprehensive validation and error handling
+- [x] 4.1 Implement font configuration validation and bounds checking
   - Add comprehensive validation in `TerminalFontConfig.Validate()`
   - Add validation in `TerminalController.UpdateFontConfig()`
   - Implement proper exception handling with descriptive messages
   - Add fallback strategies for invalid configurations and missing fonts
   - _Requirements: 1.4, 2.4, 2.5, 5.5, 6.2, 6.3_
 
-- [ ] 4.2 Write property test for font loading and validation
+- [x] 4.2 Write property test for font loading and validation
   - **Property 3: Font Loading and Validation**
   - **Validates: Requirements 1.4, 2.4, 2.5, 6.2, 6.3**
 
-- [ ] 4.3 Add comprehensive logging and debugging support
+- [x] 4.3 Add comprehensive logging and debugging support
   - Enhance `LogFontConfiguration()` with detailed font loading information
   - Add debug properties to expose current font configuration
   - Add logging for font loading failures and fallback usage
   - Ensure logging doesn't crash application if console output fails
   - _Requirements: 1.5, 6.1, 6.4, 6.5_
 
-- [ ] 4.4 Write property test for debug information and logging
+- [x] 4.4 Write property test for debug information and logging
   - **Property 9: Debug Information and Logging**
   - **Validates: Requirements 1.5, 6.1, 6.4, 6.5**
 

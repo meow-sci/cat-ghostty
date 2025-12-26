@@ -99,14 +99,15 @@ public class ProcessManagerTests
         bool isAvailable = IsConPtyAvailable();
         bool isWindows = OperatingSystem.IsWindows();
 
-        Console.WriteLine($"Platform: Windows = {isWindows}");
-        Console.WriteLine($"ConPTY Available = {isAvailable}");
+        // Console.WriteLine($"Platform: Windows = {isWindows}");
+        // Console.WriteLine($"ConPTY Available = {isAvailable}");
 
         if (isWindows)
         {
             // On Windows, we expect ConPTY to be available on Windows 10 1809+
             // If not available, tests will be skipped
-            Assert.Pass($"ConPTY availability: {isAvailable}");
+            // Assert.Pass($"ConPTY availability: {isAvailable}");
+            Assert.True(isWindows);
         }
         else
         {
@@ -203,15 +204,16 @@ public class ProcessManagerTests
             return;
         }
 
-        var options = ProcessLaunchOptions.CreateCmd();
-        options.Arguments.AddRange(["/c", "ping -n 2 127.0.0.1"]);
+        // Use PowerShell Start-Sleep with minimal delay - much faster than ping
+        var options = ProcessLaunchOptions.CreatePowerShell();
+        options.Arguments.AddRange(["-Command", "Start-Sleep -Seconds 1"]);
 
         try
         {
             _processManager!.StartAsync(options).Wait();
 
             // Wait a moment to ensure the process is fully started
-            Thread.Sleep(200);
+            Thread.Sleep(100);
 
             // Act & Assert
             Assert.ThrowsAsync<InvalidOperationException>(() => _processManager.StartAsync(options));
@@ -270,7 +272,8 @@ public class ProcessManagerTests
     {
         if (OperatingSystem.IsWindows())
         {
-            Assert.Ignore("This test is for non-Windows platforms only");
+            // Assert.Ignore("This test is for non-Windows platforms only");
+            Assert.Ignore();
             return;
         }
 
@@ -294,9 +297,9 @@ public class ProcessManagerTests
             return;
         }
 
-        // Use a command that will run for a bit longer
-        var options = ProcessLaunchOptions.CreateCmd();
-        options.Arguments.AddRange(["/c", "ping -n 3 127.0.0.1"]);
+        // Use PowerShell Start-Sleep with minimal delay - much faster than ping
+        var options = ProcessLaunchOptions.CreatePowerShell();
+        options.Arguments.AddRange(["-Command", "Start-Sleep -Seconds 0.5"]);
 
         try
         {
@@ -327,9 +330,9 @@ public class ProcessManagerTests
             return;
         }
 
-        // Use a command that will definitely run for a while
-        var options = ProcessLaunchOptions.CreateCmd();
-        options.Arguments.AddRange(["/c", "ping -n 10 127.0.0.1"]);
+        // Use PowerShell Start-Sleep with longer delay for stop testing - still faster than ping
+        var options = ProcessLaunchOptions.CreatePowerShell();
+        options.Arguments.AddRange(["-Command", "Start-Sleep -Seconds 5"]);
         await _processManager!.StartAsync(options);
 
         Assert.That(_processManager.IsRunning, Is.True);
@@ -420,13 +423,13 @@ public class ProcessManagerTests
         // Act
         await _processManager.StartAsync(options);
 
-        // Wait for data to be received - ConPTY might need more time
-        var timeout = TimeSpan.FromSeconds(10);
+        // Wait for data to be received - echo should be very fast
+        var timeout = TimeSpan.FromSeconds(3);
         DateTime start = DateTime.UtcNow;
 
         while (!dataReceived && DateTime.UtcNow - start < timeout)
         {
-            await Task.Delay(100);
+            await Task.Delay(50);
         }
 
         await _processManager.StopAsync();

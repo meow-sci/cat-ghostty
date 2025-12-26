@@ -1,5 +1,6 @@
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
+using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.Display.Rendering;
 using StarMap.API;
@@ -141,8 +142,12 @@ public class TerminalMod
             // Create process manager
             _processManager = new ProcessManager();
 
-            // Create terminal controller
-            _controller = new TerminalController(_terminal, _processManager);
+            // Create font configuration for GameMod
+            var fontConfig = TerminalFontConfig.CreateForGameMod();
+            Console.WriteLine($"caTTY GameMod using font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
+
+            // Create terminal controller with explicit font configuration
+            _controller = new TerminalController(_terminal, _processManager, fontConfig);
 
             // Set up event handlers
             _processManager.DataReceived += OnProcessDataReceived;

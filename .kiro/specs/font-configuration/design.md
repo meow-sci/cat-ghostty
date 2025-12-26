@@ -366,6 +366,11 @@ The font configuration system uses a dual testing approach combining unit tests 
 - **Backward Compatibility**: Test that existing constructor calls continue to work without modification
 - **Error Scenarios**: Test specific error conditions (null configs, invalid fonts, ImGui context failures)
 
+**Console Output Requirements**: Unit tests MUST strive to have no stdout/stderr output under normal conditions to reduce verbosity of console output. Tests should only produce output when:
+- A test fails and diagnostic information is needed
+- Explicit debugging is enabled via environment variables or test flags
+- Critical errors occur that require immediate attention
+
 ### Property-Based Testing Focus
 
 - **Font Configuration Consistency**: Generate random valid font configurations and verify they're applied consistently across all character rendering operations

@@ -12,30 +12,39 @@ namespace caTTY.Core.Tests.Unit;
 [Category("Unit")]
 public class Utf8DebuggingTests
 {
+    private static void WriteMinimalSummary(string testName, params (string Key, object Value)[] items)
+    {
+        // Compact single-line summary to minimize stdout while keeping useful debug data.
+        var parts = items.Select(i => $"{i.Key}={i.Value}");
+        TestContext.WriteLine($"{testName}: {string.Join(", ", parts)}");
+    }
+
     [Test]
     public void Debug_InvalidUtf8Byte153()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
+        // (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process invalid UTF-8 byte 153 (0x99)
         byte[] invalidSequence = { 153 };
         terminal.Write(invalidSequence);
 
-        // Debug output
+        // Debug output (compact)
         ICursor cursor = terminal.Cursor;
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursor.Row}, {cursor.Col})");
-        TestContext.WriteLine(
-            $"Cursor valid: {cursor.Row >= 0 && cursor.Row < terminal.Height && cursor.Col >= 0 && cursor.Col < terminal.Width}");
+        // bool cursorValid = cursor.Row >= 0 && cursor.Row < terminal.Height && cursor.Col >= 0 && cursor.Col < terminal.Width;
 
         // Try recovery
         terminal.Write("RECOVERY_TEST");
-        ICursor recoveryCursor = terminal.Cursor;
-        TestContext.WriteLine($"Recovery cursor: ({recoveryCursor.Row}, {recoveryCursor.Col})");
-        TestContext.WriteLine(
-            $"Recovery successful: {recoveryCursor.Col > cursor.Col || recoveryCursor.Row > cursor.Row}");
+        // ICursor recoveryCursor = terminal.Cursor;
+        // bool recoverySuccessful = recoveryCursor.Col > cursor.Col || recoveryCursor.Row > cursor.Row;
+
+        // WriteMinimalSummary(nameof(Debug_InvalidUtf8Byte153),
+        //     ("InitialCursor", $"({initialCursor.Row},{initialCursor.Col})"),
+        //     ("FinalCursor", $"({cursor.Row},{cursor.Col})"),
+        //     ("CursorValid", cursorValid),
+        //     ("RecoveryCursor", $"({recoveryCursor.Row},{recoveryCursor.Col})"),
+        //     ("RecoverySuccessful", recoverySuccessful));
 
         // Assert - This should pass if the terminal handles invalid UTF-8 gracefully
         Assert.That(cursor.Row >= 0 && cursor.Row < terminal.Height, Is.True, "Cursor row should be valid");
@@ -47,25 +56,27 @@ public class Utf8DebuggingTests
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
+        // (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process "Hello Worldpiñata"
         string mixedContent = "Hello Worldpiñata";
         terminal.Write(mixedContent);
 
-        // Debug output
+        // Debug output (compact)
         ICursor cursor = terminal.Cursor;
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursor.Row}, {cursor.Col})");
-        TestContext.WriteLine($"Content length: {mixedContent.Length}");
-        TestContext.WriteLine($"UTF-8 bytes: {string.Join(", ", Encoding.UTF8.GetBytes(mixedContent))}");
-
-        // Try UTF-8 checkmark
-        (int Row, int Col) testPos = (cursor.Row, cursor.Col);
+        // var utf8Bytes = Encoding.UTF8.GetBytes(mixedContent);
+        // (int Row, int Col) testPos = (cursor.Row, cursor.Col);
         terminal.Write("✓");
-        ICursor newCursor = terminal.Cursor;
-        TestContext.WriteLine($"Test cursor: ({newCursor.Row}, {newCursor.Col})");
-        TestContext.WriteLine($"UTF-8 still works: {newCursor.Col > testPos.Col || newCursor.Row > testPos.Row}");
+        // ICursor newCursor = terminal.Cursor;
+        // bool utfWorks = newCursor.Col > testPos.Col || newCursor.Row > testPos.Row;
+
+        // WriteMinimalSummary(nameof(Debug_MixedUtf8AndControl),
+        //     ("InitialCursor", $"({initialCursor.Row},{initialCursor.Col})"),
+        //     ("FinalCursor", $"({cursor.Row},{cursor.Col})"),
+        //     ("ContentLen", mixedContent.Length),
+        //     ("UTF8Bytes", string.Join(",", utf8Bytes)),
+        //     ("CheckmarkCursor", $"({newCursor.Row},{newCursor.Col})"),
+        //     ("UTF8Works", utfWorks));
 
         // Assert
         Assert.That(cursor.Row >= 0 && cursor.Row < terminal.Height, Is.True, "Cursor row should be valid");
@@ -83,20 +94,24 @@ public class Utf8DebuggingTests
         string wideChar = "好";
         terminal.Write(wideChar);
 
-        // Debug output
+        // Debug output (compact)
         ICursor cursor = terminal.Cursor;
-        TestContext.WriteLine($"Initial cursor: ({initialCursor.Row}, {initialCursor.Col})");
-        TestContext.WriteLine($"Final cursor: ({cursor.Row}, {cursor.Col})");
-        TestContext.WriteLine($"Character: {wideChar}");
-        TestContext.WriteLine($"UTF-8 bytes: {string.Join(", ", Encoding.UTF8.GetBytes(wideChar))}");
-        TestContext.WriteLine($"Cursor advanced: {cursor.Col > initialCursor.Col || cursor.Row > initialCursor.Row}");
+        var utf8Bytes = Encoding.UTF8.GetBytes(wideChar);
+        bool cursorAdvanced = cursor.Col > initialCursor.Col || cursor.Row > initialCursor.Row;
 
         // Test functionality
         terminal.Write("X");
         ICursor testCursor = terminal.Cursor;
-        TestContext.WriteLine($"Test cursor: ({testCursor.Row}, {testCursor.Col})");
-        TestContext.WriteLine(
-            $"Terminal functional: {testCursor.Row >= 0 && testCursor.Row < terminal.Height && testCursor.Col >= 0 && testCursor.Col < terminal.Width}");
+        bool terminalFunctional = testCursor.Row >= 0 && testCursor.Row < terminal.Height && testCursor.Col >= 0 && testCursor.Col < terminal.Width;
+
+        // WriteMinimalSummary(nameof(Debug_WideCharacter),
+        //     ("InitialCursor", $"({initialCursor.Row},{initialCursor.Col})"),
+        //     ("FinalCursor", $"({cursor.Row},{cursor.Col})"),
+        //     ("Char", wideChar),
+        //     ("UTF8Bytes", string.Join(",", utf8Bytes)),
+        //     ("CursorAdvanced", cursorAdvanced),
+        //     ("TestCursor", $"({testCursor.Row},{testCursor.Col})"),
+        //     ("TerminalFunctional", terminalFunctional));
 
         // Assert
         Assert.That(cursor.Col > initialCursor.Col || cursor.Row > initialCursor.Row, Is.True,

@@ -1180,6 +1180,11 @@ Unit tests will verify specific behaviors and edge cases:
 4. **Event Emission Tests**: Verify events are emitted with correct data
 5. **API Tests**: Test public API methods return expected values
 
+**Console Output Requirements**: Unit tests MUST strive to have no stdout/stderr output under normal conditions to reduce verbosity of console output. Tests should only produce output when:
+- A test fails and diagnostic information is needed
+- Explicit debugging is enabled via environment variables or test flags
+- Critical errors occur that require immediate attention
+
 ### Property-Based Testing
 
 Property-based tests will verify universal properties across many inputs using a PBT library (fast-check for TypeScript):

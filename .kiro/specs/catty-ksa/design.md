@@ -992,6 +992,11 @@ Unit tests should focus on:
 - Edge cases and error conditions
 - Game engine integration scenarios
 
+**Console Output Requirements**: Unit tests MUST strive to have no stdout/stderr output under normal conditions to reduce verbosity of console output. Tests should only produce output when:
+- A test fails and diagnostic information is needed
+- Explicit debugging is enabled via environment variables or test flags
+- Critical errors occur that require immediate attention
+
 Property tests should focus on:
 - Universal properties that hold for all inputs
 - Comprehensive input coverage through randomization

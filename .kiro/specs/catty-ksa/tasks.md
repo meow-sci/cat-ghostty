@@ -40,6 +40,13 @@ The task breakdown reflects this complexity analysis while maintaining MVP focus
 
 **IMPORTANT**: After completing each subtask, you MUST provide a properly formatted git commit message in your response as a summary. Use the format: `[task-id] type: description` (e.g., `[1.1] feat: set up solution structure`), followed by a blank line, then "## Changes Made" with bullet points of specific changes.
 
+**CONSOLE OUTPUT REQUIREMENTS**: All unit tests and property-based tests MUST strive to have no stdout/stderr output under normal conditions to reduce verbosity of console output. Tests should only produce output when:
+- A test fails and diagnostic information is needed
+- Explicit debugging is enabled via environment variables or test flags
+- Critical errors occur that require immediate attention
+
+This requirement applies to all test tasks throughout the implementation plan.
+
 - [-] 1. Create minimal working end-to-end terminal with real shell process
 - [x] 1.1 Set up solution structure and all projects
   - Create caTTY-cs.sln solution file

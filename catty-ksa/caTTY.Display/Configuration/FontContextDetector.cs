@@ -147,14 +147,7 @@ public static class FontContextDetector
     /// <param name="context">The detected execution context.</param>
     private static void LogContextDetection(ExecutionContext context)
     {
-        try
-        {
-            Console.WriteLine($"FontContextDetector: Detected execution context: {context}");
-        }
-        catch
-        {
-            // Ignore logging errors to prevent crashes
-        }
+        // Context detection logging removed for test performance
     }
     
     /// <summary>
@@ -165,30 +158,7 @@ public static class FontContextDetector
     /// <param name="hasTestAppAssemblies">Whether TestApp assemblies were found.</param>
     private static void LogAssemblyInspection(Assembly[] assemblies, bool hasKsaAssemblies, bool hasTestAppAssemblies)
     {
-        try
-        {
-            Console.WriteLine($"FontContextDetector: Inspected {assemblies.Length} assemblies");
-            Console.WriteLine($"FontContextDetector: Found KSA assemblies: {hasKsaAssemblies}");
-            Console.WriteLine($"FontContextDetector: Found TestApp assemblies: {hasTestAppAssemblies}");
-            
-            // Log specific KSA and TestApp assemblies found
-            var ksaAssemblies = assemblies.Where(IsKsaRelatedAssembly).Select(a => a.GetName().Name).ToArray();
-            var testAppAssemblies = assemblies.Where(IsTestAppRelatedAssembly).Select(a => a.GetName().Name).ToArray();
-            
-            if (ksaAssemblies.Length > 0)
-            {
-                Console.WriteLine($"FontContextDetector: KSA assemblies: {string.Join(", ", ksaAssemblies)}");
-            }
-            
-            if (testAppAssemblies.Length > 0)
-            {
-                Console.WriteLine($"FontContextDetector: TestApp assemblies: {string.Join(", ", testAppAssemblies)}");
-            }
-        }
-        catch
-        {
-            // Ignore logging errors to prevent crashes
-        }
+        // Assembly inspection logging removed for test performance
     }
     
     /// <summary>
@@ -197,14 +167,7 @@ public static class FontContextDetector
     /// <param name="entryName">The name of the entry assembly.</param>
     private static void LogEntryAssemblyCheck(string? entryName)
     {
-        try
-        {
-            Console.WriteLine($"FontContextDetector: Entry assembly name: {entryName ?? "null"}");
-        }
-        catch
-        {
-            // Ignore logging errors to prevent crashes
-        }
+        // Entry assembly logging removed for test performance
     }
     
     /// <summary>
@@ -213,13 +176,6 @@ public static class FontContextDetector
     /// <param name="ex">The exception that occurred during detection.</param>
     private static void LogDetectionError(Exception ex)
     {
-        try
-        {
-            Console.WriteLine($"FontContextDetector: Error during context detection: {ex.Message}");
-        }
-        catch
-        {
-            // Ignore logging errors to prevent crashes
-        }
+        // Detection error logging removed for test performance
     }
 }
