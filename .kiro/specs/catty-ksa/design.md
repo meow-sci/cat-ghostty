@@ -462,8 +462,104 @@ public interface ITerminalController : IDisposable
     void Update(float deltaTime);
     void Render();
     void HandleInput();
+    void UpdateFontConfig(TerminalFontConfig fontConfig);
     
     event EventHandler<string> DataInput;
+}
+```
+
+#### TerminalFontConfig
+
+A configuration class that encapsulates all font-related settings:
+
+```csharp
+public class TerminalFontConfig
+{
+    public string RegularFontName { get; set; } = "HackNerdFontMono-Regular";
+    public string BoldFontName { get; set; } = "HackNerdFontMono-Bold";
+    public string ItalicFontName { get; set; } = "HackNerdFontMono-Italic";
+    public string BoldItalicFontName { get; set; } = "HackNerdFontMono-BoldItalic";
+    public float FontSize { get; set; } = 16.0f;
+    public bool AutoDetectContext { get; set; } = true;
+    
+    public static TerminalFontConfig CreateForTestApp()
+    {
+        return new TerminalFontConfig
+        {
+            RegularFontName = "HackNerdFontMono-Regular",
+            BoldFontName = "HackNerdFontMono-Bold",
+            ItalicFontName = "HackNerdFontMono-Italic",
+            BoldItalicFontName = "HackNerdFontMono-BoldItalic",
+            FontSize = 16.0f,
+            AutoDetectContext = false
+        };
+    }
+    
+    public static TerminalFontConfig CreateForGameMod()
+    {
+        return new TerminalFontConfig
+        {
+            RegularFontName = "HackNerdFontMono-Regular",
+            BoldFontName = "HackNerdFontMono-Bold",
+            ItalicFontName = "HackNerdFontMono-Italic",
+            BoldItalicFontName = "HackNerdFontMono-BoldItalic",
+            FontSize = 14.0f, // Slightly smaller for game context
+            AutoDetectContext = false
+        };
+    }
+    
+    public void Validate()
+    {
+        if (string.IsNullOrWhiteSpace(RegularFontName))
+            throw new ArgumentException("RegularFontName cannot be null or empty");
+        if (FontSize <= 0 || FontSize > 72)
+            throw new ArgumentException("FontSize must be between 0 and 72");
+        
+        // Bold, Italic, BoldItalic can fall back to Regular if not specified
+        BoldFontName ??= RegularFontName;
+        ItalicFontName ??= RegularFontName;
+        BoldItalicFontName ??= RegularFontName;
+    }
+}
+```
+
+#### FontContextDetector
+
+A utility class to detect execution context and provide appropriate font defaults:
+
+```csharp
+public static class FontContextDetector
+{
+    public static TerminalFontConfig DetectAndCreateConfig()
+    {
+        var context = DetectExecutionContext();
+        
+        return context switch
+        {
+            ExecutionContext.TestApp => TerminalFontConfig.CreateForTestApp(),
+            ExecutionContext.GameMod => TerminalFontConfig.CreateForGameMod(),
+            _ => TerminalFontConfig.CreateForTestApp() // Safe default
+        };
+    }
+    
+    private static ExecutionContext DetectExecutionContext()
+    {
+        // Check if running in game context by looking for KSA assemblies
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        var hasKsaAssemblies = assemblies.Any(a => a.FullName?.Contains("KSA") == true);
+        
+        if (hasKsaAssemblies)
+            return ExecutionContext.GameMod;
+        
+        return ExecutionContext.TestApp;
+    }
+}
+
+public enum ExecutionContext
+{
+    TestApp,
+    GameMod,
+    Unknown
 }
 ```
 
@@ -476,6 +572,55 @@ public class ImGuiTerminalController : ITerminalController
     private readonly IProcessManager _processManager;
     private readonly ImGuiRenderer _renderer;
     private readonly ImGuiInputHandler _inputHandler;
+    private readonly TerminalFontConfig _fontConfig;
+    
+    private ImFontPtr _regularFont;
+    private ImFontPtr _boldFont;
+    private ImFontPtr _italicFont;
+    private ImFontPtr _boldItalicFont;
+    
+    private float _charWidth;
+    private float _lineHeight;
+    private float _fontSize;
+    
+    // Existing constructors for backward compatibility
+    public ImGuiTerminalController(ITerminalEmulator terminal, IProcessManager processManager)
+        : this(terminal, processManager, FontContextDetector.DetectAndCreateConfig())
+    {
+    }
+    
+    // New constructor with font configuration
+    public ImGuiTerminalController(ITerminalEmulator terminal, IProcessManager processManager, TerminalFontConfig fontConfig)
+    {
+        _terminal = terminal ?? throw new ArgumentNullException(nameof(terminal));
+        _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
+        _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
+        
+        _fontConfig.Validate();
+        
+        // Load fonts from ImGui font system
+        LoadFonts();
+        
+        // Calculate character metrics from loaded fonts
+        CalculateCharacterMetrics();
+        
+        // Log configuration for debugging
+        LogFontConfiguration();
+    }
+    
+    public void UpdateFontConfig(TerminalFontConfig newConfig)
+    {
+        newConfig.Validate();
+        
+        // Update font configuration
+        _fontConfig = newConfig;
+        
+        // Reload fonts
+        LoadFonts();
+        CalculateCharacterMetrics();
+        
+        LogFontConfiguration();
+    }
     
     public void Render()
     {
@@ -483,13 +628,96 @@ public class ImGuiTerminalController : ITerminalController
         
         ImGui.Begin("Terminal", ref _isVisible);
         
-        // Render terminal content
-        _renderer.RenderTerminal(_terminal);
-        
-        // Handle input
-        _inputHandler.ProcessInput();
+        // Hot path: zero-allocation rendering using pre-allocated buffers
+        RenderTerminalContent(); // Uses spans and pre-allocated buffers
+        ProcessInputEvents();    // Uses object pooling for event data
         
         ImGui.End();
+    }
+    
+    private void LoadFonts()
+    {
+        var fontManager = ImGui.GetIO().Fonts;
+        
+        // Try to find fonts by name, fall back to default if not found
+        _regularFont = FindFont(_fontConfig.RegularFontName) ?? ImGui.GetFont();
+        _boldFont = FindFont(_fontConfig.BoldFontName) ?? _regularFont;
+        _italicFont = FindFont(_fontConfig.ItalicFontName) ?? _regularFont;
+        _boldItalicFont = FindFont(_fontConfig.BoldItalicFontName) ?? _regularFont;
+    }
+    
+    private ImFontPtr FindFont(string fontName)
+    {
+        // Implementation to find font by name in ImGui font system
+        // This would iterate through loaded fonts and match by name
+        return default; // Placeholder
+    }
+    
+    private void CalculateCharacterMetrics()
+    {
+        // Calculate character width and height from the regular font
+        var testChar = 'M'; // Use 'M' as it's typically the widest character
+        var textSize = ImGui.CalcTextSize(testChar.ToString());
+        
+        _charWidth = textSize.X;
+        _lineHeight = textSize.Y * 1.2f; // Add some line spacing
+        _fontSize = _fontConfig.FontSize;
+    }
+    
+    private void LogFontConfiguration()
+    {
+        Console.WriteLine($"TerminalController Font Config:");
+        Console.WriteLine($"  Regular: {_fontConfig.RegularFontName}");
+        Console.WriteLine($"  Bold: {_fontConfig.BoldFontName}");
+        Console.WriteLine($"  Italic: {_fontConfig.ItalicFontName}");
+        Console.WriteLine($"  BoldItalic: {_fontConfig.BoldItalicFontName}");
+        Console.WriteLine($"  FontSize: {_fontConfig.FontSize}");
+        Console.WriteLine($"  Calculated CharWidth: {_charWidth}, LineHeight: {_lineHeight}");
+    }
+    
+    private void RenderTerminalContent()
+    {
+        // Use span-based access to avoid allocations
+        var screenBuffer = _terminal.ScreenBuffer;
+        for (int row = 0; row < screenBuffer.Height; row++)
+        {
+            ReadOnlySpan<ICell> rowSpan = screenBuffer.GetRow(row);
+            RenderRowOptimized(rowSpan, row); // No allocations in inner loop
+        }
+    }
+    
+    private void RenderRowOptimized(ReadOnlySpan<ICell> row, int rowIndex)
+    {
+        for (int col = 0; col < row.Length; col++)
+        {
+            var cell = row[col];
+            var font = SelectFont(cell.Attributes);
+            
+            ImGui.PushFont(font);
+            try
+            {
+                // Render character with selected font
+                var x = col * _charWidth;
+                var y = rowIndex * _lineHeight;
+                // Actual rendering implementation would go here
+            }
+            finally
+            {
+                ImGui.PopFont();
+            }
+        }
+    }
+    
+    private ImFontPtr SelectFont(SgrAttributes attributes)
+    {
+        if (attributes.Bold && attributes.Italic)
+            return _boldItalicFont;
+        else if (attributes.Bold)
+            return _boldFont;
+        else if (attributes.Italic)
+            return _italicFont;
+        else
+            return _regularFont;
     }
 }
 ```
@@ -910,6 +1138,26 @@ Property 30: Alternate screen scrollback isolation
 Property 31: Alternate screen initialization
 *For any* alternate screen activation, the buffer should be cleared to default state
 **Validates: Requirements 15.5**
+
+Property 32: Font configuration acceptance and application
+*For any* valid TerminalFontConfig provided to the TerminalController, the system should load the specified fonts and use them consistently for character rendering, with appropriate fallbacks when fonts are unavailable
+**Validates: Requirements 32.1, 32.2, 32.3, 32.4, 32.5**
+
+Property 33: Context detection and default configuration
+*For any* execution environment (TestApp or GameMod), the system should correctly detect the context and apply appropriate default font configuration, with TestApp using development-friendly defaults and GameMod using game-appropriate defaults
+**Validates: Requirements 33.1, 33.2, 33.3, 33.4, 33.5**
+
+Property 34: Runtime font configuration updates
+*For any* runtime font configuration update, the system should immediately reload fonts, recalculate character metrics, and apply the new configuration to all subsequent rendering operations while maintaining cursor position accuracy
+**Validates: Requirements 34.1, 34.2, 34.3, 34.4, 34.5**
+
+Property 35: Font style selection consistency
+*For any* character with SGR attributes (bold, italic, bold+italic), the system should consistently select the appropriate font variant (BoldFont, ItalicFont, BoldItalicFont, or RegularFont) and render the character using that font
+**Validates: Requirements 32.3, character rendering consistency**
+
+Property 36: Line and character insertion/deletion
+*For any* line or character insertion/deletion operation, content should be shifted appropriately while preserving SGR attributes and maintaining proper cursor positioning
+**Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
 
 ## Error Handling
 

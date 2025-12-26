@@ -254,6 +254,33 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/app/src/components/terminal/TerminalPage.tsx
   - _Requirements: 16.1, 17.1, 18.1_
 
+- [x] 1.12.1 Add font configuration system to ImGui controller
+  - Create TerminalFontConfig class with font family and style settings
+    - Support Regular, Bold, Italic, and BoldItalic font variants
+    - Include configurable font size with validation (8.0f to 72.0f)
+    - Add factory methods for TestApp and GameMod contexts
+  - Create FontContextDetector utility for automatic context detection
+    - Detect TestApp vs GameMod execution environment
+    - Provide appropriate default font configurations
+  - Update ImGuiTerminalController to accept font configuration
+    - Add constructor overload with TerminalFontConfig parameter
+    - Maintain backward compatibility with existing constructor
+    - Load fonts from ImGui font system based on configuration
+    - Calculate character metrics from loaded fonts
+  - Implement runtime font configuration updates
+    - Add UpdateFontConfig method to ITerminalController interface
+    - Support font changes without restarting application
+    - Recalculate character metrics after font changes
+  - Add font loading and validation
+    - Validate font names and sizes during configuration
+    - Fall back to available fonts when specified fonts are unavailable
+    - Log font configuration for debugging purposes
+  - Implement font style selection for character rendering
+    - Select appropriate font variant based on SGR attributes
+    - Use Bold, Italic, or BoldItalic fonts for styled characters
+    - Ensure consistent font application across all character rendering
+  - _Requirements: 32.1, 32.2, 32.3, 32.4, 32.5, 33.1, 33.2, 33.3, 33.4, 33.5, 34.1, 34.2, 34.3, 34.4, 34.5_
+
 - [x] 1.13 Create game mod entry point
   - Implement game mod initialization in caTTY.GameMod
     - Define a minimal mod API surface (init/update/draw/dispose)
@@ -1003,8 +1030,12 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 18: Control character processing**
   - **Property 28: Scrollback access**
   - **Property 31: Alternate screen initialization**
-  - **Property 32: Line and character insertion/deletion**
-  - **Validates: Requirements 2.3, 7.1, 7.3, 7.4, 7.5, 8.1, 8.2, 9.1, 9.2, 9.5, 10.1, 10.2, 10.3, 10.4, 10.5, 14.5, 15.5, 22.1, 22.2, 22.3, 22.4, 22.5**
+  - **Property 32: Font configuration acceptance and application**
+  - **Property 33: Context detection and default configuration**
+  - **Property 34: Runtime font configuration updates**
+  - **Property 35: Font style selection consistency**
+  - **Property 36: Line and character insertion/deletion**
+  - **Validates: Requirements 2.3, 7.1, 7.3, 7.4, 7.5, 8.1, 8.2, 9.1, 9.2, 9.5, 10.1, 10.2, 10.3, 10.4, 10.5, 14.5, 15.5, 22.1, 22.2, 22.3, 22.4, 22.5, 32.1, 32.2, 32.3, 32.4, 32.5, 33.1, 33.2, 33.3, 33.4, 33.5, 34.1, 34.2, 34.3, 34.4, 34.5**
 
 - [ ] 8.4 Write TypeScript compatibility tests
   - **Property 2: TypeScript compatibility for escape sequences**

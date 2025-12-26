@@ -319,8 +319,12 @@ KsaExampleMod/
 - **Font Loading**: TTF files in `Content/` folder are automatically loaded by BRUTAL ImGui
 - **Font Naming**: Font name matches filename without `.ttf` extension (e.g., `Content/Hack.ttf` → `"Hack"`)
 - **Font Usage**: Use Push/Pop pattern with `FontManager.Fonts.TryGetValue()` and `ImGui.PushFont()`
+- **Font Configuration**: Use TerminalFontConfig class for configurable font selection and sizing
+- **Context-Aware Defaults**: Automatic font selection based on TestApp vs GameMod execution context
 - **Reference Documentation**: See `BRUTAL_IMGUI_NOTES.md` for complete font setup examples and code patterns
-- **Preferred Font**: HackNerdFontMono-Regular
+- **Preferred Font**: HackNerdFontMono-Regular with variants (Bold, Italic, BoldItalic)
+- **Font Sizing**: Configurable font size (8.0f to 72.0f) with character metrics calculation
+- **Runtime Updates**: Support for changing font configuration without application restart
 
 ## BRUTAL ImGui Console Application Requirements
 

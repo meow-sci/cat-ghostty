@@ -22,6 +22,10 @@ This document specifies the requirements for a C# terminal emulator implementati
 - **PTY (Pseudo-Terminal)**: A pair of virtual devices that provide bidirectional communication between a terminal emulator and a shell process
 - **Headless Core**: Pure C# terminal logic with no ImGui or game engine dependencies
 - **BRUTAL ImGui**: The custom ImGui implementation provided by the KSA game engine
+- **Font_Configuration**: Configurable font settings including family names, styles, and sizes for terminal rendering
+- **Font_Family**: The base name of a font family (e.g., "HackNerdFontMono")
+- **Font_Styles**: Regular, Bold, Italic, and BoldItalic font variants
+- **Character_Metrics**: Font size and derived character dimensions for terminal rendering
 
 ## Requirements
 
@@ -233,6 +237,42 @@ This document specifies the requirements for a C# terminal emulator implementati
 3. WHEN rendering cells THEN the Controller SHALL apply ImGui colors for foreground, background, and text attributes
 4. WHEN rendering the cursor THEN the Controller SHALL display it at the current position using ImGui drawing primitives
 5. WHEN rendering wide characters THEN the Controller SHALL ensure they occupy the correct visual space in ImGui
+
+### Requirement 32
+
+**User Story:** As a developer, I want configurable font settings for terminal rendering, so that different deployment contexts can use appropriate fonts and sizes.
+
+#### Acceptance Criteria
+
+1. THE TerminalController SHALL accept a font configuration specifying font family and styles during initialization
+2. WHEN no font configuration is provided THEN the Controller SHALL use sensible default fonts appropriate for the execution context
+3. THE Controller SHALL support separate font names for Regular, Bold, Italic, and BoldItalic styles
+4. THE Controller SHALL validate that specified fonts are available in the ImGui font system
+5. THE Controller SHALL derive character metrics (width, height) from the configured font size
+
+### Requirement 33
+
+**User Story:** As a developer, I want context-aware font defaults, so that TestApp and GameMod use appropriate fonts without manual configuration.
+
+#### Acceptance Criteria
+
+1. WHEN running in TestApp context THEN the Controller SHALL use development-friendly font defaults
+2. WHEN running in GameMod context THEN the Controller SHALL use game-appropriate font defaults
+3. THE Controller SHALL detect execution context automatically
+4. THE Controller SHALL provide a way to override automatic font selection
+5. THE Controller SHALL maintain consistent character rendering across different contexts
+
+### Requirement 34
+
+**User Story:** As a developer, I want runtime font configuration updates, so that I can adjust rendering without restarting the application.
+
+#### Acceptance Criteria
+
+1. THE TerminalController SHALL provide methods to update font configuration at runtime
+2. WHEN font configuration is changed THEN the Controller SHALL immediately apply the new fonts to subsequent rendering
+3. THE Controller SHALL recalculate character metrics based on the new font configuration
+4. THE Controller SHALL maintain cursor position accuracy after font changes
+5. THE Controller SHALL provide validation for runtime font configuration changes
 
 ### Requirement 18
 
