@@ -93,7 +93,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5**
 
 - [ ] 3. Update TestApp and GameMod to use new font configuration
-- [ ] 3.1 Update TestApp to use explicit font configuration
+- [x] 3.1 Update TestApp to use explicit font configuration
   - Modify `TerminalTestApp.cs` to create `TerminalFontConfig.CreateForTestApp()`
   - Pass font configuration to TerminalController constructor
   - Verify TestApp continues to work without visual changes
