@@ -8,8 +8,8 @@ The approach uses configuration injection to allow different contexts to specify
 
 ## Tasks
 
-- [-] 1. Create font configuration infrastructure
-- [ ] 1.1 Create TerminalFontConfig class
+- [x] 1. Create font configuration infrastructure
+- [x] 1.1 Create TerminalFontConfig class
   - Create `caTTY.Display/Configuration/TerminalFontConfig.cs`
   - Add properties for RegularFontName, BoldFontName, ItalicFontName, BoldItalicFontName, FontSize, AutoDetectContext
   - Implement factory methods `CreateForTestApp()` and `CreateForGameMod()`
@@ -17,13 +17,13 @@ The approach uses configuration injection to allow different contexts to specify
   - Add XML documentation for all public members
   - _Requirements: 1.1, 1.2, 2.1, 2.2, 2.4_
 
-- [ ] 1.2 Write unit tests for TerminalFontConfig
+- [x] 1.2 Write unit tests for TerminalFontConfig
   - Test factory methods produce correct font names and sizes
   - Test validation logic with valid and invalid inputs
   - Test bounds checking for font size and null checking for font names
   - _Requirements: 2.4, 2.5, 6.2, 6.3_
 
-- [ ] 1.3 Create font context detection utility
+- [x] 1.3 Create font context detection utility
   - Create `caTTY.Display/Configuration/FontContextDetector.cs`
   - Add `ExecutionContext` enum (TestApp, GameMod, Unknown)
   - Implement `DetectExecutionContext()` method using assembly inspection
@@ -31,7 +31,7 @@ The approach uses configuration injection to allow different contexts to specify
   - Add comprehensive logging for debugging font context detection
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 1.4 Write property test for font context detection
+- [x] 1.4 Write property test for font context detection
   - **Property 2: Context Detection and Default Configuration**
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
 

@@ -4,6 +4,8 @@ Fonts will be loaded automatically.  Any font file ending in ".ttf" in a `Conten
 
 For example file `Content/Hack.ttf` can be referenced in code by the name `Hack`
 
+To avoid KSA from auto loading our font files, they will be named with a `.iamttf` extension and a custom LoadFonts function will be used (see example below)
+
 # Setting font in BRUTAL ImGui code
 
 This uses a Push / Pop sematic pattern.
@@ -72,10 +74,8 @@ public class FontLoader
 
         if (Directory.Exists(fontsDir))
         {
-          // Get all .ttf and .otf files from Fonts folder
-          var ttfFiles = Directory.GetFiles(fontsDir, "*.ttf");
-          var otfFiles = Directory.GetFiles(fontsDir, "*.otf");
-          var fontFiles = ttfFiles.Concat(otfFiles).ToArray();
+          // Get all .iamttf files from TerminalFonts folder (we use .iamttf to avoid auto loading by the KSA game engine that searches recursively for *.ttf)
+          var fontFiles = Directory.GetFiles(fontsDir, "*.iamttf");
 
           if (fontFiles.Length > 0)
           {
