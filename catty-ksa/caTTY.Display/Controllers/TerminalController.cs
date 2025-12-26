@@ -425,18 +425,28 @@ public class TerminalController : ITerminalController
         try
         {
             // Use the regular font for metric calculations
-            ImGui.PushFont(_regularFont, CurrentFontSize);
+            ImGui.PushFont(_regularFont, _fontConfig.FontSize);
             
             try
             {
-                // Calculate character width and height from the regular font
-                var testChar = 'M'; // Use 'M' as it's typically the widest character
-                var textSize = ImGui.CalcTextSize(testChar.ToString());
+                // Calculate character width using multiple test characters to ensure accuracy
+                var testChars = new[] { 'M', 'W', '@', '#' }; // Wide characters for accurate measurement
+                float maxWidth = 0.0f;
                 
-                CurrentCharacterWidth = textSize.X;
-                CurrentLineHeight = textSize.Y * 1.2f; // Add some line spacing
+                foreach (char testChar in testChars)
+                {
+                    var textSize = ImGui.CalcTextSize(testChar.ToString());
+                    maxWidth = Math.Max(maxWidth, textSize.X);
+                }
                 
-                Console.WriteLine($"TerminalController: Calculated metrics - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
+                // Use the maximum width found to ensure all characters fit properly
+                CurrentCharacterWidth = maxWidth;
+                
+                // Calculate line height using a standard character
+                var lineSize = ImGui.CalcTextSize("M");
+                CurrentLineHeight = lineSize.Y * 1.2f; // Add 20% line spacing for readability
+                
+                Console.WriteLine($"TerminalController: Calculated metrics from font - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
             }
             finally
             {
@@ -451,7 +461,7 @@ public class TerminalController : ITerminalController
             CurrentCharacterWidth = _config.CharacterWidth;
             CurrentLineHeight = _config.LineHeight;
             
-            Console.WriteLine($"TerminalController: Using fallback metrics - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
+            Console.WriteLine($"TerminalController: Using fallback metrics from config - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
         }
     }
 
@@ -599,7 +609,7 @@ public class TerminalController : ITerminalController
             }
 
             // Draw the character with selected font using proper PushFont/PopFont pattern
-            ImGui.PushFont(font, CurrentFontSize);
+            ImGui.PushFont(font, _fontConfig.FontSize);
             try
             {
                 drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
@@ -834,7 +844,7 @@ public class TerminalController : ITerminalController
         try
         {
             // Use the regular font from our font configuration
-            ImGui.PushFont(_regularFont, CurrentFontSize);
+            ImGui.PushFont(_regularFont, _fontConfig.FontSize);
             fontUsed = true;
             return;
         }
@@ -848,7 +858,7 @@ public class TerminalController : ITerminalController
         {
             if (FontManager.Fonts.TryGetValue(_fontConfig.RegularFontName, out ImFontPtr fontPtr))
             {
-                ImGui.PushFont(fontPtr, CurrentFontSize);
+                ImGui.PushFont(fontPtr, _fontConfig.FontSize);
                 fontUsed = true;
                 return;
             }
@@ -872,7 +882,7 @@ public class TerminalController : ITerminalController
                     object? result = getFontMethod.Invoke(null, new object[] { _fontConfig.RegularFontName });
                     if (result is ImFontPtr font)
                     {
-                        ImGui.PushFont(font, CurrentFontSize);
+                        ImGui.PushFont(font, _fontConfig.FontSize);
                         fontUsed = true;
                         return;
                     }

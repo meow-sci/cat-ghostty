@@ -70,7 +70,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 6: Font Style Selection Consistency**
   - **Validates: Requirements 1.3, character rendering consistency**
 
-- [ ] 2.5 Add character metrics calculation from fonts
+- [x] 2.5 Add character metrics calculation from fonts
   - Implement `CalculateCharacterMetrics()` to measure actual font dimensions
   - Use ImGui.CalcTextSize() with test characters to determine character width and line height
   - Update character positioning calculations to use calculated metrics instead of hardcoded values
