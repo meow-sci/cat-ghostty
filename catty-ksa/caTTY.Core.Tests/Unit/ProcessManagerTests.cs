@@ -1,23 +1,42 @@
-using System;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using NUnit.Framework;
+using System.Text;
 using caTTY.Core.Terminal;
+using NUnit.Framework;
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
 
 namespace caTTY.Core.Tests.Unit;
 
 /// <summary>
-/// Unit tests for ProcessManager class.
+///     Unit tests for ProcessManager class.
 /// </summary>
 [TestFixture]
 public class ProcessManagerTests
 {
+    /// <summary>
+    ///     Sets up test fixtures before each test.
+    /// </summary>
+    [SetUp]
+    public void SetUp()
+    {
+        _processManager = new ProcessManager();
+    }
+
+    /// <summary>
+    ///     Cleans up test fixtures after each test.
+    /// </summary>
+    [TearDown]
+    public void TearDown()
+    {
+        _processManager?.Dispose();
+    }
+
     private ProcessManager? _processManager;
 
     // ConPTY availability check
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags, out IntPtr phPC);
+    private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags,
+        out IntPtr phPC);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct COORD
@@ -35,12 +54,14 @@ public class ProcessManagerTests
     private static bool IsConPtyAvailable()
     {
         if (!OperatingSystem.IsWindows())
+        {
             return false;
+        }
 
         try
         {
             // Try to get the CreatePseudoConsole function to see if ConPTY is available
-            var result = CreatePseudoConsole(new COORD(80, 25), IntPtr.Zero, IntPtr.Zero, 0, out var hPC);
+            int result = CreatePseudoConsole(new COORD(80, 25), IntPtr.Zero, IntPtr.Zero, 0, out IntPtr hPC);
             return true; // If we get here, the function exists (even if it fails due to invalid params)
         }
         catch (EntryPointNotFoundException)
@@ -54,25 +75,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Sets up test fixtures before each test.
-    /// </summary>
-    [SetUp]
-    public void SetUp()
-    {
-        _processManager = new ProcessManager();
-    }
-
-    /// <summary>
-    /// Cleans up test fixtures after each test.
-    /// </summary>
-    [TearDown]
-    public void TearDown()
-    {
-        _processManager?.Dispose();
-    }
-
-    /// <summary>
-    /// Tests that ProcessManager constructor creates a valid instance with expected initial state.
+    ///     Tests that ProcessManager constructor creates a valid instance with expected initial state.
     /// </summary>
     [Test]
     public void Constructor_CreatesProcessManager()
@@ -87,18 +90,18 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests ConPTY availability detection on the current platform.
+    ///     Tests ConPTY availability detection on the current platform.
     /// </summary>
     [Test]
     public void ConPtyAvailability_CheckPlatformSupport()
     {
         // This test documents ConPTY availability on the current system
-        var isAvailable = IsConPtyAvailable();
-        var isWindows = OperatingSystem.IsWindows();
-        
+        bool isAvailable = IsConPtyAvailable();
+        bool isWindows = OperatingSystem.IsWindows();
+
         Console.WriteLine($"Platform: Windows = {isWindows}");
         Console.WriteLine($"ConPTY Available = {isAvailable}");
-        
+
         if (isWindows)
         {
             // On Windows, we expect ConPTY to be available on Windows 10 1809+
@@ -112,7 +115,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that CreateDefault returns valid default process launch options.
+    ///     Tests that CreateDefault returns valid default process launch options.
     /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreateDefault_ReturnsValidOptions()
@@ -131,7 +134,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that CreatePowerShell returns valid PowerShell-specific launch options.
+    ///     Tests that CreatePowerShell returns valid PowerShell-specific launch options.
     /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreatePowerShell_ReturnsValidOptions()
@@ -147,7 +150,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that CreateCustom returns valid custom shell launch options.
+    ///     Tests that CreateCustom returns valid custom shell launch options.
     /// </summary>
     [Test]
     public void ProcessLaunchOptions_CreateCustom_ReturnsValidOptions()
@@ -169,7 +172,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that StartAsync throws ProcessStartException when given an invalid shell path.
+    ///     Tests that StartAsync throws ProcessStartException when given an invalid shell path.
     /// </summary>
     [Test]
     public void StartAsync_WithInvalidShell_ThrowsProcessStartException()
@@ -184,12 +187,11 @@ public class ProcessManagerTests
         var options = ProcessLaunchOptions.CreateCustom("nonexistent-shell-12345.exe");
 
         // Act & Assert
-        Assert.ThrowsAsync<ProcessStartException>(
-            () => _processManager!.StartAsync(options));
+        Assert.ThrowsAsync<ProcessStartException>(() => _processManager!.StartAsync(options));
     }
 
     /// <summary>
-    /// Tests that StartAsync throws InvalidOperationException when a process is already running.
+    ///     Tests that StartAsync throws InvalidOperationException when a process is already running.
     /// </summary>
     [Test]
     public void StartAsync_WhenAlreadyRunning_ThrowsInvalidOperationException()
@@ -203,17 +205,16 @@ public class ProcessManagerTests
 
         var options = ProcessLaunchOptions.CreateCmd();
         options.Arguments.AddRange(["/c", "ping -n 2 127.0.0.1"]);
-        
+
         try
         {
             _processManager!.StartAsync(options).Wait();
-            
+
             // Wait a moment to ensure the process is fully started
             Thread.Sleep(200);
-            
+
             // Act & Assert
-            Assert.ThrowsAsync<InvalidOperationException>(
-                () => _processManager.StartAsync(options));
+            Assert.ThrowsAsync<InvalidOperationException>(() => _processManager.StartAsync(options));
         }
         finally
         {
@@ -222,49 +223,47 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that Write throws InvalidOperationException when no process is running.
+    ///     Tests that Write throws InvalidOperationException when no process is running.
     /// </summary>
     [Test]
     public void Write_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => _processManager!.Write("test"));
-        
+        InvalidOperationException? ex = Assert.Throws<InvalidOperationException>(() => _processManager!.Write("test"));
+
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
     /// <summary>
-    /// Tests that Write with byte span throws InvalidOperationException when no process is running.
+    ///     Tests that Write with byte span throws InvalidOperationException when no process is running.
     /// </summary>
     [Test]
     public void Write_WithByteSpan_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
         // Arrange
-        var data = "test"u8.ToArray();
+        byte[] data = "test"u8.ToArray();
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => _processManager!.Write(data.AsSpan()));
-        
+        InvalidOperationException? ex =
+            Assert.Throws<InvalidOperationException>(() => _processManager!.Write(data.AsSpan()));
+
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
     /// <summary>
-    /// Tests that Resize throws InvalidOperationException when no process is running.
+    ///     Tests that Resize throws InvalidOperationException when no process is running.
     /// </summary>
     [Test]
     public void Resize_WithoutRunningProcess_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => _processManager!.Resize(80, 25));
-        
+        InvalidOperationException? ex = Assert.Throws<InvalidOperationException>(() => _processManager!.Resize(80, 25));
+
         Assert.That(ex.Message, Does.Contain("No process is currently running"));
     }
 
     /// <summary>
-    /// Tests that StartAsync throws PlatformNotSupportedException on non-Windows platforms.
+    ///     Tests that StartAsync throws PlatformNotSupportedException on non-Windows platforms.
     /// </summary>
     [Test]
     public void StartAsync_OnNonWindows_ThrowsPlatformNotSupportedException()
@@ -279,12 +278,11 @@ public class ProcessManagerTests
         var options = ProcessLaunchOptions.CreateDefault();
 
         // Act & Assert
-        Assert.ThrowsAsync<PlatformNotSupportedException>(
-            () => _processManager!.StartAsync(options));
+        Assert.ThrowsAsync<PlatformNotSupportedException>(() => _processManager!.StartAsync(options));
     }
 
     /// <summary>
-    /// Tests that StartAsync successfully starts a process with valid shell options.
+    ///     Tests that StartAsync successfully starts a process with valid shell options.
     /// </summary>
     [Test]
     public async Task StartAsync_WithValidShell_StartsProcess()
@@ -317,7 +315,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that StopAsync successfully stops a running process.
+    ///     Tests that StopAsync successfully stops a running process.
     /// </summary>
     [Test]
     public async Task StopAsync_WithRunningProcess_StopsProcess()
@@ -333,7 +331,7 @@ public class ProcessManagerTests
         var options = ProcessLaunchOptions.CreateCmd();
         options.Arguments.AddRange(["/c", "ping -n 10 127.0.0.1"]);
         await _processManager!.StartAsync(options);
-        
+
         Assert.That(_processManager.IsRunning, Is.True);
 
         // Act
@@ -344,7 +342,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that StopAsync does not throw when no process is running.
+    ///     Tests that StopAsync does not throw when no process is running.
     /// </summary>
     [Test]
     public async Task StopAsync_WithoutRunningProcess_DoesNotThrow()
@@ -354,7 +352,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that ProcessExited event is raised when a process exits naturally.
+    ///     Tests that ProcessExited event is raised when a process exits naturally.
     /// </summary>
     [Test]
     public async Task ProcessExited_Event_RaisedWhenProcessExits()
@@ -368,8 +366,8 @@ public class ProcessManagerTests
 
         var options = ProcessLaunchOptions.CreateCmd();
         options.Arguments.AddRange(["/c", "echo test"]);
-        var exitedEventRaised = false;
-        var exitCode = -1;
+        bool exitedEventRaised = false;
+        int exitCode = -1;
 
         _processManager!.ProcessExited += (sender, args) =>
         {
@@ -379,11 +377,11 @@ public class ProcessManagerTests
 
         // Act
         await _processManager.StartAsync(options);
-        
+
         // Wait for the process to exit naturally
         var timeout = TimeSpan.FromSeconds(5);
-        var start = DateTime.UtcNow;
-        
+        DateTime start = DateTime.UtcNow;
+
         while (_processManager.IsRunning && DateTime.UtcNow - start < timeout)
         {
             await Task.Delay(100);
@@ -396,7 +394,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that DataReceived event is raised when a process outputs data.
+    ///     Tests that DataReceived event is raised when a process outputs data.
     /// </summary>
     [Test]
     public async Task DataReceived_Event_RaisedWhenProcessOutputsData()
@@ -410,22 +408,22 @@ public class ProcessManagerTests
 
         var options = ProcessLaunchOptions.CreateCmd();
         options.Arguments.AddRange(["/c", "echo Hello World"]);
-        var dataReceived = false;
-        var receivedData = "";
+        bool dataReceived = false;
+        string receivedData = "";
 
         _processManager!.DataReceived += (sender, args) =>
         {
             dataReceived = true;
-            receivedData += System.Text.Encoding.UTF8.GetString(args.Data.Span);
+            receivedData += Encoding.UTF8.GetString(args.Data.Span);
         };
 
         // Act
         await _processManager.StartAsync(options);
-        
+
         // Wait for data to be received - ConPTY might need more time
         var timeout = TimeSpan.FromSeconds(10);
-        var start = DateTime.UtcNow;
-        
+        DateTime start = DateTime.UtcNow;
+
         while (!dataReceived && DateTime.UtcNow - start < timeout)
         {
             await Task.Delay(100);
@@ -436,12 +434,12 @@ public class ProcessManagerTests
         // Assert
         Assert.That(dataReceived, Is.True, "DataReceived event should be raised");
         // ConPTY output might include additional formatting, so just check for the content
-        Assert.That(receivedData, Does.Contain("Hello World").Or.Contain("Hello").Or.Not.Empty, 
+        Assert.That(receivedData, Does.Contain("Hello World").Or.Contain("Hello").Or.Not.Empty,
             $"Should receive some output, got: '{receivedData}'");
     }
 
     /// <summary>
-    /// Tests that Dispose can be called multiple times without throwing.
+    ///     Tests that Dispose can be called multiple times without throwing.
     /// </summary>
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
@@ -455,7 +453,7 @@ public class ProcessManagerTests
     }
 
     /// <summary>
-    /// Tests that Write throws ObjectDisposedException after the ProcessManager is disposed.
+    ///     Tests that Write throws ObjectDisposedException after the ProcessManager is disposed.
     /// </summary>
     [Test]
     public void Write_AfterDispose_ThrowsObjectDisposedException()
