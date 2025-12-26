@@ -598,7 +598,7 @@ public class TerminalController : ITerminalController
                 drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
             }
 
-            // Draw the character with selected font
+            // Draw the character with selected font using proper PushFont/PopFont pattern
             ImGui.PushFont(font, CurrentFontSize);
             try
             {

@@ -261,4 +261,118 @@ public class TerminalFontConfigTests
         ArgumentException? ex2 = Assert.Throws<ArgumentException>(() => configTooLarge.Validate());
         Assert.That(ex2.ParamName, Is.EqualTo("FontSize"));
     }
+
+    [Test]
+    public void CalculateCharacterMetrics_WithValidConfiguration_ReturnsCorrectMetrics()
+    {
+        // Arrange
+        var config = new TerminalFontConfig
+        {
+            RegularFontName = "Consolas",
+            FontSize = 14.0f
+        };
+        config.Validate();
+
+        // Act
+        var metrics = config.CalculateCharacterMetrics();
+
+        // Assert
+        Assert.That(metrics.Width, Is.EqualTo(8.4f).Within(0.001f)); // 14 * 0.6
+        Assert.That(metrics.Height, Is.EqualTo(14.0f));
+        Assert.That(metrics.BaselineOffset, Is.EqualTo(11.2f).Within(0.001f)); // 14 * 0.8
+        Assert.That(metrics.FontSize, Is.EqualTo(14.0f));
+        Assert.That(metrics.FontName, Is.EqualTo("Consolas"));
+    }
+
+    [Test]
+    public void CalculateCharacterMetrics_WithDifferentFontSizes_ScalesCorrectly()
+    {
+        // Arrange
+        var config = new TerminalFontConfig
+        {
+            RegularFontName = "Courier New",
+            FontSize = 20.0f
+        };
+        config.Validate();
+
+        // Act
+        var metrics = config.CalculateCharacterMetrics();
+
+        // Assert
+        Assert.That(metrics.Width, Is.EqualTo(12.0f).Within(0.001f)); // 20 * 0.6
+        Assert.That(metrics.Height, Is.EqualTo(20.0f));
+        Assert.That(metrics.BaselineOffset, Is.EqualTo(16.0f).Within(0.001f)); // 20 * 0.8
+        Assert.That(metrics.FontSize, Is.EqualTo(20.0f));
+        Assert.That(metrics.FontName, Is.EqualTo("Courier New"));
+    }
+
+    [Test]
+    public void CalculateScaledCharacterMetrics_WithDefaultScale_ReturnsSameAsUnscaled()
+    {
+        // Arrange
+        var config = new TerminalFontConfig
+        {
+            RegularFontName = "Consolas",
+            FontSize = 12.0f
+        };
+        config.Validate();
+
+        // Act
+        var unscaledMetrics = config.CalculateCharacterMetrics();
+        var scaledMetrics = config.CalculateScaledCharacterMetrics();
+
+        // Assert
+        Assert.That(scaledMetrics.Width, Is.EqualTo(unscaledMetrics.Width).Within(0.001f));
+        Assert.That(scaledMetrics.Height, Is.EqualTo(unscaledMetrics.Height).Within(0.001f));
+        Assert.That(scaledMetrics.BaselineOffset, Is.EqualTo(unscaledMetrics.BaselineOffset).Within(0.001f));
+        Assert.That(scaledMetrics.FontSize, Is.EqualTo(unscaledMetrics.FontSize).Within(0.001f));
+        Assert.That(scaledMetrics.FontName, Is.EqualTo(unscaledMetrics.FontName));
+    }
+
+    [Test]
+    public void CalculateScaledCharacterMetrics_WithCustomScale_ScalesCorrectly()
+    {
+        // Arrange
+        var config = new TerminalFontConfig
+        {
+            RegularFontName = "Consolas",
+            FontSize = 12.0f
+        };
+        config.Validate();
+        const float dpiScale = 1.5f;
+
+        // Act
+        var unscaledMetrics = config.CalculateCharacterMetrics();
+        var scaledMetrics = config.CalculateScaledCharacterMetrics(dpiScale);
+
+        // Assert
+        Assert.That(scaledMetrics.Width, Is.EqualTo(unscaledMetrics.Width * dpiScale).Within(0.001f));
+        Assert.That(scaledMetrics.Height, Is.EqualTo(unscaledMetrics.Height * dpiScale).Within(0.001f));
+        Assert.That(scaledMetrics.BaselineOffset, Is.EqualTo(unscaledMetrics.BaselineOffset * dpiScale).Within(0.001f));
+        Assert.That(scaledMetrics.FontSize, Is.EqualTo(unscaledMetrics.FontSize * dpiScale).Within(0.001f));
+        Assert.That(scaledMetrics.FontName, Is.EqualTo(unscaledMetrics.FontName));
+    }
+
+    [Test]
+    public void CalculateScaledCharacterMetrics_WithZeroScale_ReturnsZeroMetrics()
+    {
+        // Arrange
+        var config = new TerminalFontConfig
+        {
+            RegularFontName = "Consolas",
+            FontSize = 12.0f
+        };
+        config.Validate();
+        const float dpiScale = 0.0f;
+
+        // Act
+        var scaledMetrics = config.CalculateScaledCharacterMetrics(dpiScale);
+
+        // Assert
+        Assert.That(scaledMetrics.Width, Is.EqualTo(0.0f));
+        Assert.That(scaledMetrics.Height, Is.EqualTo(0.0f));
+        Assert.That(scaledMetrics.BaselineOffset, Is.EqualTo(0.0f));
+        Assert.That(scaledMetrics.FontSize, Is.EqualTo(0.0f));
+        Assert.That(scaledMetrics.FontName, Is.EqualTo("Consolas"));
+    }
 }

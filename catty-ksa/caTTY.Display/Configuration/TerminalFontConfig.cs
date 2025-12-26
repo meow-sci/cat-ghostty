@@ -93,9 +93,55 @@ public class TerminalFontConfig
         if (FontSize <= 0 || FontSize > 72)
             throw new ArgumentException("FontSize must be between 0 and 72", nameof(FontSize));
 
-        // Bold, Italic, BoldItalic can fall back to Regular if not specified
-        BoldFontName ??= RegularFontName;
-        ItalicFontName ??= RegularFontName;
-        BoldItalicFontName ??= RegularFontName;
+        // Bold, Italic, BoldItalic can fall back to Regular if not specified or empty
+        if (string.IsNullOrWhiteSpace(BoldFontName))
+            BoldFontName = RegularFontName;
+        if (string.IsNullOrWhiteSpace(ItalicFontName))
+            ItalicFontName = RegularFontName;
+        if (string.IsNullOrWhiteSpace(BoldItalicFontName))
+            BoldItalicFontName = RegularFontName;
+    }
+
+    /// <summary>
+    ///     Calculates character metrics for the configured font.
+    ///     Returns estimated metrics based on font size if actual font metrics are unavailable.
+    /// </summary>
+    /// <returns>Character metrics including width, height, and baseline offset</returns>
+    public CharacterMetrics CalculateCharacterMetrics()
+    {
+        // For monospace fonts, character width is typically 60% of font size
+        // Character height is typically equal to font size
+        // These are reasonable estimates for terminal fonts
+        var characterWidth = FontSize * 0.6f;
+        var characterHeight = FontSize;
+        var baselineOffset = FontSize * 0.8f; // Baseline is typically 80% down from top
+        
+        return new CharacterMetrics
+        {
+            Width = characterWidth,
+            Height = characterHeight,
+            BaselineOffset = baselineOffset,
+            FontSize = FontSize,
+            FontName = RegularFontName
+        };
+    }
+
+    /// <summary>
+    ///     Calculates character metrics with DPI scaling applied.
+    /// </summary>
+    /// <param name="dpiScale">DPI scaling factor (1.0 = 100%, 1.5 = 150%, etc.)</param>
+    /// <returns>Scaled character metrics</returns>
+    public CharacterMetrics CalculateScaledCharacterMetrics(float dpiScale = 1.0f)
+    {
+        var baseMetrics = CalculateCharacterMetrics();
+        
+        return new CharacterMetrics
+        {
+            Width = baseMetrics.Width * dpiScale,
+            Height = baseMetrics.Height * dpiScale,
+            BaselineOffset = baseMetrics.BaselineOffset * dpiScale,
+            FontSize = baseMetrics.FontSize * dpiScale,
+            FontName = baseMetrics.FontName
+        };
     }
 }

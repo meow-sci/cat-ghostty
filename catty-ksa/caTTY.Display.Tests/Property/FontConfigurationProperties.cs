@@ -359,6 +359,34 @@ public class FontConfigurationProperties
     {
         return Prop.ForAll(ValidFontNames(), ValidFontSizes(), (regularFont, fontSize) =>
         {
+            // Skip null or invalid inputs - they should be rejected by validation
+            if (string.IsNullOrWhiteSpace(regularFont) || fontSize <= 0 || fontSize > 72)
+            {
+                try
+                {
+                    var invalidConfig = new TerminalFontConfig
+                    {
+                        RegularFontName = regularFont,
+                        BoldFontName = string.Empty,
+                        ItalicFontName = "",
+                        BoldItalicFontName = "   ",
+                        FontSize = fontSize,
+                        AutoDetectContext = false
+                    };
+
+                    invalidConfig.Validate();
+                    return false; // Should have thrown exception
+                }
+                catch (ArgumentException)
+                {
+                    return true; // Expected exception for invalid input
+                }
+                catch
+                {
+                    return false; // Wrong exception type
+                }
+            }
+
             try
             {
                 // Create configuration with null/empty fallback fonts
@@ -385,8 +413,77 @@ public class FontConfigurationProperties
             }
             catch (ArgumentException)
             {
-                // Invalid regular font should be rejected
-                return string.IsNullOrWhiteSpace(regularFont) || fontSize <= 0 || fontSize > 72;
+                // Should not happen with valid inputs from our generators
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+    }
+
+    /// <summary>
+    ///     Property 7: Character Metrics Calculation
+    ///     For any valid font configuration, character metrics calculation should produce
+    ///     consistent and reasonable values based on font size and scaling factors.
+    ///     Validates: Requirements 2.3, character positioning accuracy
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property CharacterMetricsCalculation_ShouldProduceConsistentValues()
+    {
+        return Prop.ForAll(ValidFontConfigurations(), fontConfig =>
+        {
+            try
+            {
+                fontConfig.Validate();
+
+                // Test basic character metrics calculation
+                var metrics = fontConfig.CalculateCharacterMetrics();
+
+                // Verify metrics are reasonable based on font size
+                bool widthReasonable = metrics.Width > 0 && metrics.Width <= fontConfig.FontSize;
+                bool heightReasonable = metrics.Height > 0 && metrics.Height >= fontConfig.FontSize * 0.8f;
+                bool baselineReasonable = metrics.BaselineOffset > 0 && metrics.BaselineOffset <= metrics.Height;
+                bool fontSizeMatches = Math.Abs(metrics.FontSize - fontConfig.FontSize) < 0.001f;
+                bool fontNameMatches = metrics.FontName == fontConfig.RegularFontName;
+
+                // Test that metrics are consistent across multiple calls
+                var metrics2 = fontConfig.CalculateCharacterMetrics();
+                bool consistent = Math.Abs(metrics.Width - metrics2.Width) < 0.001f &&
+                                 Math.Abs(metrics.Height - metrics2.Height) < 0.001f &&
+                                 Math.Abs(metrics.BaselineOffset - metrics2.BaselineOffset) < 0.001f;
+
+                // Test scaled metrics with different DPI scales
+                var scaledMetrics1x = fontConfig.CalculateScaledCharacterMetrics(1.0f);
+                var scaledMetrics2x = fontConfig.CalculateScaledCharacterMetrics(2.0f);
+                var scaledMetrics15x = fontConfig.CalculateScaledCharacterMetrics(1.5f);
+
+                // Verify scaling relationships
+                bool scalingConsistent = 
+                    Math.Abs(scaledMetrics1x.Width - metrics.Width) < 0.001f &&
+                    Math.Abs(scaledMetrics2x.Width - metrics.Width * 2.0f) < 0.001f &&
+                    Math.Abs(scaledMetrics15x.Width - metrics.Width * 1.5f) < 0.001f;
+
+                // Test that scaled metrics maintain proportions
+                bool proportionsPreserved = 
+                    Math.Abs(scaledMetrics2x.Height / scaledMetrics2x.Width - metrics.Height / metrics.Width) < 0.01f;
+
+                // Test edge cases for DPI scaling
+                var scaledMetricsZero = fontConfig.CalculateScaledCharacterMetrics(0.0f);
+                var scaledMetricsNegative = fontConfig.CalculateScaledCharacterMetrics(-1.0f);
+                
+                bool edgeCasesHandled = scaledMetricsZero.Width == 0 && scaledMetricsZero.Height == 0 &&
+                                       scaledMetricsNegative.Width <= 0 && scaledMetricsNegative.Height <= 0;
+
+                return widthReasonable && heightReasonable && baselineReasonable && 
+                       fontSizeMatches && fontNameMatches && consistent && 
+                       scalingConsistent && proportionsPreserved && edgeCasesHandled;
+            }
+            catch (ArgumentException)
+            {
+                // Invalid configurations should be rejected
+                return true;
             }
             catch
             {
