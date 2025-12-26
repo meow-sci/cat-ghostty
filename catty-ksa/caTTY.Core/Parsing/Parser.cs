@@ -190,6 +190,16 @@ public class Parser
     /// </summary>
     private void HandleOscState(byte b)
     {
+        // Guard against bytes outside the allowed OSC byte range (0x20 - 0x7E)
+        // Special allowances for BEL (0x07) and ESC (0x1b) must be allowed, these are valid terminators
+        // Keep 1:1 behavior with the pre-refactor Parser: warn + optionally emit as normal byte, without altering OSC state.
+        if (b != 0x07 && b != 0x1b && (b < 0x20 || b > 0x7e))
+        {
+            _logger.LogWarning("OSC: byte out of range 0x{Byte:X2}", b);
+            MaybeEmitNormalByteDuringEscapeSequence(b);
+            return;
+        }
+
         if (_oscParser.ProcessOscByte(b, _escapeSequence, out OscMessage? message))
         {
             if (message != null)
@@ -346,6 +356,15 @@ public class Parser
     /// </summary>
     private void HandleEscapeByte(byte b)
     {
+        // Guard against bytes outside the allowed ESC byte range (0x20 - 0x7E)
+        // Keep 1:1 behavior with the pre-refactor Parser: warn + optionally emit as normal byte, without resetting ESC state.
+        if (b < 0x20 || b > 0x7e)
+        {
+            _logger.LogWarning("ESC: byte out of range 0x{Byte:X2}", b);
+            MaybeEmitNormalByteDuringEscapeSequence(b);
+            return;
+        }
+
         // First byte after ESC decides the submode
         if (_escapeSequence.Count == 1)
         {
@@ -368,6 +387,10 @@ public class Parser
             if (b == 0x50) // P
             {
                 _escapeSequence.Add(b);
+                _dcsCommand = null;
+                _dcsParamBuffer.Clear();
+                _dcsParameters = Array.Empty<string>();
+                _dcsParser.Reset();
                 _state = ParserState.Dcs;
                 return;
             }
