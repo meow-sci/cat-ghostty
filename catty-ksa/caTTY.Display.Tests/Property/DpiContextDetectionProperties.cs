@@ -5,7 +5,7 @@ using FsCheck.NUnit;
 using caTTY.Display.Configuration;
 using ExecutionContext = caTTY.Display.Configuration.ExecutionContext;
 
-namespace caTTY.ImGui.Tests.Property;
+namespace caTTY.Display.Tests.Property;
 
 /// <summary>
 /// Property-based tests for DPI context detection functionality.

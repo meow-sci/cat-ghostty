@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AssemblyName>caTTY.ImGui.Playground</AssemblyName>
+    <AssemblyName>caTTY.Display.Playground</AssemblyName>
     <RootNamespace>caTTY.Playground</RootNamespace>
     <Description>ImGui rendering experiments for caTTY terminal emulator</Description>
-    <PackageId>caTTY.ImGui.Playground</PackageId>
+    <PackageId>caTTY.Display.Playground</PackageId>
     <Product>caTTY Terminal Emulator</Product>
     <Company>meow sci</Company>
     <!-- this app.manifest enables PerMonitorV2, calls to Win32 SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) should not be necessary -->

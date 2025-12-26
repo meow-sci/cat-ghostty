@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <AssemblyName>caTTY.ImGui.Tests</AssemblyName>
-    <RootNamespace>caTTY.ImGui.Tests</RootNamespace>
-    <Description>Unit and property-based tests for caTTY.ImGui</Description>
+    <AssemblyName>caTTY.Display.Tests</AssemblyName>
+    <RootNamespace>caTTY.Display.Tests</RootNamespace>
+    <Description>Unit and property-based tests for caTTY.Display</Description>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

@@ -2,7 +2,7 @@ using System;
 using NUnit.Framework;
 using caTTY.Display.Configuration;
 
-namespace caTTY.ImGui.Tests.Unit.Configuration;
+namespace caTTY.Display.Tests.Unit.Configuration;
 
 /// <summary>
 /// Unit tests for TerminalRenderingConfig class.
