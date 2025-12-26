@@ -9,6 +9,8 @@
     <Product>caTTY Terminal Emulator</Product>
     <Company>meow sci</Company>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    
   </PropertyGroup>
 
   <ItemGroup>

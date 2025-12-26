@@ -9,6 +9,7 @@
     <Product>caTTY Terminal Emulator</Product>
     <Company>caTTY Project</Company>
     <Copyright>Copyright © caTTY Project</Copyright>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

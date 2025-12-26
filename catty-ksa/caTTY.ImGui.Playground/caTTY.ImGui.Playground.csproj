@@ -11,6 +11,7 @@
     <!-- this app.manifest enables PerMonitorV2, calls to Win32 SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) should not be necessary -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

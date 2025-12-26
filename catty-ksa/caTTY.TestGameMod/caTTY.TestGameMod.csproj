@@ -13,6 +13,7 @@
     <ModNamespace>TestCaTTY</ModNamespace>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
     
     <!-- Build output + test output dirs -->
     <DistDir>$(ProjectDir)dist\</DistDir>

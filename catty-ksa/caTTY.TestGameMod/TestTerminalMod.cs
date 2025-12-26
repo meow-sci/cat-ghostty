@@ -174,9 +174,7 @@ public class TerminalMod
         if (Directory.Exists(fontsDir))
         {
           // Get all .ttf and .otf files from Fonts folder
-          var ttfFiles = Directory.GetFiles(fontsDir, "*.ttf");
-          var otfFiles = Directory.GetFiles(fontsDir, "*.otf");
-          var fontFiles = ttfFiles.Concat(otfFiles).ToArray();
+          var fontFiles = Directory.GetFiles(fontsDir, "*.iamttf");
 
           if (fontFiles.Length > 0)
           {
