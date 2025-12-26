@@ -77,7 +77,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Ensure metrics are recalculated when fonts are changed
   - _Requirements: 2.3, character positioning accuracy_
 
-- [ ] 2.6 Write property test for character metrics calculation
+- [x] 2.6 Write property test for character metrics calculation
   - **Property 7: Character Metrics Calculation**
   - **Validates: Requirements 2.3, character positioning accuracy**
 
