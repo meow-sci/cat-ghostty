@@ -1,19 +1,12 @@
-using System;
-
 namespace caTTY.Core.Terminal;
 
 /// <summary>
-/// Exception thrown when ConPTY operations fail.
+///     Exception thrown when ConPTY operations fail.
 /// </summary>
 public class ConPtyException : Exception
 {
     /// <summary>
-    /// Gets the Win32 error code associated with the ConPTY failure.
-    /// </summary>
-    public int Win32ErrorCode { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the ConPtyException class.
+    ///     Initializes a new instance of the ConPtyException class.
     /// </summary>
     /// <param name="message">The error message</param>
     /// <param name="win32ErrorCode">The Win32 error code</param>
@@ -23,7 +16,7 @@ public class ConPtyException : Exception
     }
 
     /// <summary>
-    /// Initializes a new instance of the ConPtyException class.
+    ///     Initializes a new instance of the ConPtyException class.
     /// </summary>
     /// <param name="message">The error message</param>
     /// <param name="win32ErrorCode">The Win32 error code</param>
@@ -32,4 +25,9 @@ public class ConPtyException : Exception
     {
         Win32ErrorCode = win32ErrorCode;
     }
+
+    /// <summary>
+    ///     Gets the Win32 error code associated with the ConPTY failure.
+    /// </summary>
+    public int Win32ErrorCode { get; }
 }

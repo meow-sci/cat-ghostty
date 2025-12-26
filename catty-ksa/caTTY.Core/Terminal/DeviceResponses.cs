@@ -1,17 +1,15 @@
-using System.Text;
-
 namespace caTTY.Core.Terminal;
 
 /// <summary>
-/// Device query response generation methods.
-/// Based on the TypeScript responses.ts implementation.
+///     Device query response generation methods.
+///     Based on the TypeScript responses.ts implementation.
 /// </summary>
 public static class DeviceResponses
 {
     /// <summary>
-    /// Generate Device Attributes (Primary DA) response.
-    /// Reports terminal type and supported features.
-    /// Format: CSI ? 1 ; 2 c (VT100 with Advanced Video Option)
+    ///     Generate Device Attributes (Primary DA) response.
+    ///     Reports terminal type and supported features.
+    ///     Format: CSI ? 1 ; 2 c (VT100 with Advanced Video Option)
     /// </summary>
     /// <returns>The primary DA response string</returns>
     public static string GenerateDeviceAttributesPrimaryResponse()
@@ -22,9 +20,9 @@ public static class DeviceResponses
     }
 
     /// <summary>
-    /// Generate Device Attributes (Secondary DA) response.
-    /// Reports terminal version and firmware level.
-    /// Format: CSI > 0 ; version ; 0 c
+    ///     Generate Device Attributes (Secondary DA) response.
+    ///     Reports terminal version and firmware level.
+    ///     Format: CSI > 0 ; version ; 0 c
     /// </summary>
     /// <returns>The secondary DA response string</returns>
     public static string GenerateDeviceAttributesSecondaryResponse()
@@ -34,9 +32,9 @@ public static class DeviceResponses
     }
 
     /// <summary>
-    /// Generate Cursor Position Report (CPR) response.
-    /// Reports current cursor position to the application.
-    /// Format: CSI row ; col R (1-indexed coordinates)
+    ///     Generate Cursor Position Report (CPR) response.
+    ///     Reports current cursor position to the application.
+    ///     Format: CSI row ; col R (1-indexed coordinates)
     /// </summary>
     /// <param name="cursorX">Current cursor X position (0-indexed)</param>
     /// <param name="cursorY">Current cursor Y position (0-indexed)</param>
@@ -44,14 +42,14 @@ public static class DeviceResponses
     public static string GenerateCursorPositionReport(int cursorX, int cursorY)
     {
         // Convert from 0-indexed to 1-indexed coordinates
-        var row = cursorY + 1;
-        var col = cursorX + 1;
+        int row = cursorY + 1;
+        int col = cursorX + 1;
         return $"\x1b[{row};{col}R";
     }
 
     /// <summary>
-    /// Generate Device Status Report (DSR) "ready" response.
-    /// Format: CSI 0 n
+    ///     Generate Device Status Report (DSR) "ready" response.
+    ///     Format: CSI 0 n
     /// </summary>
     /// <returns>The device status report response string</returns>
     public static string GenerateDeviceStatusReportResponse()
@@ -60,9 +58,9 @@ public static class DeviceResponses
     }
 
     /// <summary>
-    /// Generate Terminal Size Query response.
-    /// Reports terminal dimensions in characters.
-    /// Format: CSI 8 ; rows ; cols t
+    ///     Generate Terminal Size Query response.
+    ///     Reports terminal dimensions in characters.
+    ///     Format: CSI 8 ; rows ; cols t
     /// </summary>
     /// <param name="rows">Terminal height in rows</param>
     /// <param name="cols">Terminal width in columns</param>
@@ -73,9 +71,9 @@ public static class DeviceResponses
     }
 
     /// <summary>
-    /// Generate Character Set Query response.
-    /// Reports current character set designation.
-    /// Format: CSI ? 26 ; charset n
+    ///     Generate Character Set Query response.
+    ///     Reports current character set designation.
+    ///     Format: CSI ? 26 ; charset n
     /// </summary>
     /// <param name="charset">Current character set identifier</param>
     /// <returns>The character set query response string</returns>

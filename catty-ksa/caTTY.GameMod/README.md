@@ -1,6 +1,7 @@
 # caTTY Terminal Emulator Game Mod
 
-A terminal emulator mod for Kitten Space Agency (KSA) that provides full VT100/xterm-compatible terminal emulation within the game.
+A terminal emulator mod for Kitten Space Agency (KSA) that provides full VT100/xterm-compatible terminal emulation
+within the game.
 
 ## Features
 
@@ -27,15 +28,15 @@ A terminal emulator mod for Kitten Space Agency (KSA) that provides full VT100/x
    ```
 
 2. **Deploy the Mod**:
-   - Copy all files from `catty-ksa/caTTY.GameMod/dist/` to your KSA mods directory
-   - The mod files include:
-     - `caTTY.GameMod.dll` - Main mod assembly
-     - `caTTY.GameMod.deps.json` - Dependency information
-     - `mod.toml` - Mod metadata
+    - Copy all files from `catty-ksa/caTTY.GameMod/dist/` to your KSA mods directory
+    - The mod files include:
+        - `caTTY.GameMod.dll` - Main mod assembly
+        - `caTTY.GameMod.deps.json` - Dependency information
+        - `mod.toml` - Mod metadata
 
 3. **Launch KSA**:
-   - Start the game normally
-   - The mod will initialize automatically when all mods are loaded
+    - Start the game normally
+    - The mod will initialize automatically when all mods are loaded
 
 ## Usage
 
@@ -59,6 +60,7 @@ A terminal emulator mod for Kitten Space Agency (KSA) that provides full VT100/x
 ### Shell Selection
 
 The mod automatically selects the best available shell:
+
 1. PowerShell (Windows PowerShell) - Default on Windows
 2. PowerShell Core (pwsh) - If available
 3. Command Prompt (cmd) - Fallback option
@@ -75,6 +77,7 @@ The mod automatically selects the best available shell:
 ### Dependencies
 
 The mod depends on the following KSA game DLLs:
+
 - `Brutal.Core.Common.dll`
 - `Brutal.Core.Numerics.dll`
 - `Brutal.ImGui.dll`
@@ -92,16 +95,19 @@ The mod depends on the following KSA game DLLs:
 ### Common Issues
 
 **Terminal doesn't appear when pressing F12:**
+
 - Ensure the mod loaded successfully (check game console for initialization messages)
 - Verify all required KSA DLLs are present
 - Check that Windows 10 version 1809+ is installed
 
 **Shell process fails to start:**
+
 - Verify PowerShell or cmd.exe is available on the system
 - Check Windows ConPTY support (Windows 10 1809+)
 - Review game console for error messages
 
 **Input not working:**
+
 - Click in the terminal window to focus it
 - Ensure the terminal window is visible (press F12)
 - Check that the shell process is running
@@ -109,6 +115,7 @@ The mod depends on the following KSA game DLLs:
 ### Debug Information
 
 The mod logs important events to the game console:
+
 - Initialization status
 - Shell process start/stop events
 - Error conditions
@@ -146,6 +153,7 @@ caTTY.GameMod/
 ### API Integration
 
 The mod integrates with KSA using the StarMap.API framework:
+
 - `[StarMapMod]` - Marks the main mod class
 - `[StarMapAfterGui]` - Called after GUI rendering for terminal display
 - `[StarMapAllModsLoaded]` - Called for initialization
@@ -158,6 +166,7 @@ This project is part of the caTTY terminal emulator implementation.
 ## Support
 
 For issues and support:
+
 1. Check the troubleshooting section above
 2. Review game console logs for error messages
 3. Ensure all prerequisites are met

@@ -1,5 +1,6 @@
 using Brutal.GlfwApi;
 using Brutal.ImGuiApi;
+using Brutal.ImGuiApi.Abstractions;
 using Brutal.Numerics;
 using Brutal.VulkanApi;
 using Brutal.VulkanApi.Abstractions;
@@ -10,8 +11,8 @@ using RenderCore;
 namespace caTTY.TestApp.Rendering;
 
 /// <summary>
-/// Standalone ImGui context for the terminal test application.
-/// Based on the KSA ImGui framework and playground implementation.
+///     Standalone ImGui context for the terminal test application.
+///     Based on the KSA ImGui framework and playground implementation.
 /// </summary>
 public static class StandaloneImGui
 {
@@ -21,7 +22,7 @@ public static class StandaloneImGui
     private static Action? OnDrawUi;
 
     /// <summary>
-    /// Run the ImGui application loop with the specified UI drawing callback.
+    ///     Run the ImGui application loop with the specified UI drawing callback.
     /// </summary>
     /// <param name="onDrawUi">Callback to draw the UI each frame</param>
     public static void Run(Action onDrawUi)
@@ -42,7 +43,7 @@ public static class StandaloneImGui
     }
 
     /// <summary>
-    /// Initializes the BRUTAL ImGui context with GLFW window and Vulkan renderer.
+    ///     Initializes the BRUTAL ImGui context with GLFW window and Vulkan renderer.
     /// </summary>
     private static void Init()
     {
@@ -53,12 +54,12 @@ public static class StandaloneImGui
         Glfw.WindowHint(GlfwWindowHint.ClientApi, 0);
         Glfw.WindowHint(GlfwWindowHint.AutoIconify, 0);
         Glfw.WindowHint(GlfwWindowHint.FocusOnShow, 1);
-        
+
         // Create window with appropriate size for terminal
-        window = Glfw.CreateWindow(new()
+        window = Glfw.CreateWindow(new GlfwWindow.CreateInfo
         {
             Title = "caTTY Terminal Emulator - BRUTAL ImGui Test",
-            Size = new int2(1400, 900), // Good size for 80x24 terminal
+            Size = new int2(1400, 900) // Good size for 80x24 terminal
         });
 
         // Initialize Vulkan renderer
@@ -69,16 +70,17 @@ public static class StandaloneImGui
         {
             Pass = renderer.MainRenderPass,
             SampleCount = VkSampleCountFlags._1Bit,
-            ClearValues = [
-                new VkClearColorValue() { Float32 = Color.Black.AsFloat4 },
-                new VkClearDepthStencilValue() { Depth = 0 },
+            ClearValues =
+            [
+                new VkClearColorValue { Float32 = Color.Black.AsFloat4 },
+                new VkClearDepthStencilValue { Depth = 0 }
             ]
         };
 
         // Initialize ImGui context
         ImGui.CreateContext();
 
-        var io = ImGui.GetIO();
+        ImGuiIOPtr io = ImGui.GetIO();
         io.ConfigDpiScaleFonts = true;
         io.ConfigDpiScaleViewports = true;
         io.ConfigFlags |= ImGuiConfigFlags.ViewportsEnable;
@@ -89,18 +91,18 @@ public static class StandaloneImGui
         ImGuiBackend.Initialize(window, renderer);
 
         // Initialize font manager (requires KSA console window)
-        KSA.Program.ConsoleWindow = new();
+        KSA.Program.ConsoleWindow = new ConsoleWindow();
         FontManager.Initialize(renderer.Device);
     }
 
     /// <summary>
-    /// Processes a single frame of the application loop.
+    ///     Processes a single frame of the application loop.
     /// </summary>
     private static void OnFrame()
     {
         // Poll GLFW events
         Glfw.PollEvents();
-        
+
         // Start ImGui frame
         ImGuiBackend.NewFrame();
         ImGui.NewFrame();
@@ -111,25 +113,28 @@ public static class StandaloneImGui
 
         // Render ImGui
         ImGui.Render();
-        
+
         // Acquire next frame from renderer
-        var (result, frame) = renderer!.TryAcquireNextFrame();
+        (FrameResult result, AcquiredFrame frame) = renderer!.TryAcquireNextFrame();
         if (result != FrameResult.Success)
         {
             RebuildRenderer();
             (result, frame) = renderer!.TryAcquireNextFrame();
         }
-        if (result != FrameResult.Success)
-            throw new InvalidOperationException($"Failed to acquire frame: {result}");
 
-        var (resources, commandBuffer) = frame;
-        var begin = new VkRenderPassBeginInfo()
+        if (result != FrameResult.Success)
+        {
+            throw new InvalidOperationException($"Failed to acquire frame: {result}");
+        }
+
+        (FrameResources resources, CommandBuffer commandBuffer) = frame;
+        var begin = new VkRenderPassBeginInfo
         {
             RenderPass = renderer!.MainRenderPass,
             Framebuffer = resources.Framebuffer,
-            RenderArea = new(renderer.Extent),
+            RenderArea = new VkRect2D(renderer.Extent),
             ClearValues = rstate!.ClearValues.Ptr,
-            ClearValueCount = 2,
+            ClearValueCount = 2
         };
 
         // Record and submit command buffer
@@ -141,10 +146,10 @@ public static class StandaloneImGui
         commandBuffer.End();
 
         // Submit frame
-        var frameResult = renderer.TrySubmitFrame();
+        FrameResult frameResult = renderer.TrySubmitFrame();
         ImGui.UpdatePlatformWindows();
         ImGui.RenderPlatformWindowsDefault();
-        
+
         if (frameResult != FrameResult.Success)
         {
             RebuildRenderer();
@@ -152,7 +157,7 @@ public static class StandaloneImGui
     }
 
     /// <summary>
-    /// Rebuilds the renderer when needed (e.g., window resize).
+    ///     Rebuilds the renderer when needed (e.g., window resize).
     /// </summary>
     private static void RebuildRenderer()
     {

@@ -1,18 +1,13 @@
-using System;
-using System.Threading.Tasks;
-using caTTY.Core.Terminal;
-using caTTY.TestApp.Rendering;
-
 namespace caTTY.TestApp;
 
 /// <summary>
-/// Standalone BRUTAL ImGui test application for caTTY terminal emulator.
-/// This application provides a complete terminal emulator using the same ImGui tech stack as the game mod.
+///     Standalone BRUTAL ImGui test application for caTTY terminal emulator.
+///     This application provides a complete terminal emulator using the same ImGui tech stack as the game mod.
 /// </summary>
 public class Program
 {
     /// <summary>
-    /// Main entry point for the test application.
+    ///     Main entry point for the test application.
     /// </summary>
     /// <param name="args">Command line arguments.</param>
     public static async Task Main(string[] args)
@@ -21,7 +16,7 @@ public class Program
         Console.WriteLine("===================================");
         Console.WriteLine();
         Console.WriteLine("Initializing terminal emulator and BRUTAL ImGui context...");
-        
+
         try
         {
             var app = new TerminalTestApp();

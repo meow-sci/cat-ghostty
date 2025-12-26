@@ -1,19 +1,18 @@
-using NUnit.Framework;
+using System.Text;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Tests for ESC sequence handling in the terminal emulator.
-/// Validates the implementation of task 2.11 - essential ESC sequences.
+///     Tests for ESC sequence handling in the terminal emulator.
+///     Validates the implementation of task 2.11 - essential ESC sequences.
 /// </summary>
 [TestFixture]
 public class EscSequenceTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -26,21 +25,23 @@ public class EscSequenceTests
         _terminal.Dispose();
     }
 
+    private TerminalEmulator _terminal = null!;
+
     [Test]
     public void SaveAndRestoreCursor_ShouldPreserveCursorPosition()
     {
         // Arrange: Move cursor to a specific position
-        var csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
+        byte[] csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
         _terminal.Write(csiH.AsSpan());
-        var initialRow = _terminal.Cursor.Row;
-        var initialCol = _terminal.Cursor.Col;
+        int initialRow = _terminal.Cursor.Row;
+        int initialCol = _terminal.Cursor.Col;
 
         // Act: Save cursor, move to different position, then restore
-        var esc7 = new byte[] { 0x1b, 0x37 }; // ESC 7
+        byte[] esc7 = new byte[] { 0x1b, 0x37 }; // ESC 7
         _terminal.Write(esc7.AsSpan());
-        var csiH2 = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x31, 0x48 }; // ESC[1;1H
+        byte[] csiH2 = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x31, 0x48 }; // ESC[1;1H
         _terminal.Write(csiH2.AsSpan());
-        var esc8 = new byte[] { 0x1b, 0x38 }; // ESC 8
+        byte[] esc8 = new byte[] { 0x1b, 0x38 }; // ESC 8
         _terminal.Write(esc8.AsSpan());
 
         // Assert: Cursor should be back to original position
@@ -52,11 +53,11 @@ public class EscSequenceTests
     public void RestoreCursor_WithoutSave_ShouldNotCrash()
     {
         // Arrange: Start with cursor at origin
-        var initialRow = _terminal.Cursor.Row;
-        var initialCol = _terminal.Cursor.Col;
+        int initialRow = _terminal.Cursor.Row;
+        int initialCol = _terminal.Cursor.Col;
 
         // Act: Try to restore cursor without saving first
-        var esc8 = new byte[] { 0x1b, 0x38 }; // ESC 8
+        byte[] esc8 = new byte[] { 0x1b, 0x38 }; // ESC 8
         _terminal.Write(esc8.AsSpan());
 
         // Assert: Should not crash and cursor should remain unchanged
@@ -68,10 +69,10 @@ public class EscSequenceTests
     public void Index_ShouldMoveCursorDownOneLine()
     {
         // Arrange: Start at origin
-        var initialRow = _terminal.Cursor.Row;
+        int initialRow = _terminal.Cursor.Row;
 
         // Act: Send index sequence
-        var escD = new byte[] { 0x1b, 0x44 }; // ESC D
+        byte[] escD = new byte[] { 0x1b, 0x44 }; // ESC D
         _terminal.Write(escD.AsSpan());
 
         // Assert: Cursor should move down one line
@@ -82,11 +83,11 @@ public class EscSequenceTests
     public void NextLine_ShouldMoveCursorToBeginningOfNextLine()
     {
         // Arrange: Move cursor to middle of a line
-        var csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
+        byte[] csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
         _terminal.Write(csiH.AsSpan());
 
         // Act: Send next line sequence
-        var escE = new byte[] { 0x1b, 0x45 }; // ESC E
+        byte[] escE = new byte[] { 0x1b, 0x45 }; // ESC E
         _terminal.Write(escE.AsSpan());
 
         // Assert: Cursor should be at beginning of next line
@@ -98,17 +99,17 @@ public class EscSequenceTests
     public void HorizontalTabSet_ShouldSetTabStopAtCurrentPosition()
     {
         // Arrange: Move cursor to column 3 (like the TypeScript test)
-        var csiH = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x34, 0x48 }; // ESC[1;4H
+        byte[] csiH = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x34, 0x48 }; // ESC[1;4H
         _terminal.Write(csiH.AsSpan());
 
         // Act: Set tab stop at current position
-        var escH = new byte[] { 0x1b, 0x48 }; // ESC H
+        byte[] escH = new byte[] { 0x1b, 0x48 }; // ESC H
         _terminal.Write(escH.AsSpan());
 
         // Move to beginning and tab forward
-        var csiH2 = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x31, 0x48 }; // ESC[1;1H
+        byte[] csiH2 = new byte[] { 0x1b, 0x5b, 0x31, 0x3b, 0x31, 0x48 }; // ESC[1;1H
         _terminal.Write(csiH2.AsSpan());
-        var tab = new byte[] { 0x09 }; // Tab
+        byte[] tab = new byte[] { 0x09 }; // Tab
         _terminal.Write(tab.AsSpan());
 
         // Assert: Should tab to the set tab stop position (3, 0-based)
@@ -119,23 +120,23 @@ public class EscSequenceTests
     public void ResetToInitialState_ShouldResetTerminalState()
     {
         // Arrange: Modify terminal state
-        var csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
+        byte[] csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x30, 0x48 }; // ESC[5;10H
         _terminal.Write(csiH.AsSpan());
-        var esc7 = new byte[] { 0x1b, 0x37 }; // ESC 7
+        byte[] esc7 = new byte[] { 0x1b, 0x37 }; // ESC 7
         _terminal.Write(esc7.AsSpan());
-        var text = System.Text.Encoding.UTF8.GetBytes("Hello World");
+        byte[] text = Encoding.UTF8.GetBytes("Hello World");
         _terminal.Write(text.AsSpan());
 
         // Act: Reset to initial state
-        var escC = new byte[] { 0x1b, 0x63 }; // ESC c
+        byte[] escC = new byte[] { 0x1b, 0x63 }; // ESC c
         _terminal.Write(escC.AsSpan());
 
         // Assert: Terminal should be reset
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(0), "Cursor row should be reset to 0");
         Assert.That(_terminal.Cursor.Col, Is.EqualTo(0), "Cursor column should be reset to 0");
-        
+
         // Check that screen is cleared by verifying a cell is empty
-        var cell = _terminal.ScreenBuffer.GetCell(0, 0);
+        Cell cell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(cell.Character, Is.EqualTo(' '), "Screen should be cleared");
     }
 
@@ -143,13 +144,13 @@ public class EscSequenceTests
     public void DesignateCharacterSet_ShouldSetCharacterSetForSlot()
     {
         // Act: Designate character sets for different slots
-        var escG0 = new byte[] { 0x1b, 0x28, 0x42 }; // ESC ( B - Designate ASCII to G0
+        byte[] escG0 = new byte[] { 0x1b, 0x28, 0x42 }; // ESC ( B - Designate ASCII to G0
         _terminal.Write(escG0.AsSpan());
-        var escG1 = new byte[] { 0x1b, 0x29, 0x30 }; // ESC ) 0 - Designate DEC Special Graphics to G1
+        byte[] escG1 = new byte[] { 0x1b, 0x29, 0x30 }; // ESC ) 0 - Designate DEC Special Graphics to G1
         _terminal.Write(escG1.AsSpan());
-        var escG2 = new byte[] { 0x1b, 0x2a, 0x41 }; // ESC * A - Designate UK to G2
+        byte[] escG2 = new byte[] { 0x1b, 0x2a, 0x41 }; // ESC * A - Designate UK to G2
         _terminal.Write(escG2.AsSpan());
-        var escG3 = new byte[] { 0x1b, 0x2b, 0x34 }; // ESC + 4 - Designate Dutch to G3
+        byte[] escG3 = new byte[] { 0x1b, 0x2b, 0x34 }; // ESC + 4 - Designate Dutch to G3
         _terminal.Write(escG3.AsSpan());
 
         // Assert: Character sets should be designated (we can't easily test the internal state,
@@ -162,12 +163,12 @@ public class EscSequenceTests
     public void ReverseIndex_ShouldMoveCursorUpOrScrollDown()
     {
         // Arrange: Move cursor down a few lines
-        var csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x48 }; // ESC[5;1H
+        byte[] csiH = new byte[] { 0x1b, 0x5b, 0x35, 0x3b, 0x31, 0x48 }; // ESC[5;1H
         _terminal.Write(csiH.AsSpan());
-        var initialRow = _terminal.Cursor.Row;
+        int initialRow = _terminal.Cursor.Row;
 
         // Act: Send reverse index
-        var escM = new byte[] { 0x1b, 0x4d }; // ESC M
+        byte[] escM = new byte[] { 0x1b, 0x4d }; // ESC M
         _terminal.Write(escM.AsSpan());
 
         // Assert: Cursor should move up one line
@@ -181,7 +182,7 @@ public class EscSequenceTests
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(0), "Cursor should start at top");
 
         // Act: Send reverse index
-        var escM = new byte[] { 0x1b, 0x4d }; // ESC M
+        byte[] escM = new byte[] { 0x1b, 0x4d }; // ESC M
         _terminal.Write(escM.AsSpan());
 
         // Assert: Cursor should stay at top (scroll region behavior will be implemented later)

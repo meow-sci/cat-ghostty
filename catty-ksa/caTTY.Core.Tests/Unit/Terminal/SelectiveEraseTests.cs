@@ -7,14 +7,12 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Unit tests for selective erase and character protection functionality.
-/// Tests DECSCA (Select Character Protection Attribute) and selective erase sequences.
+///     Unit tests for selective erase and character protection functionality.
+///     Tests DECSCA (Select Character Protection Attribute) and selective erase sequences.
 /// </summary>
 [TestFixture]
 public class SelectiveEraseTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -22,16 +20,18 @@ public class SelectiveEraseTests
         _terminal = new TerminalEmulator(10, 3, NullLogger.Instance);
     }
 
-    private void SetupTerminal(int width, int height = 3)
-    {
-        _terminal?.Dispose();
-        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
-    }
-
     [TearDown]
     public void TearDown()
     {
         _terminal.Dispose();
+    }
+
+    private TerminalEmulator _terminal = null!;
+
+    private void SetupTerminal(int width, int height = 3)
+    {
+        _terminal?.Dispose();
+        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
     }
 
     [Test]
@@ -67,12 +67,12 @@ public class SelectiveEraseTests
         Assert.That(GetRowText(0), Is.EqualTo("  BB      "));
 
         // Verify protected cells retain their protection
-        var protectedCell = _terminal.ScreenBuffer.GetCell(0, 2);
+        Cell protectedCell = _terminal.ScreenBuffer.GetCell(0, 2);
         Assert.That(protectedCell.Character, Is.EqualTo('B'));
         Assert.That(protectedCell.IsProtected, Is.True);
 
         // Verify erased cells have current SGR and are unprotected
-        var erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
+        Cell erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(erasedCell.Character, Is.EqualTo(' '));
         Assert.That(erasedCell.IsProtected, Is.False);
         // Note: SGR parsing not implemented yet, so background color will be null
@@ -89,7 +89,7 @@ public class SelectiveEraseTests
 
         // Assert - only current line affected
         Assert.That(GetRowText(0), Is.EqualTo("A BB      "));
-        
+
         // Verify protected cells are preserved
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('B'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 2).IsProtected, Is.True);
@@ -120,7 +120,7 @@ public class SelectiveEraseTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange - Row 0: 2 unprotected, 2 protected, 2 unprotected (6 columns total)
         _terminal.Write("AA");
         _terminal.Write("\x1b[2\"qBB\x1b[0\"qCC");
@@ -140,7 +140,7 @@ public class SelectiveEraseTests
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 0).IsProtected, Is.True);
 
         // Verify erased cells have current SGR and are unprotected
-        var erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
+        Cell erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(erasedCell.IsProtected, Is.False);
         // Note: SGR parsing not implemented yet, so background color will be null
     }
@@ -150,7 +150,7 @@ public class SelectiveEraseTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange
         _terminal.Write("AAAAAA");
         _terminal.Write("\r\n\x1b[2\"qBB\x1b[0\"qCCCC");
@@ -168,7 +168,7 @@ public class SelectiveEraseTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange
         _terminal.Write("\x1b[2\"qAA\x1b[0\"qBBBB");
         _terminal.Write("\r\nCCCCCC");
@@ -205,6 +205,7 @@ public class SelectiveEraseTests
         {
             sb.Append(_terminal.ScreenBuffer.GetCell(row, col).Character);
         }
+
         return sb.ToString();
     }
 }

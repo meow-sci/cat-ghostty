@@ -1,18 +1,16 @@
-using NUnit.Framework;
 using caTTY.Core.Terminal;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Tests for cursor movement CSI sequences.
-/// Validates Requirements 11.1, 11.2, 11.3, 11.4, 11.5.
+///     Tests for cursor movement CSI sequences.
+///     Validates Requirements 11.1, 11.2, 11.3, 11.4, 11.5.
 /// </summary>
 [TestFixture]
 public class CursorMovementTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -24,6 +22,8 @@ public class CursorMovementTests
     {
         _terminal?.Dispose();
     }
+
+    private TerminalEmulator _terminal = null!;
 
     [Test]
     public void CursorUp_MovesUpCorrectly()
@@ -196,7 +196,7 @@ public class CursorMovementTests
         _terminal.Write("\x1b[A"); // Move up
 
         // Assert: Write another character - it should not wrap
-        var initialRow = _terminal.Cursor.Row;
+        int initialRow = _terminal.Cursor.Row;
         _terminal.Write("Y");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(initialRow)); // Should not have wrapped
     }

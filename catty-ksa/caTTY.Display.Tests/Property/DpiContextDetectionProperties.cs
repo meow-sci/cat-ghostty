@@ -1,23 +1,21 @@
-using System;
-using NUnit.Framework;
-using FsCheck;
-using FsCheck.NUnit;
 using caTTY.Display.Configuration;
+using FsCheck;
+using NUnit.Framework;
 using ExecutionContext = caTTY.Display.Configuration.ExecutionContext;
 
 namespace caTTY.Display.Tests.Property;
 
 /// <summary>
-/// Property-based tests for DPI context detection functionality.
-/// Tests universal properties that should hold across all valid inputs and execution contexts.
+///     Property-based tests for DPI context detection functionality.
+///     Tests universal properties that should hold across all valid inputs and execution contexts.
 /// </summary>
 [TestFixture]
 [Category("Property")]
 public class DpiContextDetectionProperties
 {
     /// <summary>
-    /// Generator for valid DPI scaling factors.
-    /// Produces realistic DPI scaling values commonly used in Windows environments.
+    ///     Generator for valid DPI scaling factors.
+    ///     Produces realistic DPI scaling values commonly used in Windows environments.
     /// </summary>
     public static Arbitrary<float> ValidDpiScalingFactors()
     {
@@ -26,7 +24,7 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Generator for execution contexts.
+    ///     Generator for execution contexts.
     /// </summary>
     public static Arbitrary<ExecutionContext> ExecutionContexts()
     {
@@ -35,13 +33,12 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Property 1: Context Detection and Configuration
-    /// For any execution environment (TestApp or GameMod), the system should correctly detect 
-    /// the DPI context and apply appropriate default metrics, with GameMod contexts using 
-    /// compensated metrics (half-size for 2.0x scaling) and TestApp contexts using standard metrics.
-    /// 
-    /// Feature: dpi-scaling-fix, Property 1: Context Detection and Configuration
-    /// Validates: Requirements 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3
+    ///     Property 1: Context Detection and Configuration
+    ///     For any execution environment (TestApp or GameMod), the system should correctly detect
+    ///     the DPI context and apply appropriate default metrics, with GameMod contexts using
+    ///     compensated metrics (half-size for 2.0x scaling) and TestApp contexts using standard metrics.
+    ///     Feature: dpi-scaling-fix, Property 1: Context Detection and Configuration
+    ///     Validates: Requirements 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100)]
     public FsCheck.Property ContextDetectionAndConfiguration_ShouldApplyAppropriateMetrics()
@@ -49,13 +46,13 @@ public class DpiContextDetectionProperties
         return Prop.ForAll(ValidDpiScalingFactors(), ExecutionContexts(), (dpiScale, context) =>
         {
             // Create configuration based on context and DPI scale
-            var config = CreateConfigForContext(context, dpiScale);
+            TerminalRenderingConfig? config = CreateConfigForContext(context, dpiScale);
 
             // Validate that configuration is created successfully
-            var configCreated = config != null;
-            
+            bool configCreated = config != null;
+
             // Validate that configuration passes validation
-            var configValid = true;
+            bool configValid = true;
             try
             {
                 config?.Validate();
@@ -66,19 +63,19 @@ public class DpiContextDetectionProperties
             }
 
             // Validate context-specific metrics
-            var metricsAppropriate = ValidateContextSpecificMetrics(config, context, dpiScale);
+            bool metricsAppropriate = ValidateContextSpecificMetrics(config, context, dpiScale);
 
             // Validate that DPI scaling factor is recorded correctly
-            var dpiFactorCorrect = config?.DpiScalingFactor > 0;
+            bool dpiFactorCorrect = config?.DpiScalingFactor > 0;
 
             return configCreated && configValid && metricsAppropriate && dpiFactorCorrect;
         });
     }
 
     /// <summary>
-    /// Property: DPI Scaling Compensation Consistency
-    /// For any valid DPI scaling factor, GameMod configurations should apply consistent 
-    /// compensation across all metrics (font size, character width, line height).
+    ///     Property: DPI Scaling Compensation Consistency
+    ///     For any valid DPI scaling factor, GameMod configurations should apply consistent
+    ///     compensation across all metrics (font size, character width, line height).
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100)]
     public FsCheck.Property DpiScalingCompensation_ShouldBeConsistentAcrossMetrics()
@@ -94,34 +91,36 @@ public class DpiContextDetectionProperties
             const float standardLineHeight = 36.0f;
 
             // Calculate expected compensated values
-            var expectedFontSize = standardFontSize / dpiScale;
-            var expectedCharWidth = standardCharWidth / dpiScale;
-            var expectedLineHeight = standardLineHeight / dpiScale;
+            float expectedFontSize = standardFontSize / dpiScale;
+            float expectedCharWidth = standardCharWidth / dpiScale;
+            float expectedLineHeight = standardLineHeight / dpiScale;
 
             // Verify compensation is applied consistently
-            var fontSizeCorrect = Math.Abs(config.FontSize - expectedFontSize) < 0.001f;
-            var charWidthCorrect = Math.Abs(config.CharacterWidth - expectedCharWidth) < 0.001f;
-            var lineHeightCorrect = Math.Abs(config.LineHeight - expectedLineHeight) < 0.001f;
-            var dpiFactorCorrect = Math.Abs(config.DpiScalingFactor - dpiScale) < 0.001f;
+            bool fontSizeCorrect = Math.Abs(config.FontSize - expectedFontSize) < 0.001f;
+            bool charWidthCorrect = Math.Abs(config.CharacterWidth - expectedCharWidth) < 0.001f;
+            bool lineHeightCorrect = Math.Abs(config.LineHeight - expectedLineHeight) < 0.001f;
+            bool dpiFactorCorrect = Math.Abs(config.DpiScalingFactor - dpiScale) < 0.001f;
 
             return fontSizeCorrect && charWidthCorrect && lineHeightCorrect && dpiFactorCorrect;
         });
     }
 
     /// <summary>
-    /// Property: Configuration Validation Consistency
-    /// For any configuration created through factory methods, the configuration should 
-    /// always pass validation checks.
+    ///     Property: Configuration Validation Consistency
+    ///     For any configuration created through factory methods, the configuration should
+    ///     always pass validation checks.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100)]
     public FsCheck.Property FactoryCreatedConfigurations_ShouldAlwaysPassValidation()
     {
         return Prop.ForAll(ValidDpiScalingFactors(), ExecutionContexts(), (dpiScale, context) =>
         {
-            var config = CreateConfigForContext(context, dpiScale);
-            
+            TerminalRenderingConfig? config = CreateConfigForContext(context, dpiScale);
+
             if (config == null)
+            {
                 return false;
+            }
 
             try
             {
@@ -136,9 +135,9 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Property: TestApp Configuration Consistency
-    /// For any TestApp configuration, metrics should always use standard values 
-    /// without DPI compensation.
+    ///     Property: TestApp Configuration Consistency
+    ///     For any TestApp configuration, metrics should always use standard values
+    ///     without DPI compensation.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100)]
     public FsCheck.Property TestAppConfiguration_ShouldUseStandardMetrics()
@@ -147,21 +146,21 @@ public class DpiContextDetectionProperties
         {
             var config = TerminalRenderingConfig.CreateForTestApp();
 
-            var fontSizeStandard = Math.Abs(config.FontSize - 32.0f) < 0.001f;
-            var charWidthStandard = Math.Abs(config.CharacterWidth - 19.2f) < 0.001f;
-            var lineHeightStandard = Math.Abs(config.LineHeight - 36.0f) < 0.001f;
-            var noAutoDetect = !config.AutoDetectDpiScaling;
-            var scalingFactorOne = Math.Abs(config.DpiScalingFactor - 1.0f) < 0.001f;
+            bool fontSizeStandard = Math.Abs(config.FontSize - 32.0f) < 0.001f;
+            bool charWidthStandard = Math.Abs(config.CharacterWidth - 19.2f) < 0.001f;
+            bool lineHeightStandard = Math.Abs(config.LineHeight - 36.0f) < 0.001f;
+            bool noAutoDetect = !config.AutoDetectDpiScaling;
+            bool scalingFactorOne = Math.Abs(config.DpiScalingFactor - 1.0f) < 0.001f;
 
-            return fontSizeStandard && charWidthStandard && lineHeightStandard && 
+            return fontSizeStandard && charWidthStandard && lineHeightStandard &&
                    noAutoDetect && scalingFactorOne;
         });
     }
 
     /// <summary>
-    /// Property: DPI Detection Robustness
-    /// The DPI detection system should handle various execution contexts gracefully 
-    /// and always return a valid configuration.
+    ///     Property: DPI Detection Robustness
+    ///     The DPI detection system should handle various execution contexts gracefully
+    ///     and always return a valid configuration.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 50)]
     public FsCheck.Property DpiDetection_ShouldAlwaysReturnValidConfiguration()
@@ -171,24 +170,26 @@ public class DpiContextDetectionProperties
             try
             {
                 // Test the actual detection method
-                var config = DpiContextDetector.DetectAndCreateConfig();
-                
+                TerminalRenderingConfig? config = DpiContextDetector.DetectAndCreateConfig();
+
                 if (config == null)
+                {
                     return false;
+                }
 
                 // Validate the returned configuration
                 config.Validate();
-                
+
                 // Ensure all metrics are positive
-                var metricsPositive = config.FontSize > 0 && 
-                                    config.CharacterWidth > 0 && 
-                                    config.LineHeight > 0 &&
-                                    config.DpiScalingFactor > 0;
+                bool metricsPositive = config.FontSize > 0 &&
+                                       config.CharacterWidth > 0 &&
+                                       config.LineHeight > 0 &&
+                                       config.DpiScalingFactor > 0;
 
                 // In test environment, we expect either TestApp or GameMod-style fallback config
-                var configReasonable = (config.FontSize >= 8.0f && config.FontSize <= 32.0f) &&
-                                     (config.CharacterWidth >= 4.8f && config.CharacterWidth <= 19.2f) &&
-                                     (config.LineHeight >= 9.0f && config.LineHeight <= 36.0f);
+                bool configReasonable = config.FontSize >= 8.0f && config.FontSize <= 32.0f &&
+                                        config.CharacterWidth >= 4.8f && config.CharacterWidth <= 19.2f &&
+                                        config.LineHeight >= 9.0f && config.LineHeight <= 36.0f;
 
                 return metricsPositive && configReasonable;
             }
@@ -201,9 +202,9 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Property: Diagnostic Information Availability
-    /// The diagnostic information should always be available and contain useful data 
-    /// for troubleshooting, even when ImGui context is unavailable.
+    ///     Property: Diagnostic Information Availability
+    ///     The diagnostic information should always be available and contain useful data
+    ///     for troubleshooting, even when ImGui context is unavailable.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 20)]
     public FsCheck.Property DiagnosticInformation_ShouldAlwaysBeAvailable()
@@ -212,16 +213,16 @@ public class DpiContextDetectionProperties
         {
             try
             {
-                var diagnosticInfo = DpiContextDetector.GetDiagnosticInfo();
-                
-                var infoNotEmpty = !string.IsNullOrWhiteSpace(diagnosticInfo);
-                var containsHeader = diagnosticInfo.Contains("DPI Context Diagnostic Information");
-                var containsAssemblyInfo = diagnosticInfo.Contains("Entry Assembly") || 
-                                         diagnosticInfo.Contains("Total Loaded Assemblies");
+                string diagnosticInfo = DpiContextDetector.GetDiagnosticInfo();
+
+                bool infoNotEmpty = !string.IsNullOrWhiteSpace(diagnosticInfo);
+                bool containsHeader = diagnosticInfo.Contains("DPI Context Diagnostic Information");
+                bool containsAssemblyInfo = diagnosticInfo.Contains("Entry Assembly") ||
+                                            diagnosticInfo.Contains("Total Loaded Assemblies");
 
                 // In test environment, ImGui context may be unavailable, which is acceptable
-                var handlesImGuiUnavailable = diagnosticInfo.Contains("ImGui Context: Unavailable") ||
-                                            diagnosticInfo.Contains("ImGui Display Scale");
+                bool handlesImGuiUnavailable = diagnosticInfo.Contains("ImGui Context: Unavailable") ||
+                                               diagnosticInfo.Contains("ImGui Display Scale");
 
                 return infoNotEmpty && containsHeader && containsAssemblyInfo && handlesImGuiUnavailable;
             }
@@ -234,7 +235,7 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Helper method to create configuration for a given context and DPI scale.
+    ///     Helper method to create configuration for a given context and DPI scale.
     /// </summary>
     private static TerminalRenderingConfig? CreateConfigForContext(ExecutionContext context, float dpiScale)
     {
@@ -244,7 +245,7 @@ public class DpiContextDetectionProperties
             {
                 ExecutionContext.TestApp => TerminalRenderingConfig.CreateForTestApp(),
                 ExecutionContext.GameMod => TerminalRenderingConfig.CreateForGameMod(dpiScale),
-                ExecutionContext.Unknown => dpiScale > 1.1f 
+                ExecutionContext.Unknown => dpiScale > 1.1f
                     ? TerminalRenderingConfig.CreateForGameMod(dpiScale)
                     : TerminalRenderingConfig.CreateForTestApp(),
                 _ => TerminalRenderingConfig.CreateDefault()
@@ -257,13 +258,15 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Helper method to validate that metrics are appropriate for the given context.
+    ///     Helper method to validate that metrics are appropriate for the given context.
     /// </summary>
-    private static bool ValidateContextSpecificMetrics(TerminalRenderingConfig? config, 
+    private static bool ValidateContextSpecificMetrics(TerminalRenderingConfig? config,
         ExecutionContext context, float dpiScale)
     {
         if (config == null)
+        {
             return false;
+        }
 
         return context switch
         {
@@ -275,7 +278,7 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Validates that TestApp metrics use standard values.
+    ///     Validates that TestApp metrics use standard values.
     /// </summary>
     private static bool ValidateTestAppMetrics(TerminalRenderingConfig config)
     {
@@ -286,13 +289,13 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Validates that GameMod metrics use DPI-compensated values.
+    ///     Validates that GameMod metrics use DPI-compensated values.
     /// </summary>
     private static bool ValidateGameModMetrics(TerminalRenderingConfig config, float dpiScale)
     {
-        var expectedFontSize = 32.0f / dpiScale;
-        var expectedCharWidth = 19.2f / dpiScale;
-        var expectedLineHeight = 36.0f / dpiScale;
+        float expectedFontSize = 32.0f / dpiScale;
+        float expectedCharWidth = 19.2f / dpiScale;
+        float expectedLineHeight = 36.0f / dpiScale;
 
         return Math.Abs(config.FontSize - expectedFontSize) < 0.001f &&
                Math.Abs(config.CharacterWidth - expectedCharWidth) < 0.001f &&
@@ -301,7 +304,7 @@ public class DpiContextDetectionProperties
     }
 
     /// <summary>
-    /// Validates that Unknown context metrics are reasonable based on DPI scale.
+    ///     Validates that Unknown context metrics are reasonable based on DPI scale.
     /// </summary>
     private static bool ValidateUnknownContextMetrics(TerminalRenderingConfig config, float dpiScale)
     {
@@ -311,9 +314,7 @@ public class DpiContextDetectionProperties
         {
             return ValidateGameModMetrics(config, dpiScale);
         }
-        else
-        {
-            return ValidateTestAppMetrics(config);
-        }
+
+        return ValidateTestAppMetrics(config);
     }
 }

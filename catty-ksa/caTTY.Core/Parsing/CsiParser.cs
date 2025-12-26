@@ -4,14 +4,14 @@ using caTTY.Core.Types;
 namespace caTTY.Core.Parsing;
 
 /// <summary>
-/// CSI (Control Sequence Introducer) sequence parser.
-/// Handles parameter parsing, prefix detection, and command identification.
-/// Based on the TypeScript ParseCsi.ts implementation.
+///     CSI (Control Sequence Introducer) sequence parser.
+///     Handles parameter parsing, prefix detection, and command identification.
+///     Based on the TypeScript ParseCsi.ts implementation.
 /// </summary>
 public class CsiParser : ICsiParser
 {
     /// <summary>
-    /// Parses a complete CSI sequence from the provided bytes.
+    ///     Parses a complete CSI sequence from the provided bytes.
     /// </summary>
     /// <param name="sequence">The complete CSI sequence bytes (including ESC [)</param>
     /// <param name="raw">The raw string representation of the sequence</param>
@@ -23,8 +23,8 @@ public class CsiParser : ICsiParser
             return CreateUnknownMessage(raw, Array.Empty<int>(), false, null, "");
         }
 
-        var finalByte = sequence[^1];
-        var final = ((char)finalByte).ToString();
+        byte finalByte = sequence[^1];
+        string final = ((char)finalByte).ToString();
 
         // Extract parameters and intermediate characters
         var paramsText = new StringBuilder();
@@ -33,7 +33,7 @@ public class CsiParser : ICsiParser
         // Skip ESC [ (first 2 bytes) and process until final byte
         for (int i = 2; i < sequence.Length - 1; i++)
         {
-            var b = sequence[i];
+            byte b = sequence[i];
             if (b >= 0x30 && b <= 0x3f) // Parameter bytes (0-9, :, ;, <, =, >, ?)
             {
                 paramsText.Append((char)b);
@@ -45,26 +45,27 @@ public class CsiParser : ICsiParser
         }
 
         // Parse parameters
-        if (!TryParseParameters(paramsText.ToString(), out var parameters, out var isPrivate, out var prefix))
+        if (!TryParseParameters(paramsText.ToString(), out int[] parameters, out bool isPrivate, out string? prefix))
         {
             return CreateUnknownMessage(raw, Array.Empty<int>(), false, null, intermediate.ToString());
         }
 
-        var intermediateStr = intermediate.ToString();
+        string intermediateStr = intermediate.ToString();
 
         // Parse specific CSI commands based on final byte and modifiers
         return ParseCsiCommand(finalByte, final, parameters, isPrivate, prefix, intermediateStr, raw);
     }
 
     /// <summary>
-    /// Attempts to parse CSI parameters from a parameter string.
+    ///     Attempts to parse CSI parameters from a parameter string.
     /// </summary>
     /// <param name="parameterString">The parameter portion of the CSI sequence</param>
     /// <param name="parameters">The parsed numeric parameters</param>
     /// <param name="isPrivate">True if the sequence has a '?' prefix</param>
     /// <param name="prefix">The prefix character ('>' or null)</param>
     /// <returns>True if parsing was successful</returns>
-    public bool TryParseParameters(ReadOnlySpan<char> parameterString, out int[] parameters, out bool isPrivate, out string? prefix)
+    public bool TryParseParameters(ReadOnlySpan<char> parameterString, out int[] parameters, out bool isPrivate,
+        out string? prefix)
     {
         parameters = Array.Empty<int>();
         isPrivate = false;
@@ -75,7 +76,7 @@ public class CsiParser : ICsiParser
             return true;
         }
 
-        var text = parameterString.ToString();
+        string text = parameterString.ToString();
 
         // Check for private mode indicator
         if (text.StartsWith("?"))
@@ -95,10 +96,10 @@ public class CsiParser : ICsiParser
         }
 
         // Parse semicolon-separated parameters
-        var parts = text.Split(';');
+        string[] parts = text.Split(';');
         var paramList = new List<int>();
 
-        foreach (var part in parts)
+        foreach (string part in parts)
         {
             if (string.IsNullOrEmpty(part))
             {
@@ -107,7 +108,7 @@ public class CsiParser : ICsiParser
                 continue;
             }
 
-            if (int.TryParse(part, out var value))
+            if (int.TryParse(part, out int value))
             {
                 paramList.Add(value);
             }
@@ -123,7 +124,7 @@ public class CsiParser : ICsiParser
     }
 
     /// <summary>
-    /// Gets a parameter value with a fallback default.
+    ///     Gets a parameter value with a fallback default.
     /// </summary>
     /// <param name="parameters">The parameter array</param>
     /// <param name="index">The parameter index</param>
@@ -135,18 +136,20 @@ public class CsiParser : ICsiParser
         {
             return fallback;
         }
+
         return parameters[index];
     }
 
     /// <summary>
-    /// Parses a specific CSI command based on the final byte and parameters.
+    ///     Parses a specific CSI command based on the final byte and parameters.
     /// </summary>
-    private CsiMessage ParseCsiCommand(byte finalByte, string final, int[] parameters, bool isPrivate, string? prefix, string intermediate, string raw)
+    private CsiMessage ParseCsiCommand(byte finalByte, string final, int[] parameters, bool isPrivate, string? prefix,
+        string intermediate, string raw)
     {
         // DECSCUSR: CSI Ps SP q
         if (final == "q" && intermediate == " ")
         {
-            var style = ValidateCursorStyle(GetParameter(parameters, 0, 0));
+            int style = ValidateCursorStyle(GetParameter(parameters, 0, 0));
             return new CsiMessage
             {
                 Type = "csi.setCursorStyle",
@@ -161,8 +164,8 @@ public class CsiParser : ICsiParser
         // DECSCA: CSI Ps " q
         if (final == "q" && intermediate == "\"" && !isPrivate && prefix == null)
         {
-            var modeValue = GetParameter(parameters, 0, 0);
-            var protectedValue = modeValue == 2;
+            int modeValue = GetParameter(parameters, 0, 0);
+            bool protectedValue = modeValue == 2;
             return new CsiMessage
             {
                 Type = "csi.selectCharacterProtection",
@@ -177,7 +180,7 @@ public class CsiParser : ICsiParser
         // DEC private modes: CSI ? Pm h / l
         if (isPrivate && (final == "h" || final == "l"))
         {
-            var modes = ValidateDecModes(parameters);
+            int[] modes = ValidateDecModes(parameters);
             return new CsiMessage
             {
                 Type = final == "h" ? "csi.decModeSet" : "csi.decModeReset",
@@ -226,29 +229,35 @@ public class CsiParser : ICsiParser
             "A" => CreateCursorMessage("csi.cursorUp", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
             "B" => CreateCursorMessage("csi.cursorDown", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
             "C" => CreateCursorMessage("csi.cursorForward", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
-            "D" => CreateCursorMessage("csi.cursorBackward", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
-            "E" => CreateCursorMessage("csi.cursorNextLine", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
-            "F" => CreateCursorMessage("csi.cursorPrevLine", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
-            "G" => CreateCursorMessage("csi.cursorHorizontalAbsolute", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
-            "d" => CreateCursorMessage("csi.verticalPositionAbsolute", raw, finalByte, parameters, GetParameter(parameters, 0, 1)),
+            "D" => CreateCursorMessage("csi.cursorBackward", raw, finalByte, parameters,
+                GetParameter(parameters, 0, 1)),
+            "E" => CreateCursorMessage("csi.cursorNextLine", raw, finalByte, parameters,
+                GetParameter(parameters, 0, 1)),
+            "F" => CreateCursorMessage("csi.cursorPrevLine", raw, finalByte, parameters,
+                GetParameter(parameters, 0, 1)),
+            "G" => CreateCursorMessage("csi.cursorHorizontalAbsolute", raw, finalByte, parameters,
+                GetParameter(parameters, 0, 1)),
+            "d" => CreateCursorMessage("csi.verticalPositionAbsolute", raw, finalByte, parameters,
+                GetParameter(parameters, 0, 1)),
             "H" or "f" => CreateCursorPositionMessage(raw, finalByte, parameters),
             _ => ParseAdditionalCommands(finalByte, final, parameters, isPrivate, prefix, intermediate, raw)
         };
     }
 
     /// <summary>
-    /// Parses additional CSI commands not covered by cursor movement.
+    ///     Parses additional CSI commands not covered by cursor movement.
     /// </summary>
-    private CsiMessage ParseAdditionalCommands(byte finalByte, string final, int[] parameters, bool isPrivate, string? prefix, string intermediate, string raw)
+    private CsiMessage ParseAdditionalCommands(byte finalByte, string final, int[] parameters, bool isPrivate,
+        string? prefix, string intermediate, string raw)
     {
         return final switch
         {
             // Tab commands
-            "I" when !isPrivate && prefix == null && intermediate == "" => 
+            "I" when !isPrivate && prefix == null && intermediate == "" =>
                 CreateTabMessage("csi.cursorForwardTab", raw, finalByte, parameters),
-            "Z" when !isPrivate && prefix == null && intermediate == "" => 
+            "Z" when !isPrivate && prefix == null && intermediate == "" =>
                 CreateTabMessage("csi.cursorBackwardTab", raw, finalByte, parameters),
-            "g" when !isPrivate && prefix == null && intermediate == "" => 
+            "g" when !isPrivate && prefix == null && intermediate == "" =>
                 CreateTabClearMessage(raw, finalByte, parameters),
 
             // Erase commands
@@ -258,7 +267,7 @@ public class CsiParser : ICsiParser
 
             // Scroll commands
             "S" => CreateScrollMessage("csi.scrollUp", raw, finalByte, parameters),
-            "T" when parameters.Length <= 1 && !isPrivate => 
+            "T" when parameters.Length <= 1 && !isPrivate =>
                 CreateScrollMessage("csi.scrollDown", raw, finalByte, parameters),
 
             // Position save/restore
@@ -272,19 +281,20 @@ public class CsiParser : ICsiParser
             "t" when !isPrivate && prefix == null => CreateWindowManipulationMessage(raw, finalByte, parameters),
 
             // Line/character operations
-            "M" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 => 
+            "M" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 =>
                 CreateLineMessage("csi.deleteLines", raw, finalByte, parameters),
-            "L" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 => 
+            "L" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 =>
                 CreateLineMessage("csi.insertLines", raw, finalByte, parameters),
-            "@" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 => 
+            "@" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 =>
                 CreateCharMessage("csi.insertChars", raw, finalByte, parameters),
-            "P" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 => 
+            "P" when !isPrivate && prefix == null && intermediate == "" && parameters.Length <= 1 =>
                 CreateCharMessage("csi.deleteChars", raw, finalByte, parameters),
 
             // SGR variants
             "m" when prefix == ">" => CreateEnhancedSgrMessage(raw, finalByte, parameters),
             "m" when isPrivate => CreatePrivateSgrMessage(raw, finalByte, parameters),
-            "m" when intermediate.Length > 0 => CreateSgrWithIntermediateMessage(raw, finalByte, parameters, intermediate),
+            "m" when intermediate.Length > 0 => CreateSgrWithIntermediateMessage(raw, finalByte, parameters,
+                intermediate),
 
             _ => CreateUnknownMessage(raw, parameters, isPrivate, prefix, intermediate)
         };
@@ -307,9 +317,9 @@ public class CsiParser : ICsiParser
     private static CsiMessage CreateCursorPositionMessage(string raw, byte finalByte, int[] parameters)
     {
         // Default missing or zero parameters to 1 (following TypeScript behavior)
-        var row = parameters.Length > 0 && parameters[0] > 0 ? parameters[0] : 1;
-        var column = parameters.Length > 1 && parameters[1] > 0 ? parameters[1] : 1;
-        
+        int row = parameters.Length > 0 && parameters[0] > 0 ? parameters[0] : 1;
+        int column = parameters.Length > 1 && parameters[1] > 0 ? parameters[1] : 1;
+
         return new CsiMessage
         {
             Type = "csi.cursorPosition",
@@ -337,8 +347,8 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateTabClearMessage(string raw, byte finalByte, int[] parameters)
     {
-        var modeValue = GetParameter(parameters, 0, 0);
-        var mode = modeValue == 3 ? 3 : 0;
+        int modeValue = GetParameter(parameters, 0, 0);
+        int mode = modeValue == 3 ? 3 : 0;
         return new CsiMessage
         {
             Type = "csi.tabClear",
@@ -352,9 +362,9 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateEraseDisplayMessage(string raw, byte finalByte, int[] parameters, bool isPrivate)
     {
-        var modeValue = GetParameter(parameters, 0, 0);
-        var mode = (modeValue >= 0 && modeValue <= 3) ? modeValue : 0;
-        
+        int modeValue = GetParameter(parameters, 0, 0);
+        int mode = modeValue >= 0 && modeValue <= 3 ? modeValue : 0;
+
         return new CsiMessage
         {
             Type = isPrivate ? "csi.selectiveEraseInDisplay" : "csi.eraseInDisplay",
@@ -368,9 +378,9 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateEraseLineMessage(string raw, byte finalByte, int[] parameters, bool isPrivate)
     {
-        var modeValue = GetParameter(parameters, 0, 0);
-        var mode = (modeValue >= 0 && modeValue <= 2) ? modeValue : 0;
-        
+        int modeValue = GetParameter(parameters, 0, 0);
+        int mode = modeValue >= 0 && modeValue <= 2 ? modeValue : 0;
+
         return new CsiMessage
         {
             Type = isPrivate ? "csi.selectiveEraseInLine" : "csi.eraseInLine",
@@ -408,11 +418,12 @@ public class CsiParser : ICsiParser
         };
     }
 
-    private CsiMessage CreateSaveRestoreMessage(string raw, byte finalByte, int[] parameters, bool isPrivate, bool isSave)
+    private CsiMessage CreateSaveRestoreMessage(string raw, byte finalByte, int[] parameters, bool isPrivate,
+        bool isSave)
     {
         if (isPrivate)
         {
-            var modes = ValidateDecModes(parameters);
+            int[] modes = ValidateDecModes(parameters);
             return new CsiMessage
             {
                 Type = isSave ? "csi.savePrivateMode" : "csi.restorePrivateMode",
@@ -438,7 +449,7 @@ public class CsiParser : ICsiParser
     {
         if (isPrivate)
         {
-            var modes = ValidateDecModes(parameters);
+            int[] modes = ValidateDecModes(parameters);
             return new CsiMessage
             {
                 Type = "csi.restorePrivateMode",
@@ -457,12 +468,13 @@ public class CsiParser : ICsiParser
             Implemented = true,
             FinalByte = finalByte,
             Parameters = parameters,
-            Top = parameters.Length >= 1 ? parameters[0] : (int?)null,
-            Bottom = parameters.Length >= 2 ? parameters[1] : (int?)null
+            Top = parameters.Length >= 1 ? parameters[0] : null,
+            Bottom = parameters.Length >= 2 ? parameters[1] : null
         };
     }
 
-    private static CsiMessage CreateDeviceAttributesMessage(string raw, byte finalByte, int[] parameters, string? prefix)
+    private static CsiMessage CreateDeviceAttributesMessage(string raw, byte finalByte, int[] parameters,
+        string? prefix)
     {
         // Secondary DA: CSI > c or CSI > 0 c
         if (prefix == ">" && (parameters.Length == 0 || (parameters.Length == 1 && parameters[0] == 0)))
@@ -550,13 +562,13 @@ public class CsiParser : ICsiParser
 
         if (parameters.Length >= 1)
         {
-            var operation = parameters[0];
-            var implemented = false;
+            int operation = parameters[0];
+            bool implemented = false;
 
             // Title stack operations: 22;1t, 22;2t, 23;1t, 23;2t
             if ((operation == 22 || operation == 23) && parameters.Length >= 2)
             {
-                var subOperation = parameters[1];
+                int subOperation = parameters[1];
                 if (subOperation == 1 || subOperation == 2)
                 {
                     implemented = true;
@@ -606,7 +618,7 @@ public class CsiParser : ICsiParser
 
     private static CsiMessage CreateEnhancedSgrMessage(string raw, byte finalByte, int[] parameters)
     {
-        var implemented = parameters.Length >= 2 && parameters[0] == 4 && parameters[1] >= 0 && parameters[1] <= 5;
+        bool implemented = parameters.Length >= 2 && parameters[0] == 4 && parameters[1] >= 0 && parameters[1] <= 5;
         return new CsiMessage
         {
             Type = "csi.enhancedSgrMode",
@@ -619,7 +631,7 @@ public class CsiParser : ICsiParser
 
     private static CsiMessage CreatePrivateSgrMessage(string raw, byte finalByte, int[] parameters)
     {
-        var implemented = parameters.Length == 1 && parameters[0] == 4;
+        bool implemented = parameters.Length == 1 && parameters[0] == 4;
         return new CsiMessage
         {
             Type = "csi.privateSgrMode",
@@ -630,9 +642,10 @@ public class CsiParser : ICsiParser
         };
     }
 
-    private static CsiMessage CreateSgrWithIntermediateMessage(string raw, byte finalByte, int[] parameters, string intermediate)
+    private static CsiMessage CreateSgrWithIntermediateMessage(string raw, byte finalByte, int[] parameters,
+        string intermediate)
     {
-        var implemented = intermediate == "%" && parameters.Length == 1 && parameters[0] == 0;
+        bool implemented = intermediate == "%" && parameters.Length == 1 && parameters[0] == 0;
         return new CsiMessage
         {
             Type = "csi.sgrWithIntermediate",
@@ -644,7 +657,8 @@ public class CsiParser : ICsiParser
         };
     }
 
-    private static CsiMessage CreateUnknownMessage(string raw, int[] parameters, bool isPrivate, string? prefix, string intermediate)
+    private static CsiMessage CreateUnknownMessage(string raw, int[] parameters, bool isPrivate, string? prefix,
+        string intermediate)
     {
         return new CsiMessage
         {
@@ -660,25 +674,25 @@ public class CsiParser : ICsiParser
     }
 
     /// <summary>
-    /// Validates DEC private mode numbers and filters out invalid ones.
+    ///     Validates DEC private mode numbers and filters out invalid ones.
     /// </summary>
     private static int[] ValidateDecModes(int[] parameters)
     {
         var validModes = new List<int>();
-        
-        foreach (var mode in parameters)
+
+        foreach (int mode in parameters)
         {
             if (IsValidDecModeNumber(mode))
             {
                 validModes.Add(mode);
             }
         }
-        
+
         return validModes.ToArray();
     }
 
     /// <summary>
-    /// Checks if a DEC private mode number is valid.
+    ///     Checks if a DEC private mode number is valid.
     /// </summary>
     private static bool IsValidDecModeNumber(int mode)
     {
@@ -687,13 +701,13 @@ public class CsiParser : ICsiParser
         {
             return false;
         }
-        
+
         // DEC private modes can range from 1 to 65535 (16-bit unsigned integer range)
         return mode <= 65535;
     }
 
     /// <summary>
-    /// Validates and normalizes cursor style parameter for DECSCUSR.
+    ///     Validates and normalizes cursor style parameter for DECSCUSR.
     /// </summary>
     private static int ValidateCursorStyle(int style)
     {
@@ -702,7 +716,7 @@ public class CsiParser : ICsiParser
         {
             return 0;
         }
-        
+
         // Valid cursor styles are 0-6
         return style > 6 ? 0 : style;
     }

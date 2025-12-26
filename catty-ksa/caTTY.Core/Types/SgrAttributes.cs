@@ -1,45 +1,43 @@
-using System;
-
 namespace caTTY.Core.Types;
 
 /// <summary>
-/// Represents the color type for SGR (Select Graphic Rendition) attributes.
-/// Supports named colors, indexed colors (0-255), and RGB colors.
+///     Represents the color type for SGR (Select Graphic Rendition) attributes.
+///     Supports named colors, indexed colors (0-255), and RGB colors.
 /// </summary>
 public readonly struct Color : IEquatable<Color>
 {
     /// <summary>
-    /// The type of color representation.
+    ///     The type of color representation.
     /// </summary>
     public ColorType Type { get; }
 
     /// <summary>
-    /// Named color value (only valid when Type is Named).
+    ///     Named color value (only valid when Type is Named).
     /// </summary>
     public NamedColor NamedColor { get; }
 
     /// <summary>
-    /// Color index (only valid when Type is Indexed).
+    ///     Color index (only valid when Type is Indexed).
     /// </summary>
     public byte Index { get; }
 
     /// <summary>
-    /// Red component (only valid when Type is Rgb).
+    ///     Red component (only valid when Type is Rgb).
     /// </summary>
     public byte Red { get; }
 
     /// <summary>
-    /// Green component (only valid when Type is Rgb).
+    ///     Green component (only valid when Type is Rgb).
     /// </summary>
     public byte Green { get; }
 
     /// <summary>
-    /// Blue component (only valid when Type is Rgb).
+    ///     Blue component (only valid when Type is Rgb).
     /// </summary>
     public byte Blue { get; }
 
     /// <summary>
-    /// Creates a named color.
+    ///     Creates a named color.
     /// </summary>
     /// <param name="namedColor">The named color</param>
     public Color(NamedColor namedColor)
@@ -53,7 +51,7 @@ public readonly struct Color : IEquatable<Color>
     }
 
     /// <summary>
-    /// Creates an indexed color (0-255).
+    ///     Creates an indexed color (0-255).
     /// </summary>
     /// <param name="index">The color index</param>
     public Color(byte index)
@@ -67,7 +65,7 @@ public readonly struct Color : IEquatable<Color>
     }
 
     /// <summary>
-    /// Creates an RGB color.
+    ///     Creates an RGB color.
     /// </summary>
     /// <param name="red">Red component (0-255)</param>
     /// <param name="green">Green component (0-255)</param>
@@ -83,7 +81,7 @@ public readonly struct Color : IEquatable<Color>
     }
 
     /// <summary>
-    /// Determines whether the specified Color is equal to the current Color.
+    ///     Determines whether the specified Color is equal to the current Color.
     /// </summary>
     public bool Equals(Color other)
     {
@@ -96,12 +94,15 @@ public readonly struct Color : IEquatable<Color>
     }
 
     /// <summary>
-    /// Determines whether the specified object is equal to the current Color.
+    ///     Determines whether the specified object is equal to the current Color.
     /// </summary>
-    public override bool Equals(object? obj) => obj is Color other && Equals(other);
+    public override bool Equals(object? obj)
+    {
+        return obj is Color other && Equals(other);
+    }
 
     /// <summary>
-    /// Returns the hash code for this Color.
+    ///     Returns the hash code for this Color.
     /// </summary>
     public override int GetHashCode()
     {
@@ -109,17 +110,23 @@ public readonly struct Color : IEquatable<Color>
     }
 
     /// <summary>
-    /// Determines whether two Color instances are equal.
+    ///     Determines whether two Color instances are equal.
     /// </summary>
-    public static bool operator ==(Color left, Color right) => left.Equals(right);
+    public static bool operator ==(Color left, Color right)
+    {
+        return left.Equals(right);
+    }
 
     /// <summary>
-    /// Determines whether two Color instances are not equal.
+    ///     Determines whether two Color instances are not equal.
     /// </summary>
-    public static bool operator !=(Color left, Color right) => !left.Equals(right);
+    public static bool operator !=(Color left, Color right)
+    {
+        return !left.Equals(right);
+    }
 
     /// <summary>
-    /// Returns a string representation of the Color.
+    ///     Returns a string representation of the Color.
     /// </summary>
     public override string ToString()
     {
@@ -134,221 +141,221 @@ public readonly struct Color : IEquatable<Color>
 }
 
 /// <summary>
-/// Specifies the type of color representation.
+///     Specifies the type of color representation.
 /// </summary>
 public enum ColorType
 {
     /// <summary>
-    /// Named color (e.g., red, blue, brightWhite).
+    ///     Named color (e.g., red, blue, brightWhite).
     /// </summary>
     Named,
 
     /// <summary>
-    /// Indexed color (0-255 palette).
+    ///     Indexed color (0-255 palette).
     /// </summary>
     Indexed,
 
     /// <summary>
-    /// RGB color with red, green, and blue components.
+    ///     RGB color with red, green, and blue components.
     /// </summary>
     Rgb
 }
 
 /// <summary>
-/// Named colors for SGR 30-37, 40-47, 90-97, 100-107.
+///     Named colors for SGR 30-37, 40-47, 90-97, 100-107.
 /// </summary>
 public enum NamedColor
 {
     /// <summary>
-    /// Black color (SGR 30/40).
+    ///     Black color (SGR 30/40).
     /// </summary>
     Black,
-    
+
     /// <summary>
-    /// Red color (SGR 31/41).
+    ///     Red color (SGR 31/41).
     /// </summary>
     Red,
-    
+
     /// <summary>
-    /// Green color (SGR 32/42).
+    ///     Green color (SGR 32/42).
     /// </summary>
     Green,
-    
+
     /// <summary>
-    /// Yellow color (SGR 33/43).
+    ///     Yellow color (SGR 33/43).
     /// </summary>
     Yellow,
-    
+
     /// <summary>
-    /// Blue color (SGR 34/44).
+    ///     Blue color (SGR 34/44).
     /// </summary>
     Blue,
-    
+
     /// <summary>
-    /// Magenta color (SGR 35/45).
+    ///     Magenta color (SGR 35/45).
     /// </summary>
     Magenta,
-    
+
     /// <summary>
-    /// Cyan color (SGR 36/46).
+    ///     Cyan color (SGR 36/46).
     /// </summary>
     Cyan,
-    
+
     /// <summary>
-    /// White color (SGR 37/47).
+    ///     White color (SGR 37/47).
     /// </summary>
     White,
-    
+
     /// <summary>
-    /// Bright black color (SGR 90/100).
+    ///     Bright black color (SGR 90/100).
     /// </summary>
     BrightBlack,
-    
+
     /// <summary>
-    /// Bright red color (SGR 91/101).
+    ///     Bright red color (SGR 91/101).
     /// </summary>
     BrightRed,
-    
+
     /// <summary>
-    /// Bright green color (SGR 92/102).
+    ///     Bright green color (SGR 92/102).
     /// </summary>
     BrightGreen,
-    
+
     /// <summary>
-    /// Bright yellow color (SGR 93/103).
+    ///     Bright yellow color (SGR 93/103).
     /// </summary>
     BrightYellow,
-    
+
     /// <summary>
-    /// Bright blue color (SGR 94/104).
+    ///     Bright blue color (SGR 94/104).
     /// </summary>
     BrightBlue,
-    
+
     /// <summary>
-    /// Bright magenta color (SGR 95/105).
+    ///     Bright magenta color (SGR 95/105).
     /// </summary>
     BrightMagenta,
-    
+
     /// <summary>
-    /// Bright cyan color (SGR 96/106).
+    ///     Bright cyan color (SGR 96/106).
     /// </summary>
     BrightCyan,
-    
+
     /// <summary>
-    /// Bright white color (SGR 97/107).
+    ///     Bright white color (SGR 97/107).
     /// </summary>
     BrightWhite
 }
 
 /// <summary>
-/// Underline style for SGR underline attributes.
+///     Underline style for SGR underline attributes.
 /// </summary>
 public enum UnderlineStyle
 {
     /// <summary>
-    /// No underline.
+    ///     No underline.
     /// </summary>
     None,
-    
+
     /// <summary>
-    /// Single underline (SGR 4).
+    ///     Single underline (SGR 4).
     /// </summary>
     Single,
-    
+
     /// <summary>
-    /// Double underline (SGR 21).
+    ///     Double underline (SGR 21).
     /// </summary>
     Double,
-    
+
     /// <summary>
-    /// Curly underline (SGR 4:3).
+    ///     Curly underline (SGR 4:3).
     /// </summary>
     Curly,
-    
+
     /// <summary>
-    /// Dotted underline (SGR 4:4).
+    ///     Dotted underline (SGR 4:4).
     /// </summary>
     Dotted,
-    
+
     /// <summary>
-    /// Dashed underline (SGR 4:5).
+    ///     Dashed underline (SGR 4:5).
     /// </summary>
     Dashed
 }
 
 /// <summary>
-/// SGR (Select Graphic Rendition) attributes for text styling.
-/// This struct represents the complete set of text attributes that can be applied to terminal cells.
+///     SGR (Select Graphic Rendition) attributes for text styling.
+///     This struct represents the complete set of text attributes that can be applied to terminal cells.
 /// </summary>
 public readonly struct SgrAttributes : IEquatable<SgrAttributes>
 {
     /// <summary>
-    /// Bold or increased intensity.
+    ///     Bold or increased intensity.
     /// </summary>
     public bool Bold { get; }
 
     /// <summary>
-    /// Faint, decreased intensity, or dim.
+    ///     Faint, decreased intensity, or dim.
     /// </summary>
     public bool Faint { get; }
 
     /// <summary>
-    /// Italic text.
+    ///     Italic text.
     /// </summary>
     public bool Italic { get; }
 
     /// <summary>
-    /// Underline text.
+    ///     Underline text.
     /// </summary>
     public bool Underline { get; }
 
     /// <summary>
-    /// Underline style (single, double, curly, etc.).
+    ///     Underline style (single, double, curly, etc.).
     /// </summary>
     public UnderlineStyle UnderlineStyle { get; }
 
     /// <summary>
-    /// Blinking text.
+    ///     Blinking text.
     /// </summary>
     public bool Blink { get; }
 
     /// <summary>
-    /// Reverse video / inverse colors.
+    ///     Reverse video / inverse colors.
     /// </summary>
     public bool Inverse { get; }
 
     /// <summary>
-    /// Hidden / concealed text.
+    ///     Hidden / concealed text.
     /// </summary>
     public bool Hidden { get; }
 
     /// <summary>
-    /// Strikethrough / crossed-out text.
+    ///     Strikethrough / crossed-out text.
     /// </summary>
     public bool Strikethrough { get; }
 
     /// <summary>
-    /// Foreground color. Null means use default.
+    ///     Foreground color. Null means use default.
     /// </summary>
     public Color? ForegroundColor { get; }
 
     /// <summary>
-    /// Background color. Null means use default.
+    ///     Background color. Null means use default.
     /// </summary>
     public Color? BackgroundColor { get; }
 
     /// <summary>
-    /// Underline color. Null means use foreground color.
+    ///     Underline color. Null means use foreground color.
     /// </summary>
     public Color? UnderlineColor { get; }
 
     /// <summary>
-    /// Font selection (0 = primary, 1-9 = alternative fonts).
+    ///     Font selection (0 = primary, 1-9 = alternative fonts).
     /// </summary>
     public int Font { get; }
 
     /// <summary>
-    /// Creates SGR attributes with the specified values.
+    ///     Creates SGR attributes with the specified values.
     /// </summary>
     public SgrAttributes(
         bool bold = false,
@@ -381,12 +388,12 @@ public readonly struct SgrAttributes : IEquatable<SgrAttributes>
     }
 
     /// <summary>
-    /// Gets the default SGR attributes (no styling).
+    ///     Gets the default SGR attributes (no styling).
     /// </summary>
     public static SgrAttributes Default => new();
 
     /// <summary>
-    /// Determines whether the specified SgrAttributes is equal to the current SgrAttributes.
+    ///     Determines whether the specified SgrAttributes is equal to the current SgrAttributes.
     /// </summary>
     public bool Equals(SgrAttributes other)
     {
@@ -406,12 +413,15 @@ public readonly struct SgrAttributes : IEquatable<SgrAttributes>
     }
 
     /// <summary>
-    /// Determines whether the specified object is equal to the current SgrAttributes.
+    ///     Determines whether the specified object is equal to the current SgrAttributes.
     /// </summary>
-    public override bool Equals(object? obj) => obj is SgrAttributes other && Equals(other);
+    public override bool Equals(object? obj)
+    {
+        return obj is SgrAttributes other && Equals(other);
+    }
 
     /// <summary>
-    /// Returns the hash code for this SgrAttributes.
+    ///     Returns the hash code for this SgrAttributes.
     /// </summary>
     public override int GetHashCode()
     {
@@ -433,34 +443,87 @@ public readonly struct SgrAttributes : IEquatable<SgrAttributes>
     }
 
     /// <summary>
-    /// Determines whether two SgrAttributes instances are equal.
+    ///     Determines whether two SgrAttributes instances are equal.
     /// </summary>
-    public static bool operator ==(SgrAttributes left, SgrAttributes right) => left.Equals(right);
+    public static bool operator ==(SgrAttributes left, SgrAttributes right)
+    {
+        return left.Equals(right);
+    }
 
     /// <summary>
-    /// Determines whether two SgrAttributes instances are not equal.
+    ///     Determines whether two SgrAttributes instances are not equal.
     /// </summary>
-    public static bool operator !=(SgrAttributes left, SgrAttributes right) => !left.Equals(right);
+    public static bool operator !=(SgrAttributes left, SgrAttributes right)
+    {
+        return !left.Equals(right);
+    }
 
     /// <summary>
-    /// Returns a string representation of the SgrAttributes.
+    ///     Returns a string representation of the SgrAttributes.
     /// </summary>
     public override string ToString()
     {
         var parts = new List<string>();
-        
-        if (Bold) parts.Add("Bold");
-        if (Faint) parts.Add("Faint");
-        if (Italic) parts.Add("Italic");
-        if (Underline) parts.Add($"Underline({UnderlineStyle})");
-        if (Blink) parts.Add("Blink");
-        if (Inverse) parts.Add("Inverse");
-        if (Hidden) parts.Add("Hidden");
-        if (Strikethrough) parts.Add("Strikethrough");
-        if (ForegroundColor.HasValue) parts.Add($"FG({ForegroundColor})");
-        if (BackgroundColor.HasValue) parts.Add($"BG({BackgroundColor})");
-        if (UnderlineColor.HasValue) parts.Add($"UL({UnderlineColor})");
-        if (Font != 0) parts.Add($"Font({Font})");
+
+        if (Bold)
+        {
+            parts.Add("Bold");
+        }
+
+        if (Faint)
+        {
+            parts.Add("Faint");
+        }
+
+        if (Italic)
+        {
+            parts.Add("Italic");
+        }
+
+        if (Underline)
+        {
+            parts.Add($"Underline({UnderlineStyle})");
+        }
+
+        if (Blink)
+        {
+            parts.Add("Blink");
+        }
+
+        if (Inverse)
+        {
+            parts.Add("Inverse");
+        }
+
+        if (Hidden)
+        {
+            parts.Add("Hidden");
+        }
+
+        if (Strikethrough)
+        {
+            parts.Add("Strikethrough");
+        }
+
+        if (ForegroundColor.HasValue)
+        {
+            parts.Add($"FG({ForegroundColor})");
+        }
+
+        if (BackgroundColor.HasValue)
+        {
+            parts.Add($"BG({BackgroundColor})");
+        }
+
+        if (UnderlineColor.HasValue)
+        {
+            parts.Add($"UL({UnderlineColor})");
+        }
+
+        if (Font != 0)
+        {
+            parts.Add($"Font({Font})");
+        }
 
         return parts.Count > 0 ? string.Join(", ", parts) : "Default";
     }

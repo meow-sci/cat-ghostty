@@ -1,18 +1,18 @@
-using NUnit.Framework;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit;
 
 /// <summary>
-/// Unit tests for the TerminalEmulator class.
+///     Unit tests for the TerminalEmulator class.
 /// </summary>
 [TestFixture]
 [Category("Unit")]
 public class TerminalEmulatorTests
 {
     /// <summary>
-    /// Tests that TerminalEmulator constructor creates a terminal with valid dimensions.
+    ///     Tests that TerminalEmulator constructor creates a terminal with valid dimensions.
     /// </summary>
     [Test]
     public void Constructor_WithValidDimensions_CreatesTerminal()
@@ -28,7 +28,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid width.
+    ///     Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid width.
     /// </summary>
     [Test]
     public void Constructor_WithInvalidWidth_ThrowsArgumentOutOfRangeException()
@@ -40,7 +40,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid height.
+    ///     Tests that TerminalEmulator constructor throws ArgumentOutOfRangeException for invalid height.
     /// </summary>
     [Test]
     public void Constructor_WithInvalidHeight_ThrowsArgumentOutOfRangeException()
@@ -52,33 +52,33 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with a printable character writes the character at cursor position and advances cursor.
+    ///     Tests that Write with a printable character writes the character at cursor position and advances cursor.
     /// </summary>
     [Test]
     public void Write_WithPrintableCharacter_WritesCharacterAtCursor()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        var data = new byte[] { (byte)'A' };
+        byte[] data = new[] { (byte)'A' };
 
         // Act
         terminal.Write(data);
 
         // Assert
-        var cell = terminal.ScreenBuffer.GetCell(0, 0);
+        Cell cell = terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(cell.Character, Is.EqualTo('A'));
         Assert.That(terminal.Cursor.Col, Is.EqualTo(1)); // Cursor should advance
     }
 
     /// <summary>
-    /// Tests that Write with multiple characters writes all characters sequentially.
+    ///     Tests that Write with multiple characters writes all characters sequentially.
     /// </summary>
     [Test]
     public void Write_WithMultipleCharacters_WritesAllCharacters()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        var data = new byte[] { (byte)'H', (byte)'e', (byte)'l', (byte)'l', (byte)'o' };
+        byte[] data = new[] { (byte)'H', (byte)'e', (byte)'l', (byte)'l', (byte)'o' };
 
         // Act
         terminal.Write(data);
@@ -93,7 +93,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with a string writes the string content to the terminal.
+    ///     Tests that Write with a string writes the string content to the terminal.
     /// </summary>
     [Test]
     public void Write_WithString_WritesStringContent()
@@ -112,7 +112,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with line feed (LF) moves cursor down one row.
+    ///     Tests that Write with line feed (LF) moves cursor down one row.
     /// </summary>
     [Test]
     public void Write_WithLineFeed_MovesCursorDown()
@@ -120,7 +120,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         terminal.Write("A");
-        var data = new byte[] { 0x0A }; // LF
+        byte[] data = new byte[] { 0x0A }; // LF
 
         // Act
         terminal.Write(data);
@@ -131,7 +131,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with carriage return (CR) moves cursor to column zero.
+    ///     Tests that Write with carriage return (CR) moves cursor to column zero.
     /// </summary>
     [Test]
     public void Write_WithCarriageReturn_MovesCursorToColumnZero()
@@ -139,7 +139,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         terminal.Write("Hello");
-        var data = new byte[] { 0x0D }; // CR
+        byte[] data = new byte[] { 0x0D }; // CR
 
         // Act
         terminal.Write(data);
@@ -150,7 +150,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with CRLF sequence moves cursor to the beginning of the next line.
+    ///     Tests that Write with CRLF sequence moves cursor to the beginning of the next line.
     /// </summary>
     [Test]
     public void Write_WithCRLF_MovesCursorToNextLineStart()
@@ -158,7 +158,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         terminal.Write("Hello");
-        var data = new byte[] { 0x0D, 0x0A }; // CR LF
+        byte[] data = new byte[] { 0x0D, 0x0A }; // CR LF
 
         // Act
         terminal.Write(data);
@@ -169,14 +169,14 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with tab character moves cursor to the next tab stop.
+    ///     Tests that Write with tab character moves cursor to the next tab stop.
     /// </summary>
     [Test]
     public void Write_WithTab_MovesCursorToNextTabStop()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        var data = new byte[] { 0x09 }; // TAB
+        byte[] data = new byte[] { 0x09 }; // TAB
 
         // Act
         terminal.Write(data);
@@ -186,7 +186,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with bell character raises Bell event.
+    ///     Tests that Write with bell character raises Bell event.
     /// </summary>
     [Test]
     public void Write_WithBell_RaisesBellEvent()
@@ -195,12 +195,12 @@ public class TerminalEmulatorTests
         var terminal = new TerminalEmulator(80, 24);
         bool bellEventRaised = false;
         BellEventArgs? bellEventArgs = null;
-        terminal.Bell += (sender, args) => 
+        terminal.Bell += (sender, args) =>
         {
             bellEventRaised = true;
             bellEventArgs = args;
         };
-        var data = new byte[] { 0x07 }; // BEL
+        byte[] data = new byte[] { 0x07 }; // BEL
 
         // Act
         terminal.Write(data);
@@ -212,7 +212,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with backspace character moves cursor left if not at column 0.
+    ///     Tests that Write with backspace character moves cursor left if not at column 0.
     /// </summary>
     [Test]
     public void Write_WithBackspace_MovesCursorLeft()
@@ -220,7 +220,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         terminal.Write("ABC"); // Move cursor to column 3
-        var data = new byte[] { 0x08 }; // BS
+        byte[] data = new byte[] { 0x08 }; // BS
 
         // Act
         terminal.Write(data);
@@ -231,7 +231,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with backspace character at column 0 does not move cursor.
+    ///     Tests that Write with backspace character at column 0 does not move cursor.
     /// </summary>
     [Test]
     public void Write_WithBackspaceAtColumnZero_DoesNotMoveCursor()
@@ -239,7 +239,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         // Cursor is already at (0, 0)
-        var data = new byte[] { 0x08 }; // BS
+        byte[] data = new byte[] { 0x08 }; // BS
 
         // Act
         terminal.Write(data);
@@ -250,7 +250,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with multiple control characters handles them all correctly.
+    ///     Tests that Write with multiple control characters handles them all correctly.
     /// </summary>
     [Test]
     public void Write_WithMultipleControlCharacters_HandlesAllCorrectly()
@@ -259,12 +259,12 @@ public class TerminalEmulatorTests
         var terminal = new TerminalEmulator(80, 24);
         bool bellEventRaised = false;
         int bellCount = 0;
-        terminal.Bell += (sender, args) => 
+        terminal.Bell += (sender, args) =>
         {
             bellEventRaised = true;
             bellCount++;
         };
-        var data = new byte[] { 0x07, 0x07, 0x07 }; // Three BEL characters
+        byte[] data = new byte[] { 0x07, 0x07, 0x07 }; // Three BEL characters
 
         // Act
         terminal.Write(data);
@@ -275,14 +275,14 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with mixed control characters and text works correctly.
+    ///     Tests that Write with mixed control characters and text works correctly.
     /// </summary>
     [Test]
     public void Write_WithMixedControlCharactersAndText_WorksCorrectly()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        var data = new byte[] { (byte)'a', 0x07, (byte)'b', 0x08, (byte)'c' }; // a BEL b BS c
+        byte[] data = new byte[] { (byte)'a', 0x07, (byte)'b', 0x08, (byte)'c' }; // a BEL b BS c
 
         // Act
         terminal.Write(data);
@@ -295,27 +295,27 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that tab character moves to correct tab stops with default 8-column spacing.
+    ///     Tests that tab character moves to correct tab stops with default 8-column spacing.
     /// </summary>
     [Test]
     public void Write_WithTabCharacter_MovesToCorrectTabStops()
     {
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
-        
+
         // Act & Assert - Test multiple tab stops
         terminal.Write("\t"); // Should go to column 8
         Assert.That(terminal.Cursor.Col, Is.EqualTo(8));
-        
+
         terminal.Write("\t"); // Should go to column 16
         Assert.That(terminal.Cursor.Col, Is.EqualTo(16));
-        
+
         terminal.Write("\t"); // Should go to column 24
         Assert.That(terminal.Cursor.Col, Is.EqualTo(24));
     }
 
     /// <summary>
-    /// Tests that tab character at near right edge goes to right edge.
+    ///     Tests that tab character at near right edge goes to right edge.
     /// </summary>
     [Test]
     public void Write_WithTabNearRightEdge_GoesToRightEdge()
@@ -329,14 +329,14 @@ public class TerminalEmulatorTests
 
         // Assert
         Assert.That(terminal.Cursor.Col, Is.EqualTo(8));
-        
+
         // Another tab should go to right edge (column 9)
         terminal.Write("\t");
         Assert.That(terminal.Cursor.Col, Is.EqualTo(9));
     }
 
     /// <summary>
-    /// Tests that backspace clears wrap pending state.
+    ///     Tests that backspace clears wrap pending state.
     /// </summary>
     [Test]
     public void Write_WithBackspaceAfterWrapPending_ClearsWrapPending()
@@ -351,7 +351,7 @@ public class TerminalEmulatorTests
         // Assert
         Assert.That(terminal.Cursor.Col, Is.EqualTo(3)); // Should move back from 4 to 3
         Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Should stay on same row
-        
+
         // Writing another character should not wrap
         terminal.Write("X");
         Assert.That(terminal.Cursor.Row, Is.EqualTo(0)); // Should still be on row 0
@@ -359,7 +359,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that tab clears wrap pending state.
+    ///     Tests that tab clears wrap pending state.
     /// </summary>
     [Test]
     public void Write_WithTabAfterWrapPending_ClearsWrapPending()
@@ -377,7 +377,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with DEL character ignores the character and doesn't move cursor.
+    ///     Tests that Write with DEL character ignores the character and doesn't move cursor.
     /// </summary>
     [Test]
     public void Write_WithDEL_IgnoresCharacter()
@@ -385,7 +385,7 @@ public class TerminalEmulatorTests
         // Arrange
         var terminal = new TerminalEmulator(80, 24);
         terminal.Write("A");
-        var data = new byte[] { 0x7F }; // DEL
+        byte[] data = new byte[] { 0x7F }; // DEL
 
         // Act
         terminal.Write(data);
@@ -396,7 +396,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write at the right edge of terminal wraps to the next line.
+    ///     Tests that Write at the right edge of terminal wraps to the next line.
     /// </summary>
     [Test]
     public void Write_AtRightEdge_WrapsToNextLine()
@@ -415,7 +415,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write raises ScreenUpdated event when content is written.
+    ///     Tests that Write raises ScreenUpdated event when content is written.
     /// </summary>
     [Test]
     public void Write_RaisesScreenUpdatedEvent()
@@ -433,7 +433,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write with empty data does not raise ScreenUpdated event.
+    ///     Tests that Write with empty data does not raise ScreenUpdated event.
     /// </summary>
     [Test]
     public void Write_WithEmptyData_DoesNotRaiseEvent()
@@ -451,7 +451,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Dispose can be called multiple times without throwing.
+    ///     Tests that Dispose can be called multiple times without throwing.
     /// </summary>
     [Test]
     public void Dispose_CanBeCalledMultipleTimes()
@@ -468,7 +468,7 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    /// Tests that Write throws ObjectDisposedException after the terminal is disposed.
+    ///     Tests that Write throws ObjectDisposedException after the terminal is disposed.
     /// </summary>
     [Test]
     public void Write_AfterDispose_ThrowsObjectDisposedException()

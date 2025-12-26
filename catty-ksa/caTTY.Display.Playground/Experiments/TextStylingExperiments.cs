@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using Brutal.ImGuiApi;
-using Brutal.Numerics;
 using KSA;
 using ImGui = Brutal.ImGuiApi.ImGui;
 using float2 = Brutal.Numerics.float2;
@@ -11,14 +7,16 @@ using float4 = Brutal.Numerics.float4;
 namespace caTTY.Playground.Experiments;
 
 /// <summary>
-/// Text styling experiments for testing different ImGui text attribute approaches.
-/// This class implements the core experiments for task 1.6.
+///     Text styling experiments for testing different ImGui text attribute approaches.
+///     This class implements the core experiments for task 1.6.
 /// </summary>
 public static class TextStylingExperiments
 {
     // Experiment state
-    private static int _selectedExperiment = 0;
-    private static readonly string[] _experimentNames = [
+    private static int _selectedExperiment;
+
+    private static readonly string[] _experimentNames =
+    [
         "Text Attributes Test",
         "Font Style Variations",
         "Cursor Display Techniques",
@@ -27,25 +25,27 @@ public static class TextStylingExperiments
     ];
 
     // Text styling state
-    private static bool _boldEnabled = false;
-    private static bool _italicEnabled = false;
-    private static bool _underlineEnabled = false;
-    private static bool _strikethroughEnabled = false;
-    private static bool _inverseEnabled = false;
-    private static bool _dimEnabled = false;
-    private static bool _blinkEnabled = false;
+    private static bool _boldEnabled;
+    private static bool _italicEnabled;
+    private static bool _underlineEnabled;
+    private static bool _strikethroughEnabled;
+    private static bool _inverseEnabled;
+    private static bool _dimEnabled;
+    private static bool _blinkEnabled;
 
     // Cursor state
-    private static int _cursorType = 0; // 0=block, 1=underline, 2=beam
+    private static int _cursorType; // 0=block, 1=underline, 2=beam
     private static bool _cursorVisible = true;
-    private static bool _cursorBlinking = false;
+    private static bool _cursorBlinking;
     private static DateTime _lastBlinkTime = DateTime.Now;
     private static bool _blinkState = true;
 
     // Color state
-    private static int _foregroundColorIndex = 0;
+    private static int _foregroundColorIndex;
     private static int _backgroundColorIndex = 7; // Transparent by default
-    private static readonly float4[] _colorPalette = [
+
+    private static readonly float4[] _colorPalette =
+    [
         new(1.0f, 1.0f, 1.0f, 1.0f), // 0: White
         new(1.0f, 0.0f, 0.0f, 1.0f), // 1: Red
         new(0.0f, 1.0f, 0.0f, 1.0f), // 2: Green
@@ -55,16 +55,17 @@ public static class TextStylingExperiments
         new(0.0f, 1.0f, 1.0f, 1.0f), // 6: Cyan
         new(0.0f, 0.0f, 0.0f, 0.0f), // 7: Transparent
         new(0.5f, 0.5f, 0.5f, 1.0f), // 8: Gray
-        new(0.2f, 0.2f, 0.2f, 1.0f), // 9: Dark Gray
+        new(0.2f, 0.2f, 0.2f, 1.0f) // 9: Dark Gray
     ];
 
     // Font metrics
-    private static float _fontSize = 32.0f;
-    private static float _charWidth = 0.0f;
-    private static float _lineHeight = 0.0f;
+    private static readonly float _fontSize = 32.0f;
+    private static float _charWidth;
+    private static float _lineHeight;
 
     // Test content
-    private static readonly string[] _testLines = [
+    private static readonly string[] _testLines =
+    [
         "The quick brown fox jumps over the lazy dog",
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "abcdefghijklmnopqrstuvwxyz",
@@ -78,17 +79,17 @@ public static class TextStylingExperiments
     ];
 
     /// <summary>
-    /// Runs the text styling experiments.
+    ///     Runs the text styling experiments.
     /// </summary>
     public static void Run()
     {
         try
         {
             Console.WriteLine("Starting Text Styling Experiments...");
-            
+
             // Update cursor blinking
             UpdateCursorBlink();
-            
+
             DrawExperiments();
         }
         catch (Exception ex)
@@ -101,7 +102,7 @@ public static class TextStylingExperiments
     {
         if (_cursorBlinking)
         {
-            var currentTime = DateTime.Now;
+            DateTime currentTime = DateTime.Now;
             if ((currentTime - _lastBlinkTime).TotalMilliseconds > 500) // 500ms blink interval
             {
                 _blinkState = !_blinkState;
@@ -135,7 +136,7 @@ public static class TextStylingExperiments
         {
             ImGui.PushFont(fontPtr, size ?? _fontSize);
             fontUsed = true;
-            
+
             // Calculate font metrics
             _charWidth = _fontSize * 0.6f; // Monospace approximation
             _lineHeight = _fontSize + 2.0f; // Good vertical spacing
@@ -147,7 +148,7 @@ public static class TextStylingExperiments
         {
             ImGui.PushFont(fontPtr, size ?? _fontSize);
             fontUsed = true;
-            
+
             // Calculate font metrics
             _charWidth = _fontSize * 0.6f; // Monospace approximation
             _lineHeight = _fontSize + 2.0f; // Good vertical spacing
@@ -161,20 +162,20 @@ public static class TextStylingExperiments
 
     private static void MaybePopFont(bool wasUsed)
     {
-        if (wasUsed) 
+        if (wasUsed)
         {
             ImGui.PopFont();
         }
     }
 
     /// <summary>
-    /// Draws the text styling experiments UI.
+    ///     Draws the text styling experiments UI.
     /// </summary>
     public static void DrawExperiments()
     {
         // Update cursor blinking state
         UpdateCursorBlink();
-        
+
         PushHackFont(out bool fontUsed);
 
         // Main experiment window
@@ -218,11 +219,11 @@ public static class TextStylingExperiments
         ImGui.Text("Testing different approaches to text styling in ImGui");
         ImGui.Separator();
 
-        var drawList = ImGui.GetWindowDrawList();
-        var windowPos = ImGui.GetCursorScreenPos();
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        float2 windowPos = ImGui.GetCursorScreenPos();
 
         // Test different text attributes
-        var attributes = new[]
+        (string, bool, bool, bool, bool, bool)[] attributes = new[]
         {
             ("Normal Text", false, false, false, false, false),
             ("Bold Text (True Font)", true, false, false, false, false),
@@ -230,15 +231,15 @@ public static class TextStylingExperiments
             ("Bold Italic Text", true, true, false, false, false),
             ("Underlined Text", false, false, true, false, false),
             ("Strikethrough Text", false, false, false, true, false),
-            ("Inverse Text", false, false, false, false, true),
+            ("Inverse Text", false, false, false, false, true)
         };
 
         for (int i = 0; i < attributes.Length; i++)
         {
-            var (text, bold, italic, underline, strikethrough, inverse) = attributes[i];
-            var y = windowPos.Y + i * _lineHeight;
-            
-            DrawStyledText(drawList, new float2(windowPos.X, y), text, 
+            (string text, bool bold, bool italic, bool underline, bool strikethrough, bool inverse) = attributes[i];
+            float y = windowPos.Y + (i * _lineHeight);
+
+            DrawStyledText(drawList, new float2(windowPos.X, y), text,
                 bold, italic, underline, strikethrough, inverse, false);
         }
 
@@ -261,24 +262,24 @@ public static class TextStylingExperiments
         ImGui.Text("Comparing different font rendering techniques");
         ImGui.Separator();
 
-        var drawList = ImGui.GetWindowDrawList();
-        var windowPos = ImGui.GetCursorScreenPos();
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        float2 windowPos = ImGui.GetCursorScreenPos();
 
         // Font size variations
         ImGui.Text("Font Size Variations:");
-        var sizes = new float[] { 16.0f, 24.0f, 32.0f, 48.0f };
-        var currentY = windowPos.Y + _lineHeight;
+        float[] sizes = new[] { 16.0f, 24.0f, 32.0f, 48.0f };
+        float currentY = windowPos.Y + _lineHeight;
 
         for (int i = 0; i < sizes.Length; i++)
         {
             PushHackFont(out bool sizedFontUsed, sizes[i]);
-            
+
             var pos = new float2(windowPos.X, currentY);
-            var text = $"Size {sizes[i]:F0}: The quick brown fox";
+            string text = $"Size {sizes[i]:F0}: The quick brown fox";
             drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), text);
-            
+
             MaybePopFont(sizedFontUsed);
-            
+
             currentY += sizes[i] + 4.0f; // Add some spacing
         }
 
@@ -286,21 +287,19 @@ public static class TextStylingExperiments
 
         ImGui.Separator();
         ImGui.Text("Font Variant Testing:");
-        
-        var fontY = ImGui.GetCursorScreenPos().Y;
-        var fontTests = new[]
+
+        float fontY = ImGui.GetCursorScreenPos().Y;
+        (string, bool, bool)[] fontTests = new[]
         {
-            ("Regular Font", false, false),
-            ("Bold Font", true, false),
-            ("Italic Font", false, true),
+            ("Regular Font", false, false), ("Bold Font", true, false), ("Italic Font", false, true),
             ("Bold Italic Font", true, true)
         };
-        
+
         for (int i = 0; i < fontTests.Length; i++)
         {
-            var (label, bold, italic) = fontTests[i];
-            var pos = new float2(windowPos.X, fontY + i * _lineHeight);
-            
+            (string label, bool bold, bool italic) = fontTests[i];
+            var pos = new float2(windowPos.X, fontY + (i * _lineHeight));
+
             PushHackFont(out bool variantFontUsed, _fontSize, bold, italic);
             drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), label);
             MaybePopFont(variantFontUsed);
@@ -310,36 +309,32 @@ public static class TextStylingExperiments
 
         ImGui.Separator();
         ImGui.Text("Bold Simulation Techniques (fallback when no bold font):");
-        
-        var boldY = ImGui.GetCursorScreenPos().Y;
-        var boldText = "Bold Text Simulation";
-        
+
+        float boldY = ImGui.GetCursorScreenPos().Y;
+        string boldText = "Bold Text Simulation";
+
         // Technique 1: Multiple draws with offsets
         ImGui.Text("1. Multiple draws with pixel offsets:");
-        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + _lineHeight), boldText, BoldTechnique.MultipleDraws);
-        
+        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + _lineHeight), boldText,
+            BoldTechnique.MultipleDraws);
+
         // Technique 2: Outline effect
         ImGui.Text("2. Outline effect:");
-        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + _lineHeight * 3), boldText, BoldTechnique.Outline);
-        
+        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + (_lineHeight * 3)), boldText,
+            BoldTechnique.Outline);
+
         // Technique 3: Color intensity
         ImGui.Text("3. Color intensity variation:");
-        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + _lineHeight * 5), boldText, BoldTechnique.ColorIntensity);
+        DrawBoldText(drawList, new float2(windowPos.X + 20, boldY + (_lineHeight * 5)), boldText,
+            BoldTechnique.ColorIntensity);
 
         ImGui.Dummy(new float2(400, _lineHeight * 6));
     }
 
-    private enum BoldTechnique
-    {
-        MultipleDraws,
-        Outline,
-        ColorIntensity
-    }
-
     private static void DrawBoldText(ImDrawListPtr drawList, float2 pos, string text, BoldTechnique technique)
     {
-        var color = ImGui.ColorConvertFloat4ToU32(_colorPalette[0]);
-        
+        uint color = ImGui.ColorConvertFloat4ToU32(_colorPalette[0]);
+
         switch (technique)
         {
             case BoldTechnique.MultipleDraws:
@@ -349,10 +344,10 @@ public static class TextStylingExperiments
                 drawList.AddText(new float2(pos.X, pos.Y + 0.5f), color, text);
                 drawList.AddText(new float2(pos.X + 0.5f, pos.Y + 0.5f), color, text);
                 break;
-                
+
             case BoldTechnique.Outline:
                 // Draw outline first, then main text
-                var outlineColor = ImGui.ColorConvertFloat4ToU32(new float4(0.3f, 0.3f, 0.3f, 1.0f));
+                uint outlineColor = ImGui.ColorConvertFloat4ToU32(new float4(0.3f, 0.3f, 0.3f, 1.0f));
                 for (int dx = -1; dx <= 1; dx++)
                 {
                     for (int dy = -1; dy <= 1; dy++)
@@ -363,12 +358,13 @@ public static class TextStylingExperiments
                         }
                     }
                 }
+
                 drawList.AddText(pos, color, text);
                 break;
-                
+
             case BoldTechnique.ColorIntensity:
                 // Use brighter/more intense color
-                var brightColor = ImGui.ColorConvertFloat4ToU32(new float4(1.2f, 1.2f, 1.2f, 1.0f));
+                uint brightColor = ImGui.ColorConvertFloat4ToU32(new float4(1.2f, 1.2f, 1.2f, 1.0f));
                 drawList.AddText(pos, brightColor, text);
                 break;
         }
@@ -382,23 +378,23 @@ public static class TextStylingExperiments
 
         // Cursor controls
         ImGui.Text("Cursor Controls:");
-        var cursorTypes = new[] { "Block Cursor", "Underline Cursor", "Beam Cursor" };
+        string[] cursorTypes = new[] { "Block Cursor", "Underline Cursor", "Beam Cursor" };
         ImGui.Combo("Cursor Type", ref _cursorType, cursorTypes, cursorTypes.Length);
         ImGui.Checkbox("Cursor Visible", ref _cursorVisible);
         ImGui.Checkbox("Cursor Blinking", ref _cursorBlinking);
-        
+
         ImGui.Separator();
 
-        var drawList = ImGui.GetWindowDrawList();
-        var windowPos = ImGui.GetCursorScreenPos();
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        float2 windowPos = ImGui.GetCursorScreenPos();
 
         // Demo text with cursor
-        var demoText = "Sample text with cursor here: ";
-        var cursorPos = new float2(windowPos.X + demoText.Length * _charWidth, windowPos.Y);
-        
+        string demoText = "Sample text with cursor here: ";
+        var cursorPos = new float2(windowPos.X + (demoText.Length * _charWidth), windowPos.Y);
+
         // Draw the demo text
         drawList.AddText(windowPos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), demoText);
-        
+
         // Draw cursor if visible and not blinking or blink state is on
         if (_cursorVisible && (!_cursorBlinking || _blinkState))
         {
@@ -411,19 +407,19 @@ public static class TextStylingExperiments
         ImGui.Text("Cursor Style Demonstrations:");
 
         // Show all cursor types
-        var cursorDemoY = ImGui.GetCursorScreenPos().Y;
-        var cursorNames = new[] { "Block", "Underline", "Beam" };
-        
+        float cursorDemoY = ImGui.GetCursorScreenPos().Y;
+        string[] cursorNames = new[] { "Block", "Underline", "Beam" };
+
         for (int i = 0; i < 3; i++)
         {
-            var pos = new float2(windowPos.X, cursorDemoY + i * _lineHeight);
-            var textPos = new float2(pos.X + _charWidth * 2, pos.Y);
-            
+            var pos = new float2(windowPos.X, cursorDemoY + (i * _lineHeight));
+            var textPos = new float2(pos.X + (_charWidth * 2), pos.Y);
+
             // Draw cursor
             DrawCursor(drawList, pos, i);
-            
+
             // Draw label
-            drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), 
+            drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]),
                 $"{cursorNames[i]} cursor");
         }
 
@@ -440,21 +436,21 @@ public static class TextStylingExperiments
 
     private static void DrawCursor(ImDrawListPtr drawList, float2 pos, int cursorType)
     {
-        var cursorColor = ImGui.ColorConvertFloat4ToU32(_colorPalette[0]); // White cursor
-        
+        uint cursorColor = ImGui.ColorConvertFloat4ToU32(_colorPalette[0]); // White cursor
+
         switch (cursorType)
         {
             case 0: // Block cursor
                 var blockEnd = new float2(pos.X + _charWidth, pos.Y + _lineHeight);
                 drawList.AddRectFilled(pos, blockEnd, cursorColor);
                 break;
-                
+
             case 1: // Underline cursor
                 var underlineStart = new float2(pos.X, pos.Y + _lineHeight - 2);
                 var underlineEnd = new float2(pos.X + _charWidth, pos.Y + _lineHeight - 2);
                 drawList.AddLine(underlineStart, underlineEnd, cursorColor, 2.0f);
                 break;
-                
+
             case 2: // Beam cursor
                 var beamStart = new float2(pos.X, pos.Y);
                 var beamEnd = new float2(pos.X, pos.Y + _lineHeight);
@@ -476,20 +472,23 @@ public static class TextStylingExperiments
         ImGui.Checkbox("Italic", ref _italicEnabled);
         ImGui.SameLine();
         ImGui.Checkbox("Underline", ref _underlineEnabled);
-        
+
         ImGui.Checkbox("Strikethrough", ref _strikethroughEnabled);
         ImGui.SameLine();
         ImGui.Checkbox("Inverse", ref _inverseEnabled);
         ImGui.SameLine();
         ImGui.Checkbox("Dim", ref _dimEnabled);
-        
+
         ImGui.Checkbox("Blink", ref _blinkEnabled);
 
         ImGui.Separator();
 
         // Color controls
         ImGui.Text("Colors:");
-        var colorNames = new[] { "White", "Red", "Green", "Blue", "Yellow", "Magenta", "Cyan", "Transparent", "Gray", "Dark Gray" };
+        string[] colorNames = new[]
+        {
+            "White", "Red", "Green", "Blue", "Yellow", "Magenta", "Cyan", "Transparent", "Gray", "Dark Gray"
+        };
         ImGui.Combo("Foreground", ref _foregroundColorIndex, colorNames, colorNames.Length);
         ImGui.Combo("Background", ref _backgroundColorIndex, colorNames, colorNames.Length);
 
@@ -498,8 +497,8 @@ public static class TextStylingExperiments
         {
             ImGui.Separator();
             ImGui.Text("Debug - Color Values:");
-            var fg = _colorPalette[_foregroundColorIndex];
-            var bg = _colorPalette[_backgroundColorIndex];
+            float4 fg = _colorPalette[_foregroundColorIndex];
+            float4 bg = _colorPalette[_backgroundColorIndex];
             ImGui.Text($"Original FG: R={fg.X:F2} G={fg.Y:F2} B={fg.Z:F2} A={fg.W:F2}");
             ImGui.Text($"Original BG: R={bg.X:F2} G={bg.Y:F2} B={bg.Z:F2} A={bg.W:F2}");
             ImGui.Text($"After swap: FG=BG, BG=FG");
@@ -509,11 +508,11 @@ public static class TextStylingExperiments
 
         // Live preview
         ImGui.Text("Live Preview:");
-        var drawList = ImGui.GetWindowDrawList();
-        var windowPos = ImGui.GetCursorScreenPos();
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        float2 windowPos = ImGui.GetCursorScreenPos();
 
         // Draw sample text with current styling
-        var sampleText = "Sample text with current styling applied";
+        string sampleText = "Sample text with current styling applied";
         DrawStyledText(drawList, windowPos, sampleText,
             _boldEnabled, _italicEnabled, _underlineEnabled, _strikethroughEnabled,
             _inverseEnabled, _dimEnabled, _blinkEnabled);
@@ -524,22 +523,23 @@ public static class TextStylingExperiments
 
         // Multiple lines with different combinations
         ImGui.Text("Style Combination Examples:");
-        var exampleY = ImGui.GetCursorScreenPos().Y;
-        
-        var examples = new[]
+        float exampleY = ImGui.GetCursorScreenPos().Y;
+
+        (string, bool, bool, bool, bool, bool, bool)[] examples = new[]
         {
             ("Normal text", false, false, false, false, false, false),
             ("Bold + Underline", true, false, true, false, false, false),
             ("Italic + Strikethrough", false, true, false, true, false, false),
             ("Inverse + Bold", true, false, false, false, true, false),
-            ("All attributes", true, true, true, true, false, true),
+            ("All attributes", true, true, true, true, false, true)
         };
 
         for (int i = 0; i < examples.Length; i++)
         {
-            var (text, bold, italic, underline, strikethrough, inverse, dim) = examples[i];
-            var pos = new float2(windowPos.X, exampleY + i * _lineHeight);
-            
+            (string text, bool bold, bool italic, bool underline, bool strikethrough, bool inverse, bool dim) =
+                examples[i];
+            var pos = new float2(windowPos.X, exampleY + (i * _lineHeight));
+
             DrawStyledText(drawList, pos, text, bold, italic, underline, strikethrough, inverse, dim);
         }
 
@@ -556,30 +556,30 @@ public static class TextStylingExperiments
         }
 
         // Determine colors
-        var fgColor = _colorPalette[_foregroundColorIndex];
-        var bgColor = _colorPalette[_backgroundColorIndex];
-        
+        float4 fgColor = _colorPalette[_foregroundColorIndex];
+        float4 bgColor = _colorPalette[_backgroundColorIndex];
+
         if (inverse)
         {
             // Simple inverse: swap colors and ensure visibility
             (fgColor, bgColor) = (bgColor, fgColor);
-            
+
             // If background is now transparent (was foreground), make it black
             if (bgColor.W < 0.1f)
             {
                 bgColor = new float4(0.0f, 0.0f, 0.0f, 1.0f); // Black background
             }
-            
+
             // If foreground is now transparent (was background), make it white
             if (fgColor.W < 0.1f)
             {
                 fgColor = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White foreground
             }
-            
+
             // Simple contrast check: if both colors are very similar, force contrast
-            var fgSum = fgColor.X + fgColor.Y + fgColor.Z;
-            var bgSum = bgColor.X + bgColor.Y + bgColor.Z;
-            
+            float fgSum = fgColor.X + fgColor.Y + fgColor.Z;
+            float bgSum = bgColor.X + bgColor.Y + bgColor.Z;
+
             if (Math.Abs(fgSum - bgSum) < 0.5f) // Colors too similar
             {
                 if (bgSum < 1.5f) // Dark background
@@ -592,7 +592,7 @@ public static class TextStylingExperiments
                 }
             }
         }
-        
+
         if (dim)
         {
             fgColor = new float4(fgColor.X * 0.6f, fgColor.Y * 0.6f, fgColor.Z * 0.6f, fgColor.W);
@@ -601,7 +601,7 @@ public static class TextStylingExperiments
         // Draw background if not transparent
         if (bgColor.W > 0)
         {
-            var bgEnd = new float2(pos.X + text.Length * _charWidth, pos.Y + _lineHeight);
+            var bgEnd = new float2(pos.X + (text.Length * _charWidth), pos.Y + _lineHeight);
             drawList.AddRectFilled(pos, bgEnd, ImGui.ColorConvertFloat4ToU32(bgColor));
         }
 
@@ -609,7 +609,7 @@ public static class TextStylingExperiments
         PushHackFont(out bool styledFontUsed, _fontSize, bold, italic);
 
         // Draw text
-        var textColor = ImGui.ColorConvertFloat4ToU32(fgColor);
+        uint textColor = ImGui.ColorConvertFloat4ToU32(fgColor);
         if (bold && !styledFontUsed)
         {
             // Fallback to bold simulation if no bold font available
@@ -625,19 +625,19 @@ public static class TextStylingExperiments
         // Draw underline if enabled
         if (underline)
         {
-            var underlineY = pos.Y + _lineHeight - 2;
+            float underlineY = pos.Y + _lineHeight - 2;
             var underlineStart = new float2(pos.X, underlineY);
-            var underlineEnd = new float2(pos.X + text.Length * _charWidth, underlineY);
-            drawList.AddLine(underlineStart, underlineEnd, textColor, 1.0f);
+            var underlineEnd = new float2(pos.X + (text.Length * _charWidth), underlineY);
+            drawList.AddLine(underlineStart, underlineEnd, textColor);
         }
 
         // Draw strikethrough if enabled
         if (strikethrough)
         {
-            var strikeY = pos.Y + _lineHeight * 0.5f;
+            float strikeY = pos.Y + (_lineHeight * 0.5f);
             var strikeStart = new float2(pos.X, strikeY);
-            var strikeEnd = new float2(pos.X + text.Length * _charWidth, strikeY);
-            drawList.AddLine(strikeStart, strikeEnd, textColor, 1.0f);
+            var strikeEnd = new float2(pos.X + (text.Length * _charWidth), strikeY);
+            drawList.AddLine(strikeStart, strikeEnd, textColor);
         }
     }
 
@@ -698,5 +698,12 @@ public static class TextStylingExperiments
         ImGui.Text("1. High Priority: Colors, bold simulation, underline, cursor");
         ImGui.Text("2. Medium Priority: Strikethrough, inverse, dim, blinking");
         ImGui.Text("3. Low Priority: Advanced underline styles, italic alternatives");
+    }
+
+    private enum BoldTechnique
+    {
+        MultipleDraws,
+        Outline,
+        ColorIntensity
     }
 }

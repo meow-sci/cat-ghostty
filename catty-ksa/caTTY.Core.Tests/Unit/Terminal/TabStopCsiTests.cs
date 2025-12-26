@@ -1,18 +1,16 @@
-using NUnit.Framework;
 using caTTY.Core.Terminal;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Tests for tab stop CSI sequences.
-/// Validates Requirements 10.4, 11.1, 19.1, 19.2.
+///     Tests for tab stop CSI sequences.
+///     Validates Requirements 10.4, 11.1, 19.1, 19.2.
 /// </summary>
 [TestFixture]
 public class TabStopCsiTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -24,6 +22,8 @@ public class TabStopCsiTests
     {
         _terminal?.Dispose();
     }
+
+    private TerminalEmulator _terminal = null!;
 
     [Test]
     public void CursorForwardTab_MovesToNextTabStop()
@@ -110,7 +110,7 @@ public class TabStopCsiTests
         _terminal.Write("\x1b[I");
 
         // Assert: Write another character - it should not wrap
-        var initialRow = _terminal.Cursor.Row;
+        int initialRow = _terminal.Cursor.Row;
         _terminal.Write("Y");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(initialRow)); // Should not have wrapped
     }
@@ -185,7 +185,7 @@ public class TabStopCsiTests
         _terminal.Write("\x1b[Z");
 
         // Assert: Write another character - it should not wrap
-        var initialRow = _terminal.Cursor.Row;
+        int initialRow = _terminal.Cursor.Row;
         _terminal.Write("Y");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(initialRow)); // Should not have wrapped
     }

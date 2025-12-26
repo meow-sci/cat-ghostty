@@ -2,38 +2,38 @@ TERMINAL RENDERING EXPERIMENTS - DESIGN AND FINDINGS
 ====================================================
 
 1. CHARACTER GRID BASIC RENDERING
-   - Approach: Character-by-character positioning using ImGui.GetWindowDrawList()
-   - Character width calculation: fontSize * 0.6f (monospace approximation)
-   - Line height calculation: fontSize + 2.0f (good vertical spacing)
-   - Background rendering: AddRectFilled() before character rendering
-   - Character rendering: AddText() with precise positioning
+    - Approach: Character-by-character positioning using ImGui.GetWindowDrawList()
+    - Character width calculation: fontSize * 0.6f (monospace approximation)
+    - Line height calculation: fontSize + 2.0f (good vertical spacing)
+    - Background rendering: AddRectFilled() before character rendering
+    - Character rendering: AddText() with precise positioning
 
 2. FIXED-WIDTH FONT TESTING
-   - Approach 1: ImGui.Text() with monospace assumption
-     * Pros: Simple implementation
-     * Cons: Less control over character positioning
-   - Approach 2: Character-by-character positioning
-     * Pros: Precise control, consistent spacing
-     * Cons: More complex implementation
-   - Recommendation: Use Approach 2 for terminal emulation
+    - Approach 1: ImGui.Text() with monospace assumption
+        * Pros: Simple implementation
+        * Cons: Less control over character positioning
+    - Approach 2: Character-by-character positioning
+        * Pros: Precise control, consistent spacing
+        * Cons: More complex implementation
+    - Recommendation: Use Approach 2 for terminal emulation
 
 3. COLOR EXPERIMENTS
-   - Foreground colors: Applied via ImGui.ColorConvertFloat4ToU32()
-   - Background colors: Rendered as filled rectangles behind characters
-   - Color palette: Standard 8-color terminal palette implemented
-   - Performance: Acceptable for typical terminal sizes (80x24)
+    - Foreground colors: Applied via ImGui.ColorConvertFloat4ToU32()
+    - Background colors: Rendered as filled rectangles behind characters
+    - Color palette: Standard 8-color terminal palette implemented
+    - Performance: Acceptable for typical terminal sizes (80x24)
 
 4. GRID ALIGNMENT TESTING
-   - Grid lines: Used for alignment verification
-   - Character positioning: Consistent across all cells
-   - Spacing validation: Characters align perfectly with grid
-   - Measurement tools: Font size, character width, line height tracking
+    - Grid lines: Used for alignment verification
+    - Character positioning: Consistent across all cells
+    - Spacing validation: Characters align perfectly with grid
+    - Measurement tools: Font size, character width, line height tracking
 
 5. PERFORMANCE COMPARISON
-   - Frame time tracking: Implemented for performance analysis
-   - Full terminal rendering: 80x24 characters with colors
-   - Expected performance: 60+ FPS for typical terminal content
-   - Optimization opportunities: Batch rendering, dirty region tracking
+    - Frame time tracking: Implemented for performance analysis
+    - Full terminal rendering: 80x24 characters with colors
+    - Expected performance: 60+ FPS for typical terminal content
+    - Optimization opportunities: Batch rendering, dirty region tracking
 
 KEY TECHNICAL FINDINGS:
 =======================
@@ -47,6 +47,7 @@ KEY TECHNICAL FINDINGS:
 
 IMPLEMENTATION RECOMMENDATIONS:
 ===============================
+
 1. Use character-by-character positioning for precise control
 2. Implement background rendering before foreground text
 3. Use ImGui DrawList for all terminal rendering operations
@@ -56,6 +57,7 @@ IMPLEMENTATION RECOMMENDATIONS:
 
 NEXT STEPS:
 ===========
+
 - Implement cursor rendering (block, underline, beam styles)
 - Add text styling support (bold, italic, underline)
 - Optimize rendering for larger terminal sizes
@@ -69,33 +71,33 @@ TASK 1.6 - TEXT STYLING EXPERIMENTS
 ===================================
 
 6. TEXT ATTRIBUTES TESTING
-   - Bold text simulation: Multiple rendering techniques implemented
-     * Multiple draws with pixel offsets (best quality, 4x performance cost)
-     * Outline effect (good emphasis, moderate performance cost)
-     * Color intensity variation (performance-friendly, limited effect)
-   - Underline: Custom line drawing using DrawList.AddLine()
-   - Strikethrough: Custom line drawing at mid-character height
-   - Inverse video: Color swapping (foreground ↔ background)
-   - Dim text: Alpha reduction and color intensity reduction
+    - Bold text simulation: Multiple rendering techniques implemented
+        * Multiple draws with pixel offsets (best quality, 4x performance cost)
+        * Outline effect (good emphasis, moderate performance cost)
+        * Color intensity variation (performance-friendly, limited effect)
+    - Underline: Custom line drawing using DrawList.AddLine()
+    - Strikethrough: Custom line drawing at mid-character height
+    - Inverse video: Color swapping (foreground ↔ background)
+    - Dim text: Alpha reduction and color intensity reduction
 
 7. FONT STYLE VARIATIONS
-   - Font size variations: 16px, 24px, 32px, 48px tested successfully
-   - Bold simulation techniques compared and analyzed
-   - Italic limitation: ImGui doesn't support font slanting/transformation
-   - Monospace consistency: Maintained across all font sizes
+    - Font size variations: 16px, 24px, 32px, 48px tested successfully
+    - Bold simulation techniques compared and analyzed
+    - Italic limitation: ImGui doesn't support font slanting/transformation
+    - Monospace consistency: Maintained across all font sizes
 
 8. CURSOR DISPLAY TECHNIQUES
-   - Block cursor: Filled rectangle covering entire character cell
-   - Underline cursor: Horizontal line at bottom of character cell
-   - Beam cursor: Vertical line at left edge of character cell
-   - Cursor blinking: Timer-based visibility toggling (500ms interval)
-   - Interactive controls: Real-time cursor type and behavior changes
+    - Block cursor: Filled rectangle covering entire character cell
+    - Underline cursor: Horizontal line at bottom of character cell
+    - Beam cursor: Vertical line at left edge of character cell
+    - Cursor blinking: Timer-based visibility toggling (500ms interval)
+    - Interactive controls: Real-time cursor type and behavior changes
 
 9. INTERACTIVE STYLING CONTROLS
-   - Real-time attribute toggles: Bold, italic, underline, strikethrough, inverse, dim, blink
-   - Color selection: Foreground and background color choosers (10-color palette)
-   - Live preview: Immediate visual feedback for all styling changes
-   - Combination testing: Multiple attributes applied simultaneously
+    - Real-time attribute toggles: Bold, italic, underline, strikethrough, inverse, dim, blink
+    - Color selection: Foreground and background color choosers (10-color palette)
+    - Live preview: Immediate visual feedback for all styling changes
+    - Combination testing: Multiple attributes applied simultaneously
 
 10. STYLING LIMITATIONS ANALYSIS
     ✅ SUPPORTED FEATURES:
@@ -119,6 +121,7 @@ TASK 1.6 - TEXT STYLING EXPERIMENTS
 
 PERFORMANCE IMPACT ANALYSIS:
 ============================
+
 - Bold simulation: 4x draw calls per character (significant impact)
 - Custom decorations: Additional DrawList calls per styled character
 - Blinking effects: Requires continuous frame updates
@@ -128,24 +131,28 @@ PERFORMANCE IMPACT ANALYSIS:
 PRODUCTION RECOMMENDATIONS:
 ===========================
 HIGH PRIORITY (Essential for terminal emulation):
+
 - Colors (foreground/background)
 - Basic bold simulation (configurable quality vs performance)
 - Underline text decoration
 - Cursor variations (block, underline, beam)
 
 MEDIUM PRIORITY (Enhanced terminal experience):
+
 - Strikethrough text decoration
 - Inverse video
 - Dim text
 - Cursor blinking
 
 LOW PRIORITY (Advanced features):
+
 - Advanced underline styles
 - Italic text alternatives
 - Complex text effects
 
 IMPLEMENTATION STRATEGIES:
 ==========================
+
 1. Use DrawList for all custom styling effects
 2. Use true font variants (Bold, Italic, BoldItalic) when available
 3. Implement bold simulation as fallback when font variants unavailable
@@ -184,6 +191,7 @@ TASK 1.6 COMPLETION STATUS:
 All Task 1.6 requirements have been successfully implemented and documented.
 The text styling experiments provide comprehensive analysis for terminal implementation.
 Issues identified during testing have been resolved:
+
 - Italic text now works with true font variants
 - Cursor blinking now functions properly
 - Inverse video no longer shows white-on-white text

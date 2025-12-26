@@ -1,21 +1,20 @@
-using NUnit.Framework;
-using caTTY.Core.Terminal;
 using System.Text;
+using caTTY.Core.Terminal;
+using caTTY.Core.Types;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Integration tests for escape sequence parsing in the terminal emulator.
-/// Tests the integration between the parser and terminal for handling escape sequences,
-/// including partial sequences across multiple Write calls.
-/// Validates Requirements 11.1, 12.1, 13.1.
+///     Integration tests for escape sequence parsing in the terminal emulator.
+///     Tests the integration between the parser and terminal for handling escape sequences,
+///     including partial sequences across multiple Write calls.
+///     Validates Requirements 11.1, 12.1, 13.1.
 /// </summary>
 [TestFixture]
 [Category("Unit")]
 public class EscapeSequenceIntegrationTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -28,16 +27,18 @@ public class EscapeSequenceIntegrationTests
         _terminal?.Dispose();
     }
 
+    private TerminalEmulator _terminal = null!;
+
     /// <summary>
-    /// Tests that a complete CSI cursor movement sequence works correctly.
+    ///     Tests that a complete CSI cursor movement sequence works correctly.
     /// </summary>
     [Test]
     public void Write_CompleteCsiCursorUp_MovesCursorCorrectly()
     {
         // Arrange
         _terminal.Write("Hello"); // Move cursor to column 5
-        var initialRow = _terminal.Cursor.Row;
-        var initialCol = _terminal.Cursor.Col;
+        int initialRow = _terminal.Cursor.Row;
+        int initialCol = _terminal.Cursor.Col;
 
         // Act - Send CSI A (cursor up)
         _terminal.Write("\x1b[A");
@@ -48,7 +49,7 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that a CSI cursor position sequence works correctly.
+    ///     Tests that a CSI cursor position sequence works correctly.
     /// </summary>
     [Test]
     public void Write_CsiCursorPosition_SetsCursorCorrectly()
@@ -65,8 +66,8 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that partial escape sequences across multiple Write calls work correctly.
-    /// This is critical for real shell integration where data may arrive in chunks.
+    ///     Tests that partial escape sequences across multiple Write calls work correctly.
+    ///     This is critical for real shell integration where data may arrive in chunks.
     /// </summary>
     [Test]
     public void Write_PartialEscapeSequence_HandlesCorrectly()
@@ -75,10 +76,10 @@ public class EscapeSequenceIntegrationTests
         _terminal.Write("Test"); // Move cursor to column 4
 
         // Act - Send CSI sequence in parts: ESC, [, 5, A
-        _terminal.Write("\x1b");     // ESC
-        _terminal.Write("[");        // [
-        _terminal.Write("5");        // 5
-        _terminal.Write("A");        // A (final byte)
+        _terminal.Write("\x1b"); // ESC
+        _terminal.Write("["); // [
+        _terminal.Write("5"); // 5
+        _terminal.Write("A"); // A (final byte)
 
         // Assert - Should move cursor up 5 rows
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(0)); // Can't go above row 0
@@ -86,7 +87,7 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that partial escape sequences with parameters work correctly.
+    ///     Tests that partial escape sequences with parameters work correctly.
     /// </summary>
     [Test]
     public void Write_PartialEscapeSequenceWithParameters_HandlesCorrectly()
@@ -95,20 +96,20 @@ public class EscapeSequenceIntegrationTests
         _terminal.Write("Hello");
 
         // Act - Send CSI 10;20H in parts
-        _terminal.Write("\x1b");     // ESC
-        _terminal.Write("[");        // [
-        _terminal.Write("10");       // 10
-        _terminal.Write(";");        // ;
-        _terminal.Write("20");       // 20
-        _terminal.Write("H");        // H (final byte)
+        _terminal.Write("\x1b"); // ESC
+        _terminal.Write("["); // [
+        _terminal.Write("10"); // 10
+        _terminal.Write(";"); // ;
+        _terminal.Write("20"); // 20
+        _terminal.Write("H"); // H (final byte)
 
         // Assert
-        Assert.That(_terminal.Cursor.Row, Is.EqualTo(9));  // 1-based to 0-based
+        Assert.That(_terminal.Cursor.Row, Is.EqualTo(9)); // 1-based to 0-based
         Assert.That(_terminal.Cursor.Col, Is.EqualTo(19)); // 1-based to 0-based
     }
 
     /// <summary>
-    /// Tests that normal text mixed with escape sequences works correctly.
+    ///     Tests that normal text mixed with escape sequences works correctly.
     /// </summary>
     [Test]
     public void Write_MixedTextAndEscapeSequences_HandlesCorrectly()
@@ -124,7 +125,7 @@ public class EscapeSequenceIntegrationTests
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('l'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('l'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('o'));
-        
+
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 0).Character, Is.EqualTo('W'));
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 1).Character, Is.EqualTo('o'));
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 2).Character, Is.EqualTo('r'));
@@ -133,7 +134,7 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that screen clearing sequences work correctly.
+    ///     Tests that screen clearing sequences work correctly.
     /// </summary>
     [Test]
     public void Write_ScreenClearingSequences_ClearsCorrectly()
@@ -152,14 +153,14 @@ public class EscapeSequenceIntegrationTests
         {
             for (int col = 0; col < 10; col++)
             {
-                var cell = _terminal.ScreenBuffer.GetCell(row, col);
+                Cell cell = _terminal.ScreenBuffer.GetCell(row, col);
                 Assert.That(cell.Character, Is.EqualTo(' '), $"Cell at ({row}, {col}) should be empty");
             }
         }
     }
 
     /// <summary>
-    /// Tests that line clearing sequences work correctly.
+    ///     Tests that line clearing sequences work correctly.
     /// </summary>
     [Test]
     public void Write_LineClearingSequences_ClearsCorrectly()
@@ -177,17 +178,17 @@ public class EscapeSequenceIntegrationTests
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('l'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('l'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('o'));
-        
+
         // Characters from cursor position onward should be cleared
         for (int col = 5; col < 11; col++)
         {
-            Assert.That(_terminal.ScreenBuffer.GetCell(0, col).Character, Is.EqualTo(' '), 
+            Assert.That(_terminal.ScreenBuffer.GetCell(0, col).Character, Is.EqualTo(' '),
                 $"Character at column {col} should be cleared");
         }
     }
 
     /// <summary>
-    /// Tests that control characters during escape sequences are handled correctly.
+    ///     Tests that control characters during escape sequences are handled correctly.
     /// </summary>
     [Test]
     public void Write_ControlCharactersDuringEscapeSequence_HandlesCorrectly()
@@ -197,11 +198,11 @@ public class EscapeSequenceIntegrationTests
         _terminal.Bell += (sender, args) => bellRaised = true;
 
         // Act - Send BEL during CSI sequence (should be processed)
-        _terminal.Write("\x1b");     // ESC
-        _terminal.Write("[");        // [
-        _terminal.Write("\x07");     // BEL (should be processed)
-        _terminal.Write("5");        // 5
-        _terminal.Write("A");        // A (complete the sequence)
+        _terminal.Write("\x1b"); // ESC
+        _terminal.Write("["); // [
+        _terminal.Write("\x07"); // BEL (should be processed)
+        _terminal.Write("5"); // 5
+        _terminal.Write("A"); // A (complete the sequence)
 
         // Assert
         Assert.That(bellRaised, Is.True, "BEL should be processed during escape sequence");
@@ -209,15 +210,15 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that UTF-8 sequences work correctly with escape sequences.
+    ///     Tests that UTF-8 sequences work correctly with escape sequences.
     /// </summary>
     [Test]
     public void Write_Utf8WithEscapeSequences_HandlesCorrectly()
     {
         // Act - Write UTF-8 character, move cursor, write another UTF-8 character
         _terminal.Write("Hello 世界"); // UTF-8 characters
-        _terminal.Write("\x1b[2;1H");  // Move to row 2, column 1
-        _terminal.Write("测试");       // More UTF-8 characters
+        _terminal.Write("\x1b[2;1H"); // Move to row 2, column 1
+        _terminal.Write("测试"); // More UTF-8 characters
 
         // Assert
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('世'));
@@ -227,7 +228,7 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that incomplete escape sequences at end of input are handled gracefully.
+    ///     Tests that incomplete escape sequences at end of input are handled gracefully.
     /// </summary>
     [Test]
     public void Write_IncompleteEscapeSequenceAtEnd_HandlesGracefully()
@@ -242,7 +243,7 @@ public class EscapeSequenceIntegrationTests
         // Assert - Should not crash and cursor should remain at original position
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(0));
         Assert.That(_terminal.Cursor.Col, Is.EqualTo(5));
-        
+
         // Screen content should be intact
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('H'));
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('e'));
@@ -252,18 +253,18 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that rapid sequence of escape sequences works correctly.
-    /// This simulates real shell output with many escape sequences.
+    ///     Tests that rapid sequence of escape sequences works correctly.
+    ///     This simulates real shell output with many escape sequences.
     /// </summary>
     [Test]
     public void Write_RapidEscapeSequences_HandlesCorrectly()
     {
         // Act - Send multiple cursor movements rapidly
-        _terminal.Write("\x1b[5;5H");  // Move to (5,5)
-        _terminal.Write("\x1b[3A");    // Move up 3
-        _terminal.Write("\x1b[2C");    // Move right 2
-        _terminal.Write("\x1b[1B");    // Move down 1
-        _terminal.Write("\x1b[1D");    // Move left 1
+        _terminal.Write("\x1b[5;5H"); // Move to (5,5)
+        _terminal.Write("\x1b[3A"); // Move up 3
+        _terminal.Write("\x1b[2C"); // Move right 2
+        _terminal.Write("\x1b[1B"); // Move down 1
+        _terminal.Write("\x1b[1D"); // Move left 1
 
         // Assert - Final position should be (3,6) (0-based)
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(2)); // 5-1-3+1 = 2
@@ -271,15 +272,15 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    /// Tests that byte-by-byte processing of escape sequences works correctly.
-    /// This is the most stringent test for partial sequence handling.
+    ///     Tests that byte-by-byte processing of escape sequences works correctly.
+    ///     This is the most stringent test for partial sequence handling.
     /// </summary>
     [Test]
     public void Write_ByteByByteEscapeSequence_HandlesCorrectly()
     {
         // Arrange
-        var sequence = "\x1b[10;20H"; // CSI 10;20H
-        var bytes = Encoding.UTF8.GetBytes(sequence);
+        string sequence = "\x1b[10;20H"; // CSI 10;20H
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
 
         // Act - Send each byte individually
         foreach (byte b in bytes)
@@ -288,7 +289,7 @@ public class EscapeSequenceIntegrationTests
         }
 
         // Assert
-        Assert.That(_terminal.Cursor.Row, Is.EqualTo(9));  // 1-based to 0-based
+        Assert.That(_terminal.Cursor.Row, Is.EqualTo(9)); // 1-based to 0-based
         Assert.That(_terminal.Cursor.Col, Is.EqualTo(19)); // 1-based to 0-based
     }
 }

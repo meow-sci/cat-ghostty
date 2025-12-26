@@ -1,18 +1,16 @@
-using NUnit.Framework;
 using caTTY.Core.Terminal;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Tests for cursor movement CSI sequences compatibility with TypeScript implementation.
-/// Validates Requirements 3.3 (TypeScript compatibility for cursor operations).
+///     Tests for cursor movement CSI sequences compatibility with TypeScript implementation.
+///     Validates Requirements 3.3 (TypeScript compatibility for cursor operations).
 /// </summary>
 [TestFixture]
 public class CursorMovementCompatibilityTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
@@ -24,6 +22,8 @@ public class CursorMovementCompatibilityTests
     {
         _terminal?.Dispose();
     }
+
+    private TerminalEmulator _terminal = null!;
 
     [Test]
     public void CursorMovement_MatchesTypeScriptBoundsChecking()
@@ -123,9 +123,9 @@ public class CursorMovementCompatibilityTests
 
         // Any cursor movement should clear wrap pending
         _terminal.Write("\x1b[A"); // Move up
-        
+
         // Write another character - it should not wrap to next line
-        var currentRow = _terminal.Cursor.Row;
+        int currentRow = _terminal.Cursor.Row;
         _terminal.Write("Y");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(currentRow)); // Should not wrap
 
@@ -133,7 +133,7 @@ public class CursorMovementCompatibilityTests
         _terminal.Write("\x1b[1;80H"); // Reset to right edge
         _terminal.Write("X"); // Set wrap pending again
         _terminal.Write("\x1b[C"); // Move right (should clear wrap pending)
-        
+
         currentRow = _terminal.Cursor.Row;
         _terminal.Write("Z");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(currentRow)); // Should not wrap
@@ -167,7 +167,7 @@ public class CursorMovementCompatibilityTests
         // and preserves the other coordinate exactly like TypeScript
 
         _terminal.Write("\x1b[15;25H"); // Start at row 15, col 25
-        
+
         // Vertical movement should preserve column
         _terminal.Write("\x1b[5A");
         Assert.That(_terminal.Cursor.Row, Is.EqualTo(9)); // 15-1-5 = 9

@@ -1,95 +1,92 @@
-using System;
-using System.Collections.Generic;
-
 namespace caTTY.Core.Terminal;
 
 /// <summary>
-/// Shell type enumeration for process launching.
+///     Shell type enumeration for process launching.
 /// </summary>
 public enum ShellType
 {
     /// <summary>
-    /// Automatically detect the best shell for the current platform.
+    ///     Automatically detect the best shell for the current platform.
     /// </summary>
     Auto,
 
     /// <summary>
-    /// Windows PowerShell (powershell.exe).
+    ///     Windows PowerShell (powershell.exe).
     /// </summary>
     PowerShell,
 
     /// <summary>
-    /// PowerShell Core (pwsh.exe).
+    ///     PowerShell Core (pwsh.exe).
     /// </summary>
     PowerShellCore,
 
     /// <summary>
-    /// Windows Command Prompt (cmd.exe).
+    ///     Windows Command Prompt (cmd.exe).
     /// </summary>
     Cmd,
 
     /// <summary>
-    /// Custom shell with explicit path.
+    ///     Custom shell with explicit path.
     /// </summary>
     Custom
 }
 
 /// <summary>
-/// Options for launching a shell process.
+///     Options for launching a shell process.
 /// </summary>
 public class ProcessLaunchOptions
 {
     /// <summary>
-    /// Gets or sets the shell type to launch.
+    ///     Gets or sets the shell type to launch.
     /// </summary>
     public ShellType ShellType { get; set; } = ShellType.Auto;
 
     /// <summary>
-    /// Gets or sets the custom shell path (used when ShellType is Custom).
+    ///     Gets or sets the custom shell path (used when ShellType is Custom).
     /// </summary>
     public string? CustomShellPath { get; set; }
 
     /// <summary>
-    /// Gets or sets additional arguments to pass to the shell.
+    ///     Gets or sets additional arguments to pass to the shell.
     /// </summary>
     public List<string> Arguments { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the working directory for the shell process.
-    /// If null, uses the current process working directory.
+    ///     Gets or sets the working directory for the shell process.
+    ///     If null, uses the current process working directory.
     /// </summary>
     public string? WorkingDirectory { get; set; }
 
     /// <summary>
-    /// Gets or sets additional environment variables for the shell process.
-    /// These will be added to or override the current process environment.
+    ///     Gets or sets additional environment variables for the shell process.
+    ///     These will be added to or override the current process environment.
     /// </summary>
     public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the initial terminal width in columns.
+    ///     Gets or sets the initial terminal width in columns.
     /// </summary>
     public int InitialWidth { get; set; } = 80;
 
     /// <summary>
-    /// Gets or sets the initial terminal height in rows.
+    ///     Gets or sets the initial terminal height in rows.
     /// </summary>
     public int InitialHeight { get; set; } = 25;
 
     /// <summary>
-    /// Gets or sets whether to create a window for the process.
-    /// Should be false for game mod integration.
+    ///     Gets or sets whether to create a window for the process.
+    ///     Should be false for game mod integration.
     /// </summary>
     public bool CreateWindow { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets whether to use shell execute.
-    /// Should be false for direct process control.
+    ///     Gets or sets whether to use shell execute.
+    ///     Should be false for direct process control.
     /// </summary>
     public bool UseShellExecute { get; set; } = false;
 
     /// <summary>
-    /// Creates default launch options for the current platform.
+    ///     Creates default launch options for the current platform.
     /// </summary>
     /// <returns>Default launch options</returns>
     public static ProcessLaunchOptions CreateDefault()
@@ -120,12 +117,12 @@ public class ProcessLaunchOptions
     }
 
     /// <summary>
-    /// Creates launch options for PowerShell on Windows.
+    ///     Creates launch options for PowerShell on Windows.
     /// </summary>
     /// <returns>PowerShell launch options</returns>
     public static ProcessLaunchOptions CreatePowerShell()
     {
-        var options = CreateDefault();
+        ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.PowerShell;
         options.Arguments.Clear();
         options.Arguments.AddRange(["-NoLogo", "-NoProfile"]);
@@ -133,12 +130,12 @@ public class ProcessLaunchOptions
     }
 
     /// <summary>
-    /// Creates launch options for PowerShell Core (pwsh).
+    ///     Creates launch options for PowerShell Core (pwsh).
     /// </summary>
     /// <returns>PowerShell Core launch options</returns>
     public static ProcessLaunchOptions CreatePowerShellCore()
     {
-        var options = CreateDefault();
+        ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.PowerShellCore;
         options.Arguments.Clear();
         options.Arguments.AddRange(["-NoLogo", "-NoProfile"]);
@@ -146,26 +143,26 @@ public class ProcessLaunchOptions
     }
 
     /// <summary>
-    /// Creates launch options for Windows Command Prompt.
+    ///     Creates launch options for Windows Command Prompt.
     /// </summary>
     /// <returns>Command Prompt launch options</returns>
     public static ProcessLaunchOptions CreateCmd()
     {
-        var options = CreateDefault();
+        ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.Cmd;
         options.Arguments.Clear();
         return options;
     }
 
     /// <summary>
-    /// Creates launch options for a custom shell.
+    ///     Creates launch options for a custom shell.
     /// </summary>
     /// <param name="shellPath">Path to the shell executable</param>
     /// <param name="arguments">Arguments to pass to the shell</param>
     /// <returns>Custom shell launch options</returns>
     public static ProcessLaunchOptions CreateCustom(string shellPath, params string[] arguments)
     {
-        var options = CreateDefault();
+        ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.Custom;
         options.CustomShellPath = shellPath;
         options.Arguments.Clear();

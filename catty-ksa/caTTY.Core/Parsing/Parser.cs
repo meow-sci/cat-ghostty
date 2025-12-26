@@ -1,36 +1,36 @@
 using System.Text;
-using Microsoft.Extensions.Logging;
 using caTTY.Core.Types;
+using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
 
 /// <summary>
-/// Escape sequence parser state machine for terminal emulation.
-/// Based on the TypeScript Parser implementation with identical state transitions and sequence detection.
+///     Escape sequence parser state machine for terminal emulation.
+///     Based on the TypeScript Parser implementation with identical state transitions and sequence detection.
 /// </summary>
 public class Parser
 {
+    private readonly ICsiParser _csiParser;
+    private readonly StringBuilder _csiSequence = new();
+    private readonly StringBuilder _dcsParamBuffer = new();
+    private readonly bool _emitNormalBytesDuringEscapeSequence;
+    private readonly List<byte> _escapeSequence = new();
     private readonly IParserHandlers _handlers;
     private readonly ILogger _logger;
-    private readonly bool _emitNormalBytesDuringEscapeSequence;
     private readonly bool _processC0ControlsDuringEscapeSequence;
 
-    private ParserState _state = ParserState.Normal;
-    private readonly List<byte> _escapeSequence = new();
-    private readonly StringBuilder _csiSequence = new();
+    // UTF-8 decoding
+    private readonly IUtf8Decoder _utf8Decoder;
 
     // Control string state (DCS/SOS/PM/APC)
     private ControlStringKind? _controlStringKind;
     private string? _dcsCommand;
-    private readonly StringBuilder _dcsParamBuffer = new();
     private string[] _dcsParameters = Array.Empty<string>();
 
-    // UTF-8 decoding
-    private readonly IUtf8Decoder _utf8Decoder;
-    private readonly ICsiParser _csiParser;
+    private ParserState _state = ParserState.Normal;
 
     /// <summary>
-    /// Creates a new parser with the specified options.
+    ///     Creates a new parser with the specified options.
     /// </summary>
     /// <param name="options">Parser configuration options</param>
     public Parser(ParserOptions options)
@@ -44,7 +44,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Processes a span of bytes through the parser state machine.
+    ///     Processes a span of bytes through the parser state machine.
     /// </summary>
     /// <param name="data">The byte data to process</param>
     public void PushBytes(ReadOnlySpan<byte> data)
@@ -56,16 +56,16 @@ public class Parser
     }
 
     /// <summary>
-    /// Flushes any incomplete UTF-8 sequences at the end of input.
-    /// This should be called when no more input is expected to ensure
-    /// incomplete sequences are handled gracefully.
+    ///     Flushes any incomplete UTF-8 sequences at the end of input.
+    ///     This should be called when no more input is expected to ensure
+    ///     incomplete sequences are handled gracefully.
     /// </summary>
     public void FlushIncompleteSequences()
     {
-        if (_utf8Decoder.FlushIncompleteSequence(out var invalidBytes))
+        if (_utf8Decoder.FlushIncompleteSequence(out ReadOnlySpan<byte> invalidBytes))
         {
             // Send each invalid byte as a separate character
-            foreach (var b in invalidBytes)
+            foreach (byte b in invalidBytes)
             {
                 _handlers.HandleNormalByte(b);
             }
@@ -73,7 +73,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Processes a single byte through the parser state machine.
+    ///     Processes a single byte through the parser state machine.
     /// </summary>
     /// <param name="data">The byte to process</param>
     public void PushByte(byte data)
@@ -82,7 +82,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Main state machine processor for handling bytes based on current parser state.
+    ///     Main state machine processor for handling bytes based on current parser state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void ProcessByte(byte b)
@@ -134,7 +134,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in normal text processing state.
+    ///     Handles bytes in normal text processing state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleNormalState(byte b)
@@ -161,7 +161,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in escape sequence state.
+    ///     Handles bytes in escape sequence state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleEscapeState(byte b)
@@ -176,7 +176,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in CSI sequence state.
+    ///     Handles bytes in CSI sequence state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleCsiState(byte b)
@@ -191,7 +191,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in OSC sequence state.
+    ///     Handles bytes in OSC sequence state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleOscState(byte b)
@@ -217,12 +217,11 @@ public class Parser
         if (b == 0x1b) // ESC
         {
             _state = ParserState.OscEscape;
-            return;
         }
     }
 
     /// <summary>
-    /// Handles bytes in OSC escape state (checking for ST terminator).
+    ///     Handles bytes in OSC escape state (checking for ST terminator).
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleOscEscapeState(byte b)
@@ -248,7 +247,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in DCS sequence state.
+    ///     Handles bytes in DCS sequence state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleDcsState(byte b)
@@ -275,8 +274,8 @@ public class Parser
             if (b >= 0x40 && b <= 0x7e)
             {
                 _dcsCommand = ((char)b).ToString();
-                _dcsParameters = _dcsParamBuffer.Length == 0 
-                    ? Array.Empty<string>() 
+                _dcsParameters = _dcsParamBuffer.Length == 0
+                    ? Array.Empty<string>()
                     : _dcsParamBuffer.ToString().Split(';');
                 return;
             }
@@ -291,7 +290,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in DCS escape state (checking for ST terminator).
+    ///     Handles bytes in DCS escape state (checking for ST terminator).
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleDcsEscapeState(byte b)
@@ -317,7 +316,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in control string state (SOS/PM/APC).
+    ///     Handles bytes in control string state (SOS/PM/APC).
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleControlStringState(byte b)
@@ -334,12 +333,11 @@ public class Parser
         if (b == 0x1b) // ESC
         {
             _state = ParserState.ControlStringEscape;
-            return;
         }
     }
 
     /// <summary>
-    /// Handles bytes in control string escape state (checking for ST terminator).
+    ///     Handles bytes in control string escape state (checking for ST terminator).
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleControlStringEscapeState(byte b)
@@ -349,8 +347,8 @@ public class Parser
         if (b == 0x5c) // \
         {
             // ST terminator
-            var raw = BytesToString(_escapeSequence);
-            var kind = _controlStringKind?.ToString().ToUpperInvariant() ?? "STR";
+            string raw = BytesToString(_escapeSequence);
+            string kind = _controlStringKind?.ToString().ToUpperInvariant() ?? "STR";
             _logger.LogDebug("{Kind} (ST): {Raw}", kind, raw);
             ResetEscapeState();
             return;
@@ -366,7 +364,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles bytes in CSI sequence, building the sequence until final byte.
+    ///     Handles bytes in CSI sequence, building the sequence until final byte.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleCsiByte(byte b)
@@ -387,12 +385,11 @@ public class Parser
         if (b >= 0x40 && b <= 0x7e)
         {
             FinishCsiSequence();
-            return;
         }
     }
 
     /// <summary>
-    /// Handles ESC byte, accumulating into escape sequence and determining next state.
+    ///     Handles ESC byte, accumulating into escape sequence and determining next state.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleEscapeByte(byte b)
@@ -459,15 +456,15 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles single-byte ESC sequences that complete immediately.
+    ///     Handles single-byte ESC sequences that complete immediately.
     /// </summary>
     /// <param name="b">The final byte of the sequence</param>
     private void HandleSingleByteEscSequence(byte b)
     {
         _escapeSequence.Add(b);
-        var raw = BytesToString(_escapeSequence);
+        string raw = BytesToString(_escapeSequence);
 
-        var message = b switch
+        EscMessage? message = b switch
         {
             0x37 => new EscMessage { Type = "esc.saveCursor", Raw = raw, Implemented = true }, // ESC 7
             0x38 => new EscMessage { Type = "esc.restoreCursor", Raw = raw, Implemented = true }, // ESC 8
@@ -501,7 +498,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles multi-byte ESC sequences like character set designation.
+    ///     Handles multi-byte ESC sequences like character set designation.
     /// </summary>
     /// <param name="b">The current byte being processed</param>
     private void HandleMultiByteEscSequence(byte b)
@@ -509,14 +506,14 @@ public class Parser
         // Second byte after ESC for character set designation
         if (_escapeSequence.Count == 2)
         {
-            var firstByte = _escapeSequence[1];
+            byte firstByte = _escapeSequence[1];
             if (firstByte == 0x28 || firstByte == 0x29 || firstByte == 0x2a || firstByte == 0x2b)
             {
                 _escapeSequence.Add(b);
-                var raw = BytesToString(_escapeSequence);
+                string raw = BytesToString(_escapeSequence);
 
                 // Determine which G slot is being designated
-                var slot = firstByte switch
+                string slot = firstByte switch
                 {
                     0x28 => "G0",
                     0x29 => "G1",
@@ -525,7 +522,7 @@ public class Parser
                     _ => "G0"
                 };
 
-                var charset = ((char)b).ToString();
+                string charset = ((char)b).ToString();
                 var message = new EscMessage
                 {
                     Type = "esc.designateCharacterSet",
@@ -546,15 +543,14 @@ public class Parser
         // Basic ESC sequence: intermediates 0x20-0x2F, final 0x30-0x7E
         if (b >= 0x30 && b <= 0x7e)
         {
-            var raw = BytesToString(_escapeSequence);
+            string raw = BytesToString(_escapeSequence);
             _logger.LogDebug("ESC (opaque): {Raw}", raw);
             ResetEscapeState();
-            return;
         }
     }
 
     /// <summary>
-    /// Handles normal printable bytes and UTF-8 sequences.
+    ///     Handles normal printable bytes and UTF-8 sequences.
     /// </summary>
     /// <param name="b">The byte to process</param>
     private void HandleNormalByte(byte b)
@@ -567,7 +563,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Resets the parser to normal state and clears all buffers.
+    ///     Resets the parser to normal state and clears all buffers.
     /// </summary>
     private void ResetEscapeState()
     {
@@ -581,7 +577,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Handles C0 control characters except ESC.
+    ///     Handles C0 control characters except ESC.
     /// </summary>
     /// <param name="b">The control character byte</param>
     /// <returns>True if the byte was handled as a control character</returns>
@@ -614,11 +610,12 @@ public class Parser
                 _handlers.HandleCarriageReturn();
                 return true;
         }
+
         return false;
     }
 
     /// <summary>
-    /// Starts a new escape sequence.
+    ///     Starts a new escape sequence.
     /// </summary>
     /// <param name="b">The ESC byte (0x1b)</param>
     private void StartEscapeSequence(byte b)
@@ -629,19 +626,13 @@ public class Parser
     }
 
     /// <summary>
-    /// Finishes an OSC sequence and sends it to the handler.
+    ///     Finishes an OSC sequence and sends it to the handler.
     /// </summary>
     /// <param name="terminator">The terminator type ("BEL" or "ST")</param>
     private void FinishOscSequence(string terminator)
     {
-        var raw = BytesToString(_escapeSequence);
-        var message = new OscMessage
-        {
-            Type = "osc",
-            Raw = raw,
-            Terminator = terminator,
-            Implemented = false
-        };
+        string raw = BytesToString(_escapeSequence);
+        var message = new OscMessage { Type = "osc", Raw = raw, Terminator = terminator, Implemented = false };
 
         // TODO: Try to parse as xterm OSC extension (will be implemented in task 6.1)
         _logger.LogDebug("OSC (opaque, {Terminator}): {Raw}", terminator, raw);
@@ -651,12 +642,12 @@ public class Parser
     }
 
     /// <summary>
-    /// Finishes a CSI sequence and sends it to the handler.
+    ///     Finishes a CSI sequence and sends it to the handler.
     /// </summary>
     private void FinishCsiSequence()
     {
-        var raw = BytesToString(_escapeSequence);
-        var finalByte = _escapeSequence[^1];
+        string raw = BytesToString(_escapeSequence);
+        byte finalByte = _escapeSequence[^1];
 
         // CSI SGR: parse using the standalone SGR parser (will be implemented in task 3.1)
         if (finalByte == 0x6d) // 'm'
@@ -664,10 +655,7 @@ public class Parser
             // TODO: Parse SGR sequence (will be implemented in task 3.1)
             var sgrSequence = new SgrSequence
             {
-                Type = "sgr",
-                Implemented = false,
-                Raw = raw,
-                Messages = Array.Empty<SgrMessage>()
+                Type = "sgr", Implemented = false, Raw = raw, Messages = Array.Empty<SgrMessage>()
             };
             _handlers.HandleSgr(sgrSequence);
             ResetEscapeState();
@@ -675,18 +663,18 @@ public class Parser
         }
 
         // Parse CSI sequence using the dedicated CSI parser
-        var message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
+        CsiMessage message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
         _handlers.HandleCsi(message);
         ResetEscapeState();
     }
 
     /// <summary>
-    /// Finishes a DCS sequence and sends it to the handler.
+    ///     Finishes a DCS sequence and sends it to the handler.
     /// </summary>
     /// <param name="terminator">The terminator type ("ST")</param>
     private void FinishDcsSequence(string terminator)
     {
-        var raw = BytesToString(_escapeSequence);
+        string raw = BytesToString(_escapeSequence);
         var message = new DcsMessage
         {
             Type = "dcs",
@@ -703,7 +691,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Optionally emits a normal byte during escape sequence processing.
+    ///     Optionally emits a normal byte during escape sequence processing.
     /// </summary>
     /// <param name="b">The byte to potentially emit</param>
     private void MaybeEmitNormalByteDuringEscapeSequence(byte b)
@@ -715,7 +703,7 @@ public class Parser
     }
 
     /// <summary>
-    /// Converts a list of bytes to a string representation.
+    ///     Converts a list of bytes to a string representation.
     /// </summary>
     /// <param name="bytes">The bytes to convert</param>
     /// <returns>The string representation</returns>

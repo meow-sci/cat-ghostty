@@ -1,12 +1,11 @@
-using System;
-using NUnit.Framework;
 using caTTY.Display.Configuration;
+using NUnit.Framework;
 
 namespace caTTY.Display.Tests.Unit.Configuration;
 
 /// <summary>
-/// Unit tests for TerminalRenderingConfig class.
-/// Tests factory methods, validation logic, and bounds checking.
+///     Unit tests for TerminalRenderingConfig class.
+///     Tests factory methods, validation logic, and bounds checking.
 /// </summary>
 [TestFixture]
 [Category("Unit")]
@@ -60,7 +59,7 @@ public class TerminalRenderingConfigTests
     public void CreateForGameMod_WithZeroScale_ShouldThrowArgumentException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(0.0f));
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(0.0f));
         Assert.That(ex.ParamName, Is.EqualTo("dpiScale"));
         Assert.That(ex.Message, Does.Contain("must be greater than 0"));
     }
@@ -69,7 +68,7 @@ public class TerminalRenderingConfigTests
     public void CreateForGameMod_WithNegativeScale_ShouldThrowArgumentException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(-1.0f));
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(-1.0f));
         Assert.That(ex.ParamName, Is.EqualTo("dpiScale"));
         Assert.That(ex.Message, Does.Contain("must be greater than 0"));
     }
@@ -94,10 +93,7 @@ public class TerminalRenderingConfigTests
         // Arrange
         var config = new TerminalRenderingConfig
         {
-            FontSize = 12.0f,
-            CharacterWidth = 8.0f,
-            LineHeight = 14.0f,
-            DpiScalingFactor = 1.5f
+            FontSize = 12.0f, CharacterWidth = 8.0f, LineHeight = 14.0f, DpiScalingFactor = 1.5f
         };
 
         // Act & Assert
@@ -111,7 +107,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { FontSize = 0.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("FontSize"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 128"));
     }
@@ -123,7 +119,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { FontSize = -5.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("FontSize"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 128"));
     }
@@ -135,7 +131,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { FontSize = 256.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("FontSize"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 128"));
     }
@@ -147,7 +143,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { CharacterWidth = 0.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("CharacterWidth"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 50"));
     }
@@ -159,7 +155,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { CharacterWidth = -2.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("CharacterWidth"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 50"));
     }
@@ -171,7 +167,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { CharacterWidth = 128.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("CharacterWidth"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 50"));
     }
@@ -183,7 +179,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { LineHeight = 0.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("LineHeight"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 100"));
     }
@@ -195,7 +191,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { LineHeight = -3.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("LineHeight"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 100"));
     }
@@ -207,7 +203,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { LineHeight = 150.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("LineHeight"));
         Assert.That(ex.Message, Does.Contain("must be between 0 and 100"));
     }
@@ -219,7 +215,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { DpiScalingFactor = 0.0f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("DpiScalingFactor"));
         Assert.That(ex.Message, Does.Contain("must be greater than 0"));
     }
@@ -231,7 +227,7 @@ public class TerminalRenderingConfigTests
         var config = new TerminalRenderingConfig { DpiScalingFactor = -1.5f };
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => config.Validate());
+        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
         Assert.That(ex.ParamName, Is.EqualTo("DpiScalingFactor"));
         Assert.That(ex.Message, Does.Contain("must be greater than 0"));
     }
@@ -243,11 +239,11 @@ public class TerminalRenderingConfigTests
         var original = TerminalRenderingConfig.CreateForTestApp();
 
         // Act
-        var modified = original.WithModifications(
-            fontSize: 20.0f,
-            characterWidth: 12.0f,
-            lineHeight: 24.0f,
-            dpiScalingFactor: 1.25f);
+        TerminalRenderingConfig modified = original.WithModifications(
+            20.0f,
+            12.0f,
+            24.0f,
+            1.25f);
 
         // Assert
         Assert.That(modified.FontSize, Is.EqualTo(20.0f));
@@ -264,7 +260,7 @@ public class TerminalRenderingConfigTests
         var original = TerminalRenderingConfig.CreateForGameMod(1.5f);
 
         // Act
-        var modified = original.WithModifications(fontSize: 10.0f);
+        TerminalRenderingConfig modified = original.WithModifications(10.0f);
 
         // Assert
         Assert.That(modified.FontSize, Is.EqualTo(10.0f));
@@ -281,7 +277,7 @@ public class TerminalRenderingConfigTests
         var original = TerminalRenderingConfig.CreateDefault();
 
         // Act
-        var modified = original.WithModifications();
+        TerminalRenderingConfig modified = original.WithModifications();
 
         // Assert
         Assert.That(modified.FontSize, Is.EqualTo(original.FontSize));
@@ -305,7 +301,7 @@ public class TerminalRenderingConfigTests
         };
 
         // Act
-        var result = config.ToString();
+        string result = config.ToString();
 
         // Assert
         Assert.That(result, Does.Contain("FontSize=14.5"));
@@ -321,20 +317,14 @@ public class TerminalRenderingConfigTests
         // Test minimum valid values
         var minConfig = new TerminalRenderingConfig
         {
-            FontSize = 0.1f,
-            CharacterWidth = 0.1f,
-            LineHeight = 0.1f,
-            DpiScalingFactor = 0.1f
+            FontSize = 0.1f, CharacterWidth = 0.1f, LineHeight = 0.1f, DpiScalingFactor = 0.1f
         };
         Assert.DoesNotThrow(() => minConfig.Validate());
 
         // Test maximum valid values
         var maxConfig = new TerminalRenderingConfig
         {
-            FontSize = 72.0f,
-            CharacterWidth = 50.0f,
-            LineHeight = 100.0f,
-            DpiScalingFactor = 10.0f
+            FontSize = 72.0f, CharacterWidth = 50.0f, LineHeight = 100.0f, DpiScalingFactor = 10.0f
         };
         Assert.DoesNotThrow(() => maxConfig.Validate());
     }

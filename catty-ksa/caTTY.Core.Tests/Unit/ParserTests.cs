@@ -1,27 +1,23 @@
 using System.Text;
-using Microsoft.Extensions.Logging;
-using NUnit.Framework;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
+using Microsoft.Extensions.Logging;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit;
 
 /// <summary>
-/// Unit tests for the escape sequence parser state machine.
+///     Unit tests for the escape sequence parser state machine.
 /// </summary>
 [TestFixture]
 public class ParserTests
 {
-    private TestParserHandlers _handlers = null!;
-    private Parser _parser = null!;
-    private ILogger _logger = null!;
-
     [SetUp]
     public void SetUp()
     {
         _handlers = new TestParserHandlers();
         _logger = new TestLogger();
-        
+
         var options = new ParserOptions
         {
             Logger = _logger,
@@ -29,9 +25,13 @@ public class ParserTests
             EmitNormalBytesDuringEscapeSequence = false,
             ProcessC0ControlsDuringEscapeSequence = true
         };
-        
+
         _parser = new Parser(options);
     }
+
+    private TestParserHandlers _handlers = null!;
+    private Parser _parser = null!;
+    private ILogger _logger = null!;
 
     [Test]
     public void PushByte_NormalAsciiCharacter_CallsHandleNormalByte()
@@ -219,7 +219,7 @@ public class ParserTests
 }
 
 /// <summary>
-/// Test implementation of IParserHandlers for capturing parser events.
+///     Test implementation of IParserHandlers for capturing parser events.
 /// </summary>
 public class TestParserHandlers : IParserHandlers
 {
@@ -240,36 +240,103 @@ public class TestParserHandlers : IParserHandlers
     public List<SgrSequence> SgrSequences { get; } = new();
     public List<XtermOscMessage> XtermOscMessages { get; } = new();
 
-    public void HandleBell() => BellCalled = true;
-    public void HandleBackspace() => BackspaceCalled = true;
-    public void HandleTab() => TabCalled = true;
-    public void HandleLineFeed() => LineFeedCalled = true;
-    public void HandleFormFeed() => FormFeedCalled = true;
-    public void HandleCarriageReturn() => CarriageReturnCalled = true;
-    public void HandleShiftIn() => ShiftInCalled = true;
-    public void HandleShiftOut() => ShiftOutCalled = true;
-    public void HandleNormalByte(int codePoint) => NormalBytes.Add(codePoint);
-    public void HandleEsc(EscMessage message) => EscMessages.Add(message);
-    public void HandleCsi(CsiMessage message) => CsiMessages.Add(message);
-    public void HandleOsc(OscMessage message) => OscMessages.Add(message);
-    public void HandleDcs(DcsMessage message) => DcsMessages.Add(message);
-    public void HandleSgr(SgrSequence sequence) => SgrSequences.Add(sequence);
-    public void HandleXtermOsc(XtermOscMessage message) => XtermOscMessages.Add(message);
+    public void HandleBell()
+    {
+        BellCalled = true;
+    }
+
+    public void HandleBackspace()
+    {
+        BackspaceCalled = true;
+    }
+
+    public void HandleTab()
+    {
+        TabCalled = true;
+    }
+
+    public void HandleLineFeed()
+    {
+        LineFeedCalled = true;
+    }
+
+    public void HandleFormFeed()
+    {
+        FormFeedCalled = true;
+    }
+
+    public void HandleCarriageReturn()
+    {
+        CarriageReturnCalled = true;
+    }
+
+    public void HandleShiftIn()
+    {
+        ShiftInCalled = true;
+    }
+
+    public void HandleShiftOut()
+    {
+        ShiftOutCalled = true;
+    }
+
+    public void HandleNormalByte(int codePoint)
+    {
+        NormalBytes.Add(codePoint);
+    }
+
+    public void HandleEsc(EscMessage message)
+    {
+        EscMessages.Add(message);
+    }
+
+    public void HandleCsi(CsiMessage message)
+    {
+        CsiMessages.Add(message);
+    }
+
+    public void HandleOsc(OscMessage message)
+    {
+        OscMessages.Add(message);
+    }
+
+    public void HandleDcs(DcsMessage message)
+    {
+        DcsMessages.Add(message);
+    }
+
+    public void HandleSgr(SgrSequence sequence)
+    {
+        SgrSequences.Add(sequence);
+    }
+
+    public void HandleXtermOsc(XtermOscMessage message)
+    {
+        XtermOscMessages.Add(message);
+    }
 }
 
 /// <summary>
-/// Test implementation of ILogger for capturing log messages.
+///     Test implementation of ILogger for capturing log messages.
 /// </summary>
 public class TestLogger : ILogger
 {
     public List<string> LogMessages { get; } = new();
 
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-    public bool IsEnabled(LogLevel logLevel) => true;
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
     {
-        var message = formatter(state, exception);
+        return null;
+    }
+
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return true;
+    }
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+        string message = formatter(state, exception);
         LogMessages.Add($"[{logLevel}] {message}");
     }
 }

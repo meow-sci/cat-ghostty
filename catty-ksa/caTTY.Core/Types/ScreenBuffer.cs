@@ -1,28 +1,16 @@
-using System;
-
 namespace caTTY.Core.Types;
 
 /// <summary>
-/// Implementation of IScreenBuffer using a simple 2D array of cells.
-/// All cells are initialized to the default empty cell (space character).
+///     Implementation of IScreenBuffer using a simple 2D array of cells.
+///     All cells are initialized to the default empty cell (space character).
 /// </summary>
 public class ScreenBuffer : IScreenBuffer
 {
     private readonly Cell[,] _cells;
 
     /// <summary>
-    /// Gets the width of the screen buffer in columns.
-    /// </summary>
-    public int Width { get; }
-
-    /// <summary>
-    /// Gets the height of the screen buffer in rows.
-    /// </summary>
-    public int Height { get; }
-
-    /// <summary>
-    /// Creates a new screen buffer with the specified dimensions.
-    /// All cells are initialized to empty (space character).
+    ///     Creates a new screen buffer with the specified dimensions.
+    ///     All cells are initialized to empty (space character).
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
@@ -30,9 +18,14 @@ public class ScreenBuffer : IScreenBuffer
     public ScreenBuffer(int width, int height)
     {
         if (width < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(width), "Width must be at least 1");
+        }
+
         if (height < 1)
+        {
             throw new ArgumentOutOfRangeException(nameof(height), "Height must be at least 1");
+        }
 
         Width = width;
         Height = height;
@@ -43,8 +36,18 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
-    /// Gets the cell at the specified position.
-    /// Returns Empty cell if coordinates are out of bounds.
+    ///     Gets the width of the screen buffer in columns.
+    /// </summary>
+    public int Width { get; }
+
+    /// <summary>
+    ///     Gets the height of the screen buffer in rows.
+    /// </summary>
+    public int Height { get; }
+
+    /// <summary>
+    ///     Gets the cell at the specified position.
+    ///     Returns Empty cell if coordinates are out of bounds.
     /// </summary>
     /// <param name="row">The row index (0-based)</param>
     /// <param name="col">The column index (0-based)</param>
@@ -52,14 +55,16 @@ public class ScreenBuffer : IScreenBuffer
     public Cell GetCell(int row, int col)
     {
         if (!IsInBounds(row, col))
+        {
             return Cell.Empty;
+        }
 
         return _cells[row, col];
     }
 
     /// <summary>
-    /// Sets the cell at the specified position.
-    /// Ignores the operation if coordinates are out of bounds.
+    ///     Sets the cell at the specified position.
+    ///     Ignores the operation if coordinates are out of bounds.
     /// </summary>
     /// <param name="row">The row index (0-based)</param>
     /// <param name="col">The column index (0-based)</param>
@@ -67,17 +72,19 @@ public class ScreenBuffer : IScreenBuffer
     public void SetCell(int row, int col, Cell cell)
     {
         if (!IsInBounds(row, col))
+        {
             return;
+        }
 
         _cells[row, col] = cell;
     }
 
     /// <summary>
-    /// Clears the entire screen buffer, setting all cells to empty.
+    ///     Clears the entire screen buffer, setting all cells to empty.
     /// </summary>
     public void Clear()
     {
-        var emptyCell = Cell.Empty;
+        Cell emptyCell = Cell.Empty;
         for (int row = 0; row < Height; row++)
         {
             for (int col = 0; col < Width; col++)
@@ -88,15 +95,17 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
-    /// Clears a specific row, setting all cells in that row to empty.
+    ///     Clears a specific row, setting all cells in that row to empty.
     /// </summary>
     /// <param name="row">The row index to clear</param>
     public void ClearRow(int row)
     {
         if (row < 0 || row >= Height)
+        {
             return;
+        }
 
-        var emptyCell = Cell.Empty;
+        Cell emptyCell = Cell.Empty;
         for (int col = 0; col < Width; col++)
         {
             _cells[row, col] = emptyCell;
@@ -104,7 +113,7 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
-    /// Clears a region of the screen buffer.
+    ///     Clears a region of the screen buffer.
     /// </summary>
     /// <param name="startRow">Starting row (inclusive)</param>
     /// <param name="startCol">Starting column (inclusive)</param>
@@ -120,9 +129,11 @@ public class ScreenBuffer : IScreenBuffer
 
         // Ensure start <= end
         if (startRow > endRow || startCol > endCol)
+        {
             return;
+        }
 
-        var emptyCell = Cell.Empty;
+        Cell emptyCell = Cell.Empty;
         for (int row = startRow; row <= endRow; row++)
         {
             for (int col = startCol; col <= endCol; col++)
@@ -133,15 +144,17 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
-    /// Gets a read-only span of cells for the specified row.
-    /// Returns empty span if row is out of bounds.
+    ///     Gets a read-only span of cells for the specified row.
+    ///     Returns empty span if row is out of bounds.
     /// </summary>
     /// <param name="row">The row index</param>
     /// <returns>Read-only span of cells in the row</returns>
     public ReadOnlySpan<Cell> GetRow(int row)
     {
         if (row < 0 || row >= Height)
+        {
             return ReadOnlySpan<Cell>.Empty;
+        }
 
         // Create an array for the row data since we can't create spans from 2D arrays directly
         var rowData = new Cell[Width];
@@ -149,11 +162,12 @@ public class ScreenBuffer : IScreenBuffer
         {
             rowData[col] = _cells[row, col];
         }
+
         return new ReadOnlySpan<Cell>(rowData);
     }
 
     /// <summary>
-    /// Checks if the specified coordinates are within bounds.
+    ///     Checks if the specified coordinates are within bounds.
     /// </summary>
     /// <param name="row">The row index</param>
     /// <param name="col">The column index</param>

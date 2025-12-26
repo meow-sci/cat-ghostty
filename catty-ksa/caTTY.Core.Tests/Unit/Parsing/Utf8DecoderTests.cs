@@ -1,5 +1,5 @@
-using NUnit.Framework;
 using caTTY.Core.Parsing;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Parsing;
 
@@ -7,21 +7,22 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 [Category("Unit")]
 public class Utf8DecoderTests
 {
-    private Utf8Decoder _decoder = null!;
-
     [SetUp]
     public void SetUp()
     {
         _decoder = new Utf8Decoder();
     }
 
+    private Utf8Decoder _decoder = null!;
+
     [Test]
     public void TryDecodeSequence_SingleAsciiBytes_ReturnsCorrectCodePoints()
     {
         // Test ASCII characters
-        var testBytes = new byte[] { 0x41, 0x42, 0x43 }; // "ABC"
-        
-        Assert.That(_decoder.TryDecodeSequence(testBytes.AsSpan(0, 1), out int codePoint, out int bytesConsumed), Is.True);
+        byte[] testBytes = new byte[] { 0x41, 0x42, 0x43 }; // "ABC"
+
+        Assert.That(_decoder.TryDecodeSequence(testBytes.AsSpan(0, 1), out int codePoint, out int bytesConsumed),
+            Is.True);
         Assert.That(codePoint, Is.EqualTo(0x41));
         Assert.That(bytesConsumed, Is.EqualTo(1));
     }
@@ -30,8 +31,8 @@ public class Utf8DecoderTests
     public void TryDecodeSequence_TwoByteUtf8_ReturnsCorrectCodePoint()
     {
         // Test 2-byte UTF-8: é (U+00E9) = 0xC3 0xA9
-        var testBytes = new byte[] { 0xC3, 0xA9 };
-        
+        byte[] testBytes = new byte[] { 0xC3, 0xA9 };
+
         Assert.That(_decoder.TryDecodeSequence(testBytes, out int codePoint, out int bytesConsumed), Is.True);
         Assert.That(codePoint, Is.EqualTo(0x00E9));
         Assert.That(bytesConsumed, Is.EqualTo(2));
@@ -41,8 +42,8 @@ public class Utf8DecoderTests
     public void TryDecodeSequence_ThreeByteUtf8_ReturnsCorrectCodePoint()
     {
         // Test 3-byte UTF-8: € (U+20AC) = 0xE2 0x82 0xAC
-        var testBytes = new byte[] { 0xE2, 0x82, 0xAC };
-        
+        byte[] testBytes = new byte[] { 0xE2, 0x82, 0xAC };
+
         Assert.That(_decoder.TryDecodeSequence(testBytes, out int codePoint, out int bytesConsumed), Is.True);
         Assert.That(codePoint, Is.EqualTo(0x20AC));
         Assert.That(bytesConsumed, Is.EqualTo(3));
@@ -52,8 +53,8 @@ public class Utf8DecoderTests
     public void TryDecodeSequence_FourByteUtf8_ReturnsCorrectCodePoint()
     {
         // Test 4-byte UTF-8: 𝄞 (U+1D11E) = 0xF0 0x9D 0x84 0x9E
-        var testBytes = new byte[] { 0xF0, 0x9D, 0x84, 0x9E };
-        
+        byte[] testBytes = new byte[] { 0xF0, 0x9D, 0x84, 0x9E };
+
         Assert.That(_decoder.TryDecodeSequence(testBytes, out int codePoint, out int bytesConsumed), Is.True);
         Assert.That(codePoint, Is.EqualTo(0x1D11E));
         Assert.That(bytesConsumed, Is.EqualTo(4));
@@ -63,8 +64,8 @@ public class Utf8DecoderTests
     public void TryDecodeSequence_IncompleteSequence_ReturnsFalse()
     {
         // Test incomplete 2-byte sequence
-        var testBytes = new byte[] { 0xC3 };
-        
+        byte[] testBytes = new byte[] { 0xC3 };
+
         Assert.That(_decoder.TryDecodeSequence(testBytes, out int codePoint, out int bytesConsumed), Is.False);
         Assert.That(bytesConsumed, Is.EqualTo(0));
     }
@@ -73,8 +74,8 @@ public class Utf8DecoderTests
     public void TryDecodeSequence_InvalidContinuationByte_ReturnsFalse()
     {
         // Test invalid continuation byte
-        var testBytes = new byte[] { 0xC3, 0x41 }; // Second byte should be 0x80-0xBF
-        
+        byte[] testBytes = new byte[] { 0xC3, 0x41 }; // Second byte should be 0x80-0xBF
+
         Assert.That(_decoder.TryDecodeSequence(testBytes, out int codePoint, out int bytesConsumed), Is.False);
         Assert.That(bytesConsumed, Is.EqualTo(0));
     }
@@ -150,8 +151,8 @@ public class Utf8DecoderTests
     {
         // Start a sequence but don't complete it
         _decoder.ProcessByte(0xC3, out _);
-        
-        Assert.That(_decoder.FlushIncompleteSequence(out var invalidBytes), Is.True);
+
+        Assert.That(_decoder.FlushIncompleteSequence(out ReadOnlySpan<byte> invalidBytes), Is.True);
         Assert.That(invalidBytes.Length, Is.EqualTo(1));
         Assert.That(invalidBytes[0], Is.EqualTo(0xC3));
     }
@@ -159,7 +160,7 @@ public class Utf8DecoderTests
     [Test]
     public void FlushIncompleteSequence_WithNoData_ReturnsFalse()
     {
-        Assert.That(_decoder.FlushIncompleteSequence(out var invalidBytes), Is.False);
+        Assert.That(_decoder.FlushIncompleteSequence(out ReadOnlySpan<byte> invalidBytes), Is.False);
         Assert.That(invalidBytes.Length, Is.EqualTo(0));
     }
 
@@ -168,12 +169,12 @@ public class Utf8DecoderTests
     {
         // Start a sequence
         _decoder.ProcessByte(0xC3, out _);
-        
+
         // Reset should clear state
         _decoder.Reset();
-        
+
         // Should not have incomplete data after reset
-        Assert.That(_decoder.FlushIncompleteSequence(out var invalidBytes), Is.False);
+        Assert.That(_decoder.FlushIncompleteSequence(out ReadOnlySpan<byte> invalidBytes), Is.False);
         Assert.That(invalidBytes.Length, Is.EqualTo(0));
     }
 }

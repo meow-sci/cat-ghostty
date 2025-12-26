@@ -1,30 +1,27 @@
-using NUnit.Framework;
+using System.Text;
 using caTTY.Core.Terminal;
-using caTTY.Core.Types;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 /// <summary>
-/// Tests for device query sequences and responses.
-/// Validates Requirements 11.1, 11.2, 27.1, 27.2.
+///     Tests for device query sequences and responses.
+///     Validates Requirements 11.1, 11.2, 27.1, 27.2.
 /// </summary>
 [TestFixture]
 public class DeviceQueryTests
 {
-    private TerminalEmulator _terminal = null!;
-    private List<string> _responses = null!;
-
     [SetUp]
     public void SetUp()
     {
         _terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
         _responses = new List<string>();
-        
+
         // Capture responses
         _terminal.ResponseEmitted += (sender, args) =>
         {
-            var responseText = System.Text.Encoding.UTF8.GetString(args.ResponseData.Span);
+            string responseText = Encoding.UTF8.GetString(args.ResponseData.Span);
             _responses.Add(responseText);
         };
     }
@@ -34,6 +31,9 @@ public class DeviceQueryTests
     {
         _terminal.Dispose();
     }
+
+    private TerminalEmulator _terminal = null!;
+    private List<string> _responses = null!;
 
     [Test]
     public void DeviceAttributesPrimary_ShouldRespondWithVT100Capabilities()
@@ -141,40 +141,40 @@ public class DeviceQueryTests
     public void MultipleQueries_ShouldRespondToEach()
     {
         // Act: Send multiple queries in sequence
-        _terminal.Write("\x1b[c");        // Primary DA
-        _terminal.Write("\x1b[5n");       // DSR
-        _terminal.Write("\x1b[6n");       // CPR
+        _terminal.Write("\x1b[c"); // Primary DA
+        _terminal.Write("\x1b[5n"); // DSR
+        _terminal.Write("\x1b[6n"); // CPR
 
         // Assert: Should respond to all queries
         Assert.That(_responses, Has.Count.EqualTo(3));
-        Assert.That(_responses[0], Is.EqualTo("\x1b[?1;2c"));  // Primary DA response
-        Assert.That(_responses[1], Is.EqualTo("\x1b[0n"));     // DSR response
-        Assert.That(_responses[2], Is.EqualTo("\x1b[1;1R"));   // CPR response
+        Assert.That(_responses[0], Is.EqualTo("\x1b[?1;2c")); // Primary DA response
+        Assert.That(_responses[1], Is.EqualTo("\x1b[0n")); // DSR response
+        Assert.That(_responses[2], Is.EqualTo("\x1b[1;1R")); // CPR response
     }
 
     [Test]
     public void DeviceResponses_StaticMethods_ShouldGenerateCorrectResponses()
     {
         // Test static response generation methods directly
-        Assert.That(DeviceResponses.GenerateDeviceAttributesPrimaryResponse(), 
-                   Is.EqualTo("\x1b[?1;2c"));
-        
-        Assert.That(DeviceResponses.GenerateDeviceAttributesSecondaryResponse(), 
-                   Is.EqualTo("\x1b[>0;0;0c"));
-        
-        Assert.That(DeviceResponses.GenerateDeviceStatusReportResponse(), 
-                   Is.EqualTo("\x1b[0n"));
-        
-        Assert.That(DeviceResponses.GenerateCursorPositionReport(9, 4), 
-                   Is.EqualTo("\x1b[5;10R")); // 0-indexed to 1-indexed conversion
-        
-        Assert.That(DeviceResponses.GenerateTerminalSizeResponse(25, 132), 
-                   Is.EqualTo("\x1b[8;25;132t"));
-        
-        Assert.That(DeviceResponses.GenerateCharacterSetQueryResponse(), 
-                   Is.EqualTo("\x1b[?26;0n"));
-        
-        Assert.That(DeviceResponses.GenerateCharacterSetQueryResponse("B"), 
-                   Is.EqualTo("\x1b[?26;Bn"));
+        Assert.That(DeviceResponses.GenerateDeviceAttributesPrimaryResponse(),
+            Is.EqualTo("\x1b[?1;2c"));
+
+        Assert.That(DeviceResponses.GenerateDeviceAttributesSecondaryResponse(),
+            Is.EqualTo("\x1b[>0;0;0c"));
+
+        Assert.That(DeviceResponses.GenerateDeviceStatusReportResponse(),
+            Is.EqualTo("\x1b[0n"));
+
+        Assert.That(DeviceResponses.GenerateCursorPositionReport(9, 4),
+            Is.EqualTo("\x1b[5;10R")); // 0-indexed to 1-indexed conversion
+
+        Assert.That(DeviceResponses.GenerateTerminalSizeResponse(25, 132),
+            Is.EqualTo("\x1b[8;25;132t"));
+
+        Assert.That(DeviceResponses.GenerateCharacterSetQueryResponse(),
+            Is.EqualTo("\x1b[?26;0n"));
+
+        Assert.That(DeviceResponses.GenerateCharacterSetQueryResponse("B"),
+            Is.EqualTo("\x1b[?26;Bn"));
     }
 }

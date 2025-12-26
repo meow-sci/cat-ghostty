@@ -1,35 +1,36 @@
 using System.Text;
 using caTTY.Core.Terminal;
+using caTTY.Core.Types;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Integration;
 
 /// <summary>
-/// Integration tests for selective erase and character protection functionality.
-/// Tests the complete flow from escape sequence parsing to terminal operations.
+///     Integration tests for selective erase and character protection functionality.
+///     Tests the complete flow from escape sequence parsing to terminal operations.
 /// </summary>
 [TestFixture]
 public class SelectiveEraseIntegrationTests
 {
-    private TerminalEmulator _terminal = null!;
-
     [SetUp]
     public void SetUp()
     {
         _terminal = new TerminalEmulator(10, 3, NullLogger.Instance);
     }
 
-    private void SetupTerminal(int width, int height = 3)
-    {
-        _terminal?.Dispose();
-        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
-    }
-
     [TearDown]
     public void TearDown()
     {
         _terminal.Dispose();
+    }
+
+    private TerminalEmulator _terminal = null!;
+
+    private void SetupTerminal(int width, int height = 3)
+    {
+        _terminal?.Dispose();
+        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
     }
 
     private string GetRowText(int row)
@@ -39,6 +40,7 @@ public class SelectiveEraseIntegrationTests
         {
             sb.Append(_terminal.ScreenBuffer.GetCell(row, col).Character);
         }
+
         return sb.ToString();
     }
 
@@ -61,13 +63,13 @@ public class SelectiveEraseIntegrationTests
         Assert.That(GetRowText(0), Is.EqualTo("  BB      "));
 
         // Verify protected cells retain their attributes
-        var protectedCell = _terminal.ScreenBuffer.GetCell(0, 2);
+        Cell protectedCell = _terminal.ScreenBuffer.GetCell(0, 2);
         Assert.That(protectedCell.Character, Is.EqualTo('B'));
         Assert.That(protectedCell.IsProtected, Is.True);
         // Note: SGR parsing not implemented yet, so background color will be null
 
         // Verify erased cells have current SGR and are unprotected
-        var erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
+        Cell erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(erasedCell.Character, Is.EqualTo(' '));
         Assert.That(erasedCell.IsProtected, Is.False);
         // Note: SGR parsing not implemented yet, so background color will be null
@@ -78,7 +80,8 @@ public class SelectiveEraseIntegrationTests
     {
         // Arrange
         _terminal.Write(Encoding.UTF8.GetBytes("ABCDE"));
-        _terminal.Write(Encoding.UTF8.GetBytes("F\x1b[2\"qGH\x1b[0\"qIJ")); // F unprotected, GH protected, IJ unprotected
+        _terminal.Write(
+            Encoding.UTF8.GetBytes("F\x1b[2\"qGH\x1b[0\"qIJ")); // F unprotected, GH protected, IJ unprotected
 
         // Move cursor to column 4 (after D)
         _terminal.Write(Encoding.UTF8.GetBytes("\r\x1b[4C\x1b[?K")); // Selective erase from cursor to end
@@ -116,7 +119,7 @@ public class SelectiveEraseIntegrationTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange - Row 0: 2 unprotected, 2 protected, 2 unprotected
         _terminal.Write(Encoding.UTF8.GetBytes("AA"));
         _terminal.Write(Encoding.UTF8.GetBytes("\x1b[2\"qBB\x1b[0\"qCC"));
@@ -136,7 +139,7 @@ public class SelectiveEraseIntegrationTests
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 0).IsProtected, Is.True);
 
         // Verify erased cells have current SGR and are unprotected
-        var erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
+        Cell erasedCell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(erasedCell.IsProtected, Is.False);
         // Note: SGR parsing not implemented yet, so background color will be null
         // Assert.That(erasedCell.Attributes.BackgroundColor?.NamedColor, Is.EqualTo(Types.NamedColor.Red));
@@ -147,7 +150,7 @@ public class SelectiveEraseIntegrationTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange
         _terminal.Write(Encoding.UTF8.GetBytes("AAAAAA"));
         _terminal.Write(Encoding.UTF8.GetBytes("\r\n\x1b[2\"qBB\x1b[0\"qCCCC"));
@@ -165,7 +168,7 @@ public class SelectiveEraseIntegrationTests
     {
         // Use 6 columns like TypeScript display tests
         SetupTerminal(6);
-        
+
         // Arrange
         _terminal.Write(Encoding.UTF8.GetBytes("\x1b[2\"qAA\x1b[0\"qBBBB"));
         _terminal.Write(Encoding.UTF8.GetBytes("\r\nCCCCCC"));

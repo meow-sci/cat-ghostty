@@ -3,16 +3,16 @@ using System.Text;
 namespace caTTY.Core.Parsing;
 
 /// <summary>
-/// UTF-8 multi-byte sequence decoder with state management.
-/// Handles UTF-8 validation, decoding, and error recovery.
+///     UTF-8 multi-byte sequence decoder with state management.
+///     Handles UTF-8 validation, decoding, and error recovery.
 /// </summary>
 public class Utf8Decoder : IUtf8Decoder
 {
     private readonly List<byte> _buffer = new();
-    private int _expectedLength = 0;
+    private int _expectedLength;
 
     /// <summary>
-    /// Attempts to decode a UTF-8 sequence from the provided bytes.
+    ///     Attempts to decode a UTF-8 sequence from the provided bytes.
     /// </summary>
     /// <param name="bytes">The byte sequence to decode</param>
     /// <param name="codePoint">The decoded Unicode code point if successful</param>
@@ -55,9 +55,9 @@ public class Utf8Decoder : IUtf8Decoder
         // Decode the sequence
         try
         {
-            var utf8Array = bytes.Slice(0, expectedLength).ToArray();
-            var decoded = Encoding.UTF8.GetString(utf8Array);
-            
+            byte[] utf8Array = bytes.Slice(0, expectedLength).ToArray();
+            string decoded = Encoding.UTF8.GetString(utf8Array);
+
             if (decoded.Length > 0)
             {
                 codePoint = char.ConvertToUtf32(decoded, 0);
@@ -74,7 +74,7 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Checks if a byte is a valid UTF-8 start byte.
+    ///     Checks if a byte is a valid UTF-8 start byte.
     /// </summary>
     /// <param name="b">The byte to check</param>
     /// <returns>True if the byte can start a UTF-8 sequence</returns>
@@ -108,7 +108,7 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Gets the expected length of a UTF-8 sequence based on the start byte.
+    ///     Gets the expected length of a UTF-8 sequence based on the start byte.
     /// </summary>
     /// <param name="startByte">The first byte of the sequence</param>
     /// <returns>The expected total length (1-4 bytes), or 0 if invalid</returns>
@@ -142,8 +142,8 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Processes a single byte for UTF-8 decoding.
-    /// Maintains internal state for multi-byte sequences.
+    ///     Processes a single byte for UTF-8 decoding.
+    ///     Maintains internal state for multi-byte sequences.
     /// </summary>
     /// <param name="b">The byte to process</param>
     /// <param name="codePoint">The decoded code point if a sequence is complete</param>
@@ -179,23 +179,23 @@ public class Utf8Decoder : IUtf8Decoder
         if ((b & 0xC0) != 0x80)
         {
             // Invalid continuation byte, flush buffer and start over
-            var invalidBytes = _buffer.ToArray();
+            byte[] invalidBytes = _buffer.ToArray();
             Reset();
-            
+
             // Emit each invalid byte as a separate character
             if (invalidBytes.Length > 0)
             {
                 codePoint = invalidBytes[0];
-                
+
                 // Re-add remaining bytes to buffer for next processing
                 for (int i = 1; i < invalidBytes.Length; i++)
                 {
                     _buffer.Add(invalidBytes[i]);
                 }
-                
+
                 return true;
             }
-            
+
             // Retry with this byte
             return ProcessByte(b, out codePoint);
         }
@@ -212,7 +212,7 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Flushes any incomplete UTF-8 sequence and resets the decoder state.
+    ///     Flushes any incomplete UTF-8 sequence and resets the decoder state.
     /// </summary>
     /// <param name="invalidBytes">The bytes from the incomplete sequence</param>
     /// <returns>True if there were incomplete bytes to flush</returns>
@@ -230,7 +230,7 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Resets the decoder to its initial state.
+    ///     Resets the decoder to its initial state.
     /// </summary>
     public void Reset()
     {
@@ -239,7 +239,7 @@ public class Utf8Decoder : IUtf8Decoder
     }
 
     /// <summary>
-    /// Decodes a complete UTF-8 sequence from the internal buffer.
+    ///     Decodes a complete UTF-8 sequence from the internal buffer.
     /// </summary>
     /// <param name="codePoint">The decoded code point</param>
     /// <returns>True if decoding was successful</returns>
@@ -249,8 +249,8 @@ public class Utf8Decoder : IUtf8Decoder
 
         try
         {
-            var utf8Array = _buffer.ToArray();
-            var decoded = Encoding.UTF8.GetString(utf8Array);
+            byte[] utf8Array = _buffer.ToArray();
+            string decoded = Encoding.UTF8.GetString(utf8Array);
 
             if (decoded.Length > 0)
             {
