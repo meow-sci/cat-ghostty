@@ -299,7 +299,7 @@ public class ProcessManagerTests
 
         // Use PowerShell Start-Sleep with minimal delay - much faster than ping
         var options = ProcessLaunchOptions.CreatePowerShell();
-        options.Arguments.AddRange(["-Command", "Start-Sleep -Seconds 0.5"]);
+        options.Arguments.AddRange(["-Command", "Start-Sleep -Seconds 1.0"]);
 
         try
         {
