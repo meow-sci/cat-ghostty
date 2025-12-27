@@ -206,7 +206,15 @@ public class Parser
         {
             if (message != null)
             {
-                _handlers.HandleOsc(message);
+                // If we have a parsed xterm message, handle it specifically
+                if (message.XtermMessage != null)
+                {
+                    _handlers.HandleXtermOsc(message.XtermMessage);
+                }
+                else
+                {
+                    _handlers.HandleOsc(message);
+                }
             }
             ResetEscapeState();
             return;
@@ -227,7 +235,15 @@ public class Parser
         {
             if (message != null)
             {
-                _handlers.HandleOsc(message);
+                // If we have a parsed xterm message, handle it specifically
+                if (message.XtermMessage != null)
+                {
+                    _handlers.HandleXtermOsc(message.XtermMessage);
+                }
+                else
+                {
+                    _handlers.HandleOsc(message);
+                }
             }
             ResetEscapeState();
             return;

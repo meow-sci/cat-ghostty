@@ -1,3 +1,4 @@
+using System.Text;
 using caTTY.Core.Types;
 using Microsoft.Extensions.Logging;
 
@@ -6,10 +7,16 @@ namespace caTTY.Core.Parsing;
 /// <summary>
 ///     Parser for OSC (Operating System Command) sequences.
 ///     Handles OSC sequence parsing and termination detection.
+///     Based on the TypeScript ParseOsc.ts implementation with identical behavior and robustness.
 /// </summary>
 public class OscParser : IOscParser
 {
     private readonly ILogger _logger;
+    
+    /// <summary>
+    ///     Maximum allowed OSC payload length to prevent memory blowups.
+    /// </summary>
+    private const int MaxOscPayloadLength = 1024;
 
     /// <summary>
     ///     Creates a new OSC parser.
@@ -87,11 +94,252 @@ public class OscParser : IOscParser
     private OscMessage CreateOscMessage(List<byte> escapeSequence, string terminator)
     {
         string raw = BytesToString(escapeSequence);
-        var message = new OscMessage { Type = "osc", Raw = raw, Terminator = terminator, Implemented = false };
+        
+        // Try to parse as xterm OSC extension
+        var xtermMessage = ParseOsc(raw, terminator);
+        if (xtermMessage != null)
+        {
+            _logger.LogDebug("OSC (xterm, {Terminator}): {Raw}", terminator, raw);
+            return new OscMessage 
+            { 
+                Type = "osc", 
+                Raw = raw, 
+                Terminator = terminator, 
+                Implemented = xtermMessage.Implemented,
+                XtermMessage = xtermMessage
+            };
+        }
 
-        // TODO: Try to parse as xterm OSC extension (will be implemented in task 6.1)
+        // Fall back to generic OSC handling
         _logger.LogDebug("OSC (opaque, {Terminator}): {Raw}", terminator, raw);
-        return message;
+        return new OscMessage { Type = "osc", Raw = raw, Terminator = terminator, Implemented = false };
+    }
+
+    /// <summary>
+    ///     Parse OSC (Operating System Command) sequences for xterm extensions.
+    ///     OSC sequences have the format: ESC ] Ps ; Pt BEL/ST
+    ///     where Ps is the command number and Pt is the text parameter.
+    ///     Based on the TypeScript parseOsc function.
+    /// </summary>
+    private XtermOscMessage? ParseOsc(string raw, string terminator)
+    {
+        // OSC sequences start with ESC ] (0x1b 0x5d)
+        if (!raw.StartsWith("\x1b]"))
+        {
+            return null;
+        }
+
+        // Extract the payload (everything after ESC ])
+        string payload = raw[2..];
+        
+        // Remove terminator from payload
+        if (terminator == "BEL")
+        {
+            // Remove BEL (0x07) from end
+            payload = payload[..^1];
+        }
+        else if (terminator == "ST")
+        {
+            // Remove ST (ESC \) from end
+            payload = payload[..^2];
+        }
+
+        // Cap payload length to prevent memory blowups
+        if (payload.Length > MaxOscPayloadLength)
+        {
+            _logger.LogWarning("OSC payload exceeds maximum length ({Length} > {Max}), ignoring", 
+                payload.Length, MaxOscPayloadLength);
+            return null;
+        }
+
+        // Parse command number and text parameter
+        int semicolonIndex = payload.IndexOf(';');
+        if (semicolonIndex == -1)
+        {
+            // No semicolon found - could be a query command
+            if (!int.TryParse(payload, out int commandNum) || !IsValidCommandNumber(commandNum))
+            {
+                return null;
+            }
+            
+            // Handle query commands
+            return commandNum switch
+            {
+                21 => new XtermOscMessage
+                {
+                    Type = "osc.queryWindowTitle",
+                    Raw = raw,
+                    Terminator = terminator,
+                    Command = commandNum,
+                    Payload = string.Empty,
+                    Implemented = true
+                },
+                _ => null
+            };
+        }
+
+        string commandStr = payload[..semicolonIndex];
+        if (!int.TryParse(commandStr, out int command) || !IsValidCommandNumber(command))
+        {
+            return null;
+        }
+
+        string textParam = payload[(semicolonIndex + 1)..];
+        
+        // Handle color queries (OSC 10;? and OSC 11;?)
+        if (textParam == "?" || textParam.StartsWith("?;"))
+        {
+            return command switch
+            {
+                10 => new XtermOscMessage
+                {
+                    Type = "osc.queryForegroundColor",
+                    Raw = raw,
+                    Terminator = terminator,
+                    Command = command,
+                    Payload = textParam,
+                    Implemented = true
+                },
+                11 => new XtermOscMessage
+                {
+                    Type = "osc.queryBackgroundColor",
+                    Raw = raw,
+                    Terminator = terminator,
+                    Command = command,
+                    Payload = textParam,
+                    Implemented = true
+                },
+                _ => null
+            };
+        }
+        
+        // Validate text parameter
+        if (!ValidateOscParameters(command, textParam))
+        {
+            _logger.LogWarning("Invalid OSC parameters: command={Command}, textParam length={Length}", 
+                command, textParam.Length);
+            return null;
+        }
+        
+        // Decode UTF-8 text parameter
+        string decodedText = DecodeUtf8Text(textParam);
+        
+        // Handle title setting commands
+        return command switch
+        {
+            0 => new XtermOscMessage
+            {
+                Type = "osc.setTitleAndIcon",
+                Raw = raw,
+                Terminator = terminator,
+                Command = command,
+                Payload = decodedText,
+                Title = decodedText,
+                Implemented = true
+            },
+            1 => new XtermOscMessage
+            {
+                Type = "osc.setIconName",
+                Raw = raw,
+                Terminator = terminator,
+                Command = command,
+                Payload = decodedText,
+                IconName = decodedText,
+                Implemented = true
+            },
+            2 => new XtermOscMessage
+            {
+                Type = "osc.setWindowTitle",
+                Raw = raw,
+                Terminator = terminator,
+                Command = command,
+                Payload = decodedText,
+                Title = decodedText,
+                Implemented = true
+            },
+            52 => new XtermOscMessage
+            {
+                Type = "osc.clipboard",
+                Raw = raw,
+                Terminator = terminator,
+                Command = command,
+                Payload = decodedText,
+                ClipboardData = decodedText,
+                Implemented = true
+            },
+            8 => new XtermOscMessage
+            {
+                Type = "osc.hyperlink",
+                Raw = raw,
+                Terminator = terminator,
+                Command = command,
+                Payload = decodedText,
+                HyperlinkUrl = decodedText,
+                Implemented = true
+            },
+            _ => null
+        };
+    }
+
+    /// <summary>
+    ///     Decode UTF-8 text from OSC parameter.
+    ///     Handles proper UTF-8 decoding for international characters.
+    ///     Based on the TypeScript decodeUtf8Text function.
+    /// </summary>
+    private string DecodeUtf8Text(string text)
+    {
+        try
+        {
+            // In C#, strings are already UTF-16, but we need to ensure proper handling
+            // of any byte sequences that might have been incorrectly decoded
+            byte[] bytes = Encoding.Latin1.GetBytes(text);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to decode UTF-8 text, using original: {Text}", text);
+            return text;
+        }
+    }
+
+    /// <summary>
+    ///     Validate OSC parameter format and ranges.
+    ///     Based on the TypeScript validateOscParameters function.
+    /// </summary>
+    private bool ValidateOscParameters(int commandNum, string textParam)
+    {
+        // Command number validation
+        if (!IsValidCommandNumber(commandNum))
+        {
+            return false;
+        }
+        
+        // Text parameter validation
+        if (textParam.Length > MaxOscPayloadLength)
+        {
+            return false;
+        }
+        
+        // Check for control characters that shouldn't be in titles
+        foreach (char c in textParam)
+        {
+            int charCode = c;
+            if (charCode < 0x20 && charCode != 0x09)
+            {
+                // Allow tab (0x09) but reject other control characters
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /// <summary>
+    ///     Validates that a command number is within acceptable range.
+    /// </summary>
+    private static bool IsValidCommandNumber(int commandNum)
+    {
+        return commandNum >= 0 && commandNum <= 999;
     }
 
     /// <summary>

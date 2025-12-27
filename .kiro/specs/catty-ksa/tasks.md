@@ -29,107 +29,106 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 
-- [ ] 5. Add alternate screen buffer and advanced terminal modes
-- [x] 5.1 Create alternate screen buffer infrastructure
-  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
-  - Create AlternateScreenManager class
-  - Implement separate primary and alternate screen buffers
-  - Add buffer switching methods (activate/deactivate)
-  - Preserve cursor and attributes independently per buffer
-  - **CRITICAL CODE ORGANIZATION**: Create dedicated AlternateScreenManager class
-    - Extract alternate screen logic into caTTY.Core/Managers/AlternateScreenManager.cs
-    - Create IAlternateScreenManager interface for testability
-    - AlternateScreenManager should handle all buffer switching and state isolation
-    - AlternateScreenManager should not exceed 200 lines (excluding comments)
-    - TerminalEmulator should delegate alternate screen operations to AlternateScreenManager instance
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
-  - _Requirements: 15.1, 15.2, 15.4_
+- [ ] 6. Add OSC sequences and advanced features
+- [x] 6.1 Create OSC sequence parser infrastructure
+  - Create OscParser class for OSC sequences
+  - Add OSC sequence detection (ESC ] command ST)
+  - Parse OSC command numbers and parameters
+  - Handle string termination with ST or BEL
+  - Define robustness rules
+    - Ignore/skip malformed OSC without breaking the stream
+    - Cap maximum OSC payload length to prevent memory blowups
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated OscParser class
+    - Extract OSC parsing logic into caTTY.Core/Parsing/OscParser.cs
+    - Create IOscParser interface for testability
+    - OscParser should handle all OSC sequence parsing and command extraction
+    - OscParser should not exceed 250 lines (excluding comments)
+    - Main Parser should delegate OSC parsing to OscParser instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts and Parser.ts OSC handling to ensure C# implementation provides identical OSC parsing behavior and robustness
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
+  - _Requirements: 13.1_
 
-- [x] 5.2 Implement alternate screen isolation
-  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
-  - Ensure alternate screen doesn't add to scrollback
-  - Clear alternate buffer on activation
-  - Handle buffer switching with proper state preservation
-  - Maintain separate cursor positions per buffer
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
-  - _Requirements: 15.3, 15.5_
+- [ ] 6.2 Implement window title OSC sequences
+  - Add OSC 0 and OSC 2 (set window title) sequence handling
+  - Emit title change events with new title text
+  - Add title state tracking in terminal
+  - Handle empty titles and title reset
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts window title handling to ensure C# implementation provides identical title change behavior and event emission
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts
+  - _Requirements: 13.2_
 
-- [x] 5.3 Add alternate screen control sequences
-  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
-  - Implement DEC private mode sequences for alternate screen
-  - Add alternate screen activation/deactivation sequences
-  - Handle mode switching in CSI parser
-  - Test buffer switching with state preservation
-  - Ensure correct semantics for 47/1047/1049
-    - 1047/1049 preserve/restore cursor as specified
-    - 1049 clears alternate screen on entry
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts and handlers/csi.ts to ensure C# implementation provides identical alternate screen control sequence behavior
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
-  - _Requirements: 15.1, 15.2, 15.5_
+- [ ] 6.3 Add clipboard OSC sequences
+  - Add OSC 52 (clipboard) sequence handling
+  - Emit clipboard events for game integration
+  - Parse clipboard data and selection targets
+  - Handle base64 encoded clipboard content
+  - Define safety limits
+    - Cap decoded clipboard size
+    - Ignore invalid base64 payloads gracefully
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts clipboard handling to ensure C# implementation provides identical clipboard sequence processing and safety limits
+  - _Requirements: 13.4_
 
-- [x] 5.4 Write property test for alternate screen buffer switching
-  - **Property 29: Alternate screen buffer switching**
-  - **Validates: Requirements 15.1, 15.2, 15.4**
+- [ ] 6.4 Write property test for OSC parsing and event emission
+  - **Property 23: OSC parsing and event emission**
+  - **Validates: Requirements 13.1, 13.2, 13.4**
 
-- [x] 5.5 Write property test for alternate screen scrollback isolation
-  - **Property 30: Alternate screen scrollback isolation**
-  - **Validates: Requirements 15.3**
+- [ ] 6.5 Implement hyperlink OSC sequences
+  - Add OSC 8 (hyperlink) sequence parsing
+  - Associate URLs with character ranges
+  - Add hyperlink state to cell attributes
+  - Handle hyperlink start/end sequences
+  - Define association model
+    - Track current hyperlink URL as state and apply to subsequent written cells
+    - Clear hyperlink state on OSC 8 ;; ST
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts hyperlink handling to ensure C# implementation provides identical URL association and character range tracking
+  - _Requirements: 13.3_
 
-- [x] 5.6 Implement terminal mode management
-  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
-  - Create terminal mode state tracking
-  - Add auto-wrap mode with line wrapping behavior
-  - Implement cursor visibility mode tracking
-  - Add application cursor keys mode
-  - Add origin mode (DECOM) state tracking
-  - Add UTF-8 mode (DECSET/DECRST 2027) state tracking
-  - Add cursor style tracking (DECSCUSR)
-  - Add save/restore private modes (CSI ? s / CSI ? r) state tracking
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts and cursor.ts mode management to ensure C# implementation provides identical terminal mode behavior and state tracking
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
-  - _Requirements: 20.1, 20.2, 20.3, 20.4_
+- [ ] 6.6 Write property test for OSC hyperlink association
+  - **Property 24: OSC hyperlink association**
+  - **Validates: Requirements 13.3**
 
-- [x] 5.7 Add cursor wrapping and line overflow handling
-  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
-  - Implement auto-wrap behavior when cursor reaches right edge
-  - Add line overflow handling based on auto-wrap mode
-  - Update character writing to respect wrapping settings
-  - Handle wide character wrapping correctly
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
-  - _Requirements: 8.3, 9.5, 20.1_
+- [ ] 6.7 Add unknown OSC sequence handling
+  - Implement graceful handling of unknown OSC sequences
+  - Log unknown sequences for debugging
+  - Continue processing without errors
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts unknown sequence handling to ensure C# implementation provides identical graceful handling behavior
+  - _Requirements: 13.5_
 
-- [x] 5.8 Write property test for cursor wrapping behavior
-  - **Property 12: Cursor wrapping behavior**
-  - **Validates: Requirements 8.3**
+- [ ] 6.8 Write property test for unknown OSC sequence handling
+  - **Property 25: Unknown OSC sequence handling**
+  - **Validates: Requirements 13.5**
 
-- [x] 5.9 Add bracketed paste mode support
-  - Implement bracketed paste mode state tracking
-  - Add paste sequence wrapping for bracketed paste
-  - Handle mode switching sequences
-  - Prepare for future paste integration
-  - Define the exact DECSET/DECRST sequences
-    - CSI ? 2004 h enable, CSI ? 2004 l disable
-    - When enabled, wrap paste payload with ESC[200~ and ESC[201~
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
-  - _Requirements: 20.5_
+- [ ] 6.9 Add character set support
+  - Implement character set state model
+    - Track G0/G1/G2/G3 designations
+    - Track active GL/GR mappings (at least GL via SI/SO)
+  - Implement character set designation sequences
+    - ESC ( X designate G0
+    - ESC ) X designate G1
+    - ESC * X designate G2
+    - ESC + X designate G3
+  - Handle shift-in (SI) and shift-out (SO) characters
+    - Switch active GL between G0 and G1
+  - Add DEC Special Graphics character set mapping
+    - Map bytes/chars for line-drawing glyphs used by TUIs
+    - Ensure mapping is bypassed when UTF-8 mode is enabled
+  - Create character set mapping tables
+    - Unit-test a small representative subset of mappings
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts to ensure C# implementation provides identical character set designation, switching, and DEC Special Graphics mapping
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts
+  - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5_
 
-- [x] 5.10 Write property test for cursor visibility tracking
-  - **Property 14: Cursor visibility tracking**
-  - **Validates: Requirements 8.5**
+- [ ] 6.10 Test and validate advanced features
+  - **USER VALIDATION REQUIRED**: Test OSC sequences and UTF-8 (including vim)
+  - Verify window title changes work
+  - Test UTF-8 and wide character display
+  - Validate character set switching
+  - Document any advanced feature issues
 
-- [x] 5.11 Test and validate alternate screen and modes
-  - **USER VALIDATION REQUIRED**: Test full-screen apps (less)
-  - Verify alternate screen works correctly
-  - Test terminal mode switching
-  - Validate cursor wrapping and visibility
-  - Document any mode handling issues
-
-- [ ] 5.12 Checkpoint - Alternate screen and terminal modes working
-  - Full-screen applications work correctly
-  - Terminal modes function properly
+- [ ] 6.11 Checkpoint - OSC sequences and character sets working
+  - Advanced terminal features function correctly
+  - UTF-8 and character sets work properly
 
 
 

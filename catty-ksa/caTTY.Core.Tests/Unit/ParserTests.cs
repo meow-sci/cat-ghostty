@@ -105,7 +105,7 @@ public class ParserTests
     }
 
     [Test]
-    public void PushByte_OscSequence_CallsHandleOsc()
+    public void PushByte_OscSequence_CallsHandleXtermOsc()
     {
         // Arrange - OSC 0;title BEL
         string oscSequence = "\x1b]0;Test Title\x07";
@@ -114,10 +114,30 @@ public class ParserTests
         // Act
         _parser.PushBytes(oscBytes);
 
-        // Assert
+        // Assert - Should call HandleXtermOsc for recognized xterm sequences
+        Assert.That(_handlers.XtermOscMessages, Has.Count.EqualTo(1));
+        Assert.That(_handlers.XtermOscMessages[0].Raw, Is.EqualTo(oscSequence));
+        Assert.That(_handlers.XtermOscMessages[0].Terminator, Is.EqualTo("BEL"));
+        Assert.That(_handlers.XtermOscMessages[0].Type, Is.EqualTo("osc.setTitleAndIcon"));
+        Assert.That(_handlers.XtermOscMessages[0].Title, Is.EqualTo("Test Title"));
+    }
+
+    [Test]
+    public void PushByte_UnrecognizedOscSequence_CallsHandleOsc()
+    {
+        // Arrange - OSC 999;unknown BEL (unrecognized command)
+        string oscSequence = "\x1b]999;unknown\x07";
+        byte[] oscBytes = Encoding.UTF8.GetBytes(oscSequence);
+
+        // Act
+        _parser.PushBytes(oscBytes);
+
+        // Assert - Should call HandleOsc for unrecognized sequences
         Assert.That(_handlers.OscMessages, Has.Count.EqualTo(1));
         Assert.That(_handlers.OscMessages[0].Raw, Is.EqualTo(oscSequence));
         Assert.That(_handlers.OscMessages[0].Terminator, Is.EqualTo("BEL"));
+        Assert.That(_handlers.OscMessages[0].Implemented, Is.False);
+        Assert.That(_handlers.XtermOscMessages, Has.Count.EqualTo(0));
     }
 
     [Test]

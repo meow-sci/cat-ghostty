@@ -667,3 +667,105 @@
 - [x] 4.15 Checkpoint - Scrolling and screen management working
   - Terminal handles scrolling and scrollback correctly
   - Screen resizing works properly
+
+- [x] 5. Add alternate screen buffer and advanced terminal modes
+- [x] 5.1 Create alternate screen buffer infrastructure
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Create AlternateScreenManager class
+  - Implement separate primary and alternate screen buffers
+  - Add buffer switching methods (activate/deactivate)
+  - Preserve cursor and attributes independently per buffer
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated AlternateScreenManager class
+    - Extract alternate screen logic into caTTY.Core/Managers/AlternateScreenManager.cs
+    - Create IAlternateScreenManager interface for testability
+    - AlternateScreenManager should handle all buffer switching and state isolation
+    - AlternateScreenManager should not exceed 200 lines (excluding comments)
+    - TerminalEmulator should delegate alternate screen operations to AlternateScreenManager instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
+  - _Requirements: 15.1, 15.2, 15.4_
+
+- [x] 5.2 Implement alternate screen isolation
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Ensure alternate screen doesn't add to scrollback
+  - Clear alternate buffer on activation
+  - Handle buffer switching with proper state preservation
+  - Maintain separate cursor positions per buffer
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
+  - _Requirements: 15.3, 15.5_
+
+- [x] 5.3 Add alternate screen control sequences
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Implement DEC private mode sequences for alternate screen
+  - Add alternate screen activation/deactivation sequences
+  - Handle mode switching in CSI parser
+  - Test buffer switching with state preservation
+  - Ensure correct semantics for 47/1047/1049
+    - 1047/1049 preserve/restore cursor as specified
+    - 1049 clears alternate screen on entry
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts and handlers/csi.ts to ensure C# implementation provides identical alternate screen control sequence behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - _Requirements: 15.1, 15.2, 15.5_
+
+- [x] 5.4 Write property test for alternate screen buffer switching
+  - **Property 29: Alternate screen buffer switching**
+  - **Validates: Requirements 15.1, 15.2, 15.4**
+
+- [x] 5.5 Write property test for alternate screen scrollback isolation
+  - **Property 30: Alternate screen scrollback isolation**
+  - **Validates: Requirements 15.3**
+
+- [x] 5.6 Implement terminal mode management
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Create terminal mode state tracking
+  - Add auto-wrap mode with line wrapping behavior
+  - Implement cursor visibility mode tracking
+  - Add application cursor keys mode
+  - Add origin mode (DECOM) state tracking
+  - Add UTF-8 mode (DECSET/DECRST 2027) state tracking
+  - Add cursor style tracking (DECSCUSR)
+  - Add save/restore private modes (CSI ? s / CSI ? r) state tracking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts and cursor.ts mode management to ensure C# implementation provides identical terminal mode behavior and state tracking
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
+  - _Requirements: 20.1, 20.2, 20.3, 20.4_
+
+- [x] 5.7 Add cursor wrapping and line overflow handling
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Implement auto-wrap behavior when cursor reaches right edge
+  - Add line overflow handling based on auto-wrap mode
+  - Update character writing to respect wrapping settings
+  - Handle wide character wrapping correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
+  - _Requirements: 8.3, 9.5, 20.1_
+
+- [x] 5.8 Write property test for cursor wrapping behavior
+  - **Property 12: Cursor wrapping behavior**
+  - **Validates: Requirements 8.3**
+
+- [x] 5.9 Add bracketed paste mode support
+  - Implement bracketed paste mode state tracking
+  - Add paste sequence wrapping for bracketed paste
+  - Handle mode switching sequences
+  - Prepare for future paste integration
+  - Define the exact DECSET/DECRST sequences
+    - CSI ? 2004 h enable, CSI ? 2004 l disable
+    - When enabled, wrap paste payload with ESC[200~ and ESC[201~
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
+  - _Requirements: 20.5_
+
+- [x] 5.10 Write property test for cursor visibility tracking
+  - **Property 14: Cursor visibility tracking**
+  - **Validates: Requirements 8.5**
+
+- [x] 5.11 Test and validate alternate screen and modes
+  - **USER VALIDATION REQUIRED**: Test full-screen apps (less)
+  - Verify alternate screen works correctly
+  - Test terminal mode switching
+  - Validate cursor wrapping and visibility
+  - Document any mode handling issues
+
+- [x] 5.12 Checkpoint - Alternate screen and terminal modes working
+  - Full-screen applications work correctly
+  - Terminal modes function properly

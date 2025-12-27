@@ -25,4 +25,9 @@ public class OscMessage
     ///     Whether this sequence type is implemented.
     /// </summary>
     public bool Implemented { get; set; }
+
+    /// <summary>
+    ///     The parsed xterm OSC message if this is a recognized xterm extension.
+    /// </summary>
+    public XtermOscMessage? XtermMessage { get; set; }
 }

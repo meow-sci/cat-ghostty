@@ -1,3 +1,4 @@
+using System.Text;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
 using Microsoft.Extensions.Logging;
@@ -38,7 +39,11 @@ public class OscParserTests
         Assert.That(message!.Type, Is.EqualTo("osc"));
         Assert.That(message.Raw, Is.EqualTo("\x1b]0;\x07"));
         Assert.That(message.Terminator, Is.EqualTo("BEL"));
-        Assert.That(message.Implemented, Is.False);
+        Assert.That(message.Implemented, Is.True); // Should be true for recognized xterm OSC
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.setTitleAndIcon"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(0));
+        Assert.That(message.XtermMessage.Title, Is.EqualTo(string.Empty));
         Assert.That(escapeSequence, Has.Count.EqualTo(5));
         Assert.That(escapeSequence[4], Is.EqualTo(0x07));
     }
@@ -110,7 +115,11 @@ public class OscParserTests
         Assert.That(message!.Type, Is.EqualTo("osc"));
         Assert.That(message.Raw, Is.EqualTo("\x1b]0;\x1b\\"));
         Assert.That(message.Terminator, Is.EqualTo("ST"));
-        Assert.That(message.Implemented, Is.False);
+        Assert.That(message.Implemented, Is.True); // Should be true for recognized xterm OSC
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.setTitleAndIcon"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(0));
+        Assert.That(message.XtermMessage.Title, Is.EqualTo(string.Empty));
         Assert.That(escapeSequence, Has.Count.EqualTo(6));
         Assert.That(escapeSequence[5], Is.EqualTo(0x5c));
     }
@@ -178,6 +187,151 @@ public class OscParserTests
         Assert.That(message, Is.Not.Null);
         Assert.That(message!.Raw, Is.EqualTo("\x1b]0;Test\x07"));
         Assert.That(message.Terminator, Is.EqualTo("BEL"));
-        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC (opaque, BEL): \x1b]0;Test\x07"));
+        Assert.That(message.Implemented, Is.True); // Should be true for recognized xterm OSC
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.setTitleAndIcon"));
+        Assert.That(message.XtermMessage.Title, Is.EqualTo("Test"));
+        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC (xterm, BEL): \x1b]0;Test\x07"));
+    }
+
+    [Test]
+    public void ProcessOscByte_UnrecognizedCommand_ReturnsUnimplementedMessage()
+    {
+        // Arrange - OSC 999;unknown BEL sequence (unrecognized command)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x39, 0x39, 0x39, 0x3b, 0x75, 0x6e, 0x6b, 0x6e, 0x6f, 0x77, 0x6e }; // ESC ] 999;unknown
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Type, Is.EqualTo("osc"));
+        Assert.That(message.Raw, Is.EqualTo("\x1b]999;unknown\x07"));
+        Assert.That(message.Terminator, Is.EqualTo("BEL"));
+        Assert.That(message.Implemented, Is.False); // Should be false for unrecognized commands
+        Assert.That(message.XtermMessage, Is.Null);
+        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC (opaque, BEL): \x1b]999;unknown\x07"));
+    }
+
+    [Test]
+    public void ProcessOscByte_WindowTitleCommand_ParsesCorrectly()
+    {
+        // Arrange - OSC 2;Window Title BEL sequence
+        var escapeSequence = new List<byte> { 0x1b, 0x5d }; // ESC ]
+        byte[] titleBytes = { 0x32, 0x3b, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x20, 0x54, 0x69, 0x74, 0x6c, 0x65 }; // 2;Window Title
+
+        // Act - Process title bytes
+        bool isComplete = false;
+        OscMessage? message = null;
+        foreach (byte titleByte in titleBytes)
+        {
+            isComplete = _parser.ProcessOscByte(titleByte, escapeSequence, out message);
+            if (isComplete) break;
+        }
+
+        // Process BEL terminator
+        if (!isComplete)
+        {
+            isComplete = _parser.ProcessOscByte(0x07, escapeSequence, out message);
+        }
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.setWindowTitle"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(2));
+        Assert.That(message.XtermMessage.Title, Is.EqualTo("Window Title"));
+    }
+
+    [Test]
+    public void ProcessOscByte_QueryCommand_ParsesCorrectly()
+    {
+        // Arrange - OSC 21 BEL sequence (query window title)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x32, 0x31 }; // ESC ] 21
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.queryWindowTitle"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(21));
+        Assert.That(message.XtermMessage.Payload, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
+    public void ProcessOscByte_ColorQuery_ParsesCorrectly()
+    {
+        // Arrange - OSC 10;? BEL sequence (query foreground color)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x3b, 0x3f }; // ESC ] 10;?
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.queryForegroundColor"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(10));
+        Assert.That(message.XtermMessage.Payload, Is.EqualTo("?"));
+    }
+
+    [Test]
+    public void ProcessOscByte_PayloadTooLong_ReturnsNull()
+    {
+        // Arrange - Create a very long payload that exceeds the limit
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x30, 0x3b }; // ESC ] 0 ;
+        string longTitle = new('A', 2000); // Much longer than MaxOscPayloadLength (1024)
+        byte[] titleBytes = Encoding.UTF8.GetBytes(longTitle);
+
+        // Act - Process title bytes
+        bool isComplete = false;
+        OscMessage? message = null;
+        foreach (byte titleByte in titleBytes)
+        {
+            isComplete = _parser.ProcessOscByte(titleByte, escapeSequence, out message);
+            if (isComplete) break;
+        }
+
+        // Process BEL terminator
+        if (!isComplete)
+        {
+            isComplete = _parser.ProcessOscByte(0x07, escapeSequence, out message);
+        }
+
+        // Assert - Should return unimplemented message due to payload length limit
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.False);
+        Assert.That(message.XtermMessage, Is.Null);
+        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC payload exceeds maximum length"));
+    }
+
+    [Test]
+    public void ProcessOscByte_InvalidCommandNumber_ReturnsUnimplementedMessage()
+    {
+        // Arrange - OSC with invalid command number (1000, > 999)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x30, 0x30, 0x3b, 0x74, 0x65, 0x73, 0x74 }; // ESC ] 1000;test
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.False);
+        Assert.That(message.XtermMessage, Is.Null);
     }
 }
