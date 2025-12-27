@@ -17,6 +17,12 @@
     </ItemGroup>
 
     <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>caTTY.Core.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup>
         <Folder Include="Terminal\"/>
         <Folder Include="Input\"/>
         <Folder Include="Parsing\"/>

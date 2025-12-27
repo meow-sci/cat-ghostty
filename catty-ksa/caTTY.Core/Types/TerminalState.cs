@@ -244,6 +244,12 @@ public class TerminalState
     public bool CurrentCharacterProtection { get; set; }
 
     /// <summary>
+    ///     Current hyperlink URL for new characters (OSC 8 sequences).
+    ///     Null means no hyperlink is active.
+    /// </summary>
+    public string? CurrentHyperlinkUrl { get; set; }
+
+    /// <summary>
     ///     Whether the alternate screen buffer is currently active.
     /// </summary>
     public bool IsAlternateScreenActive { get; set; }
@@ -449,6 +455,7 @@ public class TerminalState
         SavedPrivateModes.Clear();
         CurrentSgrState = SgrAttributes.Default;
         CurrentCharacterProtection = false;
+        CurrentHyperlinkUrl = null;
 
         IsAlternateScreenActive = false;
         MouseTrackingModeBits = 0;

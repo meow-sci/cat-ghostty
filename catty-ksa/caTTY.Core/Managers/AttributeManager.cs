@@ -17,6 +17,7 @@ public class AttributeManager : IAttributeManager
     {
         _currentAttributes = SgrAttributes.Default;
         CurrentCharacterProtection = false;
+        CurrentHyperlinkUrl = null;
     }
 
     /// <summary>
@@ -32,6 +33,12 @@ public class AttributeManager : IAttributeManager
     ///     Gets or sets the current character protection attribute.
     /// </summary>
     public bool CurrentCharacterProtection { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the current hyperlink URL for new characters.
+    ///     Null means no hyperlink is active.
+    /// </summary>
+    public string? CurrentHyperlinkUrl { get; set; }
 
     /// <summary>
     ///     Applies an SGR message to update the current attributes.
@@ -204,6 +211,7 @@ public class AttributeManager : IAttributeManager
     {
         _currentAttributes = SgrAttributes.Default;
         CurrentCharacterProtection = false;
+        CurrentHyperlinkUrl = null;
     }
 
     /// <summary>
@@ -369,6 +377,15 @@ public class AttributeManager : IAttributeManager
             backgroundColor: _currentAttributes.BackgroundColor,
             underlineColor: _currentAttributes.UnderlineColor,
             font: _currentAttributes.Font);
+    }
+
+    /// <summary>
+    ///     Sets the current hyperlink URL for new characters.
+    /// </summary>
+    /// <param name="url">The hyperlink URL, or null to clear hyperlink state</param>
+    public void SetHyperlinkUrl(string? url)
+    {
+        CurrentHyperlinkUrl = url;
     }
 
     /// <summary>

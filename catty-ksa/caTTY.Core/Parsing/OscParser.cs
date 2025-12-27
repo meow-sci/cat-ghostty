@@ -267,16 +267,7 @@ public class OscParser : IOscParser
                 ClipboardData = payload, // Store original payload for parsing
                 Implemented = true
             },
-            8 => new XtermOscMessage
-            {
-                Type = "osc.hyperlink",
-                Raw = raw,
-                Terminator = terminator,
-                Command = command,
-                Payload = decodedText,
-                HyperlinkUrl = decodedText,
-                Implemented = true
-            },
+            8 => ParseOsc8Hyperlink(raw, terminator, command, textParam),
             _ => null
         };
     }
@@ -291,6 +282,52 @@ public class OscParser : IOscParser
         // In C#, if the string was properly decoded from UTF-8 bytes by BytesToString,
         // we don't need additional decoding. Just return the text as-is.
         return text;
+    }
+
+    /// <summary>
+    ///     Parse OSC 8 hyperlink sequence with parameters and URL.
+    ///     Format: ESC ] 8 ; [params] ; [url] BEL/ST
+    ///     where params can include id=<id> and other key=value pairs.
+    /// </summary>
+    /// <param name="raw">The raw OSC sequence</param>
+    /// <param name="terminator">The terminator used</param>
+    /// <param name="command">The OSC command number (8)</param>
+    /// <param name="textParam">The text parameter after the command</param>
+    /// <returns>Parsed OSC 8 message</returns>
+    private XtermOscMessage ParseOsc8Hyperlink(string raw, string terminator, int command, string textParam)
+    {
+        // OSC 8 format: ESC ] 8 ; [params] ; [url] BEL/ST
+        // The textParam contains: [params];[url]
+        // We need to split on the second semicolon to separate params from URL
+        
+        int secondSemicolon = textParam.IndexOf(';');
+        string parameters = "";
+        string url = "";
+        
+        if (secondSemicolon >= 0)
+        {
+            parameters = textParam[..secondSemicolon];
+            url = textParam[(secondSemicolon + 1)..];
+        }
+        else
+        {
+            // No second semicolon - treat entire textParam as URL (malformed but handle gracefully)
+            url = textParam;
+        }
+        
+        // Decode UTF-8 URL
+        string decodedUrl = DecodeUtf8Text(url);
+        
+        return new XtermOscMessage
+        {
+            Type = "osc.hyperlink",
+            Raw = raw,
+            Terminator = terminator,
+            Command = command,
+            Payload = textParam, // Store original payload for debugging
+            HyperlinkUrl = decodedUrl, // Store the extracted URL
+            Implemented = true
+        };
     }
 
     /// <summary>

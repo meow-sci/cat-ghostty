@@ -18,6 +18,12 @@ public interface IAttributeManager
     bool CurrentCharacterProtection { get; set; }
 
     /// <summary>
+    ///     Gets or sets the current hyperlink URL for new characters.
+    ///     Null means no hyperlink is active.
+    /// </summary>
+    string? CurrentHyperlinkUrl { get; set; }
+
+    /// <summary>
     ///     Applies an SGR message to update the current attributes.
     /// </summary>
     /// <param name="message">The SGR message to apply</param>
@@ -77,6 +83,12 @@ public interface IAttributeManager
     /// </summary>
     /// <param name="blink">Whether blink should be enabled</param>
     void SetBlink(bool blink);
+
+    /// <summary>
+    ///     Sets the current hyperlink URL for new characters.
+    /// </summary>
+    /// <param name="url">The hyperlink URL, or null to clear hyperlink state</param>
+    void SetHyperlinkUrl(string? url);
 
     /// <summary>
     ///     Parses SGR sequence from CSI parameters and creates an SgrSequence.

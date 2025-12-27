@@ -73,7 +73,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 23: OSC parsing and event emission**
   - **Validates: Requirements 13.1, 13.2, 13.4**
 
-- [ ] 6.5 Implement hyperlink OSC sequences
+- [x] 6.5 Implement hyperlink OSC sequences
   - Add OSC 8 (hyperlink) sequence parsing
   - Associate URLs with character ranges
   - Add hyperlink state to cell attributes

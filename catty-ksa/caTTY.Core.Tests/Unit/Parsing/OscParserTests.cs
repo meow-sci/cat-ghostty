@@ -195,6 +195,136 @@ public class OscParserTests
     }
 
     [Test]
+    public void ProcessOscByte_HyperlinkWithUrl_ParsesCorrectly()
+    {
+        // Arrange - OSC 8;;https://example.com BEL sequence
+        var escapeSequence = new List<byte> { 0x1b, 0x5d }; // ESC ]
+        byte[] hyperlinkBytes = { 0x38, 0x3b, 0x3b }; // 8;;
+        byte[] urlBytes = "https://example.com"u8.ToArray();
+
+        // Act - Process hyperlink command and URL bytes
+        bool isComplete = false;
+        OscMessage? message = null;
+        
+        // Process command bytes
+        foreach (byte cmdByte in hyperlinkBytes)
+        {
+            isComplete = _parser.ProcessOscByte(cmdByte, escapeSequence, out message);
+            if (isComplete) break;
+        }
+        
+        // Process URL bytes
+        if (!isComplete)
+        {
+            foreach (byte urlByte in urlBytes)
+            {
+                isComplete = _parser.ProcessOscByte(urlByte, escapeSequence, out message);
+                if (isComplete) break;
+            }
+        }
+
+        // Process BEL terminator
+        if (!isComplete)
+        {
+            isComplete = _parser.ProcessOscByte(0x07, escapeSequence, out message);
+        }
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Raw, Is.EqualTo("\x1b]8;;https://example.com\x07"));
+        Assert.That(message.Terminator, Is.EqualTo("BEL"));
+        Assert.That(message.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.hyperlink"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(8));
+        Assert.That(message.XtermMessage.HyperlinkUrl, Is.EqualTo("https://example.com"));
+    }
+
+    [Test]
+    public void ProcessOscByte_HyperlinkWithParameters_ParsesUrlCorrectly()
+    {
+        // Arrange - OSC 8;id=link1;https://example.com BEL sequence
+        var escapeSequence = new List<byte> { 0x1b, 0x5d }; // ESC ]
+        byte[] hyperlinkBytes = { 0x38, 0x3b }; // 8;
+        byte[] paramUrlBytes = "id=link1;https://example.com"u8.ToArray();
+
+        // Act - Process hyperlink command and parameter/URL bytes
+        bool isComplete = false;
+        OscMessage? message = null;
+        
+        // Process command bytes
+        foreach (byte cmdByte in hyperlinkBytes)
+        {
+            isComplete = _parser.ProcessOscByte(cmdByte, escapeSequence, out message);
+            if (isComplete) break;
+        }
+        
+        // Process parameter and URL bytes
+        if (!isComplete)
+        {
+            foreach (byte paramByte in paramUrlBytes)
+            {
+                isComplete = _parser.ProcessOscByte(paramByte, escapeSequence, out message);
+                if (isComplete) break;
+            }
+        }
+
+        // Process BEL terminator
+        if (!isComplete)
+        {
+            isComplete = _parser.ProcessOscByte(0x07, escapeSequence, out message);
+        }
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Raw, Is.EqualTo("\x1b]8;id=link1;https://example.com\x07"));
+        Assert.That(message.Terminator, Is.EqualTo("BEL"));
+        Assert.That(message.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.hyperlink"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(8));
+        Assert.That(message.XtermMessage.HyperlinkUrl, Is.EqualTo("https://example.com"));
+    }
+
+    [Test]
+    public void ProcessOscByte_HyperlinkClear_ParsesEmptyUrl()
+    {
+        // Arrange - OSC 8;; BEL sequence (clear hyperlink)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d }; // ESC ]
+        byte[] hyperlinkBytes = { 0x38, 0x3b, 0x3b }; // 8;;
+
+        // Act - Process hyperlink command bytes and BEL terminator
+        bool isComplete = false;
+        OscMessage? message = null;
+        
+        // Process command bytes
+        foreach (byte cmdByte in hyperlinkBytes)
+        {
+            isComplete = _parser.ProcessOscByte(cmdByte, escapeSequence, out message);
+            if (isComplete) break;
+        }
+
+        // Process BEL terminator
+        if (!isComplete)
+        {
+            isComplete = _parser.ProcessOscByte(0x07, escapeSequence, out message);
+        }
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Raw, Is.EqualTo("\x1b]8;;\x07"));
+        Assert.That(message.Terminator, Is.EqualTo("BEL"));
+        Assert.That(message.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.hyperlink"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(8));
+        Assert.That(message.XtermMessage.HyperlinkUrl, Is.EqualTo(string.Empty));
+    }
+
+    [Test]
     public void ProcessOscByte_UnrecognizedCommand_ReturnsUnimplementedMessage()
     {
         // Arrange - OSC 999;unknown BEL sequence (unrecognized command)

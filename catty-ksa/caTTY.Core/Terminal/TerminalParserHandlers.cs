@@ -441,8 +441,17 @@ internal class TerminalParserHandlers : IParserHandlers
                 }
                 break;
 
+            case "osc.hyperlink":
+                // OSC 8: Hyperlink operations - associate URLs with character ranges
+                if (message.HyperlinkUrl != null)
+                {
+                    _terminal.HandleHyperlink(message.HyperlinkUrl);
+                    _logger.LogDebug("Hyperlink operation: {Url}", message.HyperlinkUrl);
+                }
+                break;
+
             default:
-                // TODO: Implement other xterm OSC handling (task 6.3, 6.5)
+                // Log unhandled xterm OSC sequences for debugging
                 _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
                 break;
         }

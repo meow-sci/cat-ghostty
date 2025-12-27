@@ -648,6 +648,34 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    ///     Handles hyperlink operations from OSC 8 sequences.
+    ///     Associates URLs with character ranges by setting current hyperlink state.
+    ///     Clears hyperlink state when empty URL is provided.
+    /// </summary>
+    /// <param name="url">The hyperlink URL, or empty string to clear hyperlink state</param>
+    internal void HandleHyperlink(string url)
+    {
+        // OSC 8 format: ESC ] 8 ; [params] ; [url] BEL/ST
+        // where params can include id=<id> and other key=value pairs
+        // For now, we only handle the URL part and ignore parameters
+        
+        if (string.IsNullOrEmpty(url))
+        {
+            // Clear hyperlink state - OSC 8 ;; ST
+            _attributeManager.SetHyperlinkUrl(null);
+            State.CurrentHyperlinkUrl = null;
+            _logger.LogDebug("Cleared hyperlink state");
+        }
+        else
+        {
+            // Set hyperlink URL for subsequent characters
+            _attributeManager.SetHyperlinkUrl(url);
+            State.CurrentHyperlinkUrl = url;
+            _logger.LogDebug("Set hyperlink URL: {Url}", url);
+        }
+    }
+
+    /// <summary>
     ///     Handles a backspace character (BS) - move cursor one position left if not at column 0.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
@@ -760,10 +788,10 @@ public class TerminalEmulator : ITerminalEmulator
             _cursorManager.MoveTo(_cursorManager.Row, Width - 1);
         }
 
-        // Write the character to the screen buffer with current SGR attributes and protection status
+        // Write the character to the screen buffer with current SGR attributes, protection status, and hyperlink URL
         // Determine if this is a wide character for proper cell marking
         bool isWide = IsWideCharacter(character);
-        var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, null, isWide);
+        var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
         // Handle cursor advancement and wrap pending logic
