@@ -598,4 +598,130 @@ public class TerminalEmulatorTests
         Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportToTop());
         Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportToBottom());
     }
+
+    /// <summary>
+    ///     Tests that Resize with valid dimensions updates terminal dimensions.
+    /// </summary>
+    [Test]
+    public void Resize_WithValidDimensions_UpdatesDimensions()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Act
+        terminal.Resize(100, 30);
+
+        // Assert
+        Assert.That(terminal.Width, Is.EqualTo(100));
+        Assert.That(terminal.Height, Is.EqualTo(30));
+    }
+
+    /// <summary>
+    ///     Tests that Resize preserves cursor position when possible.
+    /// </summary>
+    [Test]
+    public void Resize_PreservesCursorPosition()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("Hello");
+        // Cursor should be at (0, 5)
+
+        // Act - resize to larger dimensions
+        terminal.Resize(120, 40);
+
+        // Assert - cursor position preserved
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0));
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(5));
+    }
+
+    /// <summary>
+    ///     Tests that Resize clamps cursor position when dimensions shrink.
+    /// </summary>
+    [Test]
+    public void Resize_ClampsCursorPosition()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        // Move cursor to position that will be out of bounds after resize
+        terminal.Write(new string(' ', 70)); // Move cursor to column 70
+        
+        // Act - resize to smaller width
+        terminal.Resize(50, 24);
+
+        // Assert - cursor clamped to new bounds
+        Assert.That(terminal.Width, Is.EqualTo(50));
+        Assert.That(terminal.Cursor.Col, Is.LessThan(50));
+    }
+
+    /// <summary>
+    ///     Tests that Resize preserves content within new bounds.
+    /// </summary>
+    [Test]
+    public void Resize_PreservesContentWithinBounds()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("Test content");
+
+        // Act - resize to larger dimensions
+        terminal.Resize(120, 40);
+
+        // Assert - content preserved
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('T'));
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('e'));
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('s'));
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('t'));
+    }
+
+    /// <summary>
+    ///     Tests that Resize with same dimensions does nothing.
+    /// </summary>
+    [Test]
+    public void Resize_WithSameDimensions_DoesNothing()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("Test");
+        int originalCursorCol = terminal.Cursor.Col;
+
+        // Act
+        terminal.Resize(80, 24);
+
+        // Assert - no change
+        Assert.That(terminal.Width, Is.EqualTo(80));
+        Assert.That(terminal.Height, Is.EqualTo(24));
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(originalCursorCol));
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('T'));
+    }
+
+    /// <summary>
+    ///     Tests that Resize with invalid dimensions throws ArgumentOutOfRangeException.
+    /// </summary>
+    [Test]
+    public void Resize_WithInvalidDimensions_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => terminal.Resize(0, 24));
+        Assert.Throws<ArgumentOutOfRangeException>(() => terminal.Resize(80, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => terminal.Resize(1001, 24));
+        Assert.Throws<ArgumentOutOfRangeException>(() => terminal.Resize(80, 1001));
+    }
+
+    /// <summary>
+    ///     Tests that Resize after disposal throws ObjectDisposedException.
+    /// </summary>
+    [Test]
+    public void Resize_AfterDispose_ThrowsObjectDisposedException()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => terminal.Resize(100, 30));
+    }
 }

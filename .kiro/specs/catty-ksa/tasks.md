@@ -97,7 +97,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 27: Viewport and auto-scroll behavior**
   - **Validates: Requirements 14.3, 14.4**
 
-- [ ] 4.9 Implement screen buffer resizing
+- [x] 4.9 Implement screen buffer resizing
   - Add Resize method with content preservation
   - Handle width/height changes intelligently
   - Preserve cursor position during resize

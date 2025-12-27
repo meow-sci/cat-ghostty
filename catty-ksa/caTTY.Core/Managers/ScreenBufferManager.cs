@@ -282,6 +282,9 @@ public class ScreenBufferManager : IScreenBufferManager
 
     /// <summary>
     ///     Resizes the screen buffer to the specified dimensions.
+    ///     Preserves content according to the simple resize policy:
+    ///     - Height change: preserve top-to-bottom rows where possible
+    ///     - Width change: truncate/pad each row; do not attempt complex reflow
     /// </summary>
     /// <param name="width">New width in columns</param>
     /// <param name="height">New height in rows</param>
@@ -292,8 +295,14 @@ public class ScreenBufferManager : IScreenBufferManager
             throw new ArgumentOutOfRangeException("Width and height must be between 1 and 1000");
         }
 
-        // For now, throw NotImplementedException as resizing will be implemented in task 4.9
-        throw new NotImplementedException("Screen buffer resizing will be implemented in task 4.9");
+        // If dimensions are the same, no work needed
+        if (width == Width && height == Height)
+        {
+            return;
+        }
+
+        // Delegate to the underlying screen buffer
+        _screenBuffer.Resize(width, height);
     }
 
     /// <summary>

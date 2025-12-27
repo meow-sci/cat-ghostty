@@ -438,12 +438,20 @@ public class ScrollbackBufferProperties
             var viewportRows = scrollback.GetViewportRows(screenBuffer, false, 5);
             
             bool correctRowCount = viewportRows.Count == 5;
-            bool hasScrollbackContent = viewportRows.Count > 0 && viewportRows[0].Span[0].Character == 'A';
+            
+            // Determine what the first scrollback character should be
+            // If maxLines >= 3, we have all lines A, B, C, so first is A
+            // If maxLines == 2, we have lines B, C (A was overwritten), so first is B
+            char expectedFirstChar = maxLines >= 3 ? 'A' : 'B';
+            bool hasScrollbackContent = viewportRows.Count > 0 && 
+                                      viewportRows[0].Span.Length > 0 &&
+                                      viewportRows[0].Span[0].Character == expectedFirstChar;
 
             // Test in alternate screen mode (should only show screen buffer)
             var alternateViewportRows = scrollback.GetViewportRows(screenBuffer, true, 2);
             bool alternateCorrectCount = alternateViewportRows.Count == 2;
             bool alternateShowsScreen = alternateViewportRows.Count > 0 && 
+                                      alternateViewportRows[0].Span.Length > 0 &&
                                       alternateViewportRows[0].Span[0].Character == 'X';
 
             return correctRowCount && hasScrollbackContent && 

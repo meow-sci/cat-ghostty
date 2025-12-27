@@ -83,6 +83,15 @@ public interface IScreenBuffer
     void CopyTo(Span<Cell> destination, int startRow, int endRow);
 
     /// <summary>
+    ///     Resizes the screen buffer to the specified dimensions with content preservation.
+    ///     Height change: preserve top-to-bottom rows where possible.
+    ///     Width change: truncate/pad each row; do not attempt complex reflow.
+    /// </summary>
+    /// <param name="newWidth">New width in columns</param>
+    /// <param name="newHeight">New height in rows</param>
+    void Resize(int newWidth, int newHeight);
+
+    /// <summary>
     ///     Checks if the specified coordinates are within bounds.
     /// </summary>
     /// <param name="row">The row index</param>

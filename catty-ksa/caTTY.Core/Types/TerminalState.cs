@@ -358,4 +358,69 @@ public class TerminalState
         CurrentSgrState = SgrAttributes.Default;
         CurrentCharacterProtection = false;
     }
+
+    /// <summary>
+    ///     Resizes the terminal state to the specified dimensions.
+    ///     Updates internal dimensions and adjusts scroll region if needed.
+    /// </summary>
+    /// <param name="newCols">New number of columns</param>
+    /// <param name="newRows">New number of rows</param>
+    public void Resize(int newCols, int newRows)
+    {
+        Cols = newCols;
+        Rows = newRows;
+
+        // Update scroll region if it was full-screen
+        if (ScrollTop == 0 && ScrollBottom == Rows - 1)
+        {
+            ScrollBottom = newRows - 1;
+        }
+        else
+        {
+            // Clamp existing scroll region to new dimensions
+            ScrollTop = Math.Min(ScrollTop, newRows - 1);
+            ScrollBottom = Math.Min(ScrollBottom, newRows - 1);
+            
+            // Ensure scroll region is still valid
+            if (ScrollTop >= ScrollBottom)
+            {
+                ScrollTop = 0;
+                ScrollBottom = newRows - 1;
+            }
+        }
+
+        // Update tab stops for new width
+        ResizeTabStops(newCols);
+    }
+
+    /// <summary>
+    ///     Resizes the tab stops array to match the new terminal width.
+    ///     Preserves existing tab stops where possible and initializes new ones.
+    /// </summary>
+    /// <param name="newCols">New number of columns</param>
+    public void ResizeTabStops(int newCols)
+    {
+        var newTabStops = new bool[newCols];
+        
+        // Copy existing tab stops
+        int copyCount = Math.Min(TabStops.Length, newCols);
+        for (int i = 0; i < copyCount; i++)
+        {
+            newTabStops[i] = TabStops[i];
+        }
+
+        // Initialize new tab stops at 8-column intervals if width increased
+        if (newCols > TabStops.Length)
+        {
+            for (int i = TabStops.Length; i < newCols; i += 8)
+            {
+                if (i < newCols)
+                {
+                    newTabStops[i] = true;
+                }
+            }
+        }
+
+        TabStops = newTabStops;
+    }
 }

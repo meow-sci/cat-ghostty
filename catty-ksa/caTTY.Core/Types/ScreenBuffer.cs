@@ -275,6 +275,85 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
+    ///     Resizes the screen buffer to the specified dimensions with content preservation.
+    ///     Height change: preserve top-to-bottom rows where possible.
+    ///     Width change: truncate/pad each row; do not attempt complex reflow.
+    /// </summary>
+    /// <param name="newWidth">New width in columns</param>
+    /// <param name="newHeight">New height in rows</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
+    public void Resize(int newWidth, int newHeight)
+    {
+        if (newWidth < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newWidth), "Width must be at least 1");
+        }
+
+        if (newHeight < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newHeight), "Height must be at least 1");
+        }
+
+        // If dimensions are the same, no work needed
+        if (newWidth == Width && newHeight == Height)
+        {
+            return;
+        }
+
+        // Create new buffer with new dimensions
+        var newCells = new Cell[newHeight, newWidth];
+
+        // Initialize all new cells to empty
+        Cell emptyCell = Cell.Empty;
+        for (int row = 0; row < newHeight; row++)
+        {
+            for (int col = 0; col < newWidth; col++)
+            {
+                newCells[row, col] = emptyCell;
+            }
+        }
+
+        // Copy existing content with preservation policy
+        int rowsToCopy = Math.Min(Height, newHeight);
+        int colsToCopy = Math.Min(Width, newWidth);
+
+        for (int row = 0; row < rowsToCopy; row++)
+        {
+            for (int col = 0; col < colsToCopy; col++)
+            {
+                newCells[row, col] = _cells[row, col];
+            }
+
+            // If new width is larger, pad the row with empty cells (already initialized above)
+            // If new width is smaller, truncation happens naturally by not copying beyond colsToCopy
+        }
+
+        // Replace the old buffer with the new one
+        // Note: We can't directly replace the array reference since Width/Height are readonly
+        // Instead, we need to copy the new buffer back to the existing array
+        // This requires creating a new ScreenBuffer instance, which we'll handle in the manager
+
+        // For now, we'll use reflection to update the fields since this is an internal resize operation
+        var widthField = typeof(ScreenBuffer).GetField("<Width>k__BackingField", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var heightField = typeof(ScreenBuffer).GetField("<Height>k__BackingField", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var cellsField = typeof(ScreenBuffer).GetField("_cells", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        if (widthField != null && heightField != null && cellsField != null)
+        {
+            widthField.SetValue(this, newWidth);
+            heightField.SetValue(this, newHeight);
+            cellsField.SetValue(this, newCells);
+        }
+        else
+        {
+            throw new InvalidOperationException("Unable to resize buffer due to reflection failure");
+        }
+    }
+
+    /// <summary>
     ///     Checks if the specified coordinates are within bounds.
     /// </summary>
     /// <param name="row">The row index</param>

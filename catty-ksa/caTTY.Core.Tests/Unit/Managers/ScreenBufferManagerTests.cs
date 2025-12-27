@@ -183,9 +183,33 @@ public class ScreenBufferManagerTests
     }
 
     [Test]
-    public void Resize_ThrowsNotImplementedException()
+    public void Resize_WithValidDimensions_UpdatesDimensions()
     {
-        Assert.Throws<NotImplementedException>(() => _manager.Resize(100, 50));
+        // Arrange
+        int newWidth = 100;
+        int newHeight = 50;
+
+        // Act
+        _manager.Resize(newWidth, newHeight);
+
+        // Assert
+        Assert.That(_manager.Width, Is.EqualTo(newWidth));
+        Assert.That(_manager.Height, Is.EqualTo(newHeight));
+    }
+
+    [Test]
+    public void Resize_WithSameDimensions_DoesNothing()
+    {
+        // Arrange
+        int originalWidth = _manager.Width;
+        int originalHeight = _manager.Height;
+
+        // Act
+        _manager.Resize(originalWidth, originalHeight);
+
+        // Assert
+        Assert.That(_manager.Width, Is.EqualTo(originalWidth));
+        Assert.That(_manager.Height, Is.EqualTo(originalHeight));
     }
 
     [Test]
