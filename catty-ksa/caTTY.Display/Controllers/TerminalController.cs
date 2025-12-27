@@ -942,45 +942,87 @@ public class TerminalController : ITerminalController
     /// <summary>
     ///     Processes mouse wheel scroll by accumulating wheel deltas and converting to line scrolls.
     ///     Implements smooth scrolling with fractional accumulation and overflow protection.
+    ///     Integrates with ScrollbackManager for proper scrolling behavior and boundary handling.
     /// </summary>
     /// <param name="wheelDelta">The mouse wheel delta value from ImGui</param>
     private void ProcessMouseWheelScroll(float wheelDelta)
     {
-        // Accumulate wheel delta for smooth scrolling
-        _wheelAccumulator += wheelDelta * _scrollConfig.LinesPerStep;
-        
-        // Prevent accumulator overflow
-        if (Math.Abs(_wheelAccumulator) > 100.0f)
+        try
         {
-            _wheelAccumulator = Math.Sign(_wheelAccumulator) * 10.0f;
+            // Accumulate wheel delta for smooth scrolling
+            _wheelAccumulator += wheelDelta * _scrollConfig.LinesPerStep;
+            
+            // Prevent accumulator overflow
+            if (Math.Abs(_wheelAccumulator) > 100.0f)
+            {
+                _wheelAccumulator = Math.Sign(_wheelAccumulator) * 10.0f;
+            }
+            
+            // Extract integer scroll lines
+            int scrollLines = (int)Math.Floor(Math.Abs(_wheelAccumulator));
+            if (scrollLines == 0) 
+            {
+                return;
+            }
+            
+            // Determine scroll direction (positive wheel delta = scroll up)
+            bool scrollUp = _wheelAccumulator > 0;
+            
+            // Clamp to maximum lines per operation
+            scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
+            
+            // Store current viewport state for boundary condition handling
+            var scrollbackManager = _terminal.ScrollbackManager;
+            int previousOffset = scrollbackManager.ViewportOffset;
+            bool wasAtBottom = scrollbackManager.IsAtBottom;
+            
+            // Apply scrolling via ScrollbackManager with error handling
+            try
+            {
+                if (scrollUp)
+                {
+                    scrollbackManager.ScrollUp(scrollLines);
+                }
+                else
+                {
+                    scrollbackManager.ScrollDown(scrollLines);
+                }
+                
+                // Check if scrolling actually occurred (boundary condition handling)
+                int newOffset = scrollbackManager.ViewportOffset;
+                bool actuallyScrolled = (newOffset != previousOffset);
+                
+                if (actuallyScrolled)
+                {
+                    // Update accumulator by removing consumed delta only if scrolling occurred
+                    float consumedDelta = scrollLines * (scrollUp ? 1 : -1);
+                    _wheelAccumulator -= consumedDelta;
+                }
+                else
+                {
+                    // At boundary - clear accumulator to prevent stuck state
+                    _wheelAccumulator = 0.0f;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle ScrollbackManager integration errors
+                Console.WriteLine($"TerminalController: ScrollbackManager integration error: {ex.Message}");
+                
+                // Reset accumulator to prevent stuck state
+                _wheelAccumulator = 0.0f;
+                
+                // Don't re-throw - gracefully handle the error
+            }
         }
-        
-        // Extract integer scroll lines
-        int scrollLines = (int)Math.Floor(Math.Abs(_wheelAccumulator));
-        if (scrollLines == 0) 
+        catch (Exception ex)
         {
-            return;
+            // Handle any other errors in wheel processing
+            Console.WriteLine($"TerminalController: Mouse wheel processing error: {ex.Message}");
+            
+            // Reset accumulator to prevent stuck state
+            _wheelAccumulator = 0.0f;
         }
-        
-        // Determine scroll direction (positive wheel delta = scroll up)
-        bool scrollUp = _wheelAccumulator > 0;
-        
-        // Clamp to maximum lines per operation
-        scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
-        
-        // Apply scrolling via ScrollbackManager
-        if (scrollUp)
-        {
-            _terminal.ScrollbackManager.ScrollUp(scrollLines);
-        }
-        else
-        {
-            _terminal.ScrollbackManager.ScrollDown(scrollLines);
-        }
-        
-        // Update accumulator by removing consumed delta
-        float consumedDelta = scrollLines * (scrollUp ? 1 : -1);
-        _wheelAccumulator -= consumedDelta;
     }
 
     /// <summary>

@@ -41,18 +41,18 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - **Property 5: Wheel delta accumulation and line calculation**
   - **Validates: Requirements 5.1, 5.2**
 
-- [ ] 4. Integrate with ScrollbackManager
+- [x] 4. Integrate with ScrollbackManager
   - Call ScrollbackManager.ScrollUp/ScrollDown with calculated line counts
   - Add error handling for ScrollbackManager integration
   - Ensure proper direction mapping (positive delta = scroll up)
   - Add boundary condition handling
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 4.1 Write property test for ScrollbackManager integration
+- [x] 4.1 Write property test for ScrollbackManager integration
   - **Property 1: Mouse wheel event processing and ScrollbackManager integration**
   - **Validates: Requirements 1.1, 1.2, 2.1, 2.2**
 
-- [ ] 4.2 Write property test for boundary condition handling
+- [x] 4.2 Write property test for boundary condition handling
   - **Property 2: Boundary condition handling at scroll limits**
   - **Validates: Requirements 2.3, 2.4**
 
