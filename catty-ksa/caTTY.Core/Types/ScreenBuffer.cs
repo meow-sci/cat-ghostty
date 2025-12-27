@@ -167,6 +167,114 @@ public class ScreenBuffer : IScreenBuffer
     }
 
     /// <summary>
+    ///     Scrolls the buffer up by the specified number of lines.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    public void ScrollUp(int lines)
+    {
+        if (lines <= 0 || lines >= Height)
+        {
+            // If scrolling entire buffer or more, just clear it
+            if (lines >= Height)
+            {
+                Clear();
+            }
+            return;
+        }
+
+        // Move rows up
+        for (int row = 0; row < Height - lines; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                _cells[row, col] = _cells[row + lines, col];
+            }
+        }
+
+        // Clear the bottom rows
+        Cell emptyCell = Cell.Empty;
+        for (int row = Height - lines; row < Height; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                _cells[row, col] = emptyCell;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Scrolls the buffer down by the specified number of lines.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    public void ScrollDown(int lines)
+    {
+        if (lines <= 0 || lines >= Height)
+        {
+            // If scrolling entire buffer or more, just clear it
+            if (lines >= Height)
+            {
+                Clear();
+            }
+            return;
+        }
+
+        // Move rows down
+        for (int row = Height - 1; row >= lines; row--)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                _cells[row, col] = _cells[row - lines, col];
+            }
+        }
+
+        // Clear the top rows
+        Cell emptyCell = Cell.Empty;
+        for (int row = 0; row < lines; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                _cells[row, col] = emptyCell;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Copies a range of rows to the specified destination span.
+    /// </summary>
+    /// <param name="destination">Destination span to copy to</param>
+    /// <param name="startRow">Starting row (0-based, inclusive)</param>
+    /// <param name="endRow">Ending row (0-based, inclusive)</param>
+    public void CopyTo(Span<Cell> destination, int startRow, int endRow)
+    {
+        if (startRow < 0 || startRow >= Height || endRow < 0 || endRow >= Height)
+        {
+            return;
+        }
+
+        if (startRow > endRow)
+        {
+            (startRow, endRow) = (endRow, startRow);
+        }
+
+        int rowCount = endRow - startRow + 1;
+        int totalCells = rowCount * Width;
+
+        if (destination.Length < totalCells)
+        {
+            return; // Not enough space in destination
+        }
+
+        int destIndex = 0;
+        for (int row = startRow; row <= endRow; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                destination[destIndex++] = _cells[row, col];
+            }
+        }
+    }
+
+    /// <summary>
     ///     Checks if the specified coordinates are within bounds.
     /// </summary>
     /// <param name="row">The row index</param>

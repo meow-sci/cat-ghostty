@@ -195,7 +195,7 @@ public class TerminalMod
                             if (File.Exists(fontPath))
                             {
                                 // Use a reasonable default font size (14pt)
-                                float fontSize = 14.0f;
+                                float fontSize = 32.0f;
                                 var fontPathStr = new ImString(fontPath);
                                 ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
                                 _loadedFonts[fontName] = font;

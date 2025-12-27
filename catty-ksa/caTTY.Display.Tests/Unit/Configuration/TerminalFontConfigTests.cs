@@ -22,7 +22,7 @@ public class TerminalFontConfigTests
         Assert.That(config.BoldFontName, Is.EqualTo("HackNerdFontMono-Bold"));
         Assert.That(config.ItalicFontName, Is.EqualTo("HackNerdFontMono-Italic"));
         Assert.That(config.BoldItalicFontName, Is.EqualTo("HackNerdFontMono-BoldItalic"));
-        Assert.That(config.FontSize, Is.EqualTo(16.0f));
+        Assert.That(config.FontSize, Is.EqualTo(32.0f));
         Assert.That(config.AutoDetectContext, Is.False);
     }
 
@@ -37,7 +37,7 @@ public class TerminalFontConfigTests
         Assert.That(config.BoldFontName, Is.EqualTo("HackNerdFontMono-Bold"));
         Assert.That(config.ItalicFontName, Is.EqualTo("HackNerdFontMono-Italic"));
         Assert.That(config.BoldItalicFontName, Is.EqualTo("HackNerdFontMono-BoldItalic"));
-        Assert.That(config.FontSize, Is.EqualTo(14.0f)); // Smaller for game context
+        Assert.That(config.FontSize, Is.EqualTo(32.0f)); // Smaller for game context
         Assert.That(config.AutoDetectContext, Is.False);
     }
 

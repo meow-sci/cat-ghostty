@@ -91,7 +91,7 @@ public class FontContextDetectionProperties
                 bool fontSizeValid = config.FontSize > 0 && config.FontSize <= 72.0f;
 
                 // In test environment, we expect either TestApp or GameMod-style configuration
-                // TestApp uses 16.0f, GameMod uses 14.0f
+                // TestApp uses 32.0f, GameMod uses 32.0f
                 bool fontSizeReasonable = config.FontSize >= 8.0f && config.FontSize <= 32.0f;
 
                 // Validate that AutoDetectContext is set to false (since we used explicit detection)
@@ -127,11 +127,11 @@ public class FontContextDetectionProperties
                 testAppConfig.Validate();
                 gameModConfig.Validate();
 
-                // TestApp should use 16.0f font size
-                bool testAppSizeCorrect = Math.Abs(testAppConfig.FontSize - 16.0f) < 0.001f;
+                // TestApp should use 32.0f font size
+                bool testAppSizeCorrect = Math.Abs(testAppConfig.FontSize - 32.0f) < 0.001f;
 
-                // GameMod should use 14.0f font size
-                bool gameModSizeCorrect = Math.Abs(gameModConfig.FontSize - 14.0f) < 0.001f;
+                // GameMod should use 32.0f font size
+                bool gameModSizeCorrect = Math.Abs(gameModConfig.FontSize - 32.0f) < 0.001f;
 
                 // Both should have AutoDetectContext set to false
                 bool autoDetectDisabled = !testAppConfig.AutoDetectContext && !gameModConfig.AutoDetectContext;

@@ -1,6 +1,7 @@
 using System.Text;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
+using caTTY.Core.Managers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -14,6 +15,10 @@ public class TerminalEmulator : ITerminalEmulator
 {
     private readonly ILogger _logger;
     private readonly Parser _parser;
+    private readonly IScreenBufferManager _screenBufferManager;
+    private readonly ICursorManager _cursorManager;
+    private readonly IModeManager _modeManager;
+    private readonly IAttributeManager _attributeManager;
     private bool _disposed;
 
     /// <summary>
@@ -40,6 +45,12 @@ public class TerminalEmulator : ITerminalEmulator
         State = new TerminalState(width, height);
         _logger = logger ?? NullLogger.Instance;
 
+        // Initialize managers
+        _screenBufferManager = new ScreenBufferManager(ScreenBuffer);
+        _cursorManager = new CursorManager(Cursor);
+        _modeManager = new ModeManager();
+        _attributeManager = new AttributeManager();
+
         // Initialize parser with terminal handlers
         var handlers = new TerminalParserHandlers(this, _logger);
         var parserOptions = new ParserOptions
@@ -58,6 +69,26 @@ public class TerminalEmulator : ITerminalEmulator
     ///     Gets the current terminal state.
     /// </summary>
     public TerminalState State { get; }
+
+    /// <summary>
+    ///     Gets the screen buffer manager for buffer operations.
+    /// </summary>
+    public IScreenBufferManager ScreenBufferManager => _screenBufferManager;
+
+    /// <summary>
+    ///     Gets the cursor manager for cursor operations.
+    /// </summary>
+    public ICursorManager CursorManager => _cursorManager;
+
+    /// <summary>
+    ///     Gets the mode manager for terminal mode operations.
+    /// </summary>
+    public IModeManager ModeManager => _modeManager;
+
+    /// <summary>
+    ///     Gets the attribute manager for SGR attribute operations.
+    /// </summary>
+    public IAttributeManager AttributeManager => _attributeManager;
 
     /// <summary>
     ///     Gets the width of the terminal in columns.
@@ -183,27 +214,24 @@ public class TerminalEmulator : ITerminalEmulator
     /// <summary>
     ///     Handles a line feed (LF) character - move down one line, keeping same column.
     ///     In raw terminal mode, LF only moves down without changing column position.
-    ///     Uses terminal state for proper cursor management.
+    ///     Uses cursor manager for proper cursor management.
     /// </summary>
     internal void HandleLineFeed()
     {
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        if (State.CursorY < Height - 1)
+        // Clear wrap pending and move cursor down
+        _cursorManager.SetWrapPending(false);
+        
+        if (_cursorManager.Row < Height - 1)
         {
-            // Move cursor down one row, keep same column
-            State.CursorY++;
+            _cursorManager.MoveDown(1);
         }
-
         // At bottom row - need to scroll (will be implemented in future task)
         // For now, just stay at the bottom row
-        // Clear wrap pending state
-        State.WrapPending = false;
 
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -228,13 +256,16 @@ public class TerminalEmulator : ITerminalEmulator
 
     /// <summary>
     ///     Handles a carriage return (CR) character - move to column 0.
-    ///     Uses terminal state for proper cursor management.
+    ///     Uses cursor manager for proper cursor management.
     /// </summary>
     internal void HandleCarriageReturn()
     {
-        State.CursorX = 0;
-        State.CursorY = Cursor.Row;
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        _cursorManager.MoveTo(_cursorManager.Row, 0);
+        
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -247,25 +278,19 @@ public class TerminalEmulator : ITerminalEmulator
 
     /// <summary>
     ///     Handles a backspace character (BS) - move cursor one position left if not at column 0.
-    ///     Uses terminal state for proper cursor management.
+    ///     Uses cursor manager for proper cursor management.
     /// </summary>
     internal void HandleBackspace()
     {
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Move cursor left if not at column 0
-        if (State.CursorX > 0)
+        if (_cursorManager.Column > 0)
         {
-            State.CursorX--;
+            _cursorManager.MoveLeft(1);
         }
 
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -312,57 +337,38 @@ public class TerminalEmulator : ITerminalEmulator
 
     /// <summary>
     ///     Writes a character at the current cursor position and advances the cursor.
-    ///     Uses terminal state for wrap pending and SGR attributes.
+    ///     Uses managers for wrap pending and SGR attributes.
     /// </summary>
     /// <param name="character">The character to write</param>
     internal void WriteCharacterAtCursor(char character)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
         // Handle wrap pending state - if set, wrap to next line first
-        if (State.WrapPending)
+        if (_cursorManager.WrapPending)
         {
-            State.WrapPending = false;
-            State.CursorX = 0;
-            if (State.CursorY < Height - 1)
+            _cursorManager.SetWrapPending(false);
+            if (_cursorManager.Row < Height - 1)
             {
-                State.CursorY++;
+                _cursorManager.MoveTo(_cursorManager.Row + 1, 0);
             }
             // At bottom - need to scroll (will be implemented in future task)
             // For now, just stay at the bottom row
         }
 
         // Clamp cursor position
-        if (State.CursorX >= Width)
-        {
-            State.CursorX = Width - 1;
-        }
+        _cursorManager.ClampToBuffer(Width, Height);
 
         // Write the character to the screen buffer with current SGR attributes and protection status
-        var cell = new Cell(character, State.CurrentSgrState, State.CurrentCharacterProtection);
-        ScreenBuffer.SetCell(State.CursorY, State.CursorX, cell);
+        var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+        _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
         // Handle cursor advancement and wrap pending
-        if (State.CursorX == Width - 1)
-        {
-            // At right edge
-            if (State.AutoWrapMode)
-            {
-                State.WrapPending = true;
-                // Don't advance cursor yet - wait for next character
-            }
-            // If not in auto-wrap mode, cursor stays at right edge
-        }
-        else
-        {
-            // Normal advancement
-            State.CursorX++;
-        }
+        bool wrapped = _cursorManager.AdvanceCursor(Width, _modeManager.AutoWrapMode);
 
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+        State.AutoWrapMode = _modeManager.AutoWrapMode;
     }
 
     /// <summary>
@@ -408,19 +414,13 @@ public class TerminalEmulator : ITerminalEmulator
     internal void MoveCursorUp(int count)
     {
         count = Math.Max(1, count);
+        _cursorManager.MoveUp(count);
+        _cursorManager.ClampToBuffer(Width, Height);
 
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Move cursor up, clamping to top boundary
-        State.CursorY = Math.Max(0, State.CursorY - count);
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -430,19 +430,13 @@ public class TerminalEmulator : ITerminalEmulator
     internal void MoveCursorDown(int count)
     {
         count = Math.Max(1, count);
+        _cursorManager.MoveDown(count);
+        _cursorManager.ClampToBuffer(Width, Height);
 
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Move cursor down, clamping to bottom boundary
-        State.CursorY = Math.Min(Height - 1, State.CursorY + count);
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -452,19 +446,13 @@ public class TerminalEmulator : ITerminalEmulator
     internal void MoveCursorForward(int count)
     {
         count = Math.Max(1, count);
+        _cursorManager.MoveRight(count);
+        _cursorManager.ClampToBuffer(Width, Height);
 
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Move cursor forward, clamping to right boundary
-        State.CursorX = Math.Min(Width - 1, State.CursorX + count);
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -474,19 +462,13 @@ public class TerminalEmulator : ITerminalEmulator
     internal void MoveCursorBackward(int count)
     {
         count = Math.Max(1, count);
+        _cursorManager.MoveLeft(count);
+        _cursorManager.ClampToBuffer(Width, Height);
 
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Move cursor backward, clamping to left boundary
-        State.CursorX = Math.Max(0, State.CursorX - count);
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -500,15 +482,12 @@ public class TerminalEmulator : ITerminalEmulator
         int targetRow = Math.Max(0, Math.Min(Height - 1, row - 1));
         int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
 
-        // Update state
-        State.CursorX = targetCol;
-        State.CursorY = targetRow;
+        _cursorManager.MoveTo(targetRow, targetCol);
 
-        // Clear wrap pending state since we're setting absolute position
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -521,14 +500,12 @@ public class TerminalEmulator : ITerminalEmulator
         // Convert from 1-based to 0-based coordinates and clamp to bounds
         int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
 
-        // Update state - keep current row, change column
-        State.CursorX = targetCol;
+        _cursorManager.MoveTo(_cursorManager.Row, targetCol);
 
-        // Clear wrap pending state since we're setting absolute position
-        State.WrapPending = false;
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -538,53 +515,52 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
     internal void ClearDisplay(int mode)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
         // Clear wrap pending state
-        State.WrapPending = false;
+        _cursorManager.SetWrapPending(false);
 
         // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', State.CurrentSgrState, false);
+        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
 
         switch (mode)
         {
             case 0: // From cursor to end of display
                 ClearLine(0); // Clear from cursor to end of current line
                 // Clear all lines below cursor
-                for (int row = State.CursorY + 1; row < Height; row++)
+                for (int row = _cursorManager.Row + 1; row < Height; row++)
                 {
                     for (int col = 0; col < Width; col++)
                     {
-                        ScreenBuffer.SetCell(row, col, emptyCell);
+                        _screenBufferManager.SetCell(row, col, emptyCell);
                     }
                 }
-
                 break;
 
             case 1: // From start of display to cursor
                 // Clear all lines above cursor
-                for (int row = 0; row < State.CursorY; row++)
+                for (int row = 0; row < _cursorManager.Row; row++)
                 {
                     for (int col = 0; col < Width; col++)
                     {
-                        ScreenBuffer.SetCell(row, col, emptyCell);
+                        _screenBufferManager.SetCell(row, col, emptyCell);
                     }
                 }
-
                 ClearLine(1); // Clear from start of current line to cursor
                 break;
 
             case 2: // Entire display
-                ScreenBuffer.Clear();
+                _screenBufferManager.Clear();
                 break;
 
             case 3: // Entire display and scrollback (xterm extension)
                 // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
-                ScreenBuffer.Clear();
+                _screenBufferManager.Clear();
                 break;
         }
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -594,48 +570,46 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
     internal void ClearLine(int mode)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
         // Clear wrap pending state
-        State.WrapPending = false;
+        _cursorManager.SetWrapPending(false);
 
         // Bounds check
-        if (State.CursorY < 0 || State.CursorY >= Height)
+        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
         {
             return;
         }
 
         // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', State.CurrentSgrState, false);
+        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
 
         switch (mode)
         {
             case 0: // From cursor to end of line
-                for (int col = State.CursorX; col < Width; col++)
+                for (int col = _cursorManager.Column; col < Width; col++)
                 {
-                    ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                 }
-
                 break;
 
             case 1: // From start of line to cursor
-                for (int col = 0; col <= State.CursorX && col < Width; col++)
+                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
                 {
-                    ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                 }
-
                 break;
 
             case 2: // Entire line
                 for (int col = 0; col < Width; col++)
                 {
-                    ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                 }
-
                 break;
         }
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -646,49 +620,43 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
     internal void ClearDisplaySelective(int mode)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
         // Clear wrap pending state
-        State.WrapPending = false;
+        _cursorManager.SetWrapPending(false);
 
         // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', State.CurrentSgrState, false);
+        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
 
         switch (mode)
         {
             case 0: // From cursor to end of display
                 ClearLineSelective(0); // Clear from cursor to end of current line
                 // Clear all lines below cursor
-                for (int row = State.CursorY + 1; row < Height; row++)
+                for (int row = _cursorManager.Row + 1; row < Height; row++)
                 {
                     for (int col = 0; col < Width; col++)
                     {
-                        Cell currentCell = ScreenBuffer.GetCell(row, col);
+                        Cell currentCell = _screenBufferManager.GetCell(row, col);
                         if (!currentCell.IsProtected)
                         {
-                            ScreenBuffer.SetCell(row, col, emptyCell);
+                            _screenBufferManager.SetCell(row, col, emptyCell);
                         }
                     }
                 }
-
                 break;
 
             case 1: // From start of display to cursor
                 // Clear all lines above cursor
-                for (int row = 0; row < State.CursorY; row++)
+                for (int row = 0; row < _cursorManager.Row; row++)
                 {
                     for (int col = 0; col < Width; col++)
                     {
-                        Cell currentCell = ScreenBuffer.GetCell(row, col);
+                        Cell currentCell = _screenBufferManager.GetCell(row, col);
                         if (!currentCell.IsProtected)
                         {
-                            ScreenBuffer.SetCell(row, col, emptyCell);
+                            _screenBufferManager.SetCell(row, col, emptyCell);
                         }
                     }
                 }
-
                 ClearLineSelective(1); // Clear from start of current line to cursor
                 break;
 
@@ -704,16 +672,20 @@ public class TerminalEmulator : ITerminalEmulator
                 {
                     for (int col = 0; col < Width; col++)
                     {
-                        Cell currentCell = ScreenBuffer.GetCell(row, col);
+                        Cell currentCell = _screenBufferManager.GetCell(row, col);
                         if (!currentCell.IsProtected)
                         {
-                            ScreenBuffer.SetCell(row, col, emptyCell);
+                            _screenBufferManager.SetCell(row, col, emptyCell);
                         }
                     }
                 }
-
                 break;
         }
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -724,60 +696,58 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
     internal void ClearLineSelective(int mode)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
         // Clear wrap pending state
-        State.WrapPending = false;
+        _cursorManager.SetWrapPending(false);
 
         // Bounds check
-        if (State.CursorY < 0 || State.CursorY >= Height)
+        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
         {
             return;
         }
 
         // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', State.CurrentSgrState, false);
+        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
 
         switch (mode)
         {
             case 0: // From cursor to end of line
-                for (int col = State.CursorX; col < Width; col++)
+                for (int col = _cursorManager.Column; col < Width; col++)
                 {
-                    Cell currentCell = ScreenBuffer.GetCell(State.CursorY, col);
+                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
                     if (!currentCell.IsProtected)
                     {
-                        ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                     }
                 }
-
                 break;
 
             case 1: // From start of line to cursor
-                for (int col = 0; col <= State.CursorX && col < Width; col++)
+                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
                 {
-                    Cell currentCell = ScreenBuffer.GetCell(State.CursorY, col);
+                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
                     if (!currentCell.IsProtected)
                     {
-                        ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                     }
                 }
-
                 break;
 
             case 2: // Entire line
                 for (int col = 0; col < Width; col++)
                 {
-                    Cell currentCell = ScreenBuffer.GetCell(State.CursorY, col);
+                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
                     if (!currentCell.IsProtected)
                     {
-                        ScreenBuffer.SetCell(State.CursorY, col, emptyCell);
+                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
                     }
                 }
-
                 break;
         }
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -787,7 +757,7 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="isProtected">Whether new characters should be protected from selective erase</param>
     internal void SetCharacterProtection(bool isProtected)
     {
-        State.CurrentCharacterProtection = isProtected;
+        _attributeManager.CurrentCharacterProtection = isProtected;
     }
 
     /// <summary>
@@ -796,8 +766,10 @@ public class TerminalEmulator : ITerminalEmulator
     /// </summary>
     internal void SaveCursorPosition()
     {
-        // Save current cursor position in terminal state
-        State.SavedCursor = (Cursor.Col, Cursor.Row);
+        _cursorManager.SavePosition();
+        
+        // Also save in terminal state for compatibility
+        State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
     }
 
     /// <summary>
@@ -806,21 +778,17 @@ public class TerminalEmulator : ITerminalEmulator
     /// </summary>
     internal void RestoreCursorPosition()
     {
+        _cursorManager.RestorePosition();
+
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+        
+        // Update saved cursor in state for compatibility
         if (State.SavedCursor.HasValue)
         {
-            (int x, int y) = State.SavedCursor.Value;
-
-            // Clamp to bounds
-            x = Math.Max(0, Math.Min(Width - 1, x));
-            y = Math.Max(0, Math.Min(Height - 1, y));
-
-            // Update cursor directly
-            Cursor.SetPosition(y, x);
-
-            // Sync state with cursor
-            State.CursorX = x;
-            State.CursorY = y;
-            State.WrapPending = false;
+            State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
         }
     }
 
@@ -878,21 +846,21 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="count">Number of tab stops to move forward</param>
     internal void CursorForwardTab(int count)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
+        // Clear wrap pending state first
+        _cursorManager.SetWrapPending(false);
 
         int n = Math.Max(1, count);
+        int currentCol = _cursorManager.Column;
 
-        if (State.CursorX < 0)
+        if (currentCol < 0)
         {
-            State.CursorX = 0;
+            currentCol = 0;
         }
 
         for (int i = 0; i < n; i++)
         {
             int nextStop = -1;
-            for (int x = State.CursorX + 1; x < Width; x++)
+            for (int x = currentCol + 1; x < Width; x++)
             {
                 if (x < State.TabStops.Length && State.TabStops[x])
                 {
@@ -901,13 +869,16 @@ public class TerminalEmulator : ITerminalEmulator
                 }
             }
 
-            State.CursorX = nextStop == -1 ? Width - 1 : nextStop;
+            currentCol = nextStop == -1 ? Width - 1 : nextStop;
         }
 
-        State.WrapPending = false;
+        // Update cursor position through cursor manager
+        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
 
-        // Update cursor position
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -917,21 +888,21 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="count">Number of tab stops to move backward</param>
     internal void CursorBackwardTab(int count)
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
+        // Clear wrap pending state first
+        _cursorManager.SetWrapPending(false);
 
         int n = Math.Max(1, count);
+        int currentCol = _cursorManager.Column;
 
-        if (State.CursorX < 0)
+        if (currentCol < 0)
         {
-            State.CursorX = 0;
+            currentCol = 0;
         }
 
         for (int i = 0; i < n; i++)
         {
             int prevStop = -1;
-            for (int x = State.CursorX - 1; x >= 0; x--)
+            for (int x = currentCol - 1; x >= 0; x--)
             {
                 if (x < State.TabStops.Length && State.TabStops[x])
                 {
@@ -940,13 +911,16 @@ public class TerminalEmulator : ITerminalEmulator
                 }
             }
 
-            State.CursorX = prevStop == -1 ? 0 : prevStop;
+            currentCol = prevStop == -1 ? 0 : prevStop;
         }
 
-        State.WrapPending = false;
+        // Update cursor position through cursor manager
+        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
 
-        // Update cursor position
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>

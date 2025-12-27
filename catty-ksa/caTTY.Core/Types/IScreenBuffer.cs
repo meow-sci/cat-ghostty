@@ -63,6 +63,26 @@ public interface IScreenBuffer
     ReadOnlySpan<Cell> GetRow(int row);
 
     /// <summary>
+    ///     Scrolls the buffer up by the specified number of lines.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    void ScrollUp(int lines);
+
+    /// <summary>
+    ///     Scrolls the buffer down by the specified number of lines.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    void ScrollDown(int lines);
+
+    /// <summary>
+    ///     Copies a range of rows to the specified destination span.
+    /// </summary>
+    /// <param name="destination">Destination span to copy to</param>
+    /// <param name="startRow">Starting row (0-based, inclusive)</param>
+    /// <param name="endRow">Ending row (0-based, inclusive)</param>
+    void CopyTo(Span<Cell> destination, int startRow, int endRow);
+
+    /// <summary>
     ///     Checks if the specified coordinates are within bounds.
     /// </summary>
     /// <param name="row">The row index</param>

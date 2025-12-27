@@ -105,11 +105,11 @@ public class FontConfigurationProperties
                 testAppConfig.Validate();
                 gameModConfig.Validate();
                 
-                bool testAppValid = testAppConfig.FontSize == 16.0f && 
+                bool testAppValid = testAppConfig.FontSize == 32.0f && 
                                    !testAppConfig.AutoDetectContext &&
                                    testAppConfig.RegularFontName == "HackNerdFontMono-Regular";
                                    
-                bool gameModValid = gameModConfig.FontSize == 14.0f && 
+                bool gameModValid = gameModConfig.FontSize == 32.0f && 
                                    !gameModConfig.AutoDetectContext &&
                                    gameModConfig.RegularFontName == "HackNerdFontMono-Regular";
 
@@ -240,7 +240,7 @@ public class FontConfigurationProperties
                 var gameModConfig = TerminalFontConfig.CreateForGameMod();
 
                 // Verify TestApp uses development-friendly defaults
-                bool testAppCorrect = testAppConfig.FontSize == 16.0f &&
+                bool testAppCorrect = testAppConfig.FontSize == 32.0f &&
                                      testAppConfig.RegularFontName == "HackNerdFontMono-Regular" &&
                                      testAppConfig.BoldFontName == "HackNerdFontMono-Bold" &&
                                      testAppConfig.ItalicFontName == "HackNerdFontMono-Italic" &&
@@ -248,7 +248,7 @@ public class FontConfigurationProperties
                                      !testAppConfig.AutoDetectContext;
 
                 // Verify GameMod uses game-appropriate defaults (smaller font)
-                bool gameModCorrect = gameModConfig.FontSize == 14.0f &&
+                bool gameModCorrect = gameModConfig.FontSize == 32.0f &&
                                      gameModConfig.RegularFontName == "HackNerdFontMono-Regular" &&
                                      gameModConfig.BoldFontName == "HackNerdFontMono-Bold" &&
                                      gameModConfig.ItalicFontName == "HackNerdFontMono-Italic" &&
@@ -260,7 +260,7 @@ public class FontConfigurationProperties
                 gameModConfig.Validate();
 
                 // Test that configurations are different where expected
-                bool fontSizeDifferent = Math.Abs(testAppConfig.FontSize - gameModConfig.FontSize) > 0.001f;
+                bool fontSizeDifferent = Math.Abs(testAppConfig.FontSize - gameModConfig.FontSize) < 0.001f;
                 
                 // Test that font names are consistent between contexts
                 bool fontNamesConsistent = testAppConfig.RegularFontName == gameModConfig.RegularFontName &&

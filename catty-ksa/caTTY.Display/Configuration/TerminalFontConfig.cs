@@ -57,7 +57,7 @@ public class TerminalFontConfig
             BoldFontName = "HackNerdFontMono-Bold",
             ItalicFontName = "HackNerdFontMono-Italic",
             BoldItalicFontName = "HackNerdFontMono-BoldItalic",
-            FontSize = 16.0f,
+            FontSize = 32.0f,
             AutoDetectContext = false
         };
     }
@@ -75,7 +75,7 @@ public class TerminalFontConfig
             BoldFontName = "HackNerdFontMono-Bold",
             ItalicFontName = "HackNerdFontMono-Italic",
             BoldItalicFontName = "HackNerdFontMono-BoldItalic",
-            FontSize = 14.0f, // Slightly smaller for game context
+            FontSize = 32.0f, // Slightly smaller for game context
             AutoDetectContext = false
         };
     }
