@@ -264,4 +264,72 @@ public class SgrParsingProperties
             }
         });
     }
+
+    /// <summary>
+    ///     **Feature: catty-ksa, Property 22: SGR reset behavior**
+    ///     **Validates: Requirements 12.3**
+    ///     Property: For any SGR attributes state, applying a reset SGR sequence (CSI 0 m)
+    ///     should always result in the default attributes state, regardless of the initial state.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property SgrResetAlwaysProducesDefaultState()
+    {
+        return Prop.ForAll<bool, bool>((bold, italic) =>
+        {
+            // Arrange - Create initial attributes with various properties set
+            var initialAttributes = new SgrAttributes(
+                bold: bold,
+                faint: true, // Always set some attributes to ensure they get reset
+                italic: italic,
+                underline: true,
+                underlineStyle: UnderlineStyle.Double,
+                blink: true,
+                inverse: true,
+                hidden: true,
+                strikethrough: true,
+                foregroundColor: new Color(255, 128, 64), // Some arbitrary colors
+                backgroundColor: new Color(32, 64, 128),
+                underlineColor: new Color(200, 100, 50),
+                font: 3); // Some arbitrary font
+
+            var parser = new SgrParser(NullLogger.Instance);
+            
+            // Test both explicit reset (CSI 0 m) and implicit reset (CSI m)
+            var explicitResetSequence = parser.ParseSgrSequence(
+                System.Text.Encoding.UTF8.GetBytes("\x1b[0m"), "\x1b[0m");
+            var implicitResetSequence = parser.ParseSgrSequence(
+                System.Text.Encoding.UTF8.GetBytes("\x1b[m"), "\x1b[m");
+
+            // Act - Apply both reset sequences
+            var afterExplicitReset = parser.ApplyAttributes(initialAttributes, explicitResetSequence.Messages);
+            var afterImplicitReset = parser.ApplyAttributes(initialAttributes, implicitResetSequence.Messages);
+
+            // Assert - Both should produce default attributes
+            bool explicitResetWorks = afterExplicitReset.Equals(SgrAttributes.Default);
+            bool implicitResetWorks = afterImplicitReset.Equals(SgrAttributes.Default);
+            bool bothResetsSame = afterExplicitReset.Equals(afterImplicitReset);
+
+            // Verify specific properties are reset
+            bool allBooleanAttributesReset = 
+                !afterExplicitReset.Bold &&
+                !afterExplicitReset.Faint &&
+                !afterExplicitReset.Italic &&
+                !afterExplicitReset.Underline &&
+                !afterExplicitReset.Blink &&
+                !afterExplicitReset.Inverse &&
+                !afterExplicitReset.Hidden &&
+                !afterExplicitReset.Strikethrough;
+
+            bool allColorsReset = 
+                !afterExplicitReset.ForegroundColor.HasValue &&
+                !afterExplicitReset.BackgroundColor.HasValue &&
+                !afterExplicitReset.UnderlineColor.HasValue;
+
+            bool underlineStyleReset = afterExplicitReset.UnderlineStyle == UnderlineStyle.None;
+            bool fontReset = afterExplicitReset.Font == 0;
+
+            return explicitResetWorks && implicitResetWorks && bothResetsSame && 
+                   allBooleanAttributesReset && allColorsReset && underlineStyleReset && fontReset;
+        });
+    }
 }

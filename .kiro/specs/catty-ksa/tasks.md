@@ -91,7 +91,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 21: SGR parsing and application**
   - **Validates: Requirements 12.1, 12.2, 12.4, 12.5**
 
-- [ ] 3.8 Write property test for SGR reset behavior
+- [x] 3.8 Write property test for SGR reset behavior
   - **Property 22: SGR reset behavior**
   - **Validates: Requirements 12.3**
 
