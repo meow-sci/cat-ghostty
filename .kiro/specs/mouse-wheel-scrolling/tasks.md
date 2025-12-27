@@ -19,14 +19,14 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - Test runtime configuration updates
   - _Requirements: 4.1, 4.4_
 
-- [ ] 2. Implement mouse wheel event detection
+- [x] 2. Implement mouse wheel event detection
   - Add HandleMouseWheelInput method to TerminalController
   - Integrate with existing HandleInput method
   - Add focus checking to ignore events when unfocused
   - Add minimum delta threshold to prevent micro-movements
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 2.1 Write property test for focus-based event filtering
+- [x] 2.1 Write property test for focus-based event filtering
   - **Property 6: Focus-based event filtering**
   - **Validates: Requirements 1.3**
 

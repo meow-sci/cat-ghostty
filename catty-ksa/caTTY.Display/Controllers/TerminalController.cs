@@ -28,6 +28,9 @@ public class TerminalController : ITerminalController
     private readonly ITerminalEmulator _terminal;
     private bool _disposed;
 
+    // Mouse wheel scrolling
+    private float _wheelAccumulator = 0.0f;
+
     // Font pointers for different styles
     private ImFontPtr _regularFont;
     private ImFontPtr _boldFont;
@@ -828,6 +831,9 @@ public class TerminalController : ITerminalController
     {
         ImGuiIOPtr io = ImGui.GetIO();
 
+        // Handle mouse wheel input first
+        HandleMouseWheelInput();
+
         // Handle text input
         if (io.InputQueueCharacters.Count > 0)
         {
@@ -887,6 +893,94 @@ public class TerminalController : ITerminalController
                 SendToProcess("\x1a"); // Ctrl+Z
             }
         }
+    }
+
+    /// <summary>
+    ///     Handles mouse wheel input for scrolling through terminal history.
+    ///     Only processes wheel events when the terminal window has focus and the wheel delta
+    ///     exceeds the minimum threshold to prevent micro-movements.
+    /// </summary>
+    private void HandleMouseWheelInput()
+    {
+        try
+        {
+            // Only process mouse wheel events when terminal has focus
+            if (!HasFocus)
+            {
+                return;
+            }
+
+            var io = ImGui.GetIO();
+            float wheelDelta = io.MouseWheel;
+
+            // Check if wheel delta exceeds minimum threshold to prevent micro-movements
+            if (Math.Abs(wheelDelta) < _scrollConfig.MinimumWheelDelta)
+            {
+                return;
+            }
+
+            // Validate wheel delta for NaN/infinity
+            if (!float.IsFinite(wheelDelta))
+            {
+                Console.WriteLine("TerminalController: Invalid wheel delta detected, ignoring");
+                return;
+            }
+
+            // Process the wheel scroll
+            ProcessMouseWheelScroll(wheelDelta);
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't crash terminal
+            Console.WriteLine($"TerminalController: Mouse wheel handling error: {ex.Message}");
+            
+            // Reset accumulator to prevent stuck state
+            _wheelAccumulator = 0.0f;
+        }
+    }
+
+    /// <summary>
+    ///     Processes mouse wheel scroll by accumulating wheel deltas and converting to line scrolls.
+    ///     Implements smooth scrolling with fractional accumulation and overflow protection.
+    /// </summary>
+    /// <param name="wheelDelta">The mouse wheel delta value from ImGui</param>
+    private void ProcessMouseWheelScroll(float wheelDelta)
+    {
+        // Accumulate wheel delta for smooth scrolling
+        _wheelAccumulator += wheelDelta * _scrollConfig.LinesPerStep;
+        
+        // Prevent accumulator overflow
+        if (Math.Abs(_wheelAccumulator) > 100.0f)
+        {
+            _wheelAccumulator = Math.Sign(_wheelAccumulator) * 10.0f;
+        }
+        
+        // Extract integer scroll lines
+        int scrollLines = (int)Math.Floor(Math.Abs(_wheelAccumulator));
+        if (scrollLines == 0) 
+        {
+            return;
+        }
+        
+        // Determine scroll direction (positive wheel delta = scroll up)
+        bool scrollUp = _wheelAccumulator > 0;
+        
+        // Clamp to maximum lines per operation
+        scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
+        
+        // Apply scrolling via ScrollbackManager
+        if (scrollUp)
+        {
+            _terminal.ScrollbackManager.ScrollUp(scrollLines);
+        }
+        else
+        {
+            _terminal.ScrollbackManager.ScrollDown(scrollLines);
+        }
+        
+        // Update accumulator by removing consumed delta
+        float consumedDelta = scrollLines * (scrollUp ? 1 : -1);
+        _wheelAccumulator -= consumedDelta;
     }
 
     /// <summary>
