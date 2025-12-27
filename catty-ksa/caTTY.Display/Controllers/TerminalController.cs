@@ -417,6 +417,7 @@ public class TerminalController : ITerminalController
 
     /// <summary>
     ///     Updates the mouse wheel scroll configuration at runtime.
+    ///     Includes comprehensive error handling and validation.
     /// </summary>
     /// <param name="newScrollConfig">The new scroll configuration to apply</param>
     /// <exception cref="ArgumentNullException">Thrown when newScrollConfig is null</exception>
@@ -438,25 +439,38 @@ public class TerminalController : ITerminalController
             Console.WriteLine($"  Previous: {_scrollConfig}");
             Console.WriteLine($"  New: {newScrollConfig}");
 
+            // Reset wheel accumulator when changing configuration to prevent inconsistent state
+            float previousAccumulator = _wheelAccumulator;
+            _wheelAccumulator = 0.0f;
+
             // Update scroll configuration
             _scrollConfig = newScrollConfig;
 
             // Log successful configuration change
             Console.WriteLine("TerminalController: Runtime scroll configuration updated successfully");
             Console.WriteLine($"  Applied: {_scrollConfig}");
+            Console.WriteLine($"  Wheel accumulator reset from {previousAccumulator:F3} to 0.0");
         }
         catch (ArgumentException ex)
         {
-            // Log validation failure and re-throw
+            // Log validation failure and re-throw with additional context
             Console.WriteLine($"TerminalController: Scroll configuration validation failed: {ex.Message}");
+            Console.WriteLine($"  Attempted config: {newScrollConfig}");
+            Console.WriteLine($"  Current config preserved: {_scrollConfig}");
             throw;
         }
         catch (Exception ex)
         {
             // Log unexpected errors during scroll configuration update
-            Console.WriteLine($"TerminalController: Unexpected error during scroll configuration update: {ex.Message}");
+            Console.WriteLine($"TerminalController: Unexpected error during scroll configuration update: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"  Attempted config: {newScrollConfig}");
+            Console.WriteLine($"  Current config preserved: {_scrollConfig}");
             
-            // Re-throw the exception to notify caller of the failure
+            #if DEBUG
+            Console.WriteLine($"TerminalController: UpdateScrollConfig error stack trace: {ex.StackTrace}");
+            #endif
+            
+            // Re-throw the exception wrapped in InvalidOperationException to provide more context
             throw new InvalidOperationException($"Failed to update scroll configuration: {ex.Message}", ex);
         }
     }
@@ -899,6 +913,7 @@ public class TerminalController : ITerminalController
     ///     Handles mouse wheel input for scrolling through terminal history.
     ///     Only processes wheel events when the terminal window has focus and the wheel delta
     ///     exceeds the minimum threshold to prevent micro-movements.
+    ///     Includes comprehensive error handling and input validation.
     /// </summary>
     private void HandleMouseWheelInput()
     {
@@ -919,23 +934,38 @@ public class TerminalController : ITerminalController
                 return;
             }
 
-            // Validate wheel delta for NaN/infinity
+            // Validate wheel delta for NaN/infinity - critical for robustness
             if (!float.IsFinite(wheelDelta))
             {
-                Console.WriteLine("TerminalController: Invalid wheel delta detected, ignoring");
+                Console.WriteLine($"TerminalController: Invalid wheel delta detected (NaN/Infinity): {wheelDelta}, ignoring");
+                
+                // Reset accumulator to prevent corruption from invalid values
+                _wheelAccumulator = 0.0f;
                 return;
             }
 
-            // Process the wheel scroll
+            // Additional validation for extreme values that could cause issues
+            if (Math.Abs(wheelDelta) > 1000.0f)
+            {
+                Console.WriteLine($"TerminalController: Extreme wheel delta detected: {wheelDelta}, clamping");
+                wheelDelta = Math.Sign(wheelDelta) * 10.0f; // Clamp to reasonable range
+            }
+
+            // Process the wheel scroll with validated input
             ProcessMouseWheelScroll(wheelDelta);
         }
         catch (Exception ex)
         {
-            // Log error but don't crash terminal
-            Console.WriteLine($"TerminalController: Mouse wheel handling error: {ex.Message}");
+            // Log detailed error information for debugging
+            Console.WriteLine($"TerminalController: Mouse wheel handling error: {ex.GetType().Name}: {ex.Message}");
             
-            // Reset accumulator to prevent stuck state
+            // Reset accumulator to prevent stuck state - critical for recovery
             _wheelAccumulator = 0.0f;
+            
+            // Log stack trace for debugging in development builds
+            #if DEBUG
+            Console.WriteLine($"TerminalController: Stack trace: {ex.StackTrace}");
+            #endif
         }
     }
 
@@ -943,18 +973,29 @@ public class TerminalController : ITerminalController
     ///     Processes mouse wheel scroll by accumulating wheel deltas and converting to line scrolls.
     ///     Implements smooth scrolling with fractional accumulation and overflow protection.
     ///     Integrates with ScrollbackManager for proper scrolling behavior and boundary handling.
+    ///     Includes comprehensive error handling and recovery mechanisms.
     /// </summary>
     /// <param name="wheelDelta">The mouse wheel delta value from ImGui</param>
     private void ProcessMouseWheelScroll(float wheelDelta)
     {
         try
         {
+            // Additional input validation - should already be done in HandleMouseWheelInput,
+            // but defensive programming requires validation at each level
+            if (!float.IsFinite(wheelDelta))
+            {
+                Console.WriteLine($"TerminalController: Invalid wheel delta in ProcessMouseWheelScroll: {wheelDelta}");
+                _wheelAccumulator = 0.0f;
+                return;
+            }
+
             // Accumulate wheel delta for smooth scrolling
             _wheelAccumulator += wheelDelta * _scrollConfig.LinesPerStep;
             
-            // Prevent accumulator overflow
+            // Prevent accumulator overflow - critical for stability
             if (Math.Abs(_wheelAccumulator) > 100.0f)
             {
+                Console.WriteLine($"TerminalController: Wheel accumulator overflow detected: {_wheelAccumulator}, clamping");
                 _wheelAccumulator = Math.Sign(_wheelAccumulator) * 10.0f;
             }
             
@@ -968,15 +1009,22 @@ public class TerminalController : ITerminalController
             // Determine scroll direction (positive wheel delta = scroll up)
             bool scrollUp = _wheelAccumulator > 0;
             
-            // Clamp to maximum lines per operation
+            // Clamp to maximum lines per operation - prevents excessive scrolling
             scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
             
-            // Store current viewport state for boundary condition handling
+            // Store current viewport state for boundary condition handling and error recovery
             var scrollbackManager = _terminal.ScrollbackManager;
+            if (scrollbackManager == null)
+            {
+                Console.WriteLine("TerminalController: ScrollbackManager is null, cannot process wheel scroll");
+                _wheelAccumulator = 0.0f;
+                return;
+            }
+
             int previousOffset = scrollbackManager.ViewportOffset;
             bool wasAtBottom = scrollbackManager.IsAtBottom;
             
-            // Apply scrolling via ScrollbackManager with error handling
+            // Apply scrolling via ScrollbackManager with comprehensive error handling
             try
             {
                 if (scrollUp)
@@ -1004,24 +1052,56 @@ public class TerminalController : ITerminalController
                     _wheelAccumulator = 0.0f;
                 }
             }
+            catch (ArgumentException ex)
+            {
+                // Handle invalid arguments to ScrollbackManager methods
+                Console.WriteLine($"TerminalController: Invalid argument to ScrollbackManager: {ex.Message}");
+                _wheelAccumulator = 0.0f;
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Handle ScrollbackManager state errors
+                Console.WriteLine($"TerminalController: ScrollbackManager operation error: {ex.Message}");
+                _wheelAccumulator = 0.0f;
+            }
+            catch (NullReferenceException ex)
+            {
+                // Handle unexpected null references in ScrollbackManager
+                Console.WriteLine($"TerminalController: Null reference in ScrollbackManager: {ex.Message}");
+                _wheelAccumulator = 0.0f;
+            }
             catch (Exception ex)
             {
-                // Handle ScrollbackManager integration errors
-                Console.WriteLine($"TerminalController: ScrollbackManager integration error: {ex.Message}");
-                
-                // Reset accumulator to prevent stuck state
+                // Handle any other ScrollbackManager integration errors
+                Console.WriteLine($"TerminalController: Unexpected ScrollbackManager error: {ex.GetType().Name}: {ex.Message}");
                 _wheelAccumulator = 0.0f;
                 
-                // Don't re-throw - gracefully handle the error
+                #if DEBUG
+                Console.WriteLine($"TerminalController: ScrollbackManager error stack trace: {ex.StackTrace}");
+                #endif
             }
+        }
+        catch (OverflowException ex)
+        {
+            // Handle arithmetic overflow in accumulator calculations
+            Console.WriteLine($"TerminalController: Arithmetic overflow in wheel processing: {ex.Message}");
+            _wheelAccumulator = 0.0f;
+        }
+        catch (ArithmeticException ex)
+        {
+            // Handle other arithmetic errors (division by zero, etc.)
+            Console.WriteLine($"TerminalController: Arithmetic error in wheel processing: {ex.Message}");
+            _wheelAccumulator = 0.0f;
         }
         catch (Exception ex)
         {
-            // Handle any other errors in wheel processing
-            Console.WriteLine($"TerminalController: Mouse wheel processing error: {ex.Message}");
-            
-            // Reset accumulator to prevent stuck state
+            // Handle any other unexpected errors in wheel processing
+            Console.WriteLine($"TerminalController: Unexpected error in mouse wheel processing: {ex.GetType().Name}: {ex.Message}");
             _wheelAccumulator = 0.0f;
+            
+            #if DEBUG
+            Console.WriteLine($"TerminalController: Wheel processing error stack trace: {ex.StackTrace}");
+            #endif
         }
     }
 
