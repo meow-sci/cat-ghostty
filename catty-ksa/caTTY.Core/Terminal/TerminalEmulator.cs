@@ -1366,6 +1366,52 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    ///     Inserts blank characters at the cursor position within the current line.
+    ///     Implements CSI @ (Insert Characters) sequence.
+    ///     Characters to the right of the cursor are shifted right, and characters
+    ///     that would go beyond the line end are lost.
+    /// </summary>
+    /// <param name="count">Number of characters to insert (minimum 1)</param>
+    internal void InsertCharactersInLine(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for character insertion within current line
+        _screenBufferManager.InsertCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
+    ///     Deletes characters at the cursor position within the current line.
+    ///     Implements CSI P (Delete Characters) sequence.
+    ///     Characters to the right of the cursor are shifted left, and blank characters
+    ///     are added at the end of the line.
+    /// </summary>
+    /// <param name="count">Number of characters to delete (minimum 1)</param>
+    internal void DeleteCharactersInLine(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for character deletion within current line
+        _screenBufferManager.DeleteCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
     ///     Resets the terminal to its initial state.
     ///     Implements ESC c (Reset to Initial State) sequence.
     /// </summary>

@@ -120,7 +120,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts line insertion/deletion to ensure C# implementation provides identical line operation behavior and content shifting
   - _Requirements: 22.1, 22.2_
 
-- [ ] 4.12 Add character insertion and deletion operations
+- [x] 4.12 Add character insertion and deletion operations
   - Implement insert character (CSI @) sequence with line shifting
   - Add delete character (CSI P) sequence with content preservation
   - Handle character operations at line boundaries

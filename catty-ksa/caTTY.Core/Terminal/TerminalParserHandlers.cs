@@ -309,6 +309,16 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.DeleteLinesInRegion(message.Count ?? 1);
                 break;
 
+            case "csi.insertChars":
+                // Insert Characters (CSI @) - insert blank characters at cursor position
+                _terminal.InsertCharactersInLine(message.Count ?? 1);
+                break;
+
+            case "csi.deleteChars":
+                // Delete Characters (CSI P) - delete characters at cursor position
+                _terminal.DeleteCharactersInLine(message.Count ?? 1);
+                break;
+
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

@@ -466,4 +466,96 @@ public class ScreenBufferManager : IScreenBufferManager
 
         _screenBuffer.CopyTo(destination, startRow, endRow);
     }
+
+    /// <summary>
+    ///     Inserts blank characters at the cursor position within the current line.
+    ///     Implements CSI @ (Insert Characters) sequence.
+    /// </summary>
+    /// <param name="count">Number of characters to insert</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="cursorCol">Current cursor column (0-based)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank characters</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank characters</param>
+    public void InsertCharactersInLine(int count, int cursorRow, int cursorCol, SgrAttributes currentSgrAttributes, bool currentCharacterProtection)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+        if (cursorRow < 0 || cursorRow >= Height)
+        {
+            return;
+        }
+        if (cursorCol < 0 || cursorCol >= Width)
+        {
+            return;
+        }
+
+        // Calculate the actual number of characters to insert (limited by remaining space in line)
+        int n = Math.Min(count, Width - cursorCol);
+        if (n <= 0)
+        {
+            return;
+        }
+
+        // Shift existing characters to the right
+        for (int x = Width - 1; x >= cursorCol + n; x--)
+        {
+            var cell = _screenBuffer.GetCell(cursorRow, x - n);
+            _screenBuffer.SetCell(cursorRow, x, cell);
+        }
+
+        // Insert blank characters with current SGR attributes
+        var blankCell = new Cell(' ', currentSgrAttributes, currentCharacterProtection);
+        for (int x = 0; x < n; x++)
+        {
+            _screenBuffer.SetCell(cursorRow, cursorCol + x, blankCell);
+        }
+    }
+
+    /// <summary>
+    ///     Deletes characters at the cursor position within the current line.
+    ///     Implements CSI P (Delete Characters) sequence.
+    /// </summary>
+    /// <param name="count">Number of characters to delete</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="cursorCol">Current cursor column (0-based)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank characters</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank characters</param>
+    public void DeleteCharactersInLine(int count, int cursorRow, int cursorCol, SgrAttributes currentSgrAttributes, bool currentCharacterProtection)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+        if (cursorRow < 0 || cursorRow >= Height)
+        {
+            return;
+        }
+        if (cursorCol < 0 || cursorCol >= Width)
+        {
+            return;
+        }
+
+        // Calculate the actual number of characters to delete (limited by remaining characters in line)
+        int n = Math.Min(count, Width - cursorCol);
+        if (n <= 0)
+        {
+            return;
+        }
+
+        // Shift remaining characters to the left
+        for (int x = cursorCol; x < Width - n; x++)
+        {
+            var cell = _screenBuffer.GetCell(cursorRow, x + n);
+            _screenBuffer.SetCell(cursorRow, x, cell);
+        }
+
+        // Fill the end of the line with blank characters
+        var blankCell = new Cell(' ', currentSgrAttributes, false); // Use false for character protection as per TypeScript
+        for (int x = Width - n; x < Width; x++)
+        {
+            _screenBuffer.SetCell(cursorRow, x, blankCell);
+        }
+    }
 }
