@@ -105,7 +105,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 12: Cursor wrapping behavior**
   - **Validates: Requirements 8.3**
 
-- [ ] 5.9 Add bracketed paste mode support
+- [x] 5.9 Add bracketed paste mode support
   - Implement bracketed paste mode state tracking
   - Add paste sequence wrapping for bracketed paste
   - Handle mode switching sequences

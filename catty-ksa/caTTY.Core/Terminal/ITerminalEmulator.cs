@@ -112,4 +112,29 @@ public interface ITerminalEmulator : IDisposable
     ///     Event raised when a bell character (BEL, 0x07) is received.
     /// </summary>
     event EventHandler<BellEventArgs>? Bell;
+
+    /// <summary>
+    ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
+    ///     When bracketed paste mode is enabled (DECSET 2004), paste content is wrapped with:
+    ///     - Start marker: ESC[200~
+    ///     - End marker: ESC[201~
+    /// </summary>
+    /// <param name="pasteContent">The content to be pasted</param>
+    /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
+    string WrapPasteContent(string pasteContent);
+
+    /// <summary>
+    ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
+    ///     This overload accepts ReadOnlySpan&lt;char&gt; for performance-sensitive scenarios.
+    /// </summary>
+    /// <param name="pasteContent">The content to be pasted</param>
+    /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
+    string WrapPasteContent(ReadOnlySpan<char> pasteContent);
+
+    /// <summary>
+    ///     Checks if bracketed paste mode is currently enabled.
+    ///     This is a convenience method for external components that need to check paste mode state.
+    /// </summary>
+    /// <returns>True if bracketed paste mode is enabled, false otherwise</returns>
+    bool IsBracketedPasteModeEnabled();
 }

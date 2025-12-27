@@ -821,4 +821,102 @@ public class TerminalEmulatorTests
 
         terminal.Dispose();
     }
+
+    /// <summary>
+    ///     Tests that paste content is wrapped with escape sequences when bracketed paste mode is enabled.
+    /// </summary>
+    [Test]
+    public void WrapPasteContent_WithBracketedPasteModeEnabled_WrapsContent()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
+
+        // Act
+        string result = terminal.WrapPasteContent("hello world");
+
+        // Assert
+        Assert.That(result, Is.EqualTo("\x1b[200~hello world\x1b[201~"));
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that paste content is not wrapped when bracketed paste mode is disabled.
+    /// </summary>
+    [Test]
+    public void WrapPasteContent_WithBracketedPasteModeDisabled_DoesNotWrapContent()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        // Bracketed paste mode is disabled by default
+
+        // Act
+        string result = terminal.WrapPasteContent("hello world");
+
+        // Assert
+        Assert.That(result, Is.EqualTo("hello world"));
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that empty paste content is handled correctly.
+    /// </summary>
+    [Test]
+    public void WrapPasteContent_WithEmptyContent_HandlesCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
+
+        // Act & Assert
+        Assert.That(terminal.WrapPasteContent(""), Is.EqualTo(""));
+        Assert.That(terminal.WrapPasteContent(null!), Is.EqualTo(null));
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that the ReadOnlySpan overload works correctly.
+    /// </summary>
+    [Test]
+    public void WrapPasteContent_WithReadOnlySpan_WorksCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
+
+        // Act
+        ReadOnlySpan<char> content = "test content".AsSpan();
+        string result = terminal.WrapPasteContent(content);
+
+        // Assert
+        Assert.That(result, Is.EqualTo("\x1b[200~test content\x1b[201~"));
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that the bracketed paste mode state check method works correctly.
+    /// </summary>
+    [Test]
+    public void IsBracketedPasteModeEnabled_ReflectsCurrentState()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Initially should be false
+        Assert.That(terminal.IsBracketedPasteModeEnabled(), Is.False);
+
+        // Enable bracketed paste mode
+        terminal.Write("\x1b[?2004h");
+        Assert.That(terminal.IsBracketedPasteModeEnabled(), Is.True);
+
+        // Disable bracketed paste mode
+        terminal.Write("\x1b[?2004l");
+        Assert.That(terminal.IsBracketedPasteModeEnabled(), Is.False);
+
+        terminal.Dispose();
+    }
 }

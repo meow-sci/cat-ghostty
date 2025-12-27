@@ -129,6 +129,30 @@ public class CsiParserBasicTests
     }
 
     [Test]
+    public void ParseCsiSequence_BracketedPasteModeSet_ParsesCorrectly()
+    {
+        byte[] sequence = Encoding.ASCII.GetBytes("\x1b[?2004h");
+        CsiMessage result = _parser.ParseCsiSequence(sequence, "\x1b[?2004h");
+
+        Assert.That(result.Type, Is.EqualTo("csi.decModeSet"));
+        Assert.That(result.Implemented, Is.True);
+        Assert.That(result.DecModes, Is.EqualTo(new[] { 2004 }));
+        Assert.That(result.Parameters, Is.EqualTo(new[] { 2004 }));
+    }
+
+    [Test]
+    public void ParseCsiSequence_BracketedPasteModeReset_ParsesCorrectly()
+    {
+        byte[] sequence = Encoding.ASCII.GetBytes("\x1b[?2004l");
+        CsiMessage result = _parser.ParseCsiSequence(sequence, "\x1b[?2004l");
+
+        Assert.That(result.Type, Is.EqualTo("csi.decModeReset"));
+        Assert.That(result.Implemented, Is.True);
+        Assert.That(result.DecModes, Is.EqualTo(new[] { 2004 }));
+        Assert.That(result.Parameters, Is.EqualTo(new[] { 2004 }));
+    }
+
+    [Test]
     public void ParseCsiSequence_EraseInDisplay_ParsesCorrectly()
     {
         byte[] sequence = Encoding.ASCII.GetBytes("\x1b[2J");
