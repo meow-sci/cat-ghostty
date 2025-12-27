@@ -77,7 +77,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 30: Alternate screen scrollback isolation**
   - **Validates: Requirements 15.3**
 
-- [ ] 5.6 Implement terminal mode management
+- [x] 5.6 Implement terminal mode management
   - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
   - Create terminal mode state tracking
   - Add auto-wrap mode with line wrapping behavior

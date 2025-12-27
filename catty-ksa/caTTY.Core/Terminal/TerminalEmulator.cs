@@ -708,6 +708,9 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="enabled">True to enable, false to disable</param>
     internal void SetDecMode(int mode, bool enabled)
     {
+        // Update the mode manager first
+        _modeManager.SetPrivateMode(mode, enabled);
+        
         switch (mode)
         {
             case 6: // DECOM - Origin Mode
@@ -746,6 +749,10 @@ public class TerminalEmulator : ITerminalEmulator
 
             case 1006: // SGR mouse encoding
                 State.MouseSgrEncodingEnabled = enabled;
+                break;
+
+            case 2004: // Bracketed paste mode
+                State.BracketedPasteMode = enabled;
                 break;
 
             case 2027: // UTF-8 Mode
@@ -1534,5 +1541,64 @@ public class TerminalEmulator : ITerminalEmulator
         {
             throw new ObjectDisposedException(nameof(TerminalEmulator));
         }
+    }
+
+    /// <summary>
+    ///     Saves the current state of specified private modes for later restoration.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to save</param>
+    internal void SavePrivateModes(int[] modes)
+    {
+        // Save the current state of each specified mode
+        _modeManager.SavePrivateModes(modes);
+    }
+
+    /// <summary>
+    ///     Restores the previously saved state of specified private modes.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to restore</param>
+    internal void RestorePrivateModes(int[] modes)
+    {
+        // Restore the saved state of each specified mode
+        _modeManager.RestorePrivateModes(modes);
+    }
+
+    /// <summary>
+    ///     Sets the cursor style (DECSCUSR).
+    /// </summary>
+    /// <param name="style">Cursor style (1=block, 2=underline, 3=bar, etc.)</param>
+    internal void SetCursorStyle(int style)
+    {
+        // Validate and normalize cursor style
+        int normalizedStyle = ValidateCursorStyle(style);
+        
+        // Update cursor manager
+        _cursorManager.Style = normalizedStyle;
+        
+        // Update terminal state
+        State.CursorStyle = normalizedStyle;
+    }
+
+    /// <summary>
+    ///     Validates and normalizes cursor style parameter for DECSCUSR.
+    /// </summary>
+    /// <param name="style">Raw cursor style parameter</param>
+    /// <returns>Normalized cursor style (1-6)</returns>
+    private static int ValidateCursorStyle(int style)
+    {
+        // DECSCUSR cursor styles:
+        // 0 or 1 = blinking block
+        // 2 = steady block  
+        // 3 = blinking underline
+        // 4 = steady underline
+        // 5 = blinking bar
+        // 6 = steady bar
+        
+        if (style < 0 || style > 6)
+        {
+            return 1; // Default to blinking block
+        }
+        
+        return style == 0 ? 1 : style; // 0 maps to 1 (blinking block)
     }
 }

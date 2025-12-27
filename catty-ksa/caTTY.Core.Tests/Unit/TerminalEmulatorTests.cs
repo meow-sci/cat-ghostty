@@ -724,4 +724,101 @@ public class TerminalEmulatorTests
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => terminal.Resize(100, 30));
     }
+
+    /// <summary>
+    ///     Tests that CSI save/restore private mode sequences work correctly.
+    /// </summary>
+    [Test]
+    public void Write_CsiSaveRestorePrivateModes_WorksCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Set some initial modes
+        terminal.Write("\x1b[?1h");    // Application cursor keys on
+        terminal.Write("\x1b[?7l");    // Auto-wrap off
+        terminal.Write("\x1b[?25l");   // Cursor invisible
+
+        // Verify initial state
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.True);
+        Assert.That(terminal.ModeManager.AutoWrapMode, Is.False);
+        Assert.That(terminal.ModeManager.CursorVisible, Is.False);
+
+        // Save modes 1 and 25
+        terminal.Write("\x1b[?1;25s");
+
+        // Change the modes
+        terminal.Write("\x1b[?1l");    // Application cursor keys off
+        terminal.Write("\x1b[?25h");   // Cursor visible
+
+        // Verify changed state
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.False);
+        Assert.That(terminal.ModeManager.CursorVisible, Is.True);
+
+        // Restore the saved modes
+        terminal.Write("\x1b[?1;25r");
+
+        // Verify restored state (only modes 1 and 25 should be restored)
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.True);  // Restored
+        Assert.That(terminal.ModeManager.CursorVisible, Is.False);         // Restored
+        Assert.That(terminal.ModeManager.AutoWrapMode, Is.False);          // Not saved/restored, kept current value
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that CSI cursor style sequence (DECSCUSR) works correctly.
+    /// </summary>
+    [Test]
+    public void Write_CsiSetCursorStyle_WorksCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Test different cursor styles
+        terminal.Write("\x1b[2 q");    // Steady block
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(2));
+
+        terminal.Write("\x1b[4 q");    // Steady underline
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(4));
+
+        terminal.Write("\x1b[6 q");    // Steady bar
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(6));
+
+        // Test invalid style (should default to 1)
+        terminal.Write("\x1b[10 q");   // Invalid style
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(1));
+
+        // Test style 0 (should map to 1)
+        terminal.Write("\x1b[0 q");    // Style 0 maps to 1
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(1));
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that bracketed paste mode is properly tracked.
+    /// </summary>
+    [Test]
+    public void Write_BracketedPasteMode_WorksCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Initially should be off
+        Assert.That(terminal.ModeManager.BracketedPasteMode, Is.False);
+        Assert.That(terminal.State.BracketedPasteMode, Is.False);
+
+        // Enable bracketed paste mode
+        terminal.Write("\x1b[?2004h");
+        Assert.That(terminal.ModeManager.BracketedPasteMode, Is.True);
+        Assert.That(terminal.State.BracketedPasteMode, Is.True);
+
+        // Disable bracketed paste mode
+        terminal.Write("\x1b[?2004l");
+        Assert.That(terminal.ModeManager.BracketedPasteMode, Is.False);
+        Assert.That(terminal.State.BracketedPasteMode, Is.False);
+
+        terminal.Dispose();
+    }
 }

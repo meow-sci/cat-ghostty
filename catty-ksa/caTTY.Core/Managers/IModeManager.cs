@@ -69,9 +69,21 @@ public interface IModeManager
     void SaveModes();
 
     /// <summary>
+    ///     Saves the current state of specific modes for later restoration.
+    /// </summary>
+    /// <param name="modes">Array of mode numbers to save</param>
+    void SaveModes(int[] modes);
+
+    /// <summary>
     ///     Restores the previously saved mode states.
     /// </summary>
     void RestoreModes();
+
+    /// <summary>
+    ///     Restores the previously saved state of specific modes.
+    /// </summary>
+    /// <param name="modes">Array of mode numbers to restore</param>
+    void RestoreModes(int[] modes);
 
     /// <summary>
     ///     Saves the current state of private modes for later restoration.
@@ -79,9 +91,21 @@ public interface IModeManager
     void SavePrivateModes();
 
     /// <summary>
+    ///     Saves the current state of specific private modes for later restoration.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to save</param>
+    void SavePrivateModes(int[] modes);
+
+    /// <summary>
     ///     Restores the previously saved private mode states.
     /// </summary>
     void RestorePrivateModes();
+
+    /// <summary>
+    ///     Restores the previously saved state of specific private modes.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to restore</param>
+    void RestorePrivateModes(int[] modes);
 
     /// <summary>
     ///     Resets all modes to their default values.

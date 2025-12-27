@@ -319,6 +319,30 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.DeleteCharactersInLine(message.Count ?? 1);
                 break;
 
+            case "csi.savePrivateMode":
+                // Save private modes (CSI ? Pm s)
+                if (message.DecModes != null)
+                {
+                    _terminal.SavePrivateModes(message.DecModes);
+                }
+                break;
+
+            case "csi.restorePrivateMode":
+                // Restore private modes (CSI ? Pm r)
+                if (message.DecModes != null)
+                {
+                    _terminal.RestorePrivateModes(message.DecModes);
+                }
+                break;
+
+            case "csi.setCursorStyle":
+                // Set cursor style (CSI Ps SP q) - DECSCUSR
+                if (message.CursorStyle.HasValue)
+                {
+                    _terminal.SetCursorStyle(message.CursorStyle.Value);
+                }
+                break;
+
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

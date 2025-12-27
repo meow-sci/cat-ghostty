@@ -146,6 +146,25 @@ public class ModeManager : IModeManager
     }
 
     /// <summary>
+    ///     Saves the current state of specific modes for later restoration.
+    /// </summary>
+    /// <param name="modes">Array of mode numbers to save</param>
+    public void SaveModes(int[] modes)
+    {
+        foreach (int mode in modes)
+        {
+            if (_modes.TryGetValue(mode, out bool value))
+            {
+                _savedModes[mode] = value;
+            }
+            else
+            {
+                _savedModes[mode] = false; // Default to disabled if not set
+            }
+        }
+    }
+
+    /// <summary>
     ///     Restores the previously saved mode states.
     /// </summary>
     public void RestoreModes()
@@ -153,6 +172,21 @@ public class ModeManager : IModeManager
         foreach (var kvp in _savedModes)
         {
             SetMode(kvp.Key, kvp.Value);
+        }
+    }
+
+    /// <summary>
+    ///     Restores the previously saved state of specific modes.
+    /// </summary>
+    /// <param name="modes">Array of mode numbers to restore</param>
+    public void RestoreModes(int[] modes)
+    {
+        foreach (int mode in modes)
+        {
+            if (_savedModes.TryGetValue(mode, out bool value))
+            {
+                SetMode(mode, value);
+            }
         }
     }
 
@@ -169,6 +203,25 @@ public class ModeManager : IModeManager
     }
 
     /// <summary>
+    ///     Saves the current state of specific private modes for later restoration.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to save</param>
+    public void SavePrivateModes(int[] modes)
+    {
+        foreach (int mode in modes)
+        {
+            if (_privateModes.TryGetValue(mode, out bool value))
+            {
+                _savedPrivateModes[mode] = value;
+            }
+            else
+            {
+                _savedPrivateModes[mode] = GetDefaultPrivateModeValue(mode);
+            }
+        }
+    }
+
+    /// <summary>
     ///     Restores the previously saved private mode states.
     /// </summary>
     public void RestorePrivateModes()
@@ -176,6 +229,21 @@ public class ModeManager : IModeManager
         foreach (var kvp in _savedPrivateModes)
         {
             SetPrivateMode(kvp.Key, kvp.Value);
+        }
+    }
+
+    /// <summary>
+    ///     Restores the previously saved state of specific private modes.
+    /// </summary>
+    /// <param name="modes">Array of private mode numbers to restore</param>
+    public void RestorePrivateModes(int[] modes)
+    {
+        foreach (int mode in modes)
+        {
+            if (_savedPrivateModes.TryGetValue(mode, out bool value))
+            {
+                SetPrivateMode(mode, value);
+            }
         }
     }
 
@@ -196,5 +264,27 @@ public class ModeManager : IModeManager
         CursorVisible = true;
         OriginMode = false;
         Utf8Mode = true;
+    }
+
+    /// <summary>
+    ///     Gets the default value for a private mode when not explicitly set.
+    /// </summary>
+    /// <param name="mode">Private mode number</param>
+    /// <returns>Default value for the mode</returns>
+    private bool GetDefaultPrivateModeValue(int mode)
+    {
+        return mode switch
+        {
+            1 => false,    // Application cursor keys - default off
+            6 => false,    // Origin mode - default off  
+            7 => true,     // Auto-wrap mode - default on
+            25 => true,    // Cursor visibility - default on
+            47 => false,   // Alternate screen - default off
+            1047 => false, // Alternate screen with cursor save - default off
+            1049 => false, // Alternate screen with cursor save and clear - default off
+            2004 => false, // Bracketed paste mode - default off
+            2027 => true,  // UTF-8 mode - default on
+            _ => false     // Unknown modes default to off
+        };
     }
 }

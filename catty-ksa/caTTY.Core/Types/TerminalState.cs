@@ -184,6 +184,11 @@ public class TerminalState
     public bool AutoWrapMode { get; set; } = true;
 
     /// <summary>
+    ///     Bracketed paste mode - when true, paste content is wrapped with escape sequences.
+    /// </summary>
+    public bool BracketedPasteMode { get; set; } = false;
+
+    /// <summary>
     ///     Top of scroll region (0-based, inclusive).
     /// </summary>
     public int ScrollTop { get; set; }
@@ -432,6 +437,7 @@ public class TerminalState
         ApplicationCursorKeys = false;
         OriginMode = false;
         AutoWrapMode = true;
+        BracketedPasteMode = false;
         ScrollTop = 0;
         ScrollBottom = Rows - 1;
         InitializeTabStops(Cols);
