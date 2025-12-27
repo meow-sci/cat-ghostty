@@ -489,7 +489,9 @@ public class SgrParser : ISgrParser
             "sgr.bold" => UpdateAttribute(current, bold: true),
             "sgr.faint" => UpdateAttribute(current, faint: true),
             "sgr.italic" => UpdateAttribute(current, italic: true),
-            "sgr.underline" => UpdateAttribute(current, underline: true, underlineStyle: UnderlineStyle.Single),
+            "sgr.underline" => message.Data is UnderlineStyle style 
+                ? UpdateAttribute(current, underline: true, underlineStyle: style)
+                : UpdateAttribute(current, underline: true, underlineStyle: UnderlineStyle.Single),
             "sgr.slowBlink" or "sgr.rapidBlink" => UpdateAttribute(current, blink: true),
             "sgr.inverse" => UpdateAttribute(current, inverse: true),
             "sgr.hidden" => UpdateAttribute(current, hidden: true),

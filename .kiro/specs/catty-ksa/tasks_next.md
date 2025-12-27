@@ -1,0 +1,517 @@
+- [ ] 4. Add scrolling, scrollback, and screen management
+- [ ] 4.1 Create scrollback buffer infrastructure
+  - Create IScrollbackBuffer interface
+  - Create ScrollbackBuffer class with circular array
+  - Add methods for adding lines and querying history
+  - Implement size management and line reuse
+  - Define what a stored scrollback line contains
+    - Preserve characters and attributes (not just chars)
+    - Ensure line length always equals cols for simple rendering
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated ScrollbackManager class
+    - Extract scrollback logic into caTTY.Core/Managers/ScrollbackManager.cs
+    - Create IScrollbackManager interface for testability
+    - ScrollbackManager should handle all scrollback buffer operations and viewport management
+    - ScrollbackManager should not exceed 250 lines (excluding comments)
+    - TerminalEmulator should delegate scrollback operations to ScrollbackManager instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts to ensure C# scrollback buffer provides identical circular buffer behavior and line preservation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
+  - _Requirements: 14.1, 14.2, 14.5_
+
+- [ ] 4.2 Implement basic scrolling operations
+  - Add ScrollUp and ScrollDown methods to ScreenBuffer
+  - Move scrolled content to scrollback buffer
+  - Handle content preservation during scrolling
+  - Add bounds checking for scroll operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts scrolling operations to ensure C# implementation provides identical scrolling behavior and content preservation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
+  - _Requirements: 11.8, 11.9, 14.1_
+
+- [ ] 4.3 Add scroll sequences to CSI parser
+  - Implement scroll up (CSI S) and scroll down (CSI T) sequences
+  - Add parameter parsing for scroll line counts
+  - Integrate scrolling with screen buffer operations
+  - Update screen content with scrolling operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll sequence handling to ensure C# implementation provides identical scroll sequence behavior
+  - _Requirements: 11.8, 11.9_
+
+- [ ] 4.4 Write property test for scrollback buffer management
+  - **Property 26: Scrollback buffer management**
+  - **Validates: Requirements 14.1, 14.2**
+
+- [ ] 4.5 Write property test for screen scrolling operations
+  - **Property 20: Screen scrolling operations**
+  - **Validates: Requirements 11.8, 11.9**
+
+- [ ] 4.6 Implement scroll region management
+  - Add scroll region state to terminal (top/bottom boundaries)
+  - Implement set scroll region (CSI r) sequence
+  - Restrict scrolling operations to defined scroll region
+  - Handle cursor movement within and outside scroll regions
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll region implementation to ensure C# provides identical scroll region behavior and cursor interaction
+  - _Requirements: Requirement 10 from original spec_
+
+- [ ] 4.7 Add viewport management for scrollback navigation
+  - Create viewport offset tracking
+  - Add methods for scrolling through history
+  - Implement auto-scroll when new content arrives
+  - Add viewport bounds checking
+  - Define auto-follow rules
+    - If user scrolls up, disable auto-follow until they return to bottom
+    - New output should not yank viewport while user is reviewing history
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts viewport management to ensure C# implementation provides identical auto-scroll and viewport behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
+  - _Requirements: 14.3, 14.4_
+
+- [ ] 4.8 Write property test for viewport and auto-scroll behavior
+  - **Property 27: Viewport and auto-scroll behavior**
+  - **Validates: Requirements 14.3, 14.4**
+
+- [ ] 4.9 Implement screen buffer resizing
+  - Add Resize method with content preservation
+  - Handle width/height changes intelligently
+  - Preserve cursor position during resize
+  - Update scrollback during resize operations
+  - Define resize policy (simple, MVP-friendly)
+    - Height change: preserve top-to-bottom rows where possible
+    - Width change: truncate/pad each row; do not attempt complex reflow
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts resize operations to ensure C# implementation provides equivalent content preservation during resize
+  - _Requirements: 7.2, 21.5_
+
+- [ ] 4.10 Write property test for screen buffer resize preservation
+  - **Property 8: Screen buffer resize preservation**
+  - **Validates: Requirements 7.2**
+
+- [ ] 4.11 Add line insertion and deletion operations
+  - Implement insert line (CSI L) sequence with content shifting
+  - Add delete line (CSI M) sequence with scrolling behavior
+  - Handle scroll region boundaries during line operations
+  - Update cursor position appropriately after operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts line insertion/deletion to ensure C# implementation provides identical line operation behavior and content shifting
+  - _Requirements: 22.1, 22.2_
+
+- [ ] 4.12 Add character insertion and deletion operations
+  - Implement insert character (CSI @) sequence with line shifting
+  - Add delete character (CSI P) sequence with content preservation
+  - Handle character operations at line boundaries
+  - Maintain SGR attributes during character operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts character insertion/deletion to ensure C# implementation provides identical character operation behavior and attribute preservation
+  - _Requirements: 22.3, 22.4, 22.5_
+
+- [ ] 4.13 Write property test for line and character operations
+  - **Property 32: Line and character insertion/deletion**
+  - **Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
+
+- [ ] 4.14 Test and validate scrolling functionality
+  - **USER VALIDATION REQUIRED**: Test scrollback works in both apps
+  - Verify long command output scrolls correctly
+  - Test viewport navigation and auto-scroll
+  - Validate resize handling preserves content
+  - Document any scrolling issues
+
+- [ ] 4.15 Checkpoint - Scrolling and screen management working
+  - Terminal handles scrolling and scrollback correctly
+  - Screen resizing works properly
+
+- [ ] 5. Add alternate screen buffer and advanced terminal modes
+- [ ] 5.1 Create alternate screen buffer infrastructure
+  - Create AlternateScreenManager class
+  - Implement separate primary and alternate screen buffers
+  - Add buffer switching methods (activate/deactivate)
+  - Preserve cursor and attributes independently per buffer
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated AlternateScreenManager class
+    - Extract alternate screen logic into caTTY.Core/Managers/AlternateScreenManager.cs
+    - Create IAlternateScreenManager interface for testability
+    - AlternateScreenManager should handle all buffer switching and state isolation
+    - AlternateScreenManager should not exceed 200 lines (excluding comments)
+    - TerminalEmulator should delegate alternate screen operations to AlternateScreenManager instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
+  - _Requirements: 15.1, 15.2, 15.4_
+
+- [ ] 5.2 Implement alternate screen isolation
+  - Ensure alternate screen doesn't add to scrollback
+  - Clear alternate buffer on activation
+  - Handle buffer switching with proper state preservation
+  - Maintain separate cursor positions per buffer
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
+  - _Requirements: 15.3, 15.5_
+
+- [ ] 5.3 Add alternate screen control sequences
+  - Implement DEC private mode sequences for alternate screen
+  - Add alternate screen activation/deactivation sequences
+  - Handle mode switching in CSI parser
+  - Test buffer switching with state preservation
+  - Ensure correct semantics for 47/1047/1049
+    - 1047/1049 preserve/restore cursor as specified
+    - 1049 clears alternate screen on entry
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts and handlers/csi.ts to ensure C# implementation provides identical alternate screen control sequence behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - _Requirements: 15.1, 15.2, 15.5_
+
+- [ ] 5.4 Write property test for alternate screen buffer switching
+  - **Property 29: Alternate screen buffer switching**
+  - **Validates: Requirements 15.1, 15.2, 15.4**
+
+- [ ] 5.5 Write property test for alternate screen scrollback isolation
+  - **Property 30: Alternate screen scrollback isolation**
+  - **Validates: Requirements 15.3**
+
+- [ ] 5.6 Implement terminal mode management
+  - Create terminal mode state tracking
+  - Add auto-wrap mode with line wrapping behavior
+  - Implement cursor visibility mode tracking
+  - Add application cursor keys mode
+  - Add origin mode (DECOM) state tracking
+  - Add UTF-8 mode (DECSET/DECRST 2027) state tracking
+  - Add cursor style tracking (DECSCUSR)
+  - Add save/restore private modes (CSI ? s / CSI ? r) state tracking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts and cursor.ts mode management to ensure C# implementation provides identical terminal mode behavior and state tracking
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
+  - _Requirements: 20.1, 20.2, 20.3, 20.4_
+
+- [ ] 5.7 Add cursor wrapping and line overflow handling
+  - Implement auto-wrap behavior when cursor reaches right edge
+  - Add line overflow handling based on auto-wrap mode
+  - Update character writing to respect wrapping settings
+  - Handle wide character wrapping correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
+  - _Requirements: 8.3, 9.5, 20.1_
+
+- [ ] 5.8 Write property test for cursor wrapping behavior
+  - **Property 12: Cursor wrapping behavior**
+  - **Validates: Requirements 8.3**
+
+- [ ] 5.9 Add bracketed paste mode support
+  - Implement bracketed paste mode state tracking
+  - Add paste sequence wrapping for bracketed paste
+  - Handle mode switching sequences
+  - Prepare for future paste integration
+  - Define the exact DECSET/DECRST sequences
+    - CSI ? 2004 h enable, CSI ? 2004 l disable
+    - When enabled, wrap paste payload with ESC[200~ and ESC[201~
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
+  - _Requirements: 20.5_
+
+- [ ] 5.10 Write property test for cursor visibility tracking
+  - **Property 14: Cursor visibility tracking**
+  - **Validates: Requirements 8.5**
+
+- [ ] 5.11 Test and validate alternate screen and modes
+  - **USER VALIDATION REQUIRED**: Test full-screen apps (less)
+  - Verify alternate screen works correctly
+  - Test terminal mode switching
+  - Validate cursor wrapping and visibility
+  - Document any mode handling issues
+
+- [ ] 5.12 Checkpoint - Alternate screen and terminal modes working
+  - Full-screen applications work correctly
+  - Terminal modes function properly
+
+- [ ] 6. Add OSC sequences and advanced features
+- [ ] 6.1 Create OSC sequence parser infrastructure
+  - Create OscParser class for OSC sequences
+  - Add OSC sequence detection (ESC ] command ST)
+  - Parse OSC command numbers and parameters
+  - Handle string termination with ST or BEL
+  - Define robustness rules
+    - Ignore/skip malformed OSC without breaking the stream
+    - Cap maximum OSC payload length to prevent memory blowups
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated OscParser class
+    - Extract OSC parsing logic into caTTY.Core/Parsing/OscParser.cs
+    - Create IOscParser interface for testability
+    - OscParser should handle all OSC sequence parsing and command extraction
+    - OscParser should not exceed 250 lines (excluding comments)
+    - Main Parser should delegate OSC parsing to OscParser instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts and Parser.ts OSC handling to ensure C# implementation provides identical OSC parsing behavior and robustness
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseOsc.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
+  - _Requirements: 13.1_
+
+- [ ] 6.2 Implement window title OSC sequences
+  - Add OSC 0 and OSC 2 (set window title) sequence handling
+  - Emit title change events with new title text
+  - Add title state tracking in terminal
+  - Handle empty titles and title reset
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts window title handling to ensure C# implementation provides identical title change behavior and event emission
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts
+  - _Requirements: 13.2_
+
+- [ ] 6.3 Add clipboard OSC sequences
+  - Add OSC 52 (clipboard) sequence handling
+  - Emit clipboard events for game integration
+  - Parse clipboard data and selection targets
+  - Handle base64 encoded clipboard content
+  - Define safety limits
+    - Cap decoded clipboard size
+    - Ignore invalid base64 payloads gracefully
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts clipboard handling to ensure C# implementation provides identical clipboard sequence processing and safety limits
+  - _Requirements: 13.4_
+
+- [ ] 6.4 Write property test for OSC parsing and event emission
+  - **Property 23: OSC parsing and event emission**
+  - **Validates: Requirements 13.1, 13.2, 13.4**
+
+- [ ] 6.5 Implement hyperlink OSC sequences
+  - Add OSC 8 (hyperlink) sequence parsing
+  - Associate URLs with character ranges
+  - Add hyperlink state to cell attributes
+  - Handle hyperlink start/end sequences
+  - Define association model
+    - Track current hyperlink URL as state and apply to subsequent written cells
+    - Clear hyperlink state on OSC 8 ;; ST
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts hyperlink handling to ensure C# implementation provides identical URL association and character range tracking
+  - _Requirements: 13.3_
+
+- [ ] 6.6 Write property test for OSC hyperlink association
+  - **Property 24: OSC hyperlink association**
+  - **Validates: Requirements 13.3**
+
+- [ ] 6.7 Add unknown OSC sequence handling
+  - Implement graceful handling of unknown OSC sequences
+  - Log unknown sequences for debugging
+  - Continue processing without errors
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts unknown sequence handling to ensure C# implementation provides identical graceful handling behavior
+  - _Requirements: 13.5_
+
+- [ ] 6.8 Write property test for unknown OSC sequence handling
+  - **Property 25: Unknown OSC sequence handling**
+  - **Validates: Requirements 13.5**
+
+- [ ] 6.9 Add character set support
+  - Implement character set state model
+    - Track G0/G1/G2/G3 designations
+    - Track active GL/GR mappings (at least GL via SI/SO)
+  - Implement character set designation sequences
+    - ESC ( X designate G0
+    - ESC ) X designate G1
+    - ESC * X designate G2
+    - ESC + X designate G3
+  - Handle shift-in (SI) and shift-out (SO) characters
+    - Switch active GL between G0 and G1
+  - Add DEC Special Graphics character set mapping
+    - Map bytes/chars for line-drawing glyphs used by TUIs
+    - Ensure mapping is bypassed when UTF-8 mode is enabled
+  - Create character set mapping tables
+    - Unit-test a small representative subset of mappings
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts to ensure C# implementation provides identical character set designation, switching, and DEC Special Graphics mapping
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts
+  - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5_
+
+- [ ] 6.10 Test and validate advanced features
+  - **USER VALIDATION REQUIRED**: Test OSC sequences and UTF-8 (including vim)
+  - Verify window title changes work
+  - Test UTF-8 and wide character display
+  - Validate character set switching
+  - Document any advanced feature issues
+
+- [ ] 6.11 Checkpoint - OSC sequences and character sets working
+  - Advanced terminal features function correctly
+  - UTF-8 and character sets work properly
+
+- [ ] 7. Add comprehensive input handling and selection
+- [ ] 7.1 Enhance keyboard input handling
+  - Improve key-to-sequence conversion in ImGui controller
+    - Define a single encoder entrypoint (key event → bytes)
+    - Ensure text input and key events do not double-send
+  - Add basic navigation key handling
+    - Arrow keys, Home/End, PageUp/PageDown, Insert/Delete
+  - Add function key handling
+    - F1-F12 escape sequences (xterm-compatible)
+  - Implement application cursor keys mode
+    - Switch arrow-key sequences based on mode state
+  - Add modifier key handling
+    - Ctrl combinations (Ctrl+C, Ctrl+V, Ctrl+W etc) forwarded correctly
+    - Alt/Meta handling for escape-prefixed sequences
+    - Shift behavior for navigation keys where applicable
+  - Add keypad semantics (minimal)
+    - Enter vs Return distinction if available
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts keyboard input handling to ensure C# ImGui implementation provides equivalent key encoding and modifier handling
+  - TypeScript reference: catty-web/app/src/ts/terminal/TerminalController.ts
+  - _Requirements: 16.2, 16.3, 16.4, 16.5_
+
+- [ ] 7.2 Add selection and copying support
+  - Implement mouse selection in ImGui context
+    - Map mouse coords to (row, col) in the terminal grid
+  - Add visual selection highlighting
+    - Ensure highlight works across viewport/scrollback rows
+  - Create text extraction from selected cells
+    - Normalize line endings (\n) and trim trailing spaces optionally
+    - Respect wrapped lines vs explicit newlines (simple rule acceptable)
+  - Integrate with game clipboard system
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts selection and copying logic to ensure C# ImGui implementation provides equivalent text extraction and selection behavior
+  - _Requirements: 25.1, 25.2, 25.3, 25.4, 25.5_
+
+- [ ] 7.3 Enhance focus and window management
+  - Improve focus state tracking
+  - Add visual focus indicators
+  - Handle window focus events properly
+  - Integrate with game input system
+  - Define input capture priority
+    - When terminal is focused, suppress game hotkeys bound to typing
+    - When terminal is unfocused/hidden, pass all input through to game
+  - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts focus management to ensure C# ImGui implementation provides equivalent focus handling and input priority management
+  - _Requirements: 18.2, 18.3, 18.4, 18.5_
+
+- [ ] 7.4 Test and validate input and selection
+  - **USER VALIDATION REQUIRED**: Test keyboard input thoroughly
+  - Verify special keys work correctly
+  - Test mouse selection and copying
+  - Validate focus management
+  - Document any input handling issues
+
+- [ ] 7.5 Checkpoint - Input handling and selection working
+  - Keyboard input works comprehensively
+  - Selection and copying function properly
+
+- [ ] 8. Add comprehensive testing and TypeScript compatibility
+- [ ] 8.1 Create comprehensive unit test suite
+  - Add unit tests for all core terminal components matching TypeScript coverage
+  - Create tests for ImGui controller integration
+  - Add process management unit tests
+  - Implement error condition and edge case tests
+  - **CRITICAL**: Match TypeScript test coverage with 42+ test files covering all parser types, terminal behaviors, and advanced features
+  - **Compare with TypeScript implementation**: Review all TypeScript test files in catty-web/packages/terminal-emulation/src/terminal/__tests__/ to ensure C# test suite provides equivalent or better coverage for all terminal functionality
+  - Add parser state integrity tests (matching Parser.state.property.test.ts)
+  - Add comprehensive CSI sequence tests (matching Parser.csi.test.ts)
+  - Add SGR parsing tests with color variants (matching Parser.sgr.test.ts)
+  - Add OSC sequence tests including hyperlinks (matching Parser.osc.property.test.ts)
+  - Add DCS handling tests (matching DcsHandling.test.ts)
+  - Add cursor positioning tests (matching CursorPositioning.test.ts)
+  - Add alternate screen tests (matching AlternateScreen.test.ts)
+  - Add scrollback tests (matching Scrollback.test.ts)
+  - Add tab stop control tests (matching TabStopControls.test.ts)
+  - Add device query tests (matching DeviceQuery.property.test.ts)
+  - Add window manipulation tests (matching WindowManipulation.test.ts)
+  - Add UTF-8 processing tests (matching Utf8Processing.property.test.ts)
+  - Add selection and text extraction tests
+  - Add character set handling tests
+  - Add enhanced SGR mode tests (matching EnhancedSgrMode.test.ts)
+  - Add selective erase tests (matching SelectiveErase.test.ts)
+  - Add insert/delete character tests (matching InsertDeleteChars.test.ts)
+  - _Requirements: 30.1_
+
+- [ ] 8.2 Implement property-based test suite
+  - Create property tests for all identified correctness properties
+  - Add FsCheck.NUnit integration and configuration
+  - Set up test generators for terminal data and sequences
+  - Configure minimum 100 iterations per property test
+  - **CRITICAL**: Ensure broad coverage matching TypeScript property tests
+  - **Compare with TypeScript implementation**: Review all TypeScript property test files in catty-web/packages/terminal-emulation/src/terminal/__tests__/ to ensure C# property tests provide equivalent or better coverage for all correctness properties
+  - Add parser state integrity properties (matching StatefulTerminal.cursor.property.test.ts)
+  - Add cursor behavior properties with round-trip validation
+  - Add color consistency properties (matching SgrColorConsistency.property.test.ts)
+  - Add CSS generation determinism properties (matching CssGenerationDeterminism.property.test.ts)
+  - Add application cursor key properties (matching ApplicationCursorKeys.property.test.ts)
+  - Add theme color resolution properties (matching ThemeColorResolution.property.test.ts)
+  - Add Vi sequence properties (matching ViSequenceProperties.property.test.ts)
+  - Add device query response properties
+  - Add UTF-8 processing properties with wide character handling
+  - Add scrollback buffer properties with circular array validation
+  - Add alternate screen isolation properties
+  - Add terminal state consistency properties during error conditions
+  - Add memory allocation and performance properties
+  - _Requirements: 30.2_
+
+- [ ] 8.3 Write remaining property tests for core functionality
+  - **Property 1: Event notification consistency**
+  - **Property 7: Screen buffer initialization**
+  - **Property 9: Cell data integrity**
+  - **Property 10: Terminal size constraints**
+  - **Property 11: Cursor initialization and advancement**
+  - **Property 15: Character processing with attributes**
+  - **Property 17: Line wrapping behavior**
+  - **Property 18: Control character processing**
+  - **Property 28: Scrollback access**
+  - **Property 31: Alternate screen initialization**
+  - **Property 32: Font configuration acceptance and application**
+  - **Property 33: Context detection and default configuration**
+  - **Property 34: Runtime font configuration updates**
+  - **Property 35: Font style selection consistency**
+  - **Property 36: Line and character insertion/deletion**
+  - **Validates: Requirements 2.3, 7.1, 7.3, 7.4, 7.5, 8.1, 8.2, 9.1, 9.2, 9.5, 10.1, 10.2, 10.3, 10.4, 10.5, 14.5, 15.5, 22.1, 22.2, 22.3, 22.4, 22.5, 32.1, 32.2, 32.3, 32.4, 32.5, 33.1, 33.2, 33.3, 33.4, 33.5, 34.1, 34.2, 34.3, 34.4, 34.5**
+
+- [ ] 8.4 Write TypeScript compatibility tests
+  - **Property 2: TypeScript compatibility for escape sequences**
+  - **Property 3: TypeScript compatibility for screen operations**
+  - **Property 4: TypeScript compatibility for cursor operations**
+  - **Property 5: TypeScript compatibility for scrollback behavior**
+  - **Property 6: TypeScript compatibility for alternate screen**
+  - **CRITICAL**: Ensure behavioral compatibility with TypeScript reference implementation
+  - Add escape sequence parsing compatibility tests comparing C# and TypeScript results
+  - Add screen operation compatibility tests validating identical state transitions
+  - Add cursor operation compatibility tests ensuring identical positioning logic
+  - Add scrollback behavior compatibility tests matching TypeScript scrolling semantics
+  - Add alternate screen compatibility tests validating buffer switching behavior
+  - Add SGR parsing compatibility tests ensuring identical color and style handling
+  - Add OSC sequence compatibility tests matching TypeScript OSC processing
+  - Add control character compatibility tests validating identical responses
+  - Add terminal mode compatibility tests ensuring identical mode handling
+  - Add character set compatibility tests matching TypeScript charset behavior
+  - Add UTF-8 processing compatibility tests with wide character handling
+  - Add device query compatibility tests ensuring identical response generation
+  - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
+
+- [ ] 8.5 Add integration tests for game mod functionality
+  - Create integration tests for game mod loading/unloading
+  - Add tests for ImGui integration within game context
+  - Test process management integration
+  - Validate resource cleanup during mod lifecycle
+  - Define a realistic test strategy
+    - Prefer headless tests for Core; keep game-mod “integration tests” as smoke/manual harness if game APIs cannot be loaded in CI
+  - _Requirements: 30.1_
+
+- [ ] 8.6 Create performance and memory tests
+  - Add performance benchmarks for terminal operations
+  - Create memory allocation and garbage collection tests
+  - Add stress tests for large data processing
+  - Implement rendering performance validation
+  - **CRITICAL**: Add comprehensive performance testing matching TypeScript benchmarks
+  - Add parser performance tests with large escape sequence streams
+  - Add screen buffer performance tests with frequent updates
+  - Add scrollback performance tests with large history buffers
+  - Add ImGui rendering performance tests with complex styling
+  - Add memory allocation pattern tests to minimize GC pressure
+  - Add UTF-8 processing performance tests with wide characters
+  - Add concurrent access performance tests for multi-threaded scenarios
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+
+- [ ] 8.7 Add comprehensive test coverage validation
+  - **CRITICAL**: Ensure test coverage matches or exceeds TypeScript implementation
+  - Validate all 42+ TypeScript test file equivalents are implemented in C#
+  - Ensure all parser types have comprehensive test coverage (CSI, SGR, OSC, DCS, ESC)
+  - Validate all terminal behaviors have property-based test coverage
+  - Ensure all advanced features have integration test coverage
+  - Add test coverage metrics and reporting
+  - Validate compatibility test coverage against TypeScript reference
+  - Ensure performance test coverage for all critical paths
+  - Add test documentation explaining coverage strategy and test organization
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+
+- [ ] 8.8 Final comprehensive testing and validation
+  - **USER VALIDATION REQUIRED**: Final end-to-end testing
+  - Test all features in both console app and game mod
+  - Verify performance is acceptable
+  - Test with various shell applications and commands
+  - Document final validation results
+  - **CRITICAL BUILD QUALITY REQUIREMENTS**:
+    - **ENTIRE SOLUTION MUST COMPILE WITH ZERO WARNINGS AND ZERO ERRORS**
+    - **ENTIRE TEST SUITE MUST PASS WITH ZERO FAILURES**
+    - Verify all projects compile successfully with `TreatWarningsAsErrors=true`
+    - Ensure all nullable reference type warnings are resolved
+    - Confirm all XML documentation warnings are addressed
+    - Validate all unit tests pass consistently
+    - Verify all property-based tests pass across multiple runs (minimum 100 iterations each)
+    - Ensure all integration tests pass reliably
+    - Confirm all TypeScript compatibility tests pass
+    - Validate all performance tests meet benchmarks
+    - Verify clean build with `dotnet build --configuration Release --verbosity normal`
+    - Confirm clean test run with `dotnet test --configuration Release --verbosity normal`
+
+- [ ] 8.9 Final checkpoint - Complete tested terminal implementation
+  - All features working and thoroughly tested
+  - Both deployment targets fully validated by user
+  - **ZERO WARNINGS AND ZERO ERRORS** in entire solution
+  - **ZERO TEST FAILURES** in entire test suite
+  - Ready for production deployment

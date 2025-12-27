@@ -1,0 +1,464 @@
+- [-] 1. Create minimal working end-to-end terminal with real shell process
+- [x] 1.1 Set up solution structure and all projects
+  - Create caTTY-cs.sln solution file
+  - Create caTTY.Core class library project with .NET 10 target
+  - Create caTTY.TestApp console project (BRUTAL ImGui application with GLFW window)
+  - Create caTTY.ImGui class library project (placeholder)
+  - Create caTTY.ImGui.Playground console project (placeholder)
+  - Create caTTY.GameMod project (placeholder)
+  - Add caTTY.Core.Tests project (NUnit + FsCheck.NUnit) for core logic testing
+- Add caTTY.ImGui.Tests project (NUnit + FsCheck.NUnit) for ImGui controller testing
+  - Add shared build config (Directory.Build.props or equivalent)
+    - Enable nullable, treat warnings as errors, XML docs
+    - Set LangVersion and TargetFramework defaults
+  - Add repo-level .editorconfig for C# formatting consistency
+  - Wire up project references to match desired dependency flow
+    - caTTY.TestApp → caTTY.ImGui → caTTY.Core (TestApp uses BRUTAL ImGui)
+    - caTTY.ImGui → caTTY.Core
+    - caTTY.ImGui.Playground → (KSA DLLs only, no caTTY dependencies)
+    - caTTY.GameMod → caTTY.ImGui → caTTY.Core
+    - caTTY.Core.Tests → caTTY.Core
+    - caTTY.ImGui.Tests → caTTY.ImGui
+  - Add minimal solution folders matching intended layout (Core/ImGui/TestApp/GameMod/Tests)
+  - Configure basic build/run commands for local dev (dotnet build/test/run)
+  - **Reference**: Use `KsaExampleMod/` folder as template for KSA game mod project structure
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
+
+- [x] 1.2 Implement minimal data structures
+  - Create Cell struct with character only (no attributes yet)
+    - Define a default/empty cell value (e.g. space)
+    - Decide how to represent “unset” vs “space” (usually just space)
+  - Create basic IScreenBuffer interface
+    - Include clear operations needed by CSI erase modes later
+    - Define how cells are accessed (Get/Set with bounds behavior)
+  - Create ScreenBuffer class with simple 2D char array
+    - Initialize all cells to the default/empty cell
+    - Add helpers to clear a row/region efficiently
+  - Create ICursor interface with row/col properties
+  - Create Cursor class with basic position tracking
+    - Add clamp helper to keep cursor within bounds
+    - Add save/restore storage (even if unused until ESC/CSI tasks)
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/state.ts
+  - _Requirements: 7.1, 7.3, 8.1_
+
+- [x] 1.3 Create minimal terminal emulator core
+  - Create ITerminalEmulator interface with Write method
+    - Expose cols/rows (or Width/Height) so UI and tests can query size
+    - Expose a way to read the current screen snapshot for rendering
+  - Create TerminalEmulator class with screen buffer and cursor
+  - Implement Write(ReadOnlySpan<byte>) for raw data processing
+    - Ensure Write can be called with partial chunks and in rapid succession
+  - Add basic printable character handling (ASCII only)
+    - Decide how to handle DEL (0x7f) and other non-printables (usually ignore)
+    - Decide replacement behavior for unsupported bytes (ignore vs replacement char)
+  - Handle newlines and carriage returns for basic line discipline
+    - LF: move down (and scroll if at bottom)
+    - CR: move to column 0
+    - CRLF: treat as CR then LF
+    - Keep behavior consistent with future scrollback work
+    - Ensure cursor is clamped after movement
+  - Add minimal event/callback hooks
+    - ScreenUpdated event (or equivalent) for UI refresh
+    - ResponseEmitted event for device query replies (wired in 1.5)
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/StatefulTerminal.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
+  - _Requirements: 9.1, 10.1, 10.2, 23.1, 23.2_
+
+- [x] 1.4 Create ImGui playground application structure
+  - Create caTTY.ImGui.Playground console application project
+  - Add KSA game DLL references (same as caTTY.ImGui and caTTY.GameMod)
+  - Set up basic ImGui initialization and window management
+  - Create placeholder Program.cs with ImGui context setup
+  - Add project to solution and configure build dependencies
+  - **Reference**: Use `KsaExampleMod/modone.csproj` for KSA DLL reference patterns
+  - _Requirements: 31.1, 5.3_
+
+- [x] 1.5 Implement basic ImGui rendering experiments
+  - Create simple character grid rendering using ImGui text functions
+  - Experiment with different approaches to terminal-like display
+    - Fixed-width font rendering
+    - Character cell positioning and alignment
+    - Grid layout with consistent spacing
+  - Add basic color experiments (foreground/background)
+  - Test different ImGui text rendering methods for performance
+  - Document findings and preferred approaches
+  - _Requirements: 31.2, 31.3_
+
+- [x] 1.6 Add text styling experiments to playground
+  - Implement bold, italic, underline text rendering experiments
+  - Test different approaches to text attribute application
+  - Experiment with cursor display techniques
+    - Block cursor, underline cursor, beam cursor
+    - Cursor blinking and visibility states
+  - Add interactive controls to toggle different styling options
+  - Document styling capabilities and limitations
+  - _Requirements: 31.4, 31.5_
+
+- [x] 1.7 Test and validate playground functionality
+  - **USER VALIDATION REQUIRED**: Run playground and verify ImGui rendering works
+  - Test different text styling combinations
+  - Verify color rendering accuracy
+  - Validate cursor display techniques
+  - Document any rendering issues or limitations found
+  - _Requirements: 31.1, 31.2, 31.3, 31.4, 31.5_
+
+- [x] 1.8 Create basic terminal state management
+  - Create TerminalState class with cursor position and basic modes
+    - Track tab stops and scroll region placeholders for later tasks
+  - Add SGR state tracking (minimal - just current attributes)
+    - Ensure default attribute state is well-defined and resettable
+  - Implement basic terminal dimensions and bounds checking
+    - Decide what happens on writes beyond right edge (wrapPending groundwork)
+  - Add wrap pending state for line overflow handling
+    - Define semantics: “write at last col sets wrapPending; next printable triggers LF+CR then write”
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/state.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
+  - _Requirements: 8.1, 8.2, 12.3_
+
+- [x] 1.9 Implement process management using Windows ConPTY
+  - **CRITICAL**: Use Windows ConPTY (Pseudoconsole) exclusively - no fallback to System.Diagnostics.Process redirection
+  - **Platform Requirement**: Windows 10 version 1809+ only - throw PlatformNotSupportedException on other platforms
+  - Create IProcessManager interface
+  - Create ProcessManager class using Windows ConPTY APIs
+    - Add P/Invoke declarations for CreatePseudoConsole, ResizePseudoConsole, ClosePseudoConsole
+    - Add P/Invoke declarations for CreatePipe, ReadFile, WriteFile, process creation APIs
+    - Implement proper ConPTY handle and pipe resource management
+  - Define a ProcessLaunchOptions model
+    - Shell selection (pwsh/powershell/cmd) and arguments
+    - Working directory, env vars, initial cols/rows for ConPTY creation
+  - Add shell spawning using ConPTY
+    - Create pseudoconsole with CreatePseudoConsole API
+    - Use PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE for process creation
+    - Implement pipe-based I/O (not stream redirection)
+  - Implement ConPTY output read loops
+    - Use ReadFile on ConPTY output pipe
+    - Non-blocking/async reads with proper Win32 error handling
+    - Forward output bytes to terminal Write(ReadOnlySpan<byte>)
+  - Implement ConPTY input write path for user input
+    - Use WriteFile to ConPTY input pipe
+    - Send encoded bytes directly to ConPTY
+    - Proper error handling for broken pipes
+  - Support terminal-generated responses (query replies) back to ConPTY input
+    - Add OnTerminalResponse event/callback hook
+    - Ensure response writes do not interleave incorrectly with user input
+  - Add ConPTY process lifecycle management
+    - Start/Stop/Dispose semantics with proper ConPTY cleanup
+    - Detect exit, capture exit code, raise ProcessExited event
+    - Cancellation tokens for read loops
+  - Add ConPTY-specific error handling
+    - Create ConPtyException with Win32 error codes
+    - Report ConPTY creation failures, pipe errors, process start failures
+    - Handle broken pipe / exited process during writes
+  - Implement true terminal resizing
+    - Use ResizePseudoConsole API for dynamic terminal size changes
+    - Proper terminal dimension reporting to child processes
+  - **Reference**: Follow Microsoft's ConPTY documentation exactly: https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
+  - TypeScript reference: catty-web/node-pty/src/BackendServer.ts (for interface design only)
+  - TypeScript reference: catty-web/node-pty/src/server.ts (for interface design only)
+  - _Requirements: 27.1, 27.2, 27.3, 28.1, 28.2_
+
+- [x] 1.10 Create standalone BRUTAL ImGui test application
+  - Create Program.cs with BRUTAL ImGui initialization and GLFW window setup
+  - Add KSA game DLL references (same as caTTY.ImGui and caTTY.GameMod)
+  - Initialize standalone ImGui context using BRUTAL ImGui framework
+  - Create main application loop with ImGui rendering
+  - Integrate terminal emulator and process manager
+  - Add ImGui terminal controller for display and input handling
+  - Use the same ImGui controller code that the game mod will use
+  - Add proper resource cleanup and disposal
+  - **Reference**: Use `catty-ksa/caTTY.ImGui.Playground/caTTY.ImGui.Playground.csproj` for KSA DLL reference patterns and how to setup the project code to run the Glfw window, Vulkan and BRUTAL ImGui code
+  - **Reference**: Use existing ImGui playground experiments for ImGui setup patterns
+  - _Requirements: 26.1, 26.2, 26.3, 26.4, 26.5_
+
+- [x] 1.11 Test and validate BRUTAL ImGui test application
+  - **USER VALIDATION REQUIRED**: Run test application and verify GLFW window opens with ImGui terminal
+  - Test basic shell commands (ls, dir, echo) in the ImGui terminal window
+  - Verify bidirectional data flow between shell and ImGui display
+  - Test keyboard input handling through ImGui
+  - Test terminal rendering with colors and text styling
+  - Confirm process cleanup on application exit
+  - Validate that the same ImGui controller code works in standalone context
+  - Document any issues found during testing
+
+- [x] 1.12 Create shared ImGui controller for both TestApp and GameMod
+  - Create ITerminalController interface
+  - Create ImGuiTerminalController class (shared implementation for both TestApp and GameMod)
+  - Add KSA game DLL references to caTTY.ImGui project
+  - Define the controller data flow boundaries
+    - Subscribe to terminal updates and request redraw
+    - Emit user input bytes/strings to ProcessManager
+  - Implement basic ImGui window with text display
+    - Render a fixed-size grid view (rows x cols) using terminal snapshot
+    - Render cursor (even if minimal: invert cell or draw rect)
+  - Add minimal keyboard input handling
+    - Text input for printable characters
+    - Enter, Backspace, Tab
+    - Arrow keys (basic) mapped to escape sequences
+  - Implement focus gating
+    - Only capture keyboard input when terminal window focused
+  - Implement minimal scrollback viewing in UI (optional for MVP)
+    - Render only viewport rows provided by terminal
+  - This controller will be used by both the standalone TestApp and the GameMod
+  - TypeScript reference: catty-web/app/src/ts/terminal/TerminalController.ts
+  - TypeScript reference: catty-web/app/src/components/terminal/Terminal.tsx
+  - TypeScript reference: catty-web/app/src/components/terminal/TerminalPage.tsx
+  - _Requirements: 16.1, 17.1, 18.1_
+
+- [x] 1.12.1 Add font configuration system to ImGui controller
+  - Create TerminalFontConfig class with font family and style settings
+    - Support Regular, Bold, Italic, and BoldItalic font variants
+    - Include configurable font size with validation (8.0f to 72.0f)
+    - Add factory methods for TestApp and GameMod contexts
+  - Create FontContextDetector utility for automatic context detection
+    - Detect TestApp vs GameMod execution environment
+    - Provide appropriate default font configurations
+  - Update ImGuiTerminalController to accept font configuration
+    - Add constructor overload with TerminalFontConfig parameter
+    - Maintain backward compatibility with existing constructor
+    - Load fonts from ImGui font system based on configuration
+    - Calculate character metrics from loaded fonts
+  - Implement runtime font configuration updates
+    - Add UpdateFontConfig method to ITerminalController interface
+    - Support font changes without restarting application
+    - Recalculate character metrics after font changes
+  - Add font loading and validation
+    - Validate font names and sizes during configuration
+    - Fall back to available fonts when specified fonts are unavailable
+    - Log font configuration for debugging purposes
+  - Implement font style selection for character rendering
+    - Select appropriate font variant based on SGR attributes
+    - Use Bold, Italic, or BoldItalic fonts for styled characters
+    - Ensure consistent font application across all character rendering
+  - _Requirements: 32.1, 32.2, 32.3, 32.4, 32.5, 33.1, 33.2, 33.3, 33.4, 33.5, 34.1, 34.2, 34.3, 34.4, 34.5_
+
+- [x] 1.13 Create game mod entry point
+  - Implement game mod initialization in caTTY.GameMod
+    - Define a minimal mod API surface (init/update/draw/dispose)
+    - Ensure the mod does not block the game loop (no synchronous reads)
+  - Add mod lifecycle management (load/unload)
+    - Guard against double-init and double-dispose
+  - Integrate terminal controller with game mod
+    - Decide how the terminal window is toggled (keybind)
+    - Ensure input is routed only when terminal is visible/focused
+  - Add basic resource cleanup
+    - Dispose process manager, controller, and any subscriptions
+  - Build game mod DLL output
+    - Document required DLL references and expected install path assumptions
+  - **Reference**: Follow `KsaExampleMod/Class1.cs` and `KsaExampleMod/Patcher.cs` patterns for StarMap attribute-based implementation
+  - _Requirements: 1.1, 1.4, 5.2_
+
+- [x] 1.14 Test and validate both TestApp and GameMod integration
+  - **USER VALIDATION REQUIRED**: Test standalone BRUTAL ImGui TestApp works correctly
+  - **USER VALIDATION REQUIRED**: Load mod in KSA game and verify it works
+  - Verify both applications use the same ImGui controller and rendering code
+  - Test ImGui window display in both standalone app and game
+  - Verify shell process works in both contexts
+  - Test basic terminal interaction in both applications
+  - Confirm both applications dispose resources cleanly on exit
+  - Document any integration issues or differences between contexts
+
+- [x] 1.15 Checkpoint - End-to-end MVP working
+  - Both standalone BRUTAL ImGui TestApp and game mod working with real shell
+  - User has validated both deployment targets work with the same shared ImGui controller
+  - Ready to add more terminal features
+
+- [x] 2. Add basic escape sequence parsing and control characters
+- [x] 2.1 Add basic control character handling
+  - Handle backspace (BS), tab (HT), bell (BEL)
+  - Add basic cursor movement for control characters
+  - Implement simple tab stops (every 8 columns)
+  - Add event emission for bell character
+  - _Requirements: 10.3, 10.4, 10.5, 19.1, 19.2_
+
+- [x] 2.2 Create escape sequence parser state machine
+  - Create parser state enum (Ground, Escape, CsiEntry, CsiParam, etc.)
+  - Implement basic state machine for escape sequence detection
+  - Add escape sequence buffer for partial sequences
+  - Handle ESC character and basic sequence detection
+  - Specify behavior for C0 controls during escape parsing
+    - Optionally allow BEL/BS/TAB/LF/CR while in ESC/CSI parsing (matching TS)
+  - Specify termination and abort rules
+    - Abort control strings on CAN (0x18) / SUB (0x1a)
+    - Handle OSC terminators BEL and ST (ESC \\)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/Parser.ts state machine logic and ensure C# implementation matches or improves upon the TypeScript behavior for state transitions and sequence detection
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParserOptions.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParserHandlers.ts
+  - _Requirements: 11.1, 12.1, 13.1_
+
+- [x] 2.3 Add UTF-8 decoding support to parser
+  - Implement UTF-8 multi-byte sequence detection
+  - Add UTF-8 buffer for partial sequences across Write calls
+  - Handle UTF-8 validation and error recovery
+  - Integrate UTF-8 decoding with character processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/Parser.ts UTF-8 handling and ensure C# implementation provides equivalent or better UTF-8 processing capabilities
+  - _Requirements: 9.3, 9.4_
+
+- [x] 2.4 Write property test for UTF-8 character handling ✅
+  - **Property 16: UTF-8 character handling**
+  - **Validates: Requirements 9.3, 9.4**
+  - **Status**: COMPLETED - All 5 property tests pass (100 iterations each)
+  - **Coverage**: UTF-8 decoding, sequence splitting, wide characters, invalid byte recovery, mixed content
+  - **Fixed**: Cursor reference bug in property tests causing false failures
+
+- [x] 2.5 Implement CSI parameter parsing
+  - Create CSI parameter parsing logic
+  - Handle numeric parameters and separators (semicolon/colon)
+  - Add parameter validation and bounds checking
+  - Support private mode indicators (? prefix)
+  - Support prefix/intermediate parsing
+    - Prefix '>' and '?' where applicable
+    - Intermediate characters (e.g. space for DECSCUSR, '!' for DECSTR, '"' for DECSCA)
+  - Define defaulting rules
+    - Empty params default to 0 or 1 depending on command
+    - Treat trailing separators as an extra 0 param
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated CsiParser class
+    - Extract CSI parsing logic from main Parser class into caTTY.Core/Parsing/CsiParser.cs
+    - CsiParser should handle all CSI sequence parsing and parameter extraction
+    - CsiParser should not exceed 200 lines (excluding comments)
+    - Main Parser should delegate CSI parsing to CsiParser instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts parameter parsing logic and ensure C# implementation handles all parameter types and edge cases identically to the TypeScript version
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [x] 2.5.1 Create dedicated UTF-8 decoder class
+  - Extract UTF-8 decoding logic from main Parser class into caTTY.Core/Parsing/Utf8Decoder.cs
+  - Create IUtf8Decoder interface for testability
+  - Implement Utf8Decoder class with focused UTF-8 handling responsibilities
+  - Utf8Decoder should handle multi-byte sequence detection, validation, and decoding
+  - Utf8Decoder should not exceed 150 lines (excluding comments)
+  - Main Parser should delegate UTF-8 processing to Utf8Decoder instance
+  - Add comprehensive unit tests for Utf8Decoder in isolation
+  - _Requirements: 9.3, 9.4_
+
+- [x] 2.6 Add basic cursor movement CSI sequences
+  - Implement cursor up (CSI A), down (CSI B) sequences
+  - Add cursor forward (CSI C), backward (CSI D) sequences
+  - Add cursor position (CSI H) sequence handling
+  - Update cursor position with bounds checking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor movement handlers and ensure C# implementation provides identical cursor positioning behavior and bounds checking
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [x] 2.7 Write property test for cursor movement sequences
+  - **Property 13: Cursor movement sequences**
+  - **Validates: Requirements 8.4, 11.1, 11.2, 11.3, 11.4, 11.5**
+
+- [x] 2.8 Add basic screen clearing CSI sequences
+  - Implement erase in display (CSI J) sequence handling
+  - Add erase in line (CSI K) sequence handling
+  - Implement clearing logic for different erase modes (0, 1, 2)
+  - Update screen buffer with cleared cells
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts erase operations and ensure C# implementation provides identical clearing behavior for all erase modes
+  - _Requirements: 11.6, 11.7_
+
+- [x] 2.9 Write property test for screen clearing operations
+  - **Property 19: Screen clearing operations**
+  - **Validates: Requirements 11.6, 11.7**
+
+- [x] 2.10 Integrate escape sequence parsing into terminal
+  - Add parser to terminal emulator
+  - Update Write method to detect and parse escape sequences
+  - Handle partial sequences across multiple Write calls
+  - Test escape sequences with shell commands
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/StatefulTerminal.ts parser integration and ensure C# implementation handles partial sequences and parser state management identically
+  - _Requirements: 11.1, 12.1, 13.1_
+
+- [x] 2.11 Add essential ESC (non-CSI) sequences
+  - Implement save/restore cursor (ESC 7 / ESC 8)
+  - Implement index and reverse index (ESC D / ESC M)
+  - Implement next line (ESC E)
+  - Implement horizontal tab set at cursor (ESC H)
+  - Implement reset to initial state (ESC c)
+  - Add character set designation parsing (ESC ( X, ESC ) X, ESC * X, ESC + X)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/esc.ts ESC sequence handlers and ensure C# implementation provides identical behavior for all ESC sequences
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/esc.ts
+  - _Requirements: 10.1, 10.2, 24.1, 24.2_
+
+- [x] 2.12 Add tab stop CSI sequences
+  - Implement cursor forward tab (CSI I) and cursor backward tab (CSI Z)
+  - Implement tab clear (CSI g) for clear-at-cursor and clear-all
+  - Integrate with tab stop tracking in terminal state
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/tabStops.ts and handlers/csi.ts tab operations to ensure C# implementation provides identical tab stop behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/tabStops.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - _Requirements: 10.4, 11.1_
+
+- [x] 2.13 Add device query sequences and responses (CSI)
+  - Implement DA queries (CSI c and CSI > c) and emit appropriate responses
+  - Implement DSR queries (CSI 5 n and CSI 6 n) and emit appropriate responses
+  - Implement terminal size query (CSI 18 t) and emit appropriate response
+  - Ensure responses are routed back to the shell via process stdin
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts and handlers/csi.ts device query handling to ensure C# implementation generates identical response sequences
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - _Requirements: 11.1, 11.2, 27.1, 27.2_
+
+- [x] 2.14 Add selective erase and character protection
+  - Implement selective erase in display/line (CSI ? J / CSI ? K)
+  - Implement DECSCA character protection (CSI Ps " q)
+  - Ensure protected cells are preserved by selective erase operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts selective erase implementation to ensure C# provides identical character protection behavior
+  - _Requirements: 11.6, 11.7_
+
+- [x] 2.15 Add DCS and control-string handling
+  - Extend parser to recognize DCS (ESC P ... ST) and emit parsed DCS messages
+  - Implement DECRQSS (DCS $ q ... ST) minimal support for common requests (SGR "m", scroll region "r")
+  - Ensure SOS/PM/APC control strings are safely skipped until ST terminator
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/dcs.ts and Parser.ts DCS handling to ensure C# implementation provides identical DCS processing and response generation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/dcs.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
+  - _Requirements: 11.1, 13.1_
+
+- [x] 2.16 Test and validate enhanced terminal functionality
+  - **USER VALIDATION REQUIRED**: Test escape sequences work with shell
+  - Verify cursor movement commands work (clear, cursor positioning)
+  - Test with applications that use escape sequences
+  - Validate both console app and game mod still work
+  - Document any parsing issues found
+
+- [x] 2.17 Checkpoint - Basic escape sequence parsing working
+  - Terminal handles basic CSI sequences and control characters
+  - Terminal responds to common device/status queries without hanging
+  - Both deployment targets validated by user
+
+- [x] 2.18 Decompose Parser class for better maintainability
+  - **CRITICAL CODE ORGANIZATION**: Break down the main Parser class which has grown too large
+  - Extract EscParser class into caTTY.Core/Parsing/EscParser.cs
+    - Handle all ESC sequence parsing (save/restore cursor, character sets, etc.)
+    - Create IEscParser interface for testability
+    - EscParser should not exceed 200 lines (excluding comments)
+  - Extract DcsParser class into caTTY.Core/Parsing/DcsParser.cs
+    - Handle all DCS sequence parsing and device control
+    - Create IDcsParser interface for testability
+    - DcsParser should not exceed 150 lines (excluding comments)
+  - Refactor main Parser class to coordinate between specialized parsers
+    - Parser should act as state machine coordinator only
+    - Parser should delegate to CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder
+    - Parser should not exceed 300 lines after refactoring (excluding comments)
+  - Add comprehensive unit tests for each specialized parser in isolation
+  - Ensure all existing functionality continues to work after decomposition
+  - _Requirements: Code organization and maintainability_
+
+- [x] 2.19 Create terminal state management classes
+  - **CRITICAL CODE ORGANIZATION**: Break down terminal state management into focused managers
+  - Create ScreenBufferManager class in caTTY.Core/Managers/ScreenBufferManager.cs
+    - Handle all screen buffer operations (cell access, clearing, resizing)
+    - Create IScreenBufferManager interface for testability
+    - ScreenBufferManager should not exceed 300 lines (excluding comments)
+  - Create CursorManager class in caTTY.Core/Managers/CursorManager.cs
+    - Handle all cursor positioning, visibility, and movement operations
+    - Create ICursorManager interface for testability
+    - CursorManager should not exceed 200 lines (excluding comments)
+  - Create ModeManager class in caTTY.Core/Managers/ModeManager.cs
+    - Handle all terminal mode state tracking (auto-wrap, cursor keys, etc.)
+    - Create IModeManager interface for testability
+    - ModeManager should not exceed 250 lines (excluding comments)
+  - Create AttributeManager class in caTTY.Core/Managers/AttributeManager.cs
+    - Handle all SGR attribute state management and application
+    - Create IAttributeManager interface for testability
+    - AttributeManager should not exceed 200 lines (excluding comments)
+  - Refactor TerminalEmulator to use these focused managers
+  - Add comprehensive unit tests for each manager in isolation
+  - _Requirements: Code organization and maintainability_
