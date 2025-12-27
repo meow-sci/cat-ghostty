@@ -59,6 +59,10 @@ public class AlternateScreenManager : IAlternateScreenManager
         // Restore alternate screen cursor position
         _cursorManager.MoveTo(_state.AlternateCursorY, _state.AlternateCursorX);
         _state.WrapPending = _state.AlternateWrapPending;
+        
+        // Sync terminal state with cursor manager
+        _state.CursorX = _cursorManager.Column;
+        _state.CursorY = _cursorManager.Row;
     }
 
     /// <summary>
@@ -83,6 +87,10 @@ public class AlternateScreenManager : IAlternateScreenManager
         // Restore primary screen cursor position
         _cursorManager.MoveTo(_state.PrimaryCursorY, _state.PrimaryCursorX);
         _state.WrapPending = _state.PrimaryWrapPending;
+        
+        // Sync terminal state with cursor manager
+        _state.CursorX = _cursorManager.Column;
+        _state.CursorY = _cursorManager.Row;
     }
 
     /// <summary>
@@ -147,6 +155,11 @@ public class AlternateScreenManager : IAlternateScreenManager
             _state.AlternateCursorX = 0;
             _state.AlternateCursorY = 0;
             _state.AlternateWrapPending = false;
+            
+            // Sync terminal state with cursor manager
+            _state.CursorX = _cursorManager.Column;
+            _state.CursorY = _cursorManager.Row;
+            _state.WrapPending = _state.AlternateWrapPending;
         }
     }
 

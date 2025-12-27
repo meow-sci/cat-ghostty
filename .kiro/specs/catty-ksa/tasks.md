@@ -46,7 +46,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
   - _Requirements: 15.1, 15.2, 15.4_
 
-- [ ] 5.2 Implement alternate screen isolation
+- [x] 5.2 Implement alternate screen isolation
   - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
   - Ensure alternate screen doesn't add to scrollback
   - Clear alternate buffer on activation
