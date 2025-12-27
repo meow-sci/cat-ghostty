@@ -1,159 +1,46 @@
 # Project Structure
 
-## Root Layout
+## TypeScript Implementation
+- `catty-web/`: pnpm workspace
+  - `app/`: Astro app with TerminalController (DOM glue)
+  - `node-pty/`: WebSocket server for PTY shells
+  - `packages/terminal-emulation/`: headless terminal logic
+- Key files: `Parser.ts`, `StatefulTerminal.ts`, `BackendServer.ts`, `TerminalController.ts`
 
-### TypeScript caTTY implementation
+### Key Paths
+- `catty-web/packages/terminal-emulation/src/terminal/Parser.ts`
+- `catty-web/packages/terminal-emulation/src/terminal/StatefulTerminal.ts`
+- `catty-web/node-pty/src/BackendServer.ts`
+- `catty-web/app/src/ts/terminal/TerminalController.ts`
 
-```
-- catty-web: pnpm workspace
-  - catty-web/app: astro app for the TerminalController (glue) and display
-  - catty-web/node-pty: backend websocket server for pty connection to real shells
-  - catty-web/packages/log: logging helper
-  - catty-web/packages/tsconfig: shared TypeScript config
-  - catty-web/packages/terminal-emulation: all headless terminal logic (parsers, stateful terminal)
-```
+## C# Implementation
+- `catty-ksa/`: .NET solution
+  - `caTTY.Core/`: headless terminal (Terminal/, Parsing/, Managers/, Types/)
+  - `caTTY.Display/`: ImGui display controller
+  - `caTTY.TestApp/`: standalone console app
+  - `caTTY.GameMod/`: KSA game mod target
+  - Tests: `caTTY.Core.Tests/`, `caTTY.Display.Tests/`
 
-#### Key Locations
+### Key Paths
+- `catty-ksa/caTTY.Core/Terminal/TerminalEmulator.cs`
+- `catty-ksa/caTTY.Core/Parsing/Parser.cs`
+- `catty-ksa/caTTY.Display/Controllers/TerminalController.cs`
 
-```
-- catty-web\packages\terminal-emulation\src\terminal\Parser.ts: entrypoint for terminal emulation parsing
-- catty-web\packages\terminal-emulation\src\terminal\StatefulTerminal.ts: entrypoint for stateful terminal
-- catty-web\node-pty\src\BackendServer.ts: the backend websocket server for pty shells
-- catty-web\app\src\ts\terminal\TerminalController.ts: the web/DOM specific controller for glue code to headless terminal logic
-```
+## Architecture Principles
+- **Headless Design**: Business logic separate from UI (TypeScript/C#, testable, framework-agnostic)
+- **Display Controllers**: TerminalController bridges headless logic to UI (DOM/ImGui)
+- **Modular Components**: Classes <400 lines, methods <50 lines, focused responsibilities
+- **Parser Decomposition**: CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder
+- **State Managers**: ScreenBufferManager, CursorManager, ScrollbackManager, AlternateScreenManager, ModeManager, AttributeManager
 
-### C# caTTY implementation
-
-```
-- catty-ksa/: .NET solution root
-  - catty-ksa/caTTY.Core/: headless terminal logic (Class Library)
-    - Terminal/: core terminal emulation (TerminalEmulator, TerminalState)
-    - Parsing/: escape sequence parsers (Parser, CsiParser, SgrParser, OscParser, EscParser, DcsParser, Utf8Decoder)
-    - Input/: keyboard input encoding
-    - Types/: shared data structures and enums
-    - Utils/: utility functions and helpers
-    - Managers/: state management components (ScreenBufferManager, CursorManager, ScrollbackManager, AlternateScreenManager, ModeManager, AttributeManager)
-  - catty-ksa/caTTY.ImGui/: ImGui display controller (Class Library)
-    - Controllers/: TerminalController for ImGui integration
-    - Rendering/: ImGui-specific rendering logic
-    - Input/: ImGui input event handling
-  - catty-ksa/caTTY.ImGui.Playground/: ImGui rendering experiments (Console App)
-    - Experiments/: proof-of-concept rendering tests
-    - Rendering/: experimental ImGui rendering techniques
-  - catty-ksa/caTTY.TestApp/: standalone console application for development
-  - catty-ksa/caTTY.GameMod/: game mod build target (references Core + ImGui)
-  - catty-ksa/caTTY.Core.Tests/: unit and property-based tests for Core
-  - catty-ksa/caTTY.ImGui.Tests/: unit and property-based tests for ImGui
-```
-
-#### Key Locations
-
-```
-- catty-ksa/caTTY.Core/Terminal/TerminalEmulator.cs: main terminal emulator class
-- catty-ksa/caTTY.Core/Parsing/Parser.cs: main parser state machine coordinator
-- catty-ksa/caTTY.Core/Parsing/CsiParser.cs: CSI sequence parsing
-- catty-ksa/caTTY.Core/Parsing/SgrParser.cs: SGR attribute parsing
-- catty-ksa/caTTY.Core/Parsing/OscParser.cs: OSC sequence parsing
-- catty-ksa/caTTY.Core/Managers/ScreenBufferManager.cs: screen buffer operations
-- catty-ksa/caTTY.Core/Managers/CursorManager.cs: cursor state management
-- catty-ksa/caTTY.ImGui/Controllers/TerminalController.cs: ImGui display controller
-- catty-ksa/caTTY.ImGui.Playground/Program.cs: ImGui rendering experiments entry point
-- catty-ksa/caTTY.TestApp/Program.cs: standalone BRUTAL ImGui test application entry point
-```
-
-
-## Code Organization Principles
-
-### Headless Design
-
-All business logic must be:
-- 100% TypeScript / C#
-- Headless parts (no DOM/browser APIs or ImGui code)
-- Testable in isolation
-- Framework-agnostic
-
-### Display controller / glue
-
-- For TypeScript, there is a TerminalController which is the web/DOM display specific bridge and glue code from the headless code
-- For C#, there will be a TerminalController which is the ImGui display specific bridge and glue code from the headless Core library
-
-### C# Project Architecture
-
-#### Multi-Target Build Strategy
-
-- **caTTY.Core**: Pure C# headless logic, no external dependencies
-- **caTTY.ImGui**: ImGui integration layer, references game DLLs
-- **Build Targets**:
-  - Development: Console app (`caTTY.TestApp`) for standalone testing
-  - Production: Game mod DLL (`caTTY.GameMod`) for KSA integration
-
-#### Dependency Flow
-
-```
-caTTY.TestApp ──┐
-                ├─→ caTTY.ImGui ──→ caTTY.Core
-caTTY.GameMod ──┘                      ↑
-                                       │
-caTTY.ImGui.Playground ────────────────┘
-                                       │
-caTTY.Core.Tests ──────────────────────┘
-                                       
-caTTY.ImGui.Tests ──→ caTTY.ImGui
-```
-
-**Note**: Both `caTTY.TestApp` and `caTTY.GameMod` use the same BRUTAL ImGui tech stack and share the same `caTTY.ImGui` controller code. The test app provides a standalone GLFW window for development and testing without requiring the full game.
-
-#### Code Organization Principles
-
-**Modular Design**: Break large classes into focused, single-responsibility components to improve maintainability and testability.
-
-**Parser Architecture**: The terminal parser should be decomposed into specialized parsers:
-- **Main Parser**: State machine coordination and byte routing
-- **CsiParser**: CSI sequence parsing and parameter extraction
-- **SgrParser**: SGR attribute parsing and color handling
-- **OscParser**: OSC sequence parsing and command extraction
-- **EscParser**: ESC sequence parsing and character set handling
-- **DcsParser**: DCS sequence parsing and device control
-- **Utf8Decoder**: UTF-8 multi-byte sequence handling
-
-**Terminal State Management**: Terminal state should be organized into focused managers:
-- **ScreenBufferManager**: Screen buffer operations and cell management
-- **CursorManager**: Cursor positioning and visibility state
-- **ScrollbackManager**: Scrollback buffer and viewport management
-- **AlternateScreenManager**: Primary/alternate buffer switching
-- **ModeManager**: Terminal mode state tracking
-- **AttributeManager**: SGR attribute state management
-
-**Component Size Guidelines**:
-- **Single classes should not exceed 400 lines** (excluding comments and whitespace)
-- **Methods should not exceed 50 lines** (excluding comments and whitespace)
-- **Classes with more than 10 public methods** should be considered for decomposition
-- **Files with more than 5 classes** should be split into separate files
-
-#### Game DLL Integration
-
-```xml
-<!-- In caTTY.ImGui.csproj -->
-<ItemGroup>
-  <Reference Include="KSA.ImGui">
-    <HintPath>C:\Program Files\Kitten Space Agency\KSA.ImGui.dll</HintPath>
-  </Reference>
-  <Reference Include="KSA.Graphics">
-    <HintPath>C:\Program Files\Kitten Space Agency\KSA.Graphics.dll</HintPath>
-  </Reference>
-</ItemGroup>
-```
-
-**Reference Implementation**: See `KsaExampleMod/modone.csproj` for complete working example of KSA DLL references, including:
-- `$(KSAFolder)` property for flexible installation paths
-- Required KSA DLLs: `KSA.dll`, `Brutal.ImGui.dll`, `Brutal.Core.Common.dll`, `Brutal.Core.Numerics.dll`
-- StarMap.API NuGet package for mod attributes
-- Lib.Harmony NuGet package for runtime patching
-- Custom MSBuild targets for asset copying and mod deployment
-
-### Web/Astro Page Components
-
+## Web/Astro Conventions
 - Astro pages (`.astro`) are minimal entry points
-- React components (`_ts/` directories) contain UI logic
-- Prefix with `_` for non-routable directories
-- CSS files prefixed with `_` for component-specific styles
+- React/TS UI logic lives under `_ts/`-style directories
+- Prefix `_` for non-routable directories and component-only assets
+
+## C# Build Strategy
+- **caTTY.Core**: Pure C# headless logic
+- **caTTY.Display**: ImGui integration with KSA DLLs
+- **Targets**: TestApp (dev), GameMod (prod)
+- **Dependencies**: TestApp/GameMod → Display → Core
+- **Reference**: See `KsaExampleMod/` for KSA integration patterns
