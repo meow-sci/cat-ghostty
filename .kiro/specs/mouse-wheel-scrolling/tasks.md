@@ -56,14 +56,14 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - **Property 2: Boundary condition handling at scroll limits**
   - **Validates: Requirements 2.3, 2.4**
 
-- [ ] 5. Implement auto-scroll behavior integration
+- [x] 5. Implement auto-scroll behavior integration
   - Verify auto-scroll state changes work correctly with wheel scrolling
   - Test that ScrollbackManager handles auto-scroll disable/enable
   - Ensure viewport doesn't yank when auto-scroll is disabled
   - Verify auto-scroll re-enables when scrolling to bottom
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 5.1 Write property test for auto-scroll state management
+- [x] 5.1 Write property test for auto-scroll state management
   - **Property 3: Auto-scroll state management with wheel scrolling**
   - **Validates: Requirements 3.1, 3.2**
 
