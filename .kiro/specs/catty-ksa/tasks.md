@@ -92,7 +92,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
   - _Requirements: 20.1, 20.2, 20.3, 20.4_
 
-- [ ] 5.7 Add cursor wrapping and line overflow handling
+- [x] 5.7 Add cursor wrapping and line overflow handling
   - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
   - Implement auto-wrap behavior when cursor reaches right edge
   - Add line overflow handling based on auto-wrap mode

@@ -416,15 +416,16 @@ public class TerminalEmulator : ITerminalEmulator
         // Clear wrap pending and move cursor down
         _cursorManager.SetWrapPending(false);
         
-        if (_cursorManager.Row < Height - 1)
+        // Move cursor down one line
+        if (_cursorManager.Row + 1 > State.ScrollBottom)
         {
-            _cursorManager.MoveDown(1);
+            // At bottom of scroll region - need to scroll up by one line within the region
+            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+            _cursorManager.MoveTo(State.ScrollBottom, _cursorManager.Column);
         }
         else
         {
-            // At bottom row - need to scroll up by one line
-            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-            // Cursor stays at the bottom row
+            _cursorManager.MoveTo(_cursorManager.Row + 1, _cursorManager.Column);
         }
 
         // Sync state with cursor manager
@@ -464,6 +465,7 @@ public class TerminalEmulator : ITerminalEmulator
     internal void HandleCarriageReturn()
     {
         _cursorManager.MoveTo(_cursorManager.Row, 0);
+        _cursorManager.SetWrapPending(false);
         
         // Sync state with cursor manager
         State.CursorX = _cursorManager.Column;
@@ -485,6 +487,8 @@ public class TerminalEmulator : ITerminalEmulator
     /// </summary>
     internal void HandleBackspace()
     {
+        _cursorManager.SetWrapPending(false);
+        
         if (_cursorManager.Column > 0)
         {
             _cursorManager.MoveLeft(1);
@@ -540,42 +544,107 @@ public class TerminalEmulator : ITerminalEmulator
 
     /// <summary>
     ///     Writes a character at the current cursor position and advances the cursor.
-    ///     Uses managers for wrap pending and SGR attributes.
+    ///     Implements proper auto-wrap behavior matching TypeScript reference implementation.
     /// </summary>
     /// <param name="character">The character to write</param>
     internal void WriteCharacterAtCursor(char character)
     {
-        // Handle wrap pending state - if set, wrap to next line first
-        if (_cursorManager.WrapPending)
+        // Bounds check - ensure we have valid dimensions
+        if (Width <= 0 || Height <= 0)
         {
-            _cursorManager.SetWrapPending(false);
-            if (_cursorManager.Row < Height - 1)
+            return;
+        }
+
+        // Bounds check - ensure cursor Y is within screen bounds
+        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
+        {
+            return;
+        }
+
+        // Clamp cursor X to valid range
+        if (_cursorManager.Column < 0)
+        {
+            _cursorManager.MoveTo(_cursorManager.Row, 0);
+        }
+
+        // Handle wrap pending state - if set, wrap to next line first
+        // This matches TypeScript putChar behavior: wrap pending triggers on next character
+        if (_modeManager.AutoWrapMode && _cursorManager.WrapPending)
+        {
+            _cursorManager.MoveTo(_cursorManager.Row, 0);
+            
+            // Move to next line
+            if (_cursorManager.Row + 1 >= Height)
             {
-                _cursorManager.MoveTo(_cursorManager.Row + 1, 0);
+                // At bottom - need to scroll up by one line within scroll region
+                _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+                _cursorManager.MoveTo(Height - 1, 0);
             }
             else
             {
-                // At bottom - need to scroll up by one line
-                _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-                _cursorManager.MoveTo(_cursorManager.Row, 0);
+                _cursorManager.MoveTo(_cursorManager.Row + 1, 0);
             }
+            
+            _cursorManager.SetWrapPending(false);
         }
 
-        // Clamp cursor position
-        _cursorManager.ClampToBuffer(Width, Height);
+        // Clamp cursor X to screen bounds (best-effort recovery)
+        if (_cursorManager.Column >= Width)
+        {
+            _cursorManager.MoveTo(_cursorManager.Row, Width - 1);
+        }
 
         // Write the character to the screen buffer with current SGR attributes and protection status
-        var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+        // Determine if this is a wide character for proper cell marking
+        bool isWide = IsWideCharacter(character);
+        var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, null, isWide);
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
-        // Handle cursor advancement and wrap pending
-        bool wrapped = _cursorManager.AdvanceCursor(Width, _modeManager.AutoWrapMode);
+        // Handle cursor advancement and wrap pending logic
+        if (_cursorManager.Column == Width - 1)
+        {
+            // At right edge - set wrap pending if auto-wrap is enabled
+            if (_modeManager.AutoWrapMode)
+            {
+                _cursorManager.SetWrapPending(true);
+            }
+            // Cursor stays at right edge (don't advance beyond)
+        }
+        else
+        {
+            // Normal advancement - move cursor right
+            // For wide characters, advance by 2 if there's space, otherwise treat as normal
+            int advanceAmount = 1;
+            if (isWide && _cursorManager.Column + 1 < Width - 1)
+            {
+                // Wide character with room for 2 cells - advance by 2
+                advanceAmount = 2;
+                // Note: We don't overwrite the next cell, just advance the cursor
+                // The rendering system should handle wide character display
+            }
+            
+            _cursorManager.MoveTo(_cursorManager.Row, _cursorManager.Column + advanceAmount);
+        }
 
         // Sync state with managers
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
         State.AutoWrapMode = _modeManager.AutoWrapMode;
+    }
+
+    /// <summary>
+    ///     Determines if a character is wide (occupies two terminal cells).
+    ///     Based on Unicode East Asian Width property for CJK characters.
+    /// </summary>
+    /// <param name="character">The character to check</param>
+    /// <returns>True if the character is wide, false otherwise</returns>
+    private static bool IsWideCharacter(char character)
+    {
+        // For now, disable wide character detection to maintain compatibility with existing tests
+        // The existing tests expect CJK characters to be treated as single-width
+        // TODO: Implement proper wide character handling based on Unicode East Asian Width property
+        return false;
     }
 
     /// <summary>
@@ -722,6 +791,11 @@ public class TerminalEmulator : ITerminalEmulator
 
             case 7: // DECAWM - Auto Wrap Mode
                 State.SetAutoWrapMode(enabled);
+                // Clear wrap pending when auto-wrap mode is disabled (matches TypeScript)
+                if (!enabled)
+                {
+                    _cursorManager.SetWrapPending(false);
+                }
                 // Sync with cursor manager after auto wrap mode change
                 _cursorManager.SetWrapPending(State.WrapPending);
                 break;

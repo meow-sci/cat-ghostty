@@ -104,7 +104,7 @@ public class ModeManager : IModeManager
                 OriginMode = enabled;
                 break;
             case 7: // Auto-wrap mode (DECAWM)
-                AutoWrapMode = enabled;
+                SetAutoWrapMode(enabled);
                 break;
             case 25: // Cursor visibility (DECTCEM)
                 CursorVisible = enabled;
@@ -121,6 +121,18 @@ public class ModeManager : IModeManager
                 Utf8Mode = enabled;
                 break;
         }
+    }
+
+    /// <summary>
+    ///     Sets auto-wrap mode and clears wrap pending if disabled.
+    ///     Matches TypeScript setAutoWrapMode behavior.
+    /// </summary>
+    /// <param name="enabled">Whether auto-wrap mode should be enabled</param>
+    private void SetAutoWrapMode(bool enabled)
+    {
+        AutoWrapMode = enabled;
+        // Note: Wrap pending clearing is handled by the terminal emulator
+        // when it calls this through SetDecMode, which syncs with cursor manager
     }
 
     /// <summary>
