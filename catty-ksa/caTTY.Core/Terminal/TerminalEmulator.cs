@@ -74,6 +74,12 @@ public class TerminalEmulator : ITerminalEmulator
         _modeManager = new ModeManager();
         _attributeManager = new AttributeManager();
 
+        // Set up scrollback integration
+        _screenBufferManager.SetScrollbackIntegration(
+            row => _scrollbackManager.AddLine(row),
+            () => State.IsAlternateScreenActive
+        );
+
         // Initialize parser with terminal handlers
         var handlers = new TerminalParserHandlers(this, _logger);
         var parserOptions = new ParserOptions
@@ -260,8 +266,12 @@ public class TerminalEmulator : ITerminalEmulator
         {
             _cursorManager.MoveDown(1);
         }
-        // At bottom row - need to scroll (will be implemented in future task)
-        // For now, just stay at the bottom row
+        else
+        {
+            // At bottom row - need to scroll up by one line
+            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+            // Cursor stays at the bottom row
+        }
 
         // Sync state with cursor manager
         State.CursorX = _cursorManager.Column;
@@ -280,9 +290,13 @@ public class TerminalEmulator : ITerminalEmulator
             // Move cursor down one row, keep same column
             Cursor.SetPosition(Cursor.Row + 1, Cursor.Col);
         }
+        else
+        {
+            // At bottom row - need to scroll up by one line
+            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+            // Cursor stays at the bottom row
+        }
 
-        // At bottom row - need to scroll (will be implemented in future task)
-        // For now, just stay at the bottom row
         // Sync state with cursor
         State.CursorX = Cursor.Col;
         State.CursorY = Cursor.Row;
@@ -385,8 +399,12 @@ public class TerminalEmulator : ITerminalEmulator
             {
                 _cursorManager.MoveTo(_cursorManager.Row + 1, 0);
             }
-            // At bottom - need to scroll (will be implemented in future task)
-            // For now, just stay at the bottom row
+            else
+            {
+                // At bottom - need to scroll up by one line
+                _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+                _cursorManager.MoveTo(_cursorManager.Row, 0);
+            }
         }
 
         // Clamp cursor position
@@ -440,6 +458,54 @@ public class TerminalEmulator : ITerminalEmulator
     protected void OnResponseEmitted(string responseText)
     {
         ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseText));
+    }
+
+    /// <summary>
+    ///     Handles scroll up sequence (CSI S) - scroll screen up by specified lines.
+    ///     Implements CSI Ps S (Scroll Up) sequence.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up (default: 1)</param>
+    internal void ScrollScreenUp(int lines = 1)
+    {
+        if (lines <= 0)
+        {
+            return; // Do nothing for zero or negative lines
+        }
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for proper scrollback integration
+        _screenBufferManager.ScrollUpInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
+    ///     Handles scroll down sequence (CSI T) - scroll screen down by specified lines.
+    ///     Implements CSI Ps T (Scroll Down) sequence.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down (default: 1)</param>
+    internal void ScrollScreenDown(int lines = 1)
+    {
+        if (lines <= 0)
+        {
+            return; // Do nothing for zero or negative lines
+        }
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for proper scrollback integration
+        _screenBufferManager.ScrollDownInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>
@@ -844,8 +910,7 @@ public class TerminalEmulator : ITerminalEmulator
         {
             // At top of scroll region - scroll the region down
             State.CursorY = State.ScrollTop;
-            // TODO: Implement scroll region down operation (will be implemented in task 4.6)
-            // For now, just stay at the top
+            _screenBufferManager.ScrollDownInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
         }
         else
         {

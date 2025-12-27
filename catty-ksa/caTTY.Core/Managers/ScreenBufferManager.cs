@@ -9,6 +9,8 @@ namespace caTTY.Core.Managers;
 public class ScreenBufferManager : IScreenBufferManager
 {
     private readonly IScreenBuffer _screenBuffer;
+    private Action<ReadOnlySpan<Cell>>? _pushScrollbackRow;
+    private Func<bool>? _isAlternateScreenActive;
 
     /// <summary>
     ///     Creates a new screen buffer manager with the specified screen buffer.
@@ -18,6 +20,17 @@ public class ScreenBufferManager : IScreenBufferManager
     public ScreenBufferManager(IScreenBuffer screenBuffer)
     {
         _screenBuffer = screenBuffer ?? throw new ArgumentNullException(nameof(screenBuffer));
+    }
+
+    /// <summary>
+    ///     Sets the scrollback integration callbacks for proper scrollback behavior.
+    /// </summary>
+    /// <param name="pushScrollbackRow">Callback to push a row to scrollback buffer</param>
+    /// <param name="isAlternateScreenActive">Function to check if alternate screen is active</param>
+    public void SetScrollbackIntegration(Action<ReadOnlySpan<Cell>>? pushScrollbackRow, Func<bool>? isAlternateScreenActive)
+    {
+        _pushScrollbackRow = pushScrollbackRow;
+        _isAlternateScreenActive = isAlternateScreenActive;
     }
 
     /// <summary>
@@ -107,6 +120,7 @@ public class ScreenBufferManager : IScreenBufferManager
 
     /// <summary>
     ///     Scrolls the buffer up by the specified number of lines.
+    ///     Moves scrolled content to scrollback buffer when in primary screen mode.
     /// </summary>
     /// <param name="lines">Number of lines to scroll up</param>
     public void ScrollUp(int lines)
@@ -116,11 +130,33 @@ public class ScreenBufferManager : IScreenBufferManager
             return;
         }
 
+        // Bounds checking - clamp lines to valid range
+        lines = Math.Min(lines, Height);
+
+        // Check if we should push to scrollback (primary screen only, not alternate)
+        bool shouldPushToScrollback = _pushScrollbackRow != null && 
+                                     (_isAlternateScreenActive?.Invoke() != true);
+
+        // Push scrolled lines to scrollback buffer before scrolling
+        if (shouldPushToScrollback)
+        {
+            for (int i = 0; i < lines; i++)
+            {
+                var row = _screenBuffer.GetRow(i);
+                if (!row.IsEmpty)
+                {
+                    _pushScrollbackRow!(row);
+                }
+            }
+        }
+
+        // Perform the actual scroll operation
         _screenBuffer.ScrollUp(lines);
     }
 
     /// <summary>
     ///     Scrolls the buffer down by the specified number of lines.
+    ///     Handles content preservation during scrolling with bounds checking.
     /// </summary>
     /// <param name="lines">Number of lines to scroll down</param>
     public void ScrollDown(int lines)
@@ -130,7 +166,118 @@ public class ScreenBufferManager : IScreenBufferManager
             return;
         }
 
+        // Bounds checking - clamp lines to valid range
+        lines = Math.Min(lines, Height);
+
+        // Perform the actual scroll operation
         _screenBuffer.ScrollDown(lines);
+    }
+
+    /// <summary>
+    ///     Scrolls up within a specific scroll region.
+    ///     Used for scroll regions defined by CSI r (DECSTBM).
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    public void ScrollUpInRegion(int lines, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes)
+    {
+        if (lines <= 0)
+        {
+            return;
+        }
+
+        // Validate scroll region bounds
+        scrollTop = Math.Max(0, Math.Min(Height - 1, scrollTop));
+        scrollBottom = Math.Max(0, Math.Min(Height - 1, scrollBottom));
+        
+        if (scrollTop >= scrollBottom)
+        {
+            return;
+        }
+
+        // If scroll region covers the full screen, use normal scroll with scrollback
+        if (scrollTop == 0 && scrollBottom == Height - 1)
+        {
+            ScrollUp(lines);
+            return;
+        }
+
+        // Bounds checking for lines within the region
+        int regionHeight = scrollBottom - scrollTop + 1;
+        lines = Math.Min(lines, regionHeight);
+
+        // Scroll within the region only
+        for (int i = 0; i < lines; i++)
+        {
+            // Move all lines up within the scroll region
+            for (int row = scrollTop; row < scrollBottom; row++)
+            {
+                for (int col = 0; col < Width; col++)
+                {
+                    var cell = _screenBuffer.GetCell(row + 1, col);
+                    _screenBuffer.SetCell(row, col, cell);
+                }
+            }
+
+            // Clear the bottom line of the scroll region with current SGR attributes
+            var blankCell = new Cell(' ', currentSgrAttributes, false);
+            for (int col = 0; col < Width; col++)
+            {
+                _screenBuffer.SetCell(scrollBottom, col, blankCell);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Scrolls down within a specific scroll region.
+    ///     Used for scroll regions defined by CSI r (DECSTBM).
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    public void ScrollDownInRegion(int lines, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes)
+    {
+        if (lines <= 0)
+        {
+            return;
+        }
+
+        // Validate scroll region bounds
+        scrollTop = Math.Max(0, Math.Min(Height - 1, scrollTop));
+        scrollBottom = Math.Max(0, Math.Min(Height - 1, scrollBottom));
+        
+        if (scrollTop >= scrollBottom)
+        {
+            return;
+        }
+
+        // Bounds checking for lines within the region
+        int regionHeight = scrollBottom - scrollTop + 1;
+        lines = Math.Min(lines, regionHeight);
+
+        // Scroll within the region only
+        for (int i = 0; i < lines; i++)
+        {
+            // Move all lines down within the scroll region
+            for (int row = scrollBottom; row > scrollTop; row--)
+            {
+                for (int col = 0; col < Width; col++)
+                {
+                    var cell = _screenBuffer.GetCell(row - 1, col);
+                    _screenBuffer.SetCell(row, col, cell);
+                }
+            }
+
+            // Clear the top line of the scroll region with current SGR attributes
+            var blankCell = new Cell(' ', currentSgrAttributes, false);
+            for (int col = 0; col < Width; col++)
+            {
+                _screenBuffer.SetCell(scrollTop, col, blankCell);
+            }
+        }
     }
 
     /// <summary>

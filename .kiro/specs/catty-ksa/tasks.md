@@ -48,7 +48,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
   - _Requirements: 14.1, 14.2, 14.5_
 
-- [ ] 4.2 Implement basic scrolling operations
+- [x] 4.2 Implement basic scrolling operations
   - Add ScrollUp and ScrollDown methods to ScreenBuffer
   - Move scrolled content to scrollback buffer
   - Handle content preservation during scrolling

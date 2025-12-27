@@ -203,6 +203,14 @@ internal class TerminalParserHandlers : IParserHandlers
 
                 break;
 
+            case "csi.scrollUp":
+                _terminal.ScrollScreenUp(message.Lines ?? 1);
+                break;
+
+            case "csi.scrollDown":
+                _terminal.ScrollScreenDown(message.Lines ?? 1);
+                break;
+
             case "csi.selectiveEraseInDisplay":
                 _terminal.ClearDisplaySelective(message.Mode ?? 0);
                 break;

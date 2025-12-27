@@ -199,6 +199,11 @@ public class TerminalState
     public bool CurrentCharacterProtection { get; set; }
 
     /// <summary>
+    ///     Whether the alternate screen buffer is currently active.
+    /// </summary>
+    public bool IsAlternateScreenActive { get; set; }
+
+    /// <summary>
     ///     Terminal dimensions (columns).
     /// </summary>
     public int Cols { get; set; }

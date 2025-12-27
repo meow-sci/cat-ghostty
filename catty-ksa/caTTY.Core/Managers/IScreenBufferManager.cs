@@ -1,4 +1,5 @@
 using caTTY.Core.Types;
+using System;
 
 namespace caTTY.Core.Managers;
 
@@ -58,6 +59,33 @@ public interface IScreenBufferManager
     /// </summary>
     /// <param name="lines">Number of lines to scroll down</param>
     void ScrollDown(int lines);
+
+    /// <summary>
+    ///     Scrolls up within a specific scroll region.
+    ///     Used for scroll regions defined by CSI r (DECSTBM).
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    void ScrollUpInRegion(int lines, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes);
+
+    /// <summary>
+    ///     Scrolls down within a specific scroll region.
+    ///     Used for scroll regions defined by CSI r (DECSTBM).
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    void ScrollDownInRegion(int lines, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes);
+
+    /// <summary>
+    ///     Sets the scrollback integration callbacks for proper scrollback behavior.
+    /// </summary>
+    /// <param name="pushScrollbackRow">Callback to push a row to scrollback buffer</param>
+    /// <param name="isAlternateScreenActive">Function to check if alternate screen is active</param>
+    void SetScrollbackIntegration(Action<ReadOnlySpan<Cell>>? pushScrollbackRow, Func<bool>? isAlternateScreenActive);
 
     /// <summary>
     ///     Resizes the screen buffer to the specified dimensions.
