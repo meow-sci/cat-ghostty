@@ -69,7 +69,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 26: Scrollback buffer management**
   - **Validates: Requirements 14.1, 14.2**
 
-- [ ] 4.5 Write property test for screen scrolling operations
+- [x] 4.5 Write property test for screen scrolling operations
   - **Property 20: Screen scrolling operations**
   - **Validates: Requirements 11.8, 11.9**
 
