@@ -94,13 +94,19 @@ public class ScrollingValidationTests
 
         // Store current viewport offset
         var offsetBeforeNewContent = terminal.ScrollbackManager.ViewportOffset;
+        var scrollbackLinesBeforeNewContent = terminal.ScrollbackManager.CurrentLines;
 
         // Act: Add new content while scrolled up
         terminal.Write("New line added while scrolled up\r\n");
 
-        // Assert: Viewport should not move (no yanking)
-        Assert.That(terminal.ScrollbackManager.ViewportOffset, Is.EqualTo(offsetBeforeNewContent),
-            "Viewport should not move when new content is added while scrolled up");
+        var scrollbackLinesAfterNewContent = terminal.ScrollbackManager.CurrentLines;
+        var linesAddedToScrollback = Math.Max(0, scrollbackLinesAfterNewContent - scrollbackLinesBeforeNewContent);
+
+        // Assert: Viewport should not yank.
+        // ViewportOffset is measured from bottom; keeping the visible content stable requires
+        // increasing the offset by the number of appended scrollback rows.
+        Assert.That(terminal.ScrollbackManager.ViewportOffset, Is.EqualTo(offsetBeforeNewContent + linesAddedToScrollback),
+            "Viewport should remain stable when new content is added while scrolled up");
         Assert.That(terminal.ScrollbackManager.AutoScrollEnabled, Is.False,
             "Auto-scroll should remain disabled");
 

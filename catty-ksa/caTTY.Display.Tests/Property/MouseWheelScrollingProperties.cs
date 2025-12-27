@@ -639,7 +639,8 @@ public class MouseWheelScrollingProperties
                 
                 // Test scenario 4: New content behavior simulation
                 // When auto-scroll is enabled, new content should keep viewport at bottom
-                // When auto-scroll is disabled, new content should not change viewport
+                // When auto-scroll is disabled, new content should keep the visible content stable
+                // (ViewportOffset is measured from bottom, so it must increase as rows are appended)
                 
                 bool testAutoScrollEnabled = true;
                 int testViewportOffset = 0;
@@ -660,11 +661,11 @@ public class MouseWheelScrollingProperties
                 
                 if (!testAutoScrollEnabled)
                 {
-                    // Auto-scroll disabled: viewport should remain unchanged
-                    int viewportAfterNewContent = testViewportOffset; // Should remain the same
-                    if (viewportAfterNewContent != testViewportOffset)
+                    // Auto-scroll disabled: offset increases by appended rows to keep content stable
+                    int viewportAfterNewContent = testViewportOffset + 1;
+                    if (viewportAfterNewContent != testViewportOffset + 1)
                     {
-                        return false; // Viewport should remain unchanged when auto-scroll is disabled
+                        return false; // Viewport offset should increase when auto-scroll is disabled
                     }
                 }
                 

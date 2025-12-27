@@ -291,12 +291,33 @@ public class ScrollbackManagerTests
         Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
         Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(1));
 
-        // Act
-        _scrollbackManager.OnNewContentAdded();
+        // Act - append a new line while scrolled up
+        _scrollbackManager.AddLine(CreateTestLine("Line 3"));
 
         // Assert
-        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(1)); // Should not change
+        // ViewportOffset is measured from bottom; it must increase to keep the visible content stable.
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(2));
         Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+    }
+
+    [Test]
+    public void OnUserInput_WhenScrolledUp_SnapsViewportToBottom()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 3"));
+        _scrollbackManager.ScrollUp(2);
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(2));
+
+        // Act
+        _scrollbackManager.OnUserInput();
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.True);
     }
 
     [Test]

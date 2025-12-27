@@ -87,10 +87,23 @@ public interface IScrollbackManager
     void ScrollToBottom();
 
     /// <summary>
+    ///     Called when the user provides input (keypress/typing) while the terminal has focus.
+    ///     This should snap the viewport to the most recent content and re-enable auto-scroll.
+    /// </summary>
+    void OnUserInput();
+
+    /// <summary>
     ///     Called when new content is added to notify viewport management.
     ///     If auto-scroll is enabled, automatically scrolls to show new content.
     /// </summary>
-    void OnNewContentAdded();
+    /// <summary>
+    ///     Called when new content is added to notify viewport management.
+    ///     If auto-scroll is enabled, automatically scrolls to show new content.
+    ///     If auto-scroll is disabled (user scrolled up), adjusts the viewport offset to keep
+    ///     the visible content stable as new rows are appended.
+    /// </summary>
+    /// <param name="linesAdded">Number of rows appended since the last notification.</param>
+    void OnNewContentAdded(int linesAdded = 1);
 
     /// <summary>
     ///     Gets viewport rows combining scrollback and screen buffer content.

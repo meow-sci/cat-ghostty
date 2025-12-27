@@ -293,7 +293,9 @@ public class ScrollbackBufferProperties
             // Add new content while scrolled up - viewport should not move (no yanking)
             var newLine = CreateTestLine(columns, 'Z');
             scrollback.AddLine(newLine);
-            bool viewportNotYanked = scrollback.ViewportOffset == offsetAfterScrollUp;
+            // ViewportOffset is measured from bottom; keeping the visible content stable requires
+            // increasing the offset by the number of appended rows.
+            bool viewportNotYanked = scrollback.ViewportOffset == offsetAfterScrollUp + 1;
             bool stillNotAutoScrolling = !scrollback.AutoScrollEnabled;
 
             // Scroll back to bottom - should re-enable auto-scroll

@@ -866,6 +866,20 @@ public class TerminalController : ITerminalController
     {
         ImGuiIOPtr io = ImGui.GetIO();
 
+        // Any user input (typing/keypresses that generate terminal input) should snap to the latest output.
+        // This is intentionally independent from new-content behavior.
+        bool userProvidedInputThisFrame = false;
+        void MarkUserInput()
+        {
+            if (userProvidedInputThisFrame)
+            {
+                return;
+            }
+
+            userProvidedInputThisFrame = true;
+            _terminal.ScrollbackManager?.OnUserInput();
+        }
+
         // Handle mouse wheel input first
         HandleMouseWheelInput();
 
@@ -877,6 +891,7 @@ public class TerminalController : ITerminalController
                 char ch = (char)io.InputQueueCharacters[i];
                 if (ch >= 32 && ch < 127) // Printable ASCII
                 {
+                    MarkUserInput();
                     SendToProcess(ch.ToString());
                 }
             }
@@ -885,30 +900,37 @@ public class TerminalController : ITerminalController
         // Handle special keys
         if (ImGui.IsKeyPressed(ImGuiKey.Enter))
         {
+            MarkUserInput();
             SendToProcess("\r\n");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.Backspace))
         {
+            MarkUserInput();
             SendToProcess("\b");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.Tab))
         {
+            MarkUserInput();
             SendToProcess("\t");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.UpArrow))
         {
+            MarkUserInput();
             SendToProcess("\x1b[A");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.DownArrow))
         {
+            MarkUserInput();
             SendToProcess("\x1b[B");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.RightArrow))
         {
+            MarkUserInput();
             SendToProcess("\x1b[C");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.LeftArrow))
         {
+            MarkUserInput();
             SendToProcess("\x1b[D");
         }
 
@@ -917,14 +939,17 @@ public class TerminalController : ITerminalController
         {
             if (ImGui.IsKeyPressed(ImGuiKey.C))
             {
+                MarkUserInput();
                 SendToProcess("\x03"); // Ctrl+C
             }
             else if (ImGui.IsKeyPressed(ImGuiKey.D))
             {
+                MarkUserInput();
                 SendToProcess("\x04"); // Ctrl+D
             }
             else if (ImGui.IsKeyPressed(ImGuiKey.Z))
             {
+                MarkUserInput();
                 SendToProcess("\x1a"); // Ctrl+Z
             }
         }

@@ -170,15 +170,32 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
     }
 
     /// <inheritdoc />
-    public void OnNewContentAdded()
+    public void OnUserInput()
     {
+        // Any user input should snap the viewport to the latest content.
+        // This matches typical terminal behavior (and catty-web).
+        ScrollToBottom();
+    }
+
+    /// <inheritdoc />
+    public void OnNewContentAdded(int linesAdded = 1)
+    {
+        if (linesAdded <= 0)
+        {
+            return;
+        }
+
         // If auto-scroll is enabled, keep viewport at bottom
         if (_autoScrollEnabled)
         {
             _viewportOffset = 0;
+            return;
         }
-        // If user has scrolled up, don't change the viewport offset
-        // This maintains the existing behavior expected by tests
+
+        // User has scrolled up: keep the visible content stable.
+        // ViewportOffset is measured from the bottom; as new rows are appended,
+        // we must increase the offset by the number of appended rows.
+        _viewportOffset = Math.Min(_viewportOffset + linesAdded, _currentLines);
     }
 
     /// <inheritdoc />
