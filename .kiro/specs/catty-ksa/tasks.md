@@ -29,96 +29,119 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 
-- [ ] 3. Add comprehensive SGR (text styling) support
-- [x] 3.1 Create SGR data structures and color system
-  - Create Color union type (default, indexed, RGB)
-  - Create SgrAttributes struct with all text styling properties
-  - Add UnderlineStyle enum (none, single, double, curly, dotted, dashed)
-  - Update Cell struct to include full SGR attributes
-  - **CRITICAL CODE ORGANIZATION**: Create dedicated SgrParser class
-    - Extract SGR parsing logic into caTTY.Core/Parsing/SgrParser.cs
-    - Create ISgrParser interface for testability
-    - SgrParser should handle all SGR parameter parsing and attribute processing
-    - SgrParser should not exceed 300 lines (excluding comments)
-    - Main Parser should delegate SGR parsing to SgrParser instance
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts and related SGR type definitions to ensure C# data structures match TypeScript capabilities and attribute handling
-  - _Requirements: 12.2, 12.3, 12.4, 12.5_
+- [ ] 4. Add scrolling, scrollback, and screen management
+- [ ] 4.1 Create scrollback buffer infrastructure
+  - Create IScrollbackBuffer interface
+  - Create ScrollbackBuffer class with circular array
+  - Add methods for adding lines and querying history
+  - Implement size management and line reuse
+  - Define what a stored scrollback line contains
+    - Preserve characters and attributes (not just chars)
+    - Ensure line length always equals cols for simple rendering
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated ScrollbackManager class
+    - Extract scrollback logic into caTTY.Core/Managers/ScrollbackManager.cs
+    - Create IScrollbackManager interface for testability
+    - ScrollbackManager should handle all scrollback buffer operations and viewport management
+    - ScrollbackManager should not exceed 250 lines (excluding comments)
+    - TerminalEmulator should delegate scrollback operations to ScrollbackManager instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts to ensure C# scrollback buffer provides identical circular buffer behavior and line preservation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
+  - _Requirements: 14.1, 14.2, 14.5_
 
-- [x] 3.2 Implement SGR parameter parsing (basic colors and styles)
-  - Create SgrParser class for parsing SGR parameters
-  - Add support for both semicolon and colon separators
-  - Parse basic text styles (bold, italic, underline, strikethrough)
-  - Handle standard 8-color foreground/background (30-37, 40-47)
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts SGR parsing logic to ensure C# implementation handles all SGR parameter types and separator formats identically
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts
-  - _Requirements: 12.1, 12.2, 12.4, 12.5_
+- [ ] 4.2 Implement basic scrolling operations
+  - Add ScrollUp and ScrollDown methods to ScreenBuffer
+  - Move scrolled content to scrollback buffer
+  - Handle content preservation during scrolling
+  - Add bounds checking for scroll operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts scrolling operations to ensure C# implementation provides identical scrolling behavior and content preservation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
+  - _Requirements: 11.8, 11.9, 14.1_
 
-- [x] 3.3 Add extended color parsing (256-color and RGB)
-  - Implement 256-color parsing (38;5;n, 48;5;n)
-  - Add 24-bit RGB color parsing (38;2;r;g;b, 48;2;r;g;b)
-  - Handle colon-separated color formats (38:2:r:g:b)
-  - Add bright color support (90-97, 100-107)
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts extended color parsing to ensure C# implementation supports all color formats and edge cases identically
-  - _Requirements: 12.1, 12.4_
+- [ ] 4.3 Add scroll sequences to CSI parser
+  - Implement scroll up (CSI S) and scroll down (CSI T) sequences
+  - Add parameter parsing for scroll line counts
+  - Integrate scrolling with screen buffer operations
+  - Update screen content with scrolling operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll sequence handling to ensure C# implementation provides identical scroll sequence behavior
+  - _Requirements: 11.8, 11.9_
 
-- [x] 3.4 Implement advanced SGR features
-  - Add underline color support (58, 59)
-  - Implement underline style subparameters (4:n)
-  - Handle enhanced SGR modes (CSI > 4 ; n m)
-  - Add private SGR modes (CSI ? 4 m)
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts advanced SGR features to ensure C# implementation supports all advanced SGR modes and underline variants identically
-  - _Requirements: 12.1, 12.2_
+- [ ] 4.4 Write property test for scrollback buffer management
+  - **Property 26: Scrollback buffer management**
+  - **Validates: Requirements 14.1, 14.2**
 
-- [x] 3.5 Create SGR state processor
-  - Create SgrState class to track current attributes
-  - Implement SGR message processing logic
-  - Handle attribute reset and individual attribute clearing
-  - Add inverse video processing
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts and SgrStyleManager.ts to ensure C# SGR state management provides identical attribute tracking and processing behavior
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStyleManager.ts
-  - _Requirements: 12.2, 12.3_
+- [ ] 4.5 Write property test for screen scrolling operations
+  - **Property 20: Screen scrolling operations**
+  - **Validates: Requirements 11.8, 11.9**
 
-- [x] 3.6 Integrate SGR parsing into CSI parser
-  - Add SGR sequence handling to CsiParser for 'm' command
-  - Update terminal to track current SGR state
-  - Apply attributes to characters written after SGR changes
-  - Handle SGR reset (CSI 0 m) to restore defaults
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR integration to ensure C# implementation applies SGR attributes to characters identically
-  - _Requirements: 12.1, 12.2, 12.3_
+- [ ] 4.6 Implement scroll region management
+  - Add scroll region state to terminal (top/bottom boundaries)
+  - Implement set scroll region (CSI r) sequence
+  - Restrict scrolling operations to defined scroll region
+  - Handle cursor movement within and outside scroll regions
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll region implementation to ensure C# provides identical scroll region behavior and cursor interaction
+  - _Requirements: Requirement 10 from original spec_
 
-- [x] 3.7 Write property test for SGR parsing and application
-  - **Property 21: SGR parsing and application**
-  - **Validates: Requirements 12.1, 12.2, 12.4, 12.5**
+- [ ] 4.7 Add viewport management for scrollback navigation
+  - Create viewport offset tracking
+  - Add methods for scrolling through history
+  - Implement auto-scroll when new content arrives
+  - Add viewport bounds checking
+  - Define auto-follow rules
+    - If user scrolls up, disable auto-follow until they return to bottom
+    - New output should not yank viewport while user is reviewing history
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts viewport management to ensure C# implementation provides identical auto-scroll and viewport behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
+  - _Requirements: 14.3, 14.4_
 
-- [x] 3.8 Write property test for SGR reset behavior
-  - **Property 22: SGR reset behavior**
-  - **Validates: Requirements 12.3**
+- [ ] 4.8 Write property test for viewport and auto-scroll behavior
+  - **Property 27: Viewport and auto-scroll behavior**
+  - **Validates: Requirements 14.3, 14.4**
 
-- [x] 3.9 Update display to show colors and styles
-  - Enhance console test app to display colors (if possible)
-    - Use ANSI SGR output only if the host console supports it; otherwise skip
-  - Update ImGui controller to render colors and text styles
-    - Resolve indexed/RGB colors against a theme/default palette
-    - Render underline styles conservatively (at least single underline)
-  - Test with shell commands that produce colored output
-  - Verify SGR attributes are applied correctly
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts, TerminalTheme.ts, and DomStyleManager.ts to ensure C# ImGui rendering provides equivalent color resolution and style application
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/TerminalTheme.ts
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/DomStyleManager.ts
-  - _Requirements: 17.2, 17.3_
+- [ ] 4.9 Implement screen buffer resizing
+  - Add Resize method with content preservation
+  - Handle width/height changes intelligently
+  - Preserve cursor position during resize
+  - Update scrollback during resize operations
+  - Define resize policy (simple, MVP-friendly)
+    - Height change: preserve top-to-bottom rows where possible
+    - Width change: truncate/pad each row; do not attempt complex reflow
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts resize operations to ensure C# implementation provides equivalent content preservation during resize
+  - _Requirements: 7.2, 21.5_
 
-- [x] 3.10 Test and validate color and styling
-  - **USER VALIDATION REQUIRED**: Test colored output in both apps
-  - Verify colors display correctly in console and game
-  - Test with commands like ls --color, colored prompts
-  - Validate text styles (bold, italic) if supported
-  - Document any color rendering issues
+- [ ] 4.10 Write property test for screen buffer resize preservation
+  - **Property 8: Screen buffer resize preservation**
+  - **Validates: Requirements 7.2**
 
-- [ ] 3.11 Checkpoint - Colors and text styling working
-  - Terminal displays colored and styled text correctly
-  - Both deployment targets show proper color rendering
+- [ ] 4.11 Add line insertion and deletion operations
+  - Implement insert line (CSI L) sequence with content shifting
+  - Add delete line (CSI M) sequence with scrolling behavior
+  - Handle scroll region boundaries during line operations
+  - Update cursor position appropriately after operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts line insertion/deletion to ensure C# implementation provides identical line operation behavior and content shifting
+  - _Requirements: 22.1, 22.2_
+
+- [ ] 4.12 Add character insertion and deletion operations
+  - Implement insert character (CSI @) sequence with line shifting
+  - Add delete character (CSI P) sequence with content preservation
+  - Handle character operations at line boundaries
+  - Maintain SGR attributes during character operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts character insertion/deletion to ensure C# implementation provides identical character operation behavior and attribute preservation
+  - _Requirements: 22.3, 22.4, 22.5_
+
+- [ ] 4.13 Write property test for line and character operations
+  - **Property 32: Line and character insertion/deletion**
+  - **Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
+
+- [ ] 4.14 Test and validate scrolling functionality
+  - **USER VALIDATION REQUIRED**: Test scrollback works in both apps
+  - Verify long command output scrolls correctly
+  - Test viewport navigation and auto-scroll
+  - Validate resize handling preserves content
+  - Document any scrolling issues
+
+- [ ] 4.15 Checkpoint - Scrolling and screen management working
+  - Terminal handles scrolling and scrollback correctly
+  - Screen resizing works properly
 
 
 

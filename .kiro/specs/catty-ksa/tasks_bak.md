@@ -462,3 +462,94 @@
   - Refactor TerminalEmulator to use these focused managers
   - Add comprehensive unit tests for each manager in isolation
   - _Requirements: Code organization and maintainability_
+
+- [x] 3. Add comprehensive SGR (text styling) support
+- [x] 3.1 Create SGR data structures and color system
+  - Create Color union type (default, indexed, RGB)
+  - Create SgrAttributes struct with all text styling properties
+  - Add UnderlineStyle enum (none, single, double, curly, dotted, dashed)
+  - Update Cell struct to include full SGR attributes
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated SgrParser class
+    - Extract SGR parsing logic into caTTY.Core/Parsing/SgrParser.cs
+    - Create ISgrParser interface for testability
+    - SgrParser should handle all SGR parameter parsing and attribute processing
+    - SgrParser should not exceed 300 lines (excluding comments)
+    - Main Parser should delegate SGR parsing to SgrParser instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts and related SGR type definitions to ensure C# data structures match TypeScript capabilities and attribute handling
+  - _Requirements: 12.2, 12.3, 12.4, 12.5_
+
+- [x] 3.2 Implement SGR parameter parsing (basic colors and styles)
+  - Create SgrParser class for parsing SGR parameters
+  - Add support for both semicolon and colon separators
+  - Parse basic text styles (bold, italic, underline, strikethrough)
+  - Handle standard 8-color foreground/background (30-37, 40-47)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts SGR parsing logic to ensure C# implementation handles all SGR parameter types and separator formats identically
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts
+  - _Requirements: 12.1, 12.2, 12.4, 12.5_
+
+- [x] 3.3 Add extended color parsing (256-color and RGB)
+  - Implement 256-color parsing (38;5;n, 48;5;n)
+  - Add 24-bit RGB color parsing (38;2;r;g;b, 48;2;r;g;b)
+  - Handle colon-separated color formats (38:2:r:g:b)
+  - Add bright color support (90-97, 100-107)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts extended color parsing to ensure C# implementation supports all color formats and edge cases identically
+  - _Requirements: 12.1, 12.4_
+
+- [x] 3.4 Implement advanced SGR features
+  - Add underline color support (58, 59)
+  - Implement underline style subparameters (4:n)
+  - Handle enhanced SGR modes (CSI > 4 ; n m)
+  - Add private SGR modes (CSI ? 4 m)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts advanced SGR features to ensure C# implementation supports all advanced SGR modes and underline variants identically
+  - _Requirements: 12.1, 12.2_
+
+- [x] 3.5 Create SGR state processor
+  - Create SgrState class to track current attributes
+  - Implement SGR message processing logic
+  - Handle attribute reset and individual attribute clearing
+  - Add inverse video processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts and SgrStyleManager.ts to ensure C# SGR state management provides identical attribute tracking and processing behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStateProcessor.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStyleManager.ts
+  - _Requirements: 12.2, 12.3_
+
+- [x] 3.6 Integrate SGR parsing into CSI parser
+  - Add SGR sequence handling to CsiParser for 'm' command
+  - Update terminal to track current SGR state
+  - Apply attributes to characters written after SGR changes
+  - Handle SGR reset (CSI 0 m) to restore defaults
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR integration to ensure C# implementation applies SGR attributes to characters identically
+  - _Requirements: 12.1, 12.2, 12.3_
+
+- [x] 3.7 Write property test for SGR parsing and application
+  - **Property 21: SGR parsing and application**
+  - **Validates: Requirements 12.1, 12.2, 12.4, 12.5**
+
+- [x] 3.8 Write property test for SGR reset behavior
+  - **Property 22: SGR reset behavior**
+  - **Validates: Requirements 12.3**
+
+- [x] 3.9 Update display to show colors and styles
+  - Enhance console test app to display colors (if possible)
+    - Use ANSI SGR output only if the host console supports it; otherwise skip
+  - Update ImGui controller to render colors and text styles
+    - Resolve indexed/RGB colors against a theme/default palette
+    - Render underline styles conservatively (at least single underline)
+  - Test with shell commands that produce colored output
+  - Verify SGR attributes are applied correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts, TerminalTheme.ts, and DomStyleManager.ts to ensure C# ImGui rendering provides equivalent color resolution and style application
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ColorResolver.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/TerminalTheme.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/DomStyleManager.ts
+  - _Requirements: 17.2, 17.3_
+
+- [x] 3.10 Test and validate color and styling
+  - **USER VALIDATION REQUIRED**: Test colored output in both apps
+  - Verify colors display correctly in console and game
+  - Test with commands like ls --color, colored prompts
+  - Validate text styles (bold, italic) if supported
+  - Document any color rendering issues
+
+- [x] 3.11 Checkpoint - Colors and text styling working
+  - Terminal displays colored and styled text correctly
+  - Both deployment targets show proper color rendering
