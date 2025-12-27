@@ -116,7 +116,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
   - _Requirements: 20.5_
 
-- [ ] 5.10 Write property test for cursor visibility tracking
+- [x] 5.10 Write property test for cursor visibility tracking
   - **Property 14: Cursor visibility tracking**
   - **Validates: Requirements 8.5**
 
