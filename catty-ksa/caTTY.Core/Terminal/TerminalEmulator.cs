@@ -21,6 +21,7 @@ public class TerminalEmulator : ITerminalEmulator
     private readonly IAttributeManager _attributeManager;
     private readonly IScrollbackManager _scrollbackManager;
     private readonly IScrollbackBuffer _scrollbackBuffer;
+    private readonly IAlternateScreenManager _alternateScreenManager;
     private bool _disposed;
 
     /// <summary>
@@ -76,6 +77,7 @@ public class TerminalEmulator : ITerminalEmulator
         _cursorManager = new CursorManager(Cursor);
         _modeManager = new ModeManager();
         _attributeManager = new AttributeManager();
+        _alternateScreenManager = new AlternateScreenManager(State, _cursorManager, (DualScreenBuffer)ScreenBuffer);
 
         // Set up scrollback integration
         _screenBufferManager.SetScrollbackIntegration(
@@ -121,6 +123,11 @@ public class TerminalEmulator : ITerminalEmulator
     ///     Gets the attribute manager for SGR attribute operations.
     /// </summary>
     public IAttributeManager AttributeManager => _attributeManager;
+
+    /// <summary>
+    ///     Gets the alternate screen manager for buffer switching operations.
+    /// </summary>
+    public IAlternateScreenManager AlternateScreenManager => _alternateScreenManager;
 
     /// <summary>
     ///     Gets the width of the terminal in columns.
@@ -753,104 +760,49 @@ public class TerminalEmulator : ITerminalEmulator
 
     private void HandleAlternateScreenMode(int mode, bool enabled)
     {
-        static void SaveToPrimary(TerminalState state, int x, int y, bool wrapPending)
-        {
-            state.PrimaryCursorX = x;
-            state.PrimaryCursorY = y;
-            state.PrimaryWrapPending = wrapPending;
-        }
-
-        static void SaveToAlternate(TerminalState state, int x, int y, bool wrapPending)
-        {
-            state.AlternateCursorX = x;
-            state.AlternateCursorY = y;
-            state.AlternateWrapPending = wrapPending;
-        }
-
-        void LoadFromPrimary()
-        {
-            _cursorManager.MoveTo(State.PrimaryCursorY, State.PrimaryCursorX);
-            _cursorManager.SetWrapPending(State.PrimaryWrapPending);
-            State.CursorX = _cursorManager.Column;
-            State.CursorY = _cursorManager.Row;
-            State.WrapPending = _cursorManager.WrapPending;
-        }
-
-        void LoadFromAlternate()
-        {
-            _cursorManager.MoveTo(State.AlternateCursorY, State.AlternateCursorX);
-            _cursorManager.SetWrapPending(State.AlternateWrapPending);
-            State.CursorX = _cursorManager.Column;
-            State.CursorY = _cursorManager.Row;
-            State.WrapPending = _cursorManager.WrapPending;
-        }
-
-        // Avoid redundant work
-        bool wasAlternate = State.IsAlternateScreenActive;
-
         if (enabled)
         {
-            if (State.IsAlternateScreenActive)
+            switch (mode)
             {
-                return;
+                case 47: // Basic alternate screen
+                    _alternateScreenManager.ActivateAlternate();
+                    break;
+                case 1047: // Alternate screen with cursor save
+                    _alternateScreenManager.ActivateAlternateWithCursorSave();
+                    break;
+                case 1049: // Alternate screen with cursor save and clear
+                    _alternateScreenManager.ActivateAlternateWithClearAndCursorSave();
+                    break;
             }
-
-            // Save cursor for 1047/1049 semantics (restore on exit)
-            if (mode == 1047 || mode == 1049)
+        }
+        else
+        {
+            // Store whether we were in alternate screen before deactivation
+            bool wasAlternate = State.IsAlternateScreenActive;
+            
+            switch (mode)
             {
-                SaveCursorPosition();
+                case 47: // Basic alternate screen
+                    _alternateScreenManager.DeactivateAlternate();
+                    break;
+                case 1047: // Alternate screen with cursor restore
+                case 1049: // Alternate screen with cursor restore
+                    _alternateScreenManager.DeactivateAlternateWithCursorRestore();
+                    break;
             }
-
-            // Save current (primary) buffer cursor state, then switch and load alternate cursor state
-            SaveToPrimary(State, _cursorManager.Column, _cursorManager.Row, _cursorManager.WrapPending);
-            State.IsAlternateScreenActive = true;
-            LoadFromAlternate();
-
-            if (mode == 1049)
+            
+            // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
+            // (matches catty-web controller behavior).
+            if (wasAlternate)
             {
-                // Clear alternate screen and home cursor.
-                if (ScreenBuffer is DualScreenBuffer dual)
-                {
-                    dual.ClearAlternate();
-                }
-
-                State.ScrollTop = 0;
-                State.ScrollBottom = Height - 1;
-
-                State.AlternateCursorX = 0;
-                State.AlternateCursorY = 0;
-                State.AlternateWrapPending = false;
-                LoadFromAlternate();
+                _scrollbackManager.ScrollToBottom();
             }
-
-            return;
         }
-
-        // Disable: switch back to primary
-        if (!State.IsAlternateScreenActive)
-        {
-            return;
-        }
-
-        // Save current (alternate) cursor state, then switch and load primary cursor state
-        SaveToAlternate(State, _cursorManager.Column, _cursorManager.Row, _cursorManager.WrapPending);
-        State.IsAlternateScreenActive = false;
-        LoadFromPrimary();
-
-        if (mode == 1047 || mode == 1049)
-        {
-            RestoreCursorPosition();
-            State.CursorX = _cursorManager.Column;
-            State.CursorY = _cursorManager.Row;
-            State.WrapPending = _cursorManager.WrapPending;
-        }
-
-        // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
-        // (matches catty-web controller behavior).
-        if (wasAlternate)
-        {
-            _scrollbackManager.ScrollToBottom();
-        }
+        
+        // Sync cursor manager with terminal state after buffer switching
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
     }
 
     /// <summary>

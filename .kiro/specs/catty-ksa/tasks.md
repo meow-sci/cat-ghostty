@@ -29,119 +29,107 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 
-- [ ] 4. Add scrolling, scrollback, and screen management
-- [x] 4.1 Create scrollback buffer infrastructure
-  - Create IScrollbackBuffer interface
-  - Create ScrollbackBuffer class with circular array
-  - Add methods for adding lines and querying history
-  - Implement size management and line reuse
-  - Define what a stored scrollback line contains
-    - Preserve characters and attributes (not just chars)
-    - Ensure line length always equals cols for simple rendering
-  - **CRITICAL CODE ORGANIZATION**: Create dedicated ScrollbackManager class
-    - Extract scrollback logic into caTTY.Core/Managers/ScrollbackManager.cs
-    - Create IScrollbackManager interface for testability
-    - ScrollbackManager should handle all scrollback buffer operations and viewport management
-    - ScrollbackManager should not exceed 250 lines (excluding comments)
-    - TerminalEmulator should delegate scrollback operations to ScrollbackManager instance
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts to ensure C# scrollback buffer provides identical circular buffer behavior and line preservation
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
-  - _Requirements: 14.1, 14.2, 14.5_
+- [ ] 5. Add alternate screen buffer and advanced terminal modes
+- [x] 5.1 Create alternate screen buffer infrastructure
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Create AlternateScreenManager class
+  - Implement separate primary and alternate screen buffers
+  - Add buffer switching methods (activate/deactivate)
+  - Preserve cursor and attributes independently per buffer
+  - **CRITICAL CODE ORGANIZATION**: Create dedicated AlternateScreenManager class
+    - Extract alternate screen logic into caTTY.Core/Managers/AlternateScreenManager.cs
+    - Create IAlternateScreenManager interface for testability
+    - AlternateScreenManager should handle all buffer switching and state isolation
+    - AlternateScreenManager should not exceed 200 lines (excluding comments)
+    - TerminalEmulator should delegate alternate screen operations to AlternateScreenManager instance
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts to ensure C# implementation provides identical alternate screen buffer management and state isolation
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts
+  - _Requirements: 15.1, 15.2, 15.4_
 
-- [x] 4.2 Implement basic scrolling operations
-  - Add ScrollUp and ScrollDown methods to ScreenBuffer
-  - Move scrolled content to scrollback buffer
-  - Handle content preservation during scrolling
-  - Add bounds checking for scroll operations
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts scrolling operations to ensure C# implementation provides identical scrolling behavior and content preservation
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
-  - _Requirements: 11.8, 11.9, 14.1_
+- [ ] 5.2 Implement alternate screen isolation
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Ensure alternate screen doesn't add to scrollback
+  - Clear alternate buffer on activation
+  - Handle buffer switching with proper state preservation
+  - Maintain separate cursor positions per buffer
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
+  - _Requirements: 15.3, 15.5_
 
-- [x] 4.3 Add scroll sequences to CSI parser
-  - Implement scroll up (CSI S) and scroll down (CSI T) sequences
-  - Add parameter parsing for scroll line counts
-  - Integrate scrolling with screen buffer operations
-  - Update screen content with scrolling operations
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll sequence handling to ensure C# implementation provides identical scroll sequence behavior
-  - _Requirements: 11.8, 11.9_
+- [ ] 5.3 Add alternate screen control sequences
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Implement DEC private mode sequences for alternate screen
+  - Add alternate screen activation/deactivation sequences
+  - Handle mode switching in CSI parser
+  - Test buffer switching with state preservation
+  - Ensure correct semantics for 47/1047/1049
+    - 1047/1049 preserve/restore cursor as specified
+    - 1049 clears alternate screen on entry
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts and handlers/csi.ts to ensure C# implementation provides identical alternate screen control sequence behavior
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreenOps.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - _Requirements: 15.1, 15.2, 15.5_
 
-- [x] 4.4 Write property test for scrollback buffer management
-  - **Property 26: Scrollback buffer management**
-  - **Validates: Requirements 14.1, 14.2**
+- [ ] 5.4 Write property test for alternate screen buffer switching
+  - **Property 29: Alternate screen buffer switching**
+  - **Validates: Requirements 15.1, 15.2, 15.4**
 
-- [x] 4.5 Write property test for screen scrolling operations
-  - **Property 20: Screen scrolling operations**
-  - **Validates: Requirements 11.8, 11.9**
+- [ ] 5.5 Write property test for alternate screen scrollback isolation
+  - **Property 30: Alternate screen scrollback isolation**
+  - **Validates: Requirements 15.3**
 
-- [x] 4.6 Implement scroll region management
-  - Add scroll region state to terminal (top/bottom boundaries)
-  - Implement set scroll region (CSI r) sequence
-  - Restrict scrolling operations to defined scroll region
-  - Handle cursor movement within and outside scroll regions
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll region implementation to ensure C# provides identical scroll region behavior and cursor interaction
-  - _Requirements: Requirement 10 from original spec_
+- [ ] 5.6 Implement terminal mode management
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Create terminal mode state tracking
+  - Add auto-wrap mode with line wrapping behavior
+  - Implement cursor visibility mode tracking
+  - Add application cursor keys mode
+  - Add origin mode (DECOM) state tracking
+  - Add UTF-8 mode (DECSET/DECRST 2027) state tracking
+  - Add cursor style tracking (DECSCUSR)
+  - Add save/restore private modes (CSI ? s / CSI ? r) state tracking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts and cursor.ts mode management to ensure C# implementation provides identical terminal mode behavior and state tracking
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
+  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/cursor.ts
+  - _Requirements: 20.1, 20.2, 20.3, 20.4_
 
-- [x] 4.7 Add viewport management for scrollback navigation
-  - Create viewport offset tracking
-  - Add methods for scrolling through history
-  - Implement auto-scroll when new content arrives
-  - Add viewport bounds checking
-  - Define auto-follow rules
-    - If user scrolls up, disable auto-follow until they return to bottom
-    - New output should not yank viewport while user is reviewing history
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts viewport management to ensure C# implementation provides identical auto-scroll and viewport behavior
-  - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
-  - _Requirements: 14.3, 14.4_
+- [ ] 5.7 Add cursor wrapping and line overflow handling
+  - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
+  - Implement auto-wrap behavior when cursor reaches right edge
+  - Add line overflow handling based on auto-wrap mode
+  - Update character writing to respect wrapping settings
+  - Handle wide character wrapping correctly
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
+  - _Requirements: 8.3, 9.5, 20.1_
 
-- [x] 4.8 Write property test for viewport and auto-scroll behavior
-  - **Property 27: Viewport and auto-scroll behavior**
-  - **Validates: Requirements 14.3, 14.4**
+- [ ] 5.8 Write property test for cursor wrapping behavior
+  - **Property 12: Cursor wrapping behavior**
+  - **Validates: Requirements 8.3**
 
-- [x] 4.9 Implement screen buffer resizing
-  - Add Resize method with content preservation
-  - Handle width/height changes intelligently
-  - Preserve cursor position during resize
-  - Update scrollback during resize operations
-  - Define resize policy (simple, MVP-friendly)
-    - Height change: preserve top-to-bottom rows where possible
-    - Width change: truncate/pad each row; do not attempt complex reflow
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts resize operations to ensure C# implementation provides equivalent content preservation during resize
-  - _Requirements: 7.2, 21.5_
+- [ ] 5.9 Add bracketed paste mode support
+  - Implement bracketed paste mode state tracking
+  - Add paste sequence wrapping for bracketed paste
+  - Handle mode switching sequences
+  - Prepare for future paste integration
+  - Define the exact DECSET/DECRST sequences
+    - CSI ? 2004 h enable, CSI ? 2004 l disable
+    - When enabled, wrap paste payload with ESC[200~ and ESC[201~
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts bracketed paste mode handling to ensure C# implementation provides identical paste mode behavior
+  - _Requirements: 20.5_
 
-- [x] 4.10 Write property test for screen buffer resize preservation
-  - **Property 8: Screen buffer resize preservation**
-  - **Validates: Requirements 7.2**
+- [ ] 5.10 Write property test for cursor visibility tracking
+  - **Property 14: Cursor visibility tracking**
+  - **Validates: Requirements 8.5**
 
-- [x] 4.11 Add line insertion and deletion operations
-  - Implement insert line (CSI L) sequence with content shifting
-  - Add delete line (CSI M) sequence with scrolling behavior
-  - Handle scroll region boundaries during line operations
-  - Update cursor position appropriately after operations
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts line insertion/deletion to ensure C# implementation provides identical line operation behavior and content shifting
-  - _Requirements: 22.1, 22.2_
+- [ ] 5.11 Test and validate alternate screen and modes
+  - **USER VALIDATION REQUIRED**: Test full-screen apps (less)
+  - Verify alternate screen works correctly
+  - Test terminal mode switching
+  - Validate cursor wrapping and visibility
+  - Document any mode handling issues
 
-- [x] 4.12 Add character insertion and deletion operations
-  - Implement insert character (CSI @) sequence with line shifting
-  - Add delete character (CSI P) sequence with content preservation
-  - Handle character operations at line boundaries
-  - Maintain SGR attributes during character operations
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts character insertion/deletion to ensure C# implementation provides identical character operation behavior and attribute preservation
-  - _Requirements: 22.3, 22.4, 22.5_
-
-- [x] 4.13 Write property test for line and character operations
-  - **Property 32: Line and character insertion/deletion**
-  - **Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
-
-- [x] 4.14 Test and validate scrolling functionality
-  - **USER VALIDATION REQUIRED**: Test scrollback works in both apps
-  - Verify long command output scrolls correctly
-  - Test viewport navigation and auto-scroll
-  - Validate resize handling preserves content
-  - Document any scrolling issues
-
-- [ ] 4.15 Checkpoint - Scrolling and screen management working
-  - Terminal handles scrolling and scrollback correctly
-  - Screen resizing works properly
+- [ ] 5.12 Checkpoint - Alternate screen and terminal modes working
+  - Full-screen applications work correctly
+  - Terminal modes function properly
 
 
 
