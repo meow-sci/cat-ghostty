@@ -114,6 +114,16 @@ public interface ITerminalEmulator : IDisposable
     event EventHandler<BellEventArgs>? Bell;
 
     /// <summary>
+    ///     Event raised when the window title is changed via OSC sequences.
+    /// </summary>
+    event EventHandler<TitleChangeEventArgs>? TitleChanged;
+
+    /// <summary>
+    ///     Event raised when the icon name is changed via OSC sequences.
+    /// </summary>
+    event EventHandler<IconNameChangeEventArgs>? IconNameChanged;
+
+    /// <summary>
     ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
     ///     When bracketed paste mode is enabled (DECSET 2004), paste content is wrapped with:
     ///     - Start marker: ESC[200~

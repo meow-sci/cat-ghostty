@@ -140,3 +140,55 @@ public class BellEventArgs : EventArgs
     /// </summary>
     public DateTime Timestamp { get; }
 }
+
+/// <summary>
+///     Event arguments for window title change notifications.
+/// </summary>
+public class TitleChangeEventArgs : EventArgs
+{
+    /// <summary>
+    ///     Creates new title change event arguments.
+    /// </summary>
+    /// <param name="newTitle">The new window title</param>
+    public TitleChangeEventArgs(string newTitle)
+    {
+        NewTitle = newTitle ?? string.Empty;
+        Timestamp = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Gets the new window title.
+    /// </summary>
+    public string NewTitle { get; }
+
+    /// <summary>
+    ///     Gets the time when the title was changed.
+    /// </summary>
+    public DateTime Timestamp { get; }
+}
+
+/// <summary>
+///     Event arguments for icon name change notifications.
+/// </summary>
+public class IconNameChangeEventArgs : EventArgs
+{
+    /// <summary>
+    ///     Creates new icon name change event arguments.
+    /// </summary>
+    /// <param name="newIconName">The new icon name</param>
+    public IconNameChangeEventArgs(string newIconName)
+    {
+        NewIconName = newIconName ?? string.Empty;
+        Timestamp = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Gets the new icon name.
+    /// </summary>
+    public string NewIconName { get; }
+
+    /// <summary>
+    ///     Gets the time when the icon name was changed.
+    /// </summary>
+    public DateTime Timestamp { get; }
+}

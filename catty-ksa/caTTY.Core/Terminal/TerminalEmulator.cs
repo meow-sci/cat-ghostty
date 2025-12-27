@@ -175,6 +175,16 @@ public class TerminalEmulator : ITerminalEmulator
     public event EventHandler<BellEventArgs>? Bell;
 
     /// <summary>
+    ///     Event raised when the window title is changed via OSC sequences.
+    /// </summary>
+    public event EventHandler<TitleChangeEventArgs>? TitleChanged;
+
+    /// <summary>
+    ///     Event raised when the icon name is changed via OSC sequences.
+    /// </summary>
+    public event EventHandler<IconNameChangeEventArgs>? IconNameChanged;
+
+    /// <summary>
     ///     Processes raw byte data from a shell or other source.
     ///     Can be called with partial chunks and in rapid succession.
     /// </summary>
@@ -479,6 +489,62 @@ public class TerminalEmulator : ITerminalEmulator
     internal void HandleBell()
     {
         OnBell();
+    }
+
+    /// <summary>
+    ///     Sets the window title and emits a title change event.
+    ///     Handles empty titles and title reset.
+    /// </summary>
+    /// <param name="title">The new window title</param>
+    internal void SetWindowTitle(string title)
+    {
+        title ??= string.Empty;
+        State.WindowProperties.Title = title;
+        OnTitleChanged(title);
+    }
+
+    /// <summary>
+    ///     Sets the icon name and emits an icon name change event.
+    ///     Handles empty icon names and icon name reset.
+    /// </summary>
+    /// <param name="iconName">The new icon name</param>
+    internal void SetIconName(string iconName)
+    {
+        iconName ??= string.Empty;
+        State.WindowProperties.IconName = iconName;
+        OnIconNameChanged(iconName);
+    }
+
+    /// <summary>
+    ///     Sets both window title and icon name to the same value.
+    ///     Emits both title change and icon name change events.
+    /// </summary>
+    /// <param name="title">The new title and icon name</param>
+    internal void SetTitleAndIcon(string title)
+    {
+        title ??= string.Empty;
+        State.WindowProperties.Title = title;
+        State.WindowProperties.IconName = title;
+        OnTitleChanged(title);
+        OnIconNameChanged(title);
+    }
+
+    /// <summary>
+    ///     Gets the current window title.
+    /// </summary>
+    /// <returns>The current window title</returns>
+    internal string GetWindowTitle()
+    {
+        return State.WindowProperties.Title;
+    }
+
+    /// <summary>
+    ///     Gets the current icon name.
+    /// </summary>
+    /// <returns>The current icon name</returns>
+    internal string GetIconName()
+    {
+        return State.WindowProperties.IconName;
     }
 
     /// <summary>
@@ -1604,6 +1670,24 @@ public class TerminalEmulator : ITerminalEmulator
     private void OnBell()
     {
         Bell?.Invoke(this, new BellEventArgs());
+    }
+
+    /// <summary>
+    ///     Raises the TitleChanged event.
+    /// </summary>
+    /// <param name="newTitle">The new window title</param>
+    private void OnTitleChanged(string newTitle)
+    {
+        TitleChanged?.Invoke(this, new TitleChangeEventArgs(newTitle));
+    }
+
+    /// <summary>
+    ///     Raises the IconNameChanged event.
+    /// </summary>
+    /// <param name="newIconName">The new icon name</param>
+    private void OnIconNameChanged(string newIconName)
+    {
+        IconNameChanged?.Invoke(this, new IconNameChangeEventArgs(newIconName));
     }
 
     /// <summary>

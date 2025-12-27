@@ -49,7 +49,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/Parser.ts
   - _Requirements: 13.1_
 
-- [ ] 6.2 Implement window title OSC sequences
+- [x] 6.2 Implement window title OSC sequences
   - Add OSC 0 and OSC 2 (set window title) sequence handling
   - Emit title change events with new title text
   - Add title state tracking in terminal

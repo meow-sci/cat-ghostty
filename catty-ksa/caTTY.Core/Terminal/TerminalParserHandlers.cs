@@ -352,7 +352,14 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleOsc(OscMessage message)
     {
-        // TODO: Implement OSC sequence handling (task 6.1, 6.2, 6.3)
+        // Check if this is an implemented xterm OSC message
+        if (message.XtermMessage != null && message.XtermMessage.Implemented)
+        {
+            HandleXtermOsc(message.XtermMessage);
+            return;
+        }
+
+        // Handle generic OSC sequences
         _logger.LogDebug("OSC sequence: {Type} - {Raw}", message.Type, message.Raw);
     }
 
@@ -397,8 +404,39 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleXtermOsc(XtermOscMessage message)
     {
-        // TODO: Implement xterm OSC handling (task 6.2, 6.3, 6.5)
-        _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+        switch (message.Type)
+        {
+            case "osc.setTitleAndIcon":
+                // OSC 0: Set both window title and icon name
+                _terminal.SetTitleAndIcon(message.Title ?? string.Empty);
+                _logger.LogDebug("Set title and icon: {Title}", message.Title);
+                break;
+
+            case "osc.setIconName":
+                // OSC 1: Set icon name only
+                _terminal.SetIconName(message.IconName ?? string.Empty);
+                _logger.LogDebug("Set icon name: {IconName}", message.IconName);
+                break;
+
+            case "osc.setWindowTitle":
+                // OSC 2: Set window title only
+                _terminal.SetWindowTitle(message.Title ?? string.Empty);
+                _logger.LogDebug("Set window title: {Title}", message.Title);
+                break;
+
+            case "osc.queryWindowTitle":
+                // OSC 21: Query window title - respond with OSC ] L <title> ST (ESC \\)
+                string currentTitle = _terminal.GetWindowTitle();
+                string titleResponse = $"\x1b]L{currentTitle}\x1b\\";
+                _terminal.EmitResponse(titleResponse);
+                _logger.LogDebug("Query window title response: {Response}", titleResponse);
+                break;
+
+            default:
+                // TODO: Implement other xterm OSC handling (task 6.3, 6.5)
+                _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+                break;
+        }
     }
 
     /// <summary>

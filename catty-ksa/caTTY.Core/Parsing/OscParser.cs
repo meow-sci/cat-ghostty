@@ -216,8 +216,8 @@ public class OscParser : IOscParser
         // Validate text parameter
         if (!ValidateOscParameters(command, textParam))
         {
-            _logger.LogWarning("Invalid OSC parameters: command={Command}, textParam length={Length}", 
-                command, textParam.Length);
+            _logger.LogWarning("Invalid OSC parameters: command={Command}, textParam='{TextParam}' (length={Length})", 
+                command, textParam, textParam.Length);
             return null;
         }
         
@@ -283,23 +283,14 @@ public class OscParser : IOscParser
 
     /// <summary>
     ///     Decode UTF-8 text from OSC parameter.
-    ///     Handles proper UTF-8 decoding for international characters.
-    ///     Based on the TypeScript decodeUtf8Text function.
+    ///     Since the string should already be properly decoded from UTF-8 bytes,
+    ///     we just return it as-is. The BytesToString method handles UTF-8 decoding.
     /// </summary>
     private string DecodeUtf8Text(string text)
     {
-        try
-        {
-            // In C#, strings are already UTF-16, but we need to ensure proper handling
-            // of any byte sequences that might have been incorrectly decoded
-            byte[] bytes = Encoding.Latin1.GetBytes(text);
-            return Encoding.UTF8.GetString(bytes);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to decode UTF-8 text, using original: {Text}", text);
-            return text;
-        }
+        // In C#, if the string was properly decoded from UTF-8 bytes by BytesToString,
+        // we don't need additional decoding. Just return the text as-is.
+        return text;
     }
 
     /// <summary>
@@ -311,26 +302,31 @@ public class OscParser : IOscParser
         // Command number validation
         if (!IsValidCommandNumber(commandNum))
         {
+            _logger.LogWarning("Invalid OSC command number: {CommandNum}", commandNum);
             return false;
         }
         
         // Text parameter validation
         if (textParam.Length > MaxOscPayloadLength)
         {
+            _logger.LogWarning("OSC payload too long: {Length} > {Max}", textParam.Length, MaxOscPayloadLength);
             return false;
         }
         
         // Check for control characters that shouldn't be in titles
-        foreach (char c in textParam)
+        for (int i = 0; i < textParam.Length; i++)
         {
+            char c = textParam[i];
             int charCode = c;
             if (charCode < 0x20 && charCode != 0x09)
             {
                 // Allow tab (0x09) but reject other control characters
+                _logger.LogWarning("OSC parameter contains invalid control character at position {Position}: 0x{CharCode:X4}", i, charCode);
                 return false;
             }
         }
         
+        _logger.LogDebug("OSC parameters validated successfully: command={CommandNum}, textParam length={Length}", commandNum, textParam.Length);
         return true;
     }
 
@@ -343,10 +339,19 @@ public class OscParser : IOscParser
     }
 
     /// <summary>
-    ///     Converts a list of bytes to a string representation.
+    ///     Converts a list of bytes to a string representation using UTF-8 decoding.
     /// </summary>
     private static string BytesToString(IEnumerable<byte> bytes)
     {
-        return string.Concat(bytes.Select(b => (char)b));
+        try
+        {
+            byte[] byteArray = bytes.ToArray();
+            return Encoding.UTF8.GetString(byteArray);
+        }
+        catch (Exception)
+        {
+            // Fallback to Latin1 if UTF-8 decoding fails
+            return string.Concat(bytes.Select(b => (char)b));
+        }
     }
 }
