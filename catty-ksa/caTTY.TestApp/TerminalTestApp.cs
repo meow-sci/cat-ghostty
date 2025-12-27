@@ -52,6 +52,10 @@ public class TerminalTestApp : IDisposable
     {
         Console.WriteLine("Starting shell process...");
 
+        // Display console color test if supported
+        ConsoleColorTest.DisplayColorTest();
+        Console.WriteLine();
+
         // Start a shell process
         var launchOptions = new ProcessLaunchOptions
         {
@@ -89,6 +93,10 @@ public class TerminalTestApp : IDisposable
         // var autoConfig = FontContextDetector.DetectAndCreateConfig();
         // Console.WriteLine($"TestApp using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
         // _controller = new TerminalController(_terminal, _processManager, autoConfig);
+
+        Console.WriteLine("Starting ImGui render loop...");
+        Console.WriteLine("Try running colored commands like: ls --color, echo -e \"\\033[31mRed text\\033[0m\"");
+        Console.WriteLine();
 
         // Run the ImGui application loop
         StandaloneImGui.Run(() => _controller.Render());

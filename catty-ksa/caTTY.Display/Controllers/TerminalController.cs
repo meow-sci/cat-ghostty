@@ -5,6 +5,7 @@ using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
 using caTTY.Display.Configuration;
+using caTTY.Display.Rendering;
 using KSA;
 using float2 = Brutal.Numerics.float2;
 using float4 = Brutal.Numerics.float4;
@@ -641,8 +642,9 @@ public class TerminalController : ITerminalController
         float terminalWidth = _terminal.Width * CurrentCharacterWidth;
         float terminalHeight = _terminal.Height * CurrentLineHeight;
 
-        // Draw terminal background
-        uint bgColor = ImGui.ColorConvertFloat4ToU32(new float4(0.0f, 0.0f, 0.0f, 1.0f));
+        // Draw terminal background using theme
+        float4 terminalBg = ThemeManager.GetDefaultBackground();
+        uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
         var terminalRect = new float2(windowPos.X + terminalWidth, windowPos.Y + terminalHeight);
         drawList.AddRectFilled(windowPos, terminalRect, bgColor);
 
@@ -672,11 +674,14 @@ public class TerminalController : ITerminalController
         float y = windowPos.Y + (row * CurrentLineHeight);
         var pos = new float2(x, y);
 
-        // Get colors with proper defaults
-        float4 bgColor = ConvertColor(cell.Attributes.BackgroundColor, true);
-        float4 fgColor = ConvertColor(cell.Attributes.ForegroundColor);
+        // Resolve colors using the new color resolution system
+        float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
+        float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
 
-        // Always draw background (black by default)
+        // Apply SGR attributes to colors
+        var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
+
+        // Always draw background
         var bgRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
         drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
 
@@ -686,35 +691,6 @@ public class TerminalController : ITerminalController
             // Select appropriate font based on SGR attributes
             var font = SelectFont(cell.Attributes);
             
-            // Apply text styling
-            if (cell.Attributes.Bold)
-            {
-                // Make color brighter for bold
-                fgColor = new float4(
-                    Math.Min(1.0f, fgColor.X * 1.3f),
-                    Math.Min(1.0f, fgColor.Y * 1.3f),
-                    Math.Min(1.0f, fgColor.Z * 1.3f),
-                    fgColor.W
-                );
-            }
-
-            if (cell.Attributes.Faint)
-            {
-                // Make color dimmer
-                fgColor = new float4(fgColor.X * 0.7f, fgColor.Y * 0.7f, fgColor.Z * 0.7f, fgColor.W);
-            }
-
-            if (cell.Attributes.Inverse)
-            {
-                // Swap foreground and background
-                float4 temp = fgColor;
-                fgColor = bgColor;
-                bgColor = temp;
-
-                // Redraw background with swapped color
-                drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-            }
-
             // Draw the character with selected font using proper PushFont/PopFont pattern
             ImGui.PushFont(font, _fontConfig.FontSize);
             try
@@ -727,21 +703,15 @@ public class TerminalController : ITerminalController
             }
 
             // Draw underline if needed
-            if (cell.Attributes.Underline)
+            if (StyleManager.ShouldRenderUnderline(cell.Attributes))
             {
-                float underlineY = y + CurrentLineHeight - 2;
-                var underlineStart = new float2(x, underlineY);
-                var underlineEnd = new float2(x + CurrentCharacterWidth, underlineY);
-                drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(fgColor));
+                RenderUnderline(drawList, pos, cell.Attributes, fgColor);
             }
 
             // Draw strikethrough if needed
-            if (cell.Attributes.Strikethrough)
+            if (StyleManager.ShouldRenderStrikethrough(cell.Attributes))
             {
-                float strikeY = y + (CurrentLineHeight / 2);
-                var strikeStart = new float2(x, strikeY);
-                var strikeEnd = new float2(x + CurrentCharacterWidth, strikeY);
-                drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(fgColor));
+                RenderStrikethrough(drawList, pos, fgColor);
             }
         }
     }
@@ -765,12 +735,14 @@ public class TerminalController : ITerminalController
         float x = windowPos.X + (cursorCol * CurrentCharacterWidth);
         float y = windowPos.Y + (cursorRow * CurrentLineHeight);
 
-        // Draw cursor as a filled rectangle (white with some transparency)
-        uint cursorColor = ImGui.ColorConvertFloat4ToU32(new float4(1.0f, 1.0f, 1.0f, 0.8f));
+        // Use theme cursor color with transparency
+        float4 cursorColor = ThemeManager.GetCursorColor();
+        cursorColor.W = 0.8f; // Add transparency
+        
         var cursorPos = new float2(x, y);
         var cursorRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
 
-        drawList.AddRectFilled(cursorPos, cursorRect, cursorColor);
+        drawList.AddRectFilled(cursorPos, cursorRect, ImGui.ColorConvertFloat4ToU32(cursorColor));
     }
 
     /// <summary>
@@ -864,83 +836,50 @@ public class TerminalController : ITerminalController
     }
 
     /// <summary>
-    ///     Converts a terminal color to ImGui float4 color.
+    ///     Renders underline for a cell based on SGR attributes.
     /// </summary>
-    private static float4 ConvertColor(Color? color, bool isBackground = false)
+    private void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor)
     {
-        if (!color.HasValue)
+        float4 underlineColor = StyleManager.GetUnderlineColor(attributes, foregroundColor);
+        float thickness = StyleManager.GetUnderlineThickness(attributes.UnderlineStyle);
+        
+        float underlineY = pos.Y + CurrentLineHeight - 2;
+        var underlineStart = new float2(pos.X, underlineY);
+        var underlineEnd = new float2(pos.X + CurrentCharacterWidth, underlineY);
+
+        switch (attributes.UnderlineStyle)
         {
-            // Use proper terminal defaults: white text on black background
-            return isBackground
-                ? new float4(0.0f, 0.0f, 0.0f, 1.0f) // Black background
-                : new float4(1.0f, 1.0f, 1.0f, 1.0f); // White foreground
+            case UnderlineStyle.Single:
+                drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+                break;
+                
+            case UnderlineStyle.Double:
+                // Draw two lines for double underline
+                drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+                var doubleStart = new float2(pos.X, underlineY - 2);
+                var doubleEnd = new float2(pos.X + CurrentCharacterWidth, underlineY - 2);
+                drawList.AddLine(doubleStart, doubleEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+                break;
+                
+            case UnderlineStyle.Curly:
+            case UnderlineStyle.Dotted:
+            case UnderlineStyle.Dashed:
+                // For now, render these as single underlines (conservative approach)
+                // Future enhancement could implement proper curly/dotted/dashed rendering
+                drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+                break;
         }
-
-        return color.Value.Type switch
-        {
-            ColorType.Named => ConvertNamedColor(color.Value.NamedColor),
-            ColorType.Indexed => ConvertIndexedColor(color.Value.Index),
-            ColorType.Rgb => new float4(color.Value.Red / 255.0f, color.Value.Green / 255.0f, color.Value.Blue / 255.0f,
-                1.0f),
-            _ => isBackground
-                ? new float4(0.0f, 0.0f, 0.0f, 1.0f) // Black background
-                : new float4(1.0f, 1.0f, 1.0f, 1.0f) // White foreground
-        };
     }
 
     /// <summary>
-    ///     Converts a named color to ImGui float4 color.
+    ///     Renders strikethrough for a cell.
     /// </summary>
-    private static float4 ConvertNamedColor(NamedColor namedColor)
+    private void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor)
     {
-        return namedColor switch
-        {
-            NamedColor.Black => new float4(0.0f, 0.0f, 0.0f, 1.0f),
-            NamedColor.Red => new float4(0.8f, 0.0f, 0.0f, 1.0f),
-            NamedColor.Green => new float4(0.0f, 0.8f, 0.0f, 1.0f),
-            NamedColor.Yellow => new float4(0.8f, 0.8f, 0.0f, 1.0f),
-            NamedColor.Blue => new float4(0.0f, 0.0f, 0.8f, 1.0f),
-            NamedColor.Magenta => new float4(0.8f, 0.0f, 0.8f, 1.0f),
-            NamedColor.Cyan => new float4(0.0f, 0.8f, 0.8f, 1.0f),
-            NamedColor.White => new float4(0.8f, 0.8f, 0.8f, 1.0f),
-            NamedColor.BrightBlack => new float4(0.4f, 0.4f, 0.4f, 1.0f),
-            NamedColor.BrightRed => new float4(1.0f, 0.4f, 0.4f, 1.0f),
-            NamedColor.BrightGreen => new float4(0.4f, 1.0f, 0.4f, 1.0f),
-            NamedColor.BrightYellow => new float4(1.0f, 1.0f, 0.4f, 1.0f),
-            NamedColor.BrightBlue => new float4(0.4f, 0.4f, 1.0f, 1.0f),
-            NamedColor.BrightMagenta => new float4(1.0f, 0.4f, 1.0f, 1.0f),
-            NamedColor.BrightCyan => new float4(0.4f, 1.0f, 1.0f, 1.0f),
-            NamedColor.BrightWhite => new float4(1.0f, 1.0f, 1.0f, 1.0f),
-            _ => new float4(0.8f, 0.8f, 0.8f, 1.0f)
-        };
-    }
-
-    /// <summary>
-    ///     Converts an indexed color to ImGui float4 color.
-    /// </summary>
-    private static float4 ConvertIndexedColor(byte index)
-    {
-        // Standard 16-color palette
-        return index switch
-        {
-            0 => new float4(0.0f, 0.0f, 0.0f, 1.0f), // Black
-            1 => new float4(0.8f, 0.0f, 0.0f, 1.0f), // Red
-            2 => new float4(0.0f, 0.8f, 0.0f, 1.0f), // Green
-            3 => new float4(0.8f, 0.8f, 0.0f, 1.0f), // Yellow
-            4 => new float4(0.0f, 0.0f, 0.8f, 1.0f), // Blue
-            5 => new float4(0.8f, 0.0f, 0.8f, 1.0f), // Magenta
-            6 => new float4(0.0f, 0.8f, 0.8f, 1.0f), // Cyan
-            7 => new float4(0.8f, 0.8f, 0.8f, 1.0f), // White
-            8 => new float4(0.4f, 0.4f, 0.4f, 1.0f), // Bright Black
-            9 => new float4(1.0f, 0.4f, 0.4f, 1.0f), // Bright Red
-            10 => new float4(0.4f, 1.0f, 0.4f, 1.0f), // Bright Green
-            11 => new float4(1.0f, 1.0f, 0.4f, 1.0f), // Bright Yellow
-            12 => new float4(0.4f, 0.4f, 1.0f, 1.0f), // Bright Blue
-            13 => new float4(1.0f, 0.4f, 1.0f, 1.0f), // Bright Magenta
-            14 => new float4(0.4f, 1.0f, 1.0f, 1.0f), // Bright Cyan
-            15 => new float4(1.0f, 1.0f, 1.0f, 1.0f), // Bright White
-            _ => new float4(0.8f, 0.8f, 0.8f, 1.0f) // Default
-        };
+        float strikeY = pos.Y + (CurrentLineHeight / 2);
+        var strikeStart = new float2(pos.X, strikeY);
+        var strikeEnd = new float2(pos.X + CurrentCharacterWidth, strikeY);
+        drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
     }
 
     /// <summary>
