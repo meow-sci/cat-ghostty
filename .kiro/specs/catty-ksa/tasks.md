@@ -58,7 +58,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts
   - _Requirements: 13.2_
 
-- [ ] 6.3 Add clipboard OSC sequences
+- [x] 6.3 Add clipboard OSC sequences
   - Add OSC 52 (clipboard) sequence handling
   - Emit clipboard events for game integration
   - Parse clipboard data and selection targets

@@ -124,6 +124,11 @@ public interface ITerminalEmulator : IDisposable
     event EventHandler<IconNameChangeEventArgs>? IconNameChanged;
 
     /// <summary>
+    ///     Event raised when a clipboard operation is requested via OSC 52 sequences.
+    /// </summary>
+    event EventHandler<ClipboardEventArgs>? ClipboardRequest;
+
+    /// <summary>
     ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
     ///     When bracketed paste mode is enabled (DECSET 2004), paste content is wrapped with:
     ///     - Start marker: ESC[200~

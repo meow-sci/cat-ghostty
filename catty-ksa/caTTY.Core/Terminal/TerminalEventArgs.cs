@@ -192,3 +192,43 @@ public class IconNameChangeEventArgs : EventArgs
     /// </summary>
     public DateTime Timestamp { get; }
 }
+
+/// <summary>
+///     Event arguments for clipboard operation notifications.
+/// </summary>
+public class ClipboardEventArgs : EventArgs
+{
+    /// <summary>
+    ///     Creates new clipboard event arguments.
+    /// </summary>
+    /// <param name="selectionTarget">The selection target (e.g., "c" for clipboard, "p" for primary)</param>
+    /// <param name="data">The clipboard data (decoded from base64)</param>
+    /// <param name="isQuery">Whether this is a clipboard query (data will be null)</param>
+    public ClipboardEventArgs(string selectionTarget, string? data, bool isQuery = false)
+    {
+        SelectionTarget = selectionTarget ?? string.Empty;
+        Data = data;
+        IsQuery = isQuery;
+        Timestamp = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Gets the selection target (e.g., "c" for clipboard, "p" for primary selection).
+    /// </summary>
+    public string SelectionTarget { get; }
+
+    /// <summary>
+    ///     Gets the clipboard data (null for queries).
+    /// </summary>
+    public string? Data { get; }
+
+    /// <summary>
+    ///     Gets whether this is a clipboard query operation.
+    /// </summary>
+    public bool IsQuery { get; }
+
+    /// <summary>
+    ///     Gets the time when the clipboard operation was requested.
+    /// </summary>
+    public DateTime Timestamp { get; }
+}

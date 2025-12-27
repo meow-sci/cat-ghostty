@@ -263,8 +263,8 @@ public class OscParser : IOscParser
                 Raw = raw,
                 Terminator = terminator,
                 Command = command,
-                Payload = decodedText,
-                ClipboardData = decodedText,
+                Payload = payload, // Use original payload for clipboard parsing
+                ClipboardData = payload, // Store original payload for parsing
                 Implemented = true
             },
             8 => new XtermOscMessage

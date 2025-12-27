@@ -432,6 +432,15 @@ internal class TerminalParserHandlers : IParserHandlers
                 _logger.LogDebug("Query window title response: {Response}", titleResponse);
                 break;
 
+            case "osc.clipboard":
+                // OSC 52: Clipboard operations - handle clipboard data and queries
+                if (message.ClipboardData != null)
+                {
+                    _terminal.HandleClipboard(message.ClipboardData);
+                    _logger.LogDebug("Clipboard operation: {Data}", message.ClipboardData);
+                }
+                break;
+
             default:
                 // TODO: Implement other xterm OSC handling (task 6.3, 6.5)
                 _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
