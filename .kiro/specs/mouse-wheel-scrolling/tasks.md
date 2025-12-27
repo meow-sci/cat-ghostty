@@ -91,14 +91,19 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - Test exception handling in wheel processing
   - _Requirements: 7.1, 7.3_
 
-- [ ] 8. Integration testing and validation
+- [x] 8. Integration testing and validation
+  - Add debugging output to identify mouse wheel scrolling issues in TestApp
+  - Fix focus detection or mouse wheel event processing problems
+  - **FIXED: Terminal rendering was bypassing ScrollbackManager viewport**
+  - **FIXED: RenderTerminalContent now uses GetViewportRows for proper scrollback integration**
+  - **FIXED: Auto-scroll viewport calculation corrected in GetViewportRows method**
   - Test mouse wheel scrolling in TestApp
   - Test mouse wheel scrolling in GameMod context
   - Verify performance with rapid wheel events
   - Test interaction with existing keyboard scrolling
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 8.1 Write integration tests
+- [x] 8.1 Write integration tests
   - Test wheel scrolling with existing scrollback functionality
   - Test interaction between wheel and keyboard scrolling
   - Test edge cases (empty terminal, full scrollback)
@@ -110,11 +115,29 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - Document configuration options and defaults
   - Add usage examples for different sensitivity settings
 
-- [ ] 10. Checkpoint - Mouse wheel scrolling working
+- [x] 10. Checkpoint - Mouse wheel scrolling working
   - Mouse wheel scrolling works in both TestApp and GameMod
   - All property tests pass
   - Integration with existing scrollback system is seamless
   - Configuration and error handling work correctly
+  - **FIXED: Auto-scroll to bottom on new content now works correctly**
+
+## Final Resolution
+
+The auto-scroll issue was caused by incorrect viewport calculation in `ScrollbackManager.GetViewportRows()`. The method was showing content starting from the beginning of scrollback when `ViewportOffset = 0` (at bottom), instead of showing the most recent content.
+
+**Root Cause**: When `_viewportOffset = 0` (at bottom), the viewport calculation was:
+```csharp
+var viewportTop = Math.Max(0, Math.Min(_viewportOffset, scrollbackRows)); // = 0
+```
+This showed content starting from the oldest scrollback line, not the most recent.
+
+**Fix**: Changed the viewport calculation to:
+```csharp
+var totalContentRows = scrollbackRows + screenRows;
+var viewportStart = Math.Max(0, totalContentRows - requestedRows - _viewportOffset);
+```
+This correctly shows the most recent content when at bottom (`_viewportOffset = 0`) and earlier content when scrolled up (`_viewportOffset > 0`).
 
 ## Notes
 

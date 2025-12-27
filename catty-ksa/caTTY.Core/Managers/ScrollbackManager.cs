@@ -173,11 +173,12 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
     public void OnNewContentAdded()
     {
         // If auto-scroll is enabled, keep viewport at bottom
-        // If user has scrolled up, don't yank the viewport
         if (_autoScrollEnabled)
         {
             _viewportOffset = 0;
         }
+        // If user has scrolled up, don't change the viewport offset
+        // This maintains the existing behavior expected by tests
     }
 
     /// <inheritdoc />
@@ -194,14 +195,17 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
 
         var result = new List<ReadOnlyMemory<Cell>>(requestedRows);
         var scrollbackRows = _currentLines;
+        var screenRows = screenBuffer.Length;
         
-        // When _viewportOffset = 0 (at bottom), show all scrollback + screen buffer
-        // When _viewportOffset > 0 (scrolled up), show earlier content starting from that offset
-        var viewportTop = Math.Max(0, Math.Min(_viewportOffset, scrollbackRows));
+        // Calculate the starting position in the combined scrollback+screen content
+        // When _viewportOffset = 0 (at bottom), we want to show the most recent content
+        // When _viewportOffset > 0 (scrolled up), we want to show earlier content
+        var totalContentRows = scrollbackRows + screenRows;
+        var viewportStart = Math.Max(0, totalContentRows - requestedRows - _viewportOffset);
 
         for (int i = 0; i < requestedRows; i++)
         {
-            var globalRow = viewportTop + i;
+            var globalRow = viewportStart + i;
             
             if (globalRow < scrollbackRows)
             {

@@ -741,12 +741,33 @@ public class TerminalController : ITerminalController
         var terminalRect = new float2(windowPos.X + terminalWidth, windowPos.Y + terminalHeight);
         drawList.AddRectFilled(windowPos, terminalRect, bgColor);
 
-        // Render each cell
-        for (int row = 0; row < _terminal.Height; row++)
+        // Get viewport content from ScrollbackManager instead of directly from screen buffer
+        var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
+        for (int i = 0; i < _terminal.Height; i++)
         {
-            for (int col = 0; col < _terminal.Width; col++)
+            var rowSpan = _terminal.ScreenBuffer.GetRow(i);
+            var rowArray = new Cell[rowSpan.Length];
+            rowSpan.CopyTo(rowArray);
+            screenBuffer[i] = rowArray.AsMemory();
+        }
+
+        // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
+        var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
+        var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
+            screenBuffer, 
+            isAlternateScreenActive,
+            _terminal.Height
+        );
+
+        // Render each cell from the viewport content
+        for (int row = 0; row < Math.Min(viewportRows.Count, _terminal.Height); row++)
+        {
+            var rowMemory = viewportRows[row];
+            var rowSpan = rowMemory.Span;
+            
+            for (int col = 0; col < Math.Min(rowSpan.Length, _terminal.Width); col++)
             {
-                Cell cell = _terminal.ScreenBuffer.GetCell(row, col);
+                Cell cell = rowSpan[col];
                 RenderCell(drawList, windowPos, row, col, cell);
             }
         }
