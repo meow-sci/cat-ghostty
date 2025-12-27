@@ -132,7 +132,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 32: Line and character insertion/deletion**
   - **Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
 
-- [ ] 4.14 Test and validate scrolling functionality
+- [x] 4.14 Test and validate scrolling functionality
   - **USER VALIDATION REQUIRED**: Test scrollback works in both apps
   - Verify long command output scrolls correctly
   - Test viewport navigation and auto-scroll
