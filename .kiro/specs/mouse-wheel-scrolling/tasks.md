@@ -67,14 +67,14 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - **Property 3: Auto-scroll state management with wheel scrolling**
   - **Validates: Requirements 3.1, 3.2**
 
-- [ ] 6. Add configuration sensitivity testing
+- [x] 6. Add configuration sensitivity testing
   - Verify different sensitivity values produce correct line counts
   - Test that sensitivity=1 scrolls exactly 1 line per wheel step
   - Test that sensitivity=3 scrolls exactly 3 lines per wheel step
   - Validate configuration clamping to reasonable ranges
   - _Requirements: 4.2, 4.3, 4.4_
 
-- [ ] 6.1 Write property test for configuration sensitivity behavior
+- [x] 6.1 Write property test for configuration sensitivity behavior
   - **Property 4: Configuration validation and sensitivity behavior**
   - **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
 

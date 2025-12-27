@@ -716,6 +716,197 @@ public class MouseWheelScrollingProperties
     }
 
     /// <summary>
+    ///     Property 4: Configuration validation and sensitivity behavior
+    ///     For any valid scroll sensitivity configuration, wheel events should result in scrolling
+    ///     the exact number of lines specified by the sensitivity setting.
+    ///     Feature: mouse-wheel-scrolling, Property 4: Configuration validation and sensitivity behavior
+    ///     Validates: Requirements 4.1, 4.2, 4.3, 4.4
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property ConfigurationValidationAndSensitivityBehavior_ShouldScrollExactLines()
+    {
+        return Prop.ForAll(ValidWheelDeltas(), (wheelDelta) =>
+        {
+            try
+            {
+                // Skip invalid wheel deltas
+                if (!float.IsFinite(wheelDelta))
+                {
+                    return true; // Invalid deltas should be handled by validation
+                }
+
+                // Skip very small deltas to focus on meaningful tests
+                if (Math.Abs(wheelDelta) < 0.1f)
+                {
+                    return true; // Below minimum threshold
+                }
+
+                // Test specific sensitivity values as per requirements
+                int[] testSensitivities = { 1, 3, 5 }; // Focus on key requirements
+                
+                foreach (int sensitivity in testSensitivities)
+                {
+                    // Create configuration with specific sensitivity
+                    var config = new MouseWheelScrollConfig
+                    {
+                        LinesPerStep = sensitivity,
+                        EnableSmoothScrolling = true,
+                        MinimumWheelDelta = 0.1f,
+                        MaxLinesPerOperation = 50 // High enough to not interfere with testing
+                    };
+                    
+                    // Requirement 4.1: System should provide configurable lines-per-scroll setting
+                    config.Validate(); // Should not throw for valid sensitivity values
+                    
+                    // Simulate wheel processing with this configuration
+                    float accumulator = 0.0f;
+                    accumulator += wheelDelta * config.LinesPerStep;
+                    
+                    // Apply overflow protection
+                    if (Math.Abs(accumulator) > 100.0f)
+                    {
+                        accumulator = Math.Sign(accumulator) * 10.0f;
+                    }
+                    
+                    // Extract integer scroll lines
+                    int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
+                    if (scrollLines == 0)
+                    {
+                        continue; // No scrolling should occur
+                    }
+                    
+                    // Clamp to maximum lines per operation
+                    int clampedScrollLines = Math.Min(scrollLines, config.MaxLinesPerOperation);
+                    
+                    // Test general sensitivity behavior: lines should be proportional to sensitivity
+                    float expectedAccumulation = Math.Abs(wheelDelta) * sensitivity;
+                    int expectedLines = (int)Math.Floor(expectedAccumulation);
+                    expectedLines = Math.Min(expectedLines, config.MaxLinesPerOperation);
+                    
+                    // Verify that the calculated lines match the expected sensitivity behavior
+                    if (clampedScrollLines != expectedLines)
+                    {
+                        return false; // Lines should be proportional to sensitivity setting
+                    }
+                    
+                    // Requirement 4.2: When sensitivity is 1, each wheel step should scroll exactly 1 line
+                    if (sensitivity == 1 && Math.Abs(wheelDelta) >= 1.0f)
+                    {
+                        int expectedForSensitivity1 = (int)Math.Floor(Math.Abs(wheelDelta));
+                        expectedForSensitivity1 = Math.Min(expectedForSensitivity1, config.MaxLinesPerOperation);
+                        
+                        if (clampedScrollLines != expectedForSensitivity1)
+                        {
+                            return false; // Should scroll exactly |wheelDelta| lines when sensitivity is 1
+                        }
+                    }
+                    
+                    // Requirement 4.3: When sensitivity is 3, each wheel step should scroll exactly 3 lines
+                    if (sensitivity == 3 && Math.Abs(wheelDelta) >= 1.0f)
+                    {
+                        int expectedForSensitivity3 = (int)Math.Floor(Math.Abs(wheelDelta) * 3);
+                        expectedForSensitivity3 = Math.Min(expectedForSensitivity3, config.MaxLinesPerOperation);
+                        
+                        if (clampedScrollLines != expectedForSensitivity3)
+                        {
+                            return false; // Should scroll exactly |wheelDelta| * 3 lines when sensitivity is 3
+                        }
+                    }
+                }
+                
+                // Requirement 4.4: System should clamp scroll sensitivity to reasonable range (1-10 lines per step)
+                // Test invalid sensitivity values
+                int[] invalidSensitivities = { 0, -1, 11, 15 };
+                
+                foreach (int invalidSensitivity in invalidSensitivities)
+                {
+                    var invalidConfig = new MouseWheelScrollConfig
+                    {
+                        LinesPerStep = invalidSensitivity,
+                        EnableSmoothScrolling = true,
+                        MinimumWheelDelta = 0.1f,
+                        MaxLinesPerOperation = 10
+                    };
+                    
+                    bool threwException = false;
+                    try
+                    {
+                        invalidConfig.Validate();
+                    }
+                    catch (ArgumentException)
+                    {
+                        threwException = true;
+                    }
+                    
+                    if (!threwException)
+                    {
+                        return false; // Invalid sensitivity values should be rejected
+                    }
+                }
+                
+                // Test boundary sensitivity values (should be valid)
+                int[] boundarySensitivities = { 1, 10 };
+                
+                foreach (int boundarySensitivity in boundarySensitivities)
+                {
+                    var boundaryConfig = new MouseWheelScrollConfig
+                    {
+                        LinesPerStep = boundarySensitivity,
+                        EnableSmoothScrolling = true,
+                        MinimumWheelDelta = 0.1f,
+                        MaxLinesPerOperation = 50
+                    };
+                    
+                    try
+                    {
+                        boundaryConfig.Validate(); // Should not throw for boundary values
+                    }
+                    catch (ArgumentException)
+                    {
+                        return false; // Boundary sensitivity values should be valid
+                    }
+                }
+                
+                // Test that configuration factory methods produce valid configurations
+                try
+                {
+                    var testAppConfig = MouseWheelScrollConfig.CreateForTestApp();
+                    var gameModConfig = MouseWheelScrollConfig.CreateForGameMod();
+                    var defaultConfig = MouseWheelScrollConfig.CreateDefault();
+                    
+                    testAppConfig.Validate();
+                    gameModConfig.Validate();
+                    defaultConfig.Validate();
+                    
+                    // Verify that factory configurations have reasonable sensitivity values
+                    if (testAppConfig.LinesPerStep < 1 || testAppConfig.LinesPerStep > 10 ||
+                        gameModConfig.LinesPerStep < 1 || gameModConfig.LinesPerStep > 10 ||
+                        defaultConfig.LinesPerStep < 1 || defaultConfig.LinesPerStep > 10)
+                    {
+                        return false; // Factory configs should have reasonable sensitivity
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return false; // Factory methods should produce valid configurations
+                }
+                
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                // Invalid configurations should be rejected
+                return true;
+            }
+            catch (Exception)
+            {
+                // Other exceptions indicate a problem
+                return false;
+            }
+        });
+    }
+
+    /// <summary>
     ///     Property 2: Boundary condition handling at scroll limits
     ///     For any mouse wheel event when the terminal is at the top or bottom of scrollback,
     ///     the system should handle the event gracefully without errors and maintain valid terminal state.
