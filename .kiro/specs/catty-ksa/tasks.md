@@ -120,7 +120,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 14: Cursor visibility tracking**
   - **Validates: Requirements 8.5**
 
-- [ ] 5.11 Test and validate alternate screen and modes
+- [x] 5.11 Test and validate alternate screen and modes
   - **USER VALIDATION REQUIRED**: Test full-screen apps (less)
   - Verify alternate screen works correctly
   - Test terminal mode switching
