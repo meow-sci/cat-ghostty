@@ -59,9 +59,12 @@ public class TerminalEmulator : ITerminalEmulator
             throw new ArgumentOutOfRangeException(nameof(scrollbackLines), "Scrollback lines cannot be negative");
         }
 
-        ScreenBuffer = new ScreenBuffer(width, height);
         Cursor = new Cursor();
         State = new TerminalState(width, height);
+
+        // Use a dual buffer so alternate-screen applications (htop/vim/less/etc.)
+        // don't corrupt primary screen content and scrollback behavior.
+        ScreenBuffer = new DualScreenBuffer(width, height, () => State.IsAlternateScreenActive);
         _logger = logger ?? NullLogger.Instance;
 
         // Initialize scrollback infrastructure
@@ -725,9 +728,17 @@ public class TerminalEmulator : ITerminalEmulator
             case 47: // Alternate Screen Buffer
             case 1047: // Alternate Screen Buffer with cursor save
             case 1049: // Alternate Screen Buffer with cursor save and clear
-                // TODO: Implement alternate screen buffer (task 5.x)
-                _logger.LogDebug("Alternate screen buffer mode {Mode} {Action} - not yet implemented", 
-                    mode, enabled ? "set" : "reset");
+                HandleAlternateScreenMode(mode, enabled);
+                break;
+
+            case 1000: // VT200 mouse tracking (click)
+            case 1002: // button-event tracking (drag)
+            case 1003: // any-event tracking (motion)
+                State.SetMouseTrackingMode(mode, enabled);
+                break;
+
+            case 1006: // SGR mouse encoding
+                State.MouseSgrEncodingEnabled = enabled;
                 break;
 
             case 2027: // UTF-8 Mode
@@ -737,6 +748,108 @@ public class TerminalEmulator : ITerminalEmulator
             default:
                 _logger.LogDebug("Unknown DEC mode {Mode} {Action}", mode, enabled ? "set" : "reset");
                 break;
+        }
+    }
+
+    private void HandleAlternateScreenMode(int mode, bool enabled)
+    {
+        static void SaveToPrimary(TerminalState state, int x, int y, bool wrapPending)
+        {
+            state.PrimaryCursorX = x;
+            state.PrimaryCursorY = y;
+            state.PrimaryWrapPending = wrapPending;
+        }
+
+        static void SaveToAlternate(TerminalState state, int x, int y, bool wrapPending)
+        {
+            state.AlternateCursorX = x;
+            state.AlternateCursorY = y;
+            state.AlternateWrapPending = wrapPending;
+        }
+
+        void LoadFromPrimary()
+        {
+            _cursorManager.MoveTo(State.PrimaryCursorY, State.PrimaryCursorX);
+            _cursorManager.SetWrapPending(State.PrimaryWrapPending);
+            State.CursorX = _cursorManager.Column;
+            State.CursorY = _cursorManager.Row;
+            State.WrapPending = _cursorManager.WrapPending;
+        }
+
+        void LoadFromAlternate()
+        {
+            _cursorManager.MoveTo(State.AlternateCursorY, State.AlternateCursorX);
+            _cursorManager.SetWrapPending(State.AlternateWrapPending);
+            State.CursorX = _cursorManager.Column;
+            State.CursorY = _cursorManager.Row;
+            State.WrapPending = _cursorManager.WrapPending;
+        }
+
+        // Avoid redundant work
+        bool wasAlternate = State.IsAlternateScreenActive;
+
+        if (enabled)
+        {
+            if (State.IsAlternateScreenActive)
+            {
+                return;
+            }
+
+            // Save cursor for 1047/1049 semantics (restore on exit)
+            if (mode == 1047 || mode == 1049)
+            {
+                SaveCursorPosition();
+            }
+
+            // Save current (primary) buffer cursor state, then switch and load alternate cursor state
+            SaveToPrimary(State, _cursorManager.Column, _cursorManager.Row, _cursorManager.WrapPending);
+            State.IsAlternateScreenActive = true;
+            LoadFromAlternate();
+
+            if (mode == 1049)
+            {
+                // Clear alternate screen and home cursor.
+                if (ScreenBuffer is DualScreenBuffer dual)
+                {
+                    dual.ClearAlternate();
+                }
+
+                State.ScrollTop = 0;
+                State.ScrollBottom = Height - 1;
+
+                State.AlternateCursorX = 0;
+                State.AlternateCursorY = 0;
+                State.AlternateWrapPending = false;
+                LoadFromAlternate();
+            }
+
+            return;
+        }
+
+        // Disable: switch back to primary
+        if (!State.IsAlternateScreenActive)
+        {
+            return;
+        }
+
+        // Save current (alternate) cursor state, then switch and load primary cursor state
+        SaveToAlternate(State, _cursorManager.Column, _cursorManager.Row, _cursorManager.WrapPending);
+        State.IsAlternateScreenActive = false;
+        LoadFromPrimary();
+
+        if (mode == 1047 || mode == 1049)
+        {
+            RestoreCursorPosition();
+            State.CursorX = _cursorManager.Column;
+            State.CursorY = _cursorManager.Row;
+            State.WrapPending = _cursorManager.WrapPending;
+        }
+
+        // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
+        // (matches catty-web controller behavior).
+        if (wasAlternate)
+        {
+            _scrollbackManager.ScrollToBottom();
         }
     }
 

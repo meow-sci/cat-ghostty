@@ -91,6 +91,12 @@ public class TerminalState
         Rows = rows;
         CursorX = 0;
         CursorY = 0;
+        PrimaryCursorX = 0;
+        PrimaryCursorY = 0;
+        PrimaryWrapPending = false;
+        AlternateCursorX = 0;
+        AlternateCursorY = 0;
+        AlternateWrapPending = false;
         ScrollTop = 0;
         ScrollBottom = rows - 1;
         InitializeTabStops(cols);
@@ -105,6 +111,40 @@ public class TerminalState
     ///     Current cursor Y position (row, 0-based).
     /// </summary>
     public int CursorY { get; set; }
+
+    /// <summary>
+    ///     Stored cursor X position for the primary screen buffer.
+    ///     Used when switching between primary and alternate screen buffers.
+    /// </summary>
+    public int PrimaryCursorX { get; set; }
+
+    /// <summary>
+    ///     Stored cursor Y position for the primary screen buffer.
+    ///     Used when switching between primary and alternate screen buffers.
+    /// </summary>
+    public int PrimaryCursorY { get; set; }
+
+    /// <summary>
+    ///     Stored wrap pending state for the primary screen buffer.
+    /// </summary>
+    public bool PrimaryWrapPending { get; set; }
+
+    /// <summary>
+    ///     Stored cursor X position for the alternate screen buffer.
+    ///     Used when switching between primary and alternate screen buffers.
+    /// </summary>
+    public int AlternateCursorX { get; set; }
+
+    /// <summary>
+    ///     Stored cursor Y position for the alternate screen buffer.
+    ///     Used when switching between primary and alternate screen buffers.
+    /// </summary>
+    public int AlternateCursorY { get; set; }
+
+    /// <summary>
+    ///     Stored wrap pending state for the alternate screen buffer.
+    /// </summary>
+    public bool AlternateWrapPending { get; set; }
 
     /// <summary>
     ///     Saved cursor position for ESC 7 / ESC 8 sequences.
@@ -202,6 +242,46 @@ public class TerminalState
     ///     Whether the alternate screen buffer is currently active.
     /// </summary>
     public bool IsAlternateScreenActive { get; set; }
+
+    /// <summary>
+    ///     Bitmask tracking DEC mouse tracking modes (1000/1002/1003).
+    /// </summary>
+    public int MouseTrackingModeBits { get; private set; }
+
+    /// <summary>
+    ///     Whether SGR mouse encoding (DECSET 1006) is enabled.
+    /// </summary>
+    public bool MouseSgrEncodingEnabled { get; set; }
+
+    /// <summary>
+    ///     True when any mouse tracking mode is enabled.
+    /// </summary>
+    public bool IsMouseReportingEnabled => MouseTrackingModeBits != 0;
+
+    public void SetMouseTrackingMode(int mode, bool enabled)
+    {
+        int bit = mode switch
+        {
+            1000 => 1,
+            1002 => 2,
+            1003 => 4,
+            _ => 0
+        };
+
+        if (bit == 0)
+        {
+            return;
+        }
+
+        if (enabled)
+        {
+            MouseTrackingModeBits |= bit;
+        }
+        else
+        {
+            MouseTrackingModeBits &= ~bit;
+        }
+    }
 
     /// <summary>
     ///     Terminal dimensions (columns).
@@ -339,6 +419,12 @@ public class TerminalState
     {
         CursorX = 0;
         CursorY = 0;
+        PrimaryCursorX = 0;
+        PrimaryCursorY = 0;
+        PrimaryWrapPending = false;
+        AlternateCursorX = 0;
+        AlternateCursorY = 0;
+        AlternateWrapPending = false;
         SavedCursor = null;
         CursorStyle = 1;
         CursorVisible = true;
@@ -357,6 +443,10 @@ public class TerminalState
         SavedPrivateModes.Clear();
         CurrentSgrState = SgrAttributes.Default;
         CurrentCharacterProtection = false;
+
+        IsAlternateScreenActive = false;
+        MouseTrackingModeBits = 0;
+        MouseSgrEncodingEnabled = false;
     }
 
     /// <summary>

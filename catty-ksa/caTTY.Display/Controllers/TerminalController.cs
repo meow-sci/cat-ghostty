@@ -4,6 +4,7 @@ using System.Text;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
+using caTTY.Core.Utils;
 using caTTY.Display.Configuration;
 using caTTY.Display.Rendering;
 using KSA;
@@ -30,6 +31,10 @@ public class TerminalController : ITerminalController
 
     // Mouse wheel scrolling
     private float _wheelAccumulator = 0.0f;
+
+    // Cached terminal rect for mouse position -> cell coordinate conversion
+    private float2 _lastTerminalOrigin;
+    private float2 _lastTerminalSize;
 
     // Font pointers for different styles
     private ImFontPtr _regularFont;
@@ -735,6 +740,10 @@ public class TerminalController : ITerminalController
         float terminalWidth = _terminal.Width * CurrentCharacterWidth;
         float terminalHeight = _terminal.Height * CurrentLineHeight;
 
+        // Cache terminal rect for input encoding (mouse wheel / mouse reporting)
+        _lastTerminalOrigin = windowPos;
+        _lastTerminalSize = new float2(terminalWidth, terminalHeight);
+
         // Draw terminal background using theme
         float4 terminalBg = ThemeManager.GetDefaultBackground();
         uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
@@ -1058,6 +1067,49 @@ public class TerminalController : ITerminalController
             // Clamp to maximum lines per operation - prevents excessive scrolling
             scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
             
+            var emulator = (TerminalEmulator)_terminal;
+            var state = emulator.State;
+
+            // Match catty-web behavior:
+            // - If mouse reporting is enabled, wheel events go to the running app (PTY), not local scrollback.
+            // - If alternate screen is active and mouse reporting is off, translate wheel into arrow/page keys.
+            // - Otherwise, wheel scrolls local scrollback.
+            if (state.IsMouseReportingEnabled)
+            {
+                var (x1, y1) = GetMouseCellCoordinates1Based();
+
+                // ImGui: wheelDelta > 0 means scroll up; xterm wheel uses button 64 for up.
+                string seq = MouseInputEncoder.EncodeMouseWheel(
+                    directionUp: scrollUp,
+                    x1: x1,
+                    y1: y1,
+                    shift: ImGui.GetIO().KeyShift,
+                    alt: ImGui.GetIO().KeyAlt,
+                    ctrl: ImGui.GetIO().KeyCtrl,
+                    sgrEncoding: state.MouseSgrEncodingEnabled
+                );
+
+                SendToProcess(seq);
+
+                // Consume the delta since we've emitted input.
+                float consumedDelta = scrollLines * (scrollUp ? 1 : -1);
+                _wheelAccumulator -= consumedDelta;
+                return;
+            }
+
+            if (state.IsAlternateScreenActive)
+            {
+                string seq = EncodeAltScreenWheelAsKeys(scrollUp, scrollLines, _terminal.Height, state.ApplicationCursorKeys);
+                if (!string.IsNullOrEmpty(seq))
+                {
+                    SendToProcess(seq);
+                }
+
+                float consumedDelta = scrollLines * (scrollUp ? 1 : -1);
+                _wheelAccumulator -= consumedDelta;
+                return;
+            }
+
             // Store current viewport state for boundary condition handling and error recovery
             var scrollbackManager = _terminal.ScrollbackManager;
             if (scrollbackManager == null)
@@ -1149,6 +1201,47 @@ public class TerminalController : ITerminalController
             Console.WriteLine($"TerminalController: Wheel processing error stack trace: {ex.StackTrace}");
             #endif
         }
+    }
+
+    private (int x1, int y1) GetMouseCellCoordinates1Based()
+    {
+        // Mouse position is in screen coordinates.
+        var mouse = ImGui.GetMousePos();
+
+        float relX = mouse.X - _lastTerminalOrigin.X;
+        float relY = mouse.Y - _lastTerminalOrigin.Y;
+
+        int col0 = (int)Math.Floor(relX / Math.Max(1e-6f, CurrentCharacterWidth));
+        int row0 = (int)Math.Floor(relY / Math.Max(1e-6f, CurrentLineHeight));
+
+        col0 = Math.Max(0, Math.Min(_terminal.Width - 1, col0));
+        row0 = Math.Max(0, Math.Min(_terminal.Height - 1, row0));
+
+        return (col0 + 1, row0 + 1);
+    }
+
+    private static string EncodeAltScreenWheelAsKeys(bool directionUp, int lines, int rows, bool applicationCursorKeys)
+    {
+        if (lines <= 0)
+        {
+            return string.Empty;
+        }
+
+        rows = Math.Max(1, rows);
+
+        // If the wheel delta is effectively a full page, use PageUp/PageDown.
+        if (lines >= rows)
+        {
+            int pages = Math.Max(1, Math.Min(10, (int)Math.Round(lines / (double)rows)));
+            string seq = directionUp ? "\x1b[5~" : "\x1b[6~";
+            return string.Concat(Enumerable.Repeat(seq, pages));
+        }
+
+        int absLines = Math.Max(1, Math.Min(rows * 3, lines));
+        string arrow = directionUp
+            ? (applicationCursorKeys ? "\x1bOA" : "\x1b[A")
+            : (applicationCursorKeys ? "\x1bOB" : "\x1b[B");
+        return string.Concat(Enumerable.Repeat(arrow, absLines));
     }
 
     /// <summary>
