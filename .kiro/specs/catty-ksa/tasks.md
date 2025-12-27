@@ -55,7 +55,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/alternateScreen.ts isolation behavior to ensure C# implementation provides identical scrollback isolation and state preservation
   - _Requirements: 15.3, 15.5_
 
-- [ ] 5.3 Add alternate screen control sequences
+- [x] 5.3 Add alternate screen control sequences
   - NOTE: some of this was implemented by other work streams.  Analyze what is in place and fix, augment or replace it with a proper implementation as necessary based on the spec and task design.
   - Implement DEC private mode sequences for alternate screen
   - Add alternate screen activation/deactivation sequences
