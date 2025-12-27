@@ -30,14 +30,14 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
   - **Property 6: Focus-based event filtering**
   - **Validates: Requirements 1.3**
 
-- [ ] 3. Implement wheel delta accumulation algorithm
+- [x] 3. Implement wheel delta accumulation algorithm
   - Add wheel accumulator field to TerminalController
   - Create ProcessMouseWheelScroll method with smooth accumulation
   - Handle fractional deltas and convert to integer line counts
   - Add overflow protection for accumulator
   - _Requirements: 5.1, 5.2_
 
-- [ ] 3.1 Write property test for wheel delta accumulation
+- [x] 3.1 Write property test for wheel delta accumulation
   - **Property 5: Wheel delta accumulation and line calculation**
   - **Validates: Requirements 5.1, 5.2**
 

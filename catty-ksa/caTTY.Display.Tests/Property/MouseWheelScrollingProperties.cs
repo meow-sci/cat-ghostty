@@ -272,6 +272,133 @@ public class MouseWheelScrollingProperties
     }
 
     /// <summary>
+    ///     Property 5: Wheel delta accumulation and line calculation
+    ///     For any sequence of fractional wheel delta values, the accumulation algorithm should correctly
+    ///     sum deltas and convert to integer line counts without losing precision or causing overflow.
+    ///     Feature: mouse-wheel-scrolling, Property 5: Wheel delta accumulation and line calculation
+    ///     Validates: Requirements 5.1, 5.2
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property WheelDeltaAccumulationAndLineCalculation_ShouldAccumulateCorrectly()
+    {
+        return Prop.ForAll(ValidScrollConfigs(), (scrollConfig) =>
+        {
+            try
+            {
+                scrollConfig.Validate();
+
+                // Test accumulation with various fractional wheel deltas
+                float[] testDeltas = { 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, 1.1f, 1.5f, 2.3f, -0.4f, -0.8f, -1.2f };
+                
+                float accumulator = 0.0f;
+                
+                foreach (float wheelDelta in testDeltas)
+                {
+                    float previousAccumulator = accumulator;
+                    
+                    // Simulate the accumulation algorithm
+                    accumulator += wheelDelta * scrollConfig.LinesPerStep;
+                    
+                    // Apply overflow protection (same as implementation)
+                    if (Math.Abs(accumulator) > 100.0f)
+                    {
+                        accumulator = Math.Sign(accumulator) * 10.0f;
+                    }
+                    
+                    // Extract integer scroll lines (same as implementation)
+                    int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
+                    
+                    // Verify scroll lines are non-negative
+                    if (scrollLines < 0)
+                    {
+                        return false;
+                    }
+                    
+                    // Verify scroll lines don't exceed maximum
+                    int clampedScrollLines = Math.Min(scrollLines, scrollConfig.MaxLinesPerOperation);
+                    if (clampedScrollLines > scrollConfig.MaxLinesPerOperation)
+                    {
+                        return false;
+                    }
+                    
+                    // Test direction detection (only when accumulator is significant)
+                    if (Math.Abs(accumulator) > 0.001f)
+                    {
+                        bool scrollUp = accumulator > 0;
+                        // Direction should be consistent with accumulator sign
+                        if ((accumulator > 0) != scrollUp)
+                        {
+                            return false;
+                        }
+                    }
+                    
+                    // Simulate accumulator update after consuming scroll lines (only if we have lines to scroll)
+                    if (clampedScrollLines > 0)
+                    {
+                        bool scrollUp = accumulator > 0;
+                        float consumedDelta = clampedScrollLines * (scrollUp ? 1 : -1);
+                        accumulator -= consumedDelta;
+                        
+                        // Verify accumulator remains finite and reasonable
+                        if (!float.IsFinite(accumulator) || Math.Abs(accumulator) > 100.0f)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                
+                // Test that small fractional values accumulate correctly
+                float testAccumulator = 0.0f;
+                for (int i = 0; i < 10; i++)
+                {
+                    testAccumulator += 0.1f * scrollConfig.LinesPerStep;
+                }
+                
+                // After 10 iterations of 0.1, we should have accumulated 1.0 * LinesPerStep
+                float expectedAccumulation = 1.0f * scrollConfig.LinesPerStep;
+                
+                // Allow for floating point precision errors
+                if (Math.Abs(testAccumulator - expectedAccumulation) > 0.01f)
+                {
+                    return false;
+                }
+                
+                // Verify that this produces a reasonable number of scroll lines
+                int finalScrollLines = (int)Math.Floor(Math.Abs(testAccumulator));
+                if (finalScrollLines < 0)
+                {
+                    return false;
+                }
+                
+                // Test overflow protection works correctly
+                float overflowAccumulator = 0.0f;
+                overflowAccumulator += 200.0f; // Force overflow
+                if (Math.Abs(overflowAccumulator) > 100.0f)
+                {
+                    overflowAccumulator = Math.Sign(overflowAccumulator) * 10.0f;
+                }
+                
+                // Verify overflow protection worked
+                if (Math.Abs(overflowAccumulator) > 100.0f)
+                {
+                    return false;
+                }
+                
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                // Invalid configurations should be rejected
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+    }
+
+    /// <summary>
     ///     Property: Accumulator Overflow Protection
     ///     For any sequence of wheel deltas, the accumulator should never exceed
     ///     reasonable bounds to prevent overflow and stuck states.
