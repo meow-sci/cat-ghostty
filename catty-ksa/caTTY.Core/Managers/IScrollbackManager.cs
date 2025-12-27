@@ -1,0 +1,65 @@
+namespace caTTY.Core.Managers;
+
+using caTTY.Core.Types;
+
+/// <summary>
+///     Interface for managing scrollback buffer operations and viewport management.
+///     Handles historical lines that have scrolled off the top of the screen.
+/// </summary>
+public interface IScrollbackManager
+{
+    /// <summary>
+    ///     Maximum number of lines that can be stored in the scrollback buffer.
+    /// </summary>
+    int MaxLines { get; }
+
+    /// <summary>
+    ///     Current number of lines stored in the scrollback buffer.
+    /// </summary>
+    int CurrentLines { get; }
+
+    /// <summary>
+    ///     Current viewport offset from the bottom of the scrollback buffer.
+    ///     0 means viewing the most recent content (bottom), positive values scroll up into history.
+    /// </summary>
+    int ViewportOffset { get; set; }
+
+    /// <summary>
+    ///     Whether the viewport is currently at the bottom (showing most recent content).
+    /// </summary>
+    bool IsAtBottom { get; }
+
+    /// <summary>
+    ///     Adds a line to the scrollback buffer. If the buffer is full, the oldest line is removed.
+    /// </summary>
+    /// <param name="line">The line to add to scrollback</param>
+    void AddLine(ReadOnlySpan<Cell> line);
+
+    /// <summary>
+    ///     Gets a line from the scrollback buffer by index.
+    /// </summary>
+    /// <param name="index">Index of the line (0 = oldest, CurrentLines-1 = newest)</param>
+    /// <returns>The requested line as a read-only span</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when index is out of range</exception>
+    ReadOnlySpan<Cell> GetLine(int index);
+
+    /// <summary>
+    ///     Clears all lines from the scrollback buffer and resets viewport to bottom.
+    /// </summary>
+    void Clear();
+
+    /// <summary>
+    ///     Sets the viewport offset, clamping to valid range.
+    /// </summary>
+    /// <param name="offset">Offset from bottom (0 = bottom, positive = scroll up)</param>
+    void SetViewportOffset(int offset);
+
+    /// <summary>
+    ///     Gets viewport rows combining scrollback and screen buffer content.
+    /// </summary>
+    /// <param name="screenBuffer">Current screen buffer</param>
+    /// <param name="isAlternateScreenActive">Whether alternate screen is active</param>
+    /// <param name="requestedRows">Number of rows to return</param>
+    /// <returns>List of rows for display, with scrollback content first</returns>
+    List<ReadOnlyMemory<Cell>> GetViewportRows(ReadOnlyMemory<Cell>[] screenBuffer, bool isAlternateScreenActive, int requestedRows);
+}

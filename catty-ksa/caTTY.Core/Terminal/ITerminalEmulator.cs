@@ -1,4 +1,5 @@
 using caTTY.Core.Types;
+using caTTY.Core.Managers;
 
 namespace caTTY.Core.Terminal;
 
@@ -27,6 +28,16 @@ public interface ITerminalEmulator : IDisposable
     ///     Gets the current cursor state.
     /// </summary>
     ICursor Cursor { get; }
+
+    /// <summary>
+    ///     Gets the scrollback buffer for accessing historical lines.
+    /// </summary>
+    IScrollbackBuffer ScrollbackBuffer { get; }
+
+    /// <summary>
+    ///     Gets the scrollback manager for viewport and scrollback operations.
+    /// </summary>
+    IScrollbackManager ScrollbackManager { get; }
 
     /// <summary>
     ///     Processes raw byte data from a shell or other source.

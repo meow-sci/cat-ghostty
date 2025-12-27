@@ -30,7 +30,7 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 - [ ] 4. Add scrolling, scrollback, and screen management
-- [ ] 4.1 Create scrollback buffer infrastructure
+- [x] 4.1 Create scrollback buffer infrastructure
   - Create IScrollbackBuffer interface
   - Create ScrollbackBuffer class with circular array
   - Add methods for adding lines and querying history

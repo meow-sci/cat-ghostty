@@ -19,6 +19,8 @@ public class TerminalEmulator : ITerminalEmulator
     private readonly ICursorManager _cursorManager;
     private readonly IModeManager _modeManager;
     private readonly IAttributeManager _attributeManager;
+    private readonly IScrollbackManager _scrollbackManager;
+    private readonly IScrollbackBuffer _scrollbackBuffer;
     private bool _disposed;
 
     /// <summary>
@@ -28,7 +30,19 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="height">Height in rows</param>
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, ILogger? logger = null)
+    public TerminalEmulator(int width, int height, ILogger? logger = null) : this(width, height, 1000, logger)
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new terminal emulator with the specified dimensions and scrollback.
+    /// </summary>
+    /// <param name="width">Width in columns</param>
+    /// <param name="height">Height in rows</param>
+    /// <param name="scrollbackLines">Maximum number of scrollback lines (default: 1000)</param>
+    /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
+    public TerminalEmulator(int width, int height, int scrollbackLines, ILogger? logger = null)
     {
         if (width < 1 || width > 1000)
         {
@@ -40,10 +54,19 @@ public class TerminalEmulator : ITerminalEmulator
             throw new ArgumentOutOfRangeException(nameof(height), "Height must be between 1 and 1000");
         }
 
+        if (scrollbackLines < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(scrollbackLines), "Scrollback lines cannot be negative");
+        }
+
         ScreenBuffer = new ScreenBuffer(width, height);
         Cursor = new Cursor();
         State = new TerminalState(width, height);
         _logger = logger ?? NullLogger.Instance;
+
+        // Initialize scrollback infrastructure
+        _scrollbackBuffer = new ScrollbackBuffer(scrollbackLines, width);
+        _scrollbackManager = new ScrollbackManager(scrollbackLines, width);
 
         // Initialize managers
         _screenBufferManager = new ScreenBufferManager(ScreenBuffer);
@@ -109,6 +132,16 @@ public class TerminalEmulator : ITerminalEmulator
     ///     Gets the current cursor state.
     /// </summary>
     public ICursor Cursor { get; }
+
+    /// <summary>
+    ///     Gets the scrollback buffer for accessing historical lines.
+    /// </summary>
+    public IScrollbackBuffer ScrollbackBuffer => _scrollbackBuffer;
+
+    /// <summary>
+    ///     Gets the scrollback manager for viewport and scrollback operations.
+    /// </summary>
+    public IScrollbackManager ScrollbackManager => _scrollbackManager;
 
     /// <summary>
     ///     Event raised when the screen content has been updated and needs refresh.
@@ -195,6 +228,8 @@ public class TerminalEmulator : ITerminalEmulator
     {
         if (!_disposed)
         {
+            _scrollbackBuffer?.Dispose();
+            (_scrollbackManager as IDisposable)?.Dispose();
             _disposed = true;
         }
     }
