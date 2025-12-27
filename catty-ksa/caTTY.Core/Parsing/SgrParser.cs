@@ -266,7 +266,7 @@ public class SgrParser : ISgrParser
         // Empty or single zero param means reset
         if (parameters.Length == 0 || (parameters.Length == 1 && parameters[0] == 0))
         {
-            messages.Add(CreateSgrMessage("reset", true));
+            messages.Add(CreateSgrMessage("sgr.reset", true));
             return messages;
         }
         
@@ -301,127 +301,127 @@ public class SgrParser : ISgrParser
         {
             case 0:
                 context.Index++;
-                return CreateSgrMessage("reset", true);
+                return CreateSgrMessage("sgr.reset", true);
                 
             case 1:
                 context.Index++;
-                return CreateSgrMessage("bold", true);
+                return CreateSgrMessage("sgr.bold", true);
                 
             case 2:
                 context.Index++;
-                return CreateSgrMessage("faint", true);
+                return CreateSgrMessage("sgr.faint", true);
                 
             case 3:
                 context.Index++;
-                return CreateSgrMessage("italic", true);
+                return CreateSgrMessage("sgr.italic", true);
                 
             case 4:
                 return ParseUnderlineParameter(context, nextSep);
                 
             case 5:
                 context.Index++;
-                return CreateSgrMessage("slowBlink", true);
+                return CreateSgrMessage("sgr.slowBlink", true);
                 
             case 6:
                 context.Index++;
-                return CreateSgrMessage("rapidBlink", true);
+                return CreateSgrMessage("sgr.rapidBlink", true);
                 
             case 7:
                 context.Index++;
-                return CreateSgrMessage("inverse", true);
+                return CreateSgrMessage("sgr.inverse", true);
                 
             case 8:
                 context.Index++;
-                return CreateSgrMessage("hidden", true);
+                return CreateSgrMessage("sgr.hidden", true);
                 
             case 9:
                 context.Index++;
-                return CreateSgrMessage("strikethrough", true);
+                return CreateSgrMessage("sgr.strikethrough", true);
                 
             case >= 10 and <= 19:
                 context.Index++;
-                return CreateSgrMessage("font", false, param - 10);
+                return CreateSgrMessage("sgr.font", false, param - 10);
                 
             case 20:
                 context.Index++;
-                return CreateSgrMessage("fraktur", false);
+                return CreateSgrMessage("sgr.fraktur", false);
                 
             case 21:
                 context.Index++;
-                return CreateSgrMessage("doubleUnderline", true);
+                return CreateSgrMessage("sgr.doubleUnderline", true);
                 
             case 22:
                 context.Index++;
-                return CreateSgrMessage("normalIntensity", true);
+                return CreateSgrMessage("sgr.normalIntensity", true);
                 
             case 23:
                 context.Index++;
-                return CreateSgrMessage("notItalic", true);
+                return CreateSgrMessage("sgr.notItalic", true);
                 
             case 24:
                 context.Index++;
-                return CreateSgrMessage("notUnderlined", true);
+                return CreateSgrMessage("sgr.notUnderlined", true);
                 
             case 25:
                 context.Index++;
-                return CreateSgrMessage("notBlinking", true);
+                return CreateSgrMessage("sgr.notBlinking", true);
                 
             case 26:
                 context.Index++;
-                return CreateSgrMessage("proportionalSpacing", false);
+                return CreateSgrMessage("sgr.proportionalSpacing", false);
                 
             case 27:
                 context.Index++;
-                return CreateSgrMessage("notInverse", true);
+                return CreateSgrMessage("sgr.notInverse", true);
                 
             case 28:
                 context.Index++;
-                return CreateSgrMessage("notHidden", true);
+                return CreateSgrMessage("sgr.notHidden", true);
                 
             case 29:
                 context.Index++;
-                return CreateSgrMessage("notStrikethrough", true);
+                return CreateSgrMessage("sgr.notStrikethrough", true);
                 
             case >= 30 and <= 37:
                 context.Index++;
-                return CreateSgrMessage("foregroundColor", true, new Color(StandardColors[param - 30]));
+                return CreateSgrMessage("sgr.foregroundColor", true, new Color(StandardColors[param - 30]));
                 
             case 38:
                 return ParseExtendedForegroundColor(context);
                 
             case 39:
                 context.Index++;
-                return CreateSgrMessage("defaultForeground", true);
+                return CreateSgrMessage("sgr.defaultForeground", true);
                 
             case >= 40 and <= 47:
                 context.Index++;
-                return CreateSgrMessage("backgroundColor", true, new Color(StandardColors[param - 40]));
+                return CreateSgrMessage("sgr.backgroundColor", true, new Color(StandardColors[param - 40]));
                 
             case 48:
                 return ParseExtendedBackgroundColor(context);
                 
             case 49:
                 context.Index++;
-                return CreateSgrMessage("defaultBackground", true);
+                return CreateSgrMessage("sgr.defaultBackground", true);
                 
             case >= 90 and <= 97:
                 context.Index++;
-                return CreateSgrMessage("foregroundColor", false, new Color(BrightColors[param - 90]));
+                return CreateSgrMessage("sgr.foregroundColor", false, new Color(BrightColors[param - 90]));
                 
             case >= 100 and <= 107:
                 context.Index++;
-                return CreateSgrMessage("backgroundColor", false, new Color(BrightColors[param - 100]));
+                return CreateSgrMessage("sgr.backgroundColor", false, new Color(BrightColors[param - 100]));
                 
             case 58:
                 return ParseExtendedUnderlineColor(context);
                 
             case 59:
                 context.Index++;
-                return CreateSgrMessage("defaultUnderlineColor", true);
+                return CreateSgrMessage("sgr.defaultUnderlineColor", true);
                 
             default:
                 context.Index++;
-                return CreateSgrMessage("unknown", false, param);
+                return CreateSgrMessage("sgr.unknown", false, param);
         }
     }
 
@@ -445,29 +445,29 @@ public class SgrParser : ISgrParser
     {
         return message.Type switch
         {
-            "reset" => SgrAttributes.Default,
-            "bold" => UpdateAttribute(current, bold: true),
-            "faint" => UpdateAttribute(current, faint: true),
-            "italic" => UpdateAttribute(current, italic: true),
-            "underline" => UpdateAttribute(current, underline: true, underlineStyle: UnderlineStyle.Single),
-            "slowBlink" or "rapidBlink" => UpdateAttribute(current, blink: true),
-            "inverse" => UpdateAttribute(current, inverse: true),
-            "hidden" => UpdateAttribute(current, hidden: true),
-            "strikethrough" => UpdateAttribute(current, strikethrough: true),
-            "normalIntensity" => UpdateAttribute(current, bold: false, faint: false),
-            "notItalic" => UpdateAttribute(current, italic: false),
-            "notUnderlined" => UpdateAttribute(current, underline: false, underlineStyle: UnderlineStyle.None),
-            "notBlinking" => UpdateAttribute(current, blink: false),
-            "notInverse" => UpdateAttribute(current, inverse: false),
-            "notHidden" => UpdateAttribute(current, hidden: false),
-            "notStrikethrough" => UpdateAttribute(current, strikethrough: false),
-            "foregroundColor" when message.Data is Color color => UpdateAttributeWithColor(current, foregroundColor: color),
-            "backgroundColor" when message.Data is Color bgColor => UpdateAttributeWithColor(current, backgroundColor: bgColor),
-            "underlineColor" when message.Data is Color ulColor => UpdateAttributeWithColor(current, underlineColor: ulColor),
-            "defaultForeground" => UpdateAttributeWithColor(current, foregroundColor: null),
-            "defaultBackground" => UpdateAttributeWithColor(current, backgroundColor: null),
-            "defaultUnderlineColor" => UpdateAttributeWithColor(current, underlineColor: null),
-            "font" when message.Data is int font => UpdateAttribute(current, font: font),
+            "sgr.reset" => SgrAttributes.Default,
+            "sgr.bold" => UpdateAttribute(current, bold: true),
+            "sgr.faint" => UpdateAttribute(current, faint: true),
+            "sgr.italic" => UpdateAttribute(current, italic: true),
+            "sgr.underline" => UpdateAttribute(current, underline: true, underlineStyle: UnderlineStyle.Single),
+            "sgr.slowBlink" or "sgr.rapidBlink" => UpdateAttribute(current, blink: true),
+            "sgr.inverse" => UpdateAttribute(current, inverse: true),
+            "sgr.hidden" => UpdateAttribute(current, hidden: true),
+            "sgr.strikethrough" => UpdateAttribute(current, strikethrough: true),
+            "sgr.normalIntensity" => UpdateAttribute(current, bold: false, faint: false),
+            "sgr.notItalic" => UpdateAttribute(current, italic: false),
+            "sgr.notUnderlined" => UpdateAttribute(current, underline: false, underlineStyle: UnderlineStyle.None),
+            "sgr.notBlinking" => UpdateAttribute(current, blink: false),
+            "sgr.notInverse" => UpdateAttribute(current, inverse: false),
+            "sgr.notHidden" => UpdateAttribute(current, hidden: false),
+            "sgr.notStrikethrough" => UpdateAttribute(current, strikethrough: false),
+            "sgr.foregroundColor" when message.Data is Color color => UpdateAttributeWithColor(current, foregroundColor: color),
+            "sgr.backgroundColor" when message.Data is Color bgColor => UpdateAttributeWithColor(current, backgroundColor: bgColor),
+            "sgr.underlineColor" when message.Data is Color ulColor => UpdateAttributeWithColor(current, underlineColor: ulColor),
+            "sgr.defaultForeground" => UpdateAttributeWithColor(current, foregroundColor: null),
+            "sgr.defaultBackground" => UpdateAttributeWithColor(current, backgroundColor: null),
+            "sgr.defaultUnderlineColor" => UpdateAttributeWithColor(current, underlineColor: null),
+            "sgr.font" when message.Data is int font => UpdateAttribute(current, font: font),
             _ => current // Unknown or unimplemented messages don't change attributes
         };
     }
@@ -538,16 +538,16 @@ public class SgrParser : ISgrParser
             if (styleParam == 0)
             {
                 context.Index += 2;
-                return CreateSgrMessage("notUnderlined", true);
+                return CreateSgrMessage("sgr.notUnderlined", true);
             }
             
             var style = ParseUnderlineStyle(styleParam);
             context.Index += 2;
-            return CreateSgrMessage("underline", true, style);
+            return CreateSgrMessage("sgr.underline", true, style);
         }
         
         context.Index++;
-        return CreateSgrMessage("underline", true, UnderlineStyle.Single);
+        return CreateSgrMessage("sgr.underline", true, UnderlineStyle.Single);
     }
 
     private static UnderlineStyle ParseUnderlineStyle(int style)
@@ -569,9 +569,9 @@ public class SgrParser : ISgrParser
         var color = ParseExtendedColor(context);
         if (color != null)
         {
-            return CreateSgrMessage("foregroundColor", true, color);
+            return CreateSgrMessage("sgr.foregroundColor", true, color);
         }
-        return CreateSgrMessage("unknown", false, 38);
+        return CreateSgrMessage("sgr.unknown", false, 38);
     }
 
     private SgrMessage? ParseExtendedBackgroundColor(SgrParseContext context)
@@ -580,9 +580,9 @@ public class SgrParser : ISgrParser
         var color = ParseExtendedColor(context);
         if (color != null)
         {
-            return CreateSgrMessage("backgroundColor", true, color);
+            return CreateSgrMessage("sgr.backgroundColor", true, color);
         }
-        return CreateSgrMessage("unknown", false, 48);
+        return CreateSgrMessage("sgr.unknown", false, 48);
     }
 
     private SgrMessage? ParseExtendedUnderlineColor(SgrParseContext context)
@@ -591,9 +591,9 @@ public class SgrParser : ISgrParser
         var color = ParseExtendedColor(context);
         if (color != null)
         {
-            return CreateSgrMessage("underlineColor", true, color);
+            return CreateSgrMessage("sgr.underlineColor", true, color);
         }
-        return CreateSgrMessage("unknown", false, 58);
+        return CreateSgrMessage("sgr.unknown", false, 58);
     }
 
     private Color? ParseExtendedColor(SgrParseContext context)
@@ -633,19 +633,19 @@ public class SgrParser : ISgrParser
     private List<SgrMessage> HandleEnhancedSgrMode(int[] parameters)
     {
         bool implemented = parameters.Length >= 2 && parameters[0] == 4 && parameters[1] >= 0 && parameters[1] <= 5;
-        return new List<SgrMessage> { CreateSgrMessage("enhancedMode", implemented, parameters) };
+        return new List<SgrMessage> { CreateSgrMessage("sgr.enhancedMode", implemented, parameters) };
     }
 
     private List<SgrMessage> HandlePrivateSgrMode(int[] parameters)
     {
         bool implemented = parameters.Length == 1 && parameters[0] == 4;
-        return new List<SgrMessage> { CreateSgrMessage("privateMode", implemented, parameters) };
+        return new List<SgrMessage> { CreateSgrMessage("sgr.privateMode", implemented, parameters) };
     }
 
     private List<SgrMessage> HandleSgrWithIntermediate(int[] parameters, string intermediate)
     {
         bool implemented = intermediate == "%" && parameters.Length == 1 && parameters[0] == 0;
-        return new List<SgrMessage> { CreateSgrMessage("withIntermediate", implemented, new { parameters, intermediate }) };
+        return new List<SgrMessage> { CreateSgrMessage("sgr.withIntermediate", implemented, new { parameters, intermediate }) };
     }
 }
 

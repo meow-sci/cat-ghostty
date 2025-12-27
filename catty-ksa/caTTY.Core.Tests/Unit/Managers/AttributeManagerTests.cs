@@ -179,7 +179,7 @@ public class AttributeManagerTests
     [Test]
     public void ApplySgrMessage_WithBoldMessage_SetsBold()
     {
-        var message = new SgrMessage { Type = "bold", Data = null };
+        var message = new SgrMessage { Type = "sgr.bold", Data = null };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;
@@ -192,7 +192,7 @@ public class AttributeManagerTests
         // First set bold
         _manager.SetTextStyle(true, false, false);
 
-        var message = new SgrMessage { Type = "nobold", Data = null };
+        var message = new SgrMessage { Type = "sgr.normalIntensity", Data = null };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;
@@ -202,7 +202,7 @@ public class AttributeManagerTests
     [Test]
     public void ApplySgrMessage_WithItalicMessage_SetsItalic()
     {
-        var message = new SgrMessage { Type = "italic", Data = null };
+        var message = new SgrMessage { Type = "sgr.italic", Data = null };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;
@@ -212,7 +212,7 @@ public class AttributeManagerTests
     [Test]
     public void ApplySgrMessage_WithUnderlineMessage_SetsUnderline()
     {
-        var message = new SgrMessage { Type = "underline", Data = null };
+        var message = new SgrMessage { Type = "sgr.underline", Data = null };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;
@@ -226,7 +226,7 @@ public class AttributeManagerTests
         _manager.SetTextStyle(true, true, true);
         _manager.SetForegroundColor(new Color(NamedColor.Red));
 
-        var message = new SgrMessage { Type = "reset", Data = null };
+        var message = new SgrMessage { Type = "sgr.reset", Data = null };
         _manager.ApplySgrMessage(message);
 
         Assert.That(_manager.CurrentAttributes, Is.EqualTo(SgrAttributes.Default));
@@ -236,7 +236,7 @@ public class AttributeManagerTests
     public void ApplySgrMessage_WithForegroundColorMessage_SetsColor()
     {
         var cyanColor = new Color(NamedColor.Cyan);
-        var message = new SgrMessage { Type = "foreground", Data = cyanColor };
+        var message = new SgrMessage { Type = "sgr.foregroundColor", Data = cyanColor };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;
@@ -247,7 +247,7 @@ public class AttributeManagerTests
     public void ApplySgrMessage_WithBackgroundColorMessage_SetsColor()
     {
         var magentaColor = new Color(NamedColor.Magenta);
-        var message = new SgrMessage { Type = "background", Data = magentaColor };
+        var message = new SgrMessage { Type = "sgr.backgroundColor", Data = magentaColor };
         _manager.ApplySgrMessage(message);
 
         var attrs = _manager.CurrentAttributes;

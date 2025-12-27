@@ -45,14 +45,13 @@ public class AttributeManager : IAttributeManager
         }
 
         // Handle SGR message based on type
-        // This is a simplified implementation that will be enhanced when SGR parsing is fully implemented
         switch (message.Type.ToLowerInvariant())
         {
-            case "reset":
+            case "sgr.reset":
                 ResetAttributes();
                 break;
                 
-            case "bold":
+            case "sgr.bold":
                 _currentAttributes = new SgrAttributes(
                     bold: true,
                     faint: _currentAttributes.Faint,
@@ -69,10 +68,10 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "nobold":
+            case "sgr.normalintensity":
                 _currentAttributes = new SgrAttributes(
                     bold: false,
-                    faint: _currentAttributes.Faint,
+                    faint: false,
                     italic: _currentAttributes.Italic,
                     underline: _currentAttributes.Underline,
                     underlineStyle: _currentAttributes.UnderlineStyle,
@@ -86,7 +85,7 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "italic":
+            case "sgr.italic":
                 _currentAttributes = new SgrAttributes(
                     bold: _currentAttributes.Bold,
                     faint: _currentAttributes.Faint,
@@ -103,7 +102,7 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "noitalic":
+            case "sgr.notitalic":
                 _currentAttributes = new SgrAttributes(
                     bold: _currentAttributes.Bold,
                     faint: _currentAttributes.Faint,
@@ -120,7 +119,7 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "underline":
+            case "sgr.underline":
                 _currentAttributes = new SgrAttributes(
                     bold: _currentAttributes.Bold,
                     faint: _currentAttributes.Faint,
@@ -137,7 +136,7 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "nounderline":
+            case "sgr.notunderlined":
                 _currentAttributes = new SgrAttributes(
                     bold: _currentAttributes.Bold,
                     faint: _currentAttributes.Faint,
@@ -154,13 +153,12 @@ public class AttributeManager : IAttributeManager
                     font: _currentAttributes.Font);
                 break;
                 
-            case "foreground":
-            case "background":
-                // Color handling will be implemented when SGR parsing is enhanced
-                // For now, we'll extract color from Data if it's a Color type
+            case "sgr.foregroundcolor":
+            case "sgr.backgroundcolor":
+                // Color handling
                 if (message.Data is Color color)
                 {
-                    if (message.Type.ToLowerInvariant() == "foreground")
+                    if (message.Type.ToLowerInvariant() == "sgr.foregroundcolor")
                     {
                         _currentAttributes = new SgrAttributes(
                             bold: _currentAttributes.Bold,

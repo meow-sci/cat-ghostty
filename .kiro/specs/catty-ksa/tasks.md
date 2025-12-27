@@ -507,7 +507,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/screenTypes.ts and related SGR type definitions to ensure C# data structures match TypeScript capabilities and attribute handling
   - _Requirements: 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 3.2 Implement SGR parameter parsing (basic colors and styles)
+- [x] 3.2 Implement SGR parameter parsing (basic colors and styles)
   - Create SgrParser class for parsing SGR parameters
   - Add support for both semicolon and colon separators
   - Parse basic text styles (bold, italic, underline, strikethrough)
