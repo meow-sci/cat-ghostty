@@ -69,7 +69,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts clipboard handling to ensure C# implementation provides identical clipboard sequence processing and safety limits
   - _Requirements: 13.4_
 
-- [ ] 6.4 Write property test for OSC parsing and event emission
+- [x] 6.4 Write property test for OSC parsing and event emission
   - **Property 23: OSC parsing and event emission**
   - **Validates: Requirements 13.1, 13.2, 13.4**
 
