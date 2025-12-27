@@ -108,7 +108,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts resize operations to ensure C# implementation provides equivalent content preservation during resize
   - _Requirements: 7.2, 21.5_
 
-- [ ] 4.10 Write property test for screen buffer resize preservation
+- [x] 4.10 Write property test for screen buffer resize preservation
   - **Property 8: Screen buffer resize preservation**
   - **Validates: Requirements 7.2**
 
