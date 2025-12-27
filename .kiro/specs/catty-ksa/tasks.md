@@ -73,7 +73,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 29: Alternate screen buffer switching**
   - **Validates: Requirements 15.1, 15.2, 15.4**
 
-- [ ] 5.5 Write property test for alternate screen scrollback isolation
+- [x] 5.5 Write property test for alternate screen scrollback isolation
   - **Property 30: Alternate screen scrollback isolation**
   - **Validates: Requirements 15.3**
 
