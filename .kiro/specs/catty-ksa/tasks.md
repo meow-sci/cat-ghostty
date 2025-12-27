@@ -128,7 +128,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts character insertion/deletion to ensure C# implementation provides identical character operation behavior and attribute preservation
   - _Requirements: 22.3, 22.4, 22.5_
 
-- [ ] 4.13 Write property test for line and character operations
+- [x] 4.13 Write property test for line and character operations
   - **Property 32: Line and character insertion/deletion**
   - **Validates: Requirements 22.1, 22.2, 22.3, 22.4, 22.5**
 
