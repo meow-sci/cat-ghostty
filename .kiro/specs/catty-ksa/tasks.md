@@ -69,7 +69,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts
   - _Requirements: 15.1, 15.2, 15.5_
 
-- [ ] 5.4 Write property test for alternate screen buffer switching
+- [x] 5.4 Write property test for alternate screen buffer switching
   - **Property 29: Alternate screen buffer switching**
   - **Validates: Requirements 15.1, 15.2, 15.4**
 
