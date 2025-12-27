@@ -1320,6 +1320,52 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    ///     Inserts blank lines at the cursor position within the scroll region.
+    ///     Implements CSI L (Insert Lines) sequence.
+    ///     Lines below the cursor are shifted down, and lines that would go beyond
+    ///     the scroll region bottom are lost.
+    /// </summary>
+    /// <param name="count">Number of lines to insert (minimum 1)</param>
+    internal void InsertLinesInRegion(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for line insertion within scroll region
+        _screenBufferManager.InsertLinesInRegion(count, _cursorManager.Row, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
+    ///     Deletes lines at the cursor position within the scroll region.
+    ///     Implements CSI M (Delete Lines) sequence.
+    ///     Lines below the cursor are shifted up, and blank lines are added
+    ///     at the bottom of the scroll region.
+    /// </summary>
+    /// <param name="count">Number of lines to delete (minimum 1)</param>
+    internal void DeleteLinesInRegion(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for line deletion within scroll region
+        _screenBufferManager.DeleteLinesInRegion(count, _cursorManager.Row, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
     ///     Resets the terminal to its initial state.
     ///     Implements ESC c (Reset to Initial State) sequence.
     /// </summary>

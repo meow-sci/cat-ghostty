@@ -81,6 +81,30 @@ public interface IScreenBufferManager
     void ScrollDownInRegion(int lines, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes);
 
     /// <summary>
+    ///     Inserts blank lines at the cursor position within the scroll region.
+    ///     Implements CSI L (Insert Lines) sequence.
+    /// </summary>
+    /// <param name="count">Number of lines to insert</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank lines</param>
+    void InsertLinesInRegion(int count, int cursorRow, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes, bool currentCharacterProtection);
+
+    /// <summary>
+    ///     Deletes lines at the cursor position within the scroll region.
+    ///     Implements CSI M (Delete Lines) sequence.
+    /// </summary>
+    /// <param name="count">Number of lines to delete</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank lines</param>
+    void DeleteLinesInRegion(int count, int cursorRow, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes, bool currentCharacterProtection);
+
+    /// <summary>
     ///     Sets the scrollback integration callbacks for proper scrollback behavior.
     /// </summary>
     /// <param name="pushScrollbackRow">Callback to push a row to scrollback buffer</param>

@@ -112,7 +112,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 8: Screen buffer resize preservation**
   - **Validates: Requirements 7.2**
 
-- [ ] 4.11 Add line insertion and deletion operations
+- [x] 4.11 Add line insertion and deletion operations
   - Implement insert line (CSI L) sequence with content shifting
   - Add delete line (CSI M) sequence with scrolling behavior
   - Handle scroll region boundaries during line operations

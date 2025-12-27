@@ -306,6 +306,132 @@ public class ScreenBufferManager : IScreenBufferManager
     }
 
     /// <summary>
+    ///     Inserts blank lines at the cursor position within the scroll region.
+    ///     Implements CSI L (Insert Lines) sequence.
+    ///     Lines below the cursor are shifted down, and lines that would go beyond
+    ///     the scroll region bottom are lost.
+    /// </summary>
+    /// <param name="count">Number of lines to insert</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank lines</param>
+    public void InsertLinesInRegion(int count, int cursorRow, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes, bool currentCharacterProtection)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+
+        // Validate scroll region bounds
+        scrollTop = Math.Max(0, Math.Min(Height - 1, scrollTop));
+        scrollBottom = Math.Max(0, Math.Min(Height - 1, scrollBottom));
+        
+        if (scrollTop >= scrollBottom)
+        {
+            return;
+        }
+
+        // IL affects only when the cursor is within the scroll region
+        if (cursorRow < scrollTop || cursorRow > scrollBottom)
+        {
+            return;
+        }
+
+        // Calculate maximum insertable lines
+        int maxInsertable = scrollBottom - cursorRow + 1;
+        int n = Math.Max(0, Math.Min(count, maxInsertable));
+        if (n == 0)
+        {
+            return;
+        }
+
+        // Shift lines down within the region starting at cursorRow
+        for (int y = scrollBottom; y >= cursorRow + n; y--)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                var cell = _screenBuffer.GetCell(y - n, x);
+                _screenBuffer.SetCell(y, x, cell);
+            }
+        }
+
+        // Clear the inserted blank lines with current SGR attributes and protection status
+        var blankCell = new Cell(' ', currentSgrAttributes, currentCharacterProtection);
+        for (int y = cursorRow; y < cursorRow + n; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                _screenBuffer.SetCell(y, x, blankCell);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Deletes lines at the cursor position within the scroll region.
+    ///     Implements CSI M (Delete Lines) sequence.
+    ///     Lines below the cursor are shifted up, and blank lines are added
+    ///     at the bottom of the scroll region.
+    /// </summary>
+    /// <param name="count">Number of lines to delete</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="scrollTop">Top boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="scrollBottom">Bottom boundary of scroll region (0-based, inclusive)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for new blank lines</param>
+    /// <param name="currentCharacterProtection">Current character protection status for new blank lines</param>
+    public void DeleteLinesInRegion(int count, int cursorRow, int scrollTop, int scrollBottom, SgrAttributes currentSgrAttributes, bool currentCharacterProtection)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+
+        // Validate scroll region bounds
+        scrollTop = Math.Max(0, Math.Min(Height - 1, scrollTop));
+        scrollBottom = Math.Max(0, Math.Min(Height - 1, scrollBottom));
+        
+        if (scrollTop >= scrollBottom)
+        {
+            return;
+        }
+
+        // DL affects only when the cursor is within the scroll region
+        if (cursorRow < scrollTop || cursorRow > scrollBottom)
+        {
+            return;
+        }
+
+        // Calculate maximum deletable lines
+        int maxDeletable = scrollBottom - cursorRow + 1;
+        int n = Math.Max(0, Math.Min(count, maxDeletable));
+        if (n == 0)
+        {
+            return;
+        }
+
+        // Shift lines up within the region starting at cursorRow
+        for (int y = cursorRow; y <= scrollBottom - n; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                var cell = _screenBuffer.GetCell(y + n, x);
+                _screenBuffer.SetCell(y, x, cell);
+            }
+        }
+
+        // Clear the newly exposed bottom lines with current SGR attributes and protection status
+        var blankCell = new Cell(' ', currentSgrAttributes, currentCharacterProtection);
+        for (int y = scrollBottom - n + 1; y <= scrollBottom; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                _screenBuffer.SetCell(y, x, blankCell);
+            }
+        }
+    }
+
+    /// <summary>
     ///     Gets a read-only span of cells for the specified row.
     /// </summary>
     /// <param name="row">Row index (0-based)</param>
