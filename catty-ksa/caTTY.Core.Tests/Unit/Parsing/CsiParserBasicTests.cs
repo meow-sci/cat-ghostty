@@ -217,6 +217,46 @@ public class CsiParserBasicTests
     }
 
     [Test]
+    public void ParseCsiSequence_ScrollSequences_ParseCorrectly()
+    {
+        // Scroll up (CSI S)
+        byte[] scrollUp = Encoding.ASCII.GetBytes("\x1b[3S");
+        CsiMessage result1 = _parser.ParseCsiSequence(scrollUp, "\x1b[3S");
+
+        Assert.That(result1.Type, Is.EqualTo("csi.scrollUp"));
+        Assert.That(result1.Implemented, Is.True);
+        Assert.That(result1.Lines, Is.EqualTo(3));
+        Assert.That(result1.Parameters, Is.EqualTo(new[] { 3 }));
+
+        // Scroll up with default parameter
+        byte[] scrollUpDefault = Encoding.ASCII.GetBytes("\x1b[S");
+        CsiMessage result2 = _parser.ParseCsiSequence(scrollUpDefault, "\x1b[S");
+
+        Assert.That(result2.Type, Is.EqualTo("csi.scrollUp"));
+        Assert.That(result2.Implemented, Is.True);
+        Assert.That(result2.Lines, Is.EqualTo(1)); // Default parameter
+        Assert.That(result2.Parameters, Is.Empty);
+
+        // Scroll down (CSI T)
+        byte[] scrollDown = Encoding.ASCII.GetBytes("\x1b[5T");
+        CsiMessage result3 = _parser.ParseCsiSequence(scrollDown, "\x1b[5T");
+
+        Assert.That(result3.Type, Is.EqualTo("csi.scrollDown"));
+        Assert.That(result3.Implemented, Is.True);
+        Assert.That(result3.Lines, Is.EqualTo(5));
+        Assert.That(result3.Parameters, Is.EqualTo(new[] { 5 }));
+
+        // Scroll down with default parameter
+        byte[] scrollDownDefault = Encoding.ASCII.GetBytes("\x1b[T");
+        CsiMessage result4 = _parser.ParseCsiSequence(scrollDownDefault, "\x1b[T");
+
+        Assert.That(result4.Type, Is.EqualTo("csi.scrollDown"));
+        Assert.That(result4.Implemented, Is.True);
+        Assert.That(result4.Lines, Is.EqualTo(1)); // Default parameter
+        Assert.That(result4.Parameters, Is.Empty);
+    }
+
+    [Test]
     public void ParseCsiSequence_DeviceQueries_ParseCorrectly()
     {
         // Primary DA

@@ -57,7 +57,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts
   - _Requirements: 11.8, 11.9, 14.1_
 
-- [ ] 4.3 Add scroll sequences to CSI parser
+- [x] 4.3 Add scroll sequences to CSI parser
   - Implement scroll up (CSI S) and scroll down (CSI T) sequences
   - Add parameter parsing for scroll line counts
   - Integrate scrolling with screen buffer operations
