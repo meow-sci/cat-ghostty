@@ -73,7 +73,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 20: Screen scrolling operations**
   - **Validates: Requirements 11.8, 11.9**
 
-- [ ] 4.6 Implement scroll region management
+- [x] 4.6 Implement scroll region management
   - Add scroll region state to terminal (top/bottom boundaries)
   - Implement set scroll region (CSI r) sequence
   - Restrict scrolling operations to defined scroll region

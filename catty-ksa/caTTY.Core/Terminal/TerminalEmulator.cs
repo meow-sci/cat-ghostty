@@ -509,6 +509,94 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    ///     Sets the scroll region (DECSTBM - Set Top and Bottom Margins).
+    ///     Implements CSI Ps ; Ps r sequence.
+    /// </summary>
+    /// <param name="top">Top boundary (1-indexed, null for default)</param>
+    /// <param name="bottom">Bottom boundary (1-indexed, null for default)</param>
+    internal void SetScrollRegion(int? top, int? bottom)
+    {
+        // DECSTBM - Set Top and Bottom Margins
+        if (top == null && bottom == null)
+        {
+            // Reset to full screen
+            State.ScrollTop = 0;
+            State.ScrollBottom = Height - 1;
+        }
+        else
+        {
+            // Convert from 1-indexed to 0-indexed and validate bounds
+            int newTop = top.HasValue ? Math.Max(0, Math.Min(Height - 1, top.Value - 1)) : 0;
+            int newBottom = bottom.HasValue ? Math.Max(0, Math.Min(Height - 1, bottom.Value - 1)) : Height - 1;
+
+            // Ensure top < bottom
+            if (newTop < newBottom)
+            {
+                State.ScrollTop = newTop;
+                State.ScrollBottom = newBottom;
+            }
+        }
+
+        // Move cursor to home position within scroll region (following TypeScript behavior)
+        _cursorManager.MoveTo(State.ScrollTop, 0);
+        _cursorManager.SetWrapPending(false);
+
+        // Sync state with cursor manager
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
+    ///     Sets a DEC private mode.
+    /// </summary>
+    /// <param name="mode">The DEC mode number</param>
+    /// <param name="enabled">True to enable, false to disable</param>
+    internal void SetDecMode(int mode, bool enabled)
+    {
+        switch (mode)
+        {
+            case 6: // DECOM - Origin Mode
+                State.SetOriginMode(enabled);
+                // Sync with cursor manager after origin mode change
+                _cursorManager.MoveTo(State.CursorY, State.CursorX);
+                _cursorManager.SetWrapPending(State.WrapPending);
+                break;
+
+            case 7: // DECAWM - Auto Wrap Mode
+                State.SetAutoWrapMode(enabled);
+                // Sync with cursor manager after auto wrap mode change
+                _cursorManager.SetWrapPending(State.WrapPending);
+                break;
+
+            case 25: // DECTCEM - Text Cursor Enable Mode
+                State.CursorVisible = enabled;
+                _cursorManager.Visible = enabled;
+                break;
+
+            case 1: // DECCKM - Application Cursor Keys
+                State.ApplicationCursorKeys = enabled;
+                break;
+
+            case 47: // Alternate Screen Buffer
+            case 1047: // Alternate Screen Buffer with cursor save
+            case 1049: // Alternate Screen Buffer with cursor save and clear
+                // TODO: Implement alternate screen buffer (task 5.x)
+                _logger.LogDebug("Alternate screen buffer mode {Mode} {Action} - not yet implemented", 
+                    mode, enabled ? "set" : "reset");
+                break;
+
+            case 2027: // UTF-8 Mode
+                State.Utf8Mode = enabled;
+                break;
+
+            default:
+                _logger.LogDebug("Unknown DEC mode {Mode} {Action}", mode, enabled ? "set" : "reset");
+                break;
+        }
+    }
+
+    /// <summary>
     ///     Moves the cursor up by the specified number of lines.
     /// </summary>
     /// <param name="count">Number of lines to move up (minimum 1)</param>
@@ -516,12 +604,18 @@ public class TerminalEmulator : ITerminalEmulator
     {
         count = Math.Max(1, count);
         _cursorManager.MoveUp(count);
-        _cursorManager.ClampToBuffer(Width, Height);
-
-        // Sync state with cursor manager
+        
+        // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
+        
+        // Use terminal state clamping to respect scroll regions and origin mode
+        State.ClampCursor();
+        
+        // Sync back to cursor manager after clamping
+        _cursorManager.MoveTo(State.CursorY, State.CursorX);
+        _cursorManager.SetWrapPending(State.WrapPending);
     }
 
     /// <summary>
@@ -532,12 +626,18 @@ public class TerminalEmulator : ITerminalEmulator
     {
         count = Math.Max(1, count);
         _cursorManager.MoveDown(count);
-        _cursorManager.ClampToBuffer(Width, Height);
-
-        // Sync state with cursor manager
+        
+        // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
+        
+        // Use terminal state clamping to respect scroll regions and origin mode
+        State.ClampCursor();
+        
+        // Sync back to cursor manager after clamping
+        _cursorManager.MoveTo(State.CursorY, State.CursorX);
+        _cursorManager.SetWrapPending(State.WrapPending);
     }
 
     /// <summary>
@@ -548,12 +648,18 @@ public class TerminalEmulator : ITerminalEmulator
     {
         count = Math.Max(1, count);
         _cursorManager.MoveRight(count);
-        _cursorManager.ClampToBuffer(Width, Height);
-
-        // Sync state with cursor manager
+        
+        // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
+        
+        // Use terminal state clamping to respect scroll regions and origin mode
+        State.ClampCursor();
+        
+        // Sync back to cursor manager after clamping
+        _cursorManager.MoveTo(State.CursorY, State.CursorX);
+        _cursorManager.SetWrapPending(State.WrapPending);
     }
 
     /// <summary>
@@ -564,12 +670,18 @@ public class TerminalEmulator : ITerminalEmulator
     {
         count = Math.Max(1, count);
         _cursorManager.MoveLeft(count);
-        _cursorManager.ClampToBuffer(Width, Height);
-
-        // Sync state with cursor manager
+        
+        // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
+        
+        // Use terminal state clamping to respect scroll regions and origin mode
+        State.ClampCursor();
+        
+        // Sync back to cursor manager after clamping
+        _cursorManager.MoveTo(State.CursorY, State.CursorX);
+        _cursorManager.SetWrapPending(State.WrapPending);
     }
 
     /// <summary>
@@ -579,16 +691,26 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
     internal void SetCursorPosition(int row, int column)
     {
-        // Convert from 1-based to 0-based coordinates and clamp to bounds
-        int targetRow = Math.Max(0, Math.Min(Height - 1, row - 1));
+        // Map row parameter based on origin mode (following TypeScript mapRowParamToCursorY)
+        int baseRow = State.OriginMode ? State.ScrollTop : 0;
+        int targetRow = baseRow + (row - 1);
+        
+        // Convert column from 1-based to 0-based
         int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
 
         _cursorManager.MoveTo(targetRow, targetCol);
-
-        // Sync state with cursor manager
+        
+        // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
+        
+        // Clamp cursor to respect scroll region and origin mode
+        State.ClampCursor();
+        
+        // Sync back to cursor manager after clamping
+        _cursorManager.MoveTo(State.CursorY, State.CursorX);
+        _cursorManager.SetWrapPending(State.WrapPending);
     }
 
     /// <summary>

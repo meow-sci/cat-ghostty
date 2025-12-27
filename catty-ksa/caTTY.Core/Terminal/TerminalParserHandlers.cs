@@ -211,6 +211,10 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.ScrollScreenDown(message.Lines ?? 1);
                 break;
 
+            case "csi.setScrollRegion":
+                _terminal.SetScrollRegion(message.Top, message.Bottom);
+                break;
+
             case "csi.selectiveEraseInDisplay":
                 _terminal.ClearDisplaySelective(message.Mode ?? 0);
                 break;
@@ -271,6 +275,28 @@ internal class TerminalParserHandlers : IParserHandlers
                 // Character set query: respond with current character set
                 string charsetResponse = DeviceResponses.GenerateCharacterSetQueryResponse();
                 _terminal.EmitResponse(charsetResponse);
+                break;
+
+            case "csi.decModeSet":
+                // DEC private mode set (CSI ? Pm h)
+                if (message.DecModes != null)
+                {
+                    foreach (int mode in message.DecModes)
+                    {
+                        _terminal.SetDecMode(mode, true);
+                    }
+                }
+                break;
+
+            case "csi.decModeReset":
+                // DEC private mode reset (CSI ? Pm l)
+                if (message.DecModes != null)
+                {
+                    foreach (int mode in message.DecModes)
+                    {
+                        _terminal.SetDecMode(mode, false);
+                    }
+                }
                 break;
 
             default:
