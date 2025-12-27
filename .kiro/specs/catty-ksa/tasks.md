@@ -65,7 +65,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll sequence handling to ensure C# implementation provides identical scroll sequence behavior
   - _Requirements: 11.8, 11.9_
 
-- [ ] 4.4 Write property test for scrollback buffer management
+- [x] 4.4 Write property test for scrollback buffer management
   - **Property 26: Scrollback buffer management**
   - **Validates: Requirements 14.1, 14.2**
 
