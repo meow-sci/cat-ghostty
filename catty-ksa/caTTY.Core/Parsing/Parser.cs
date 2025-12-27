@@ -15,6 +15,7 @@ public class Parser
     private readonly IEscParser _escParser;
     private readonly IDcsParser _dcsParser;
     private readonly IOscParser _oscParser;
+    private readonly ISgrParser _sgrParser;
     private readonly StringBuilder _csiSequence = new();
     private readonly StringBuilder _dcsParamBuffer = new();
     private readonly bool _emitNormalBytesDuringEscapeSequence;
@@ -48,6 +49,7 @@ public class Parser
         _escParser = options.EscParser ?? new EscParser(_logger);
         _dcsParser = options.DcsParser ?? new DcsParser(_logger);
         _oscParser = options.OscParser ?? new OscParser(_logger);
+        _sgrParser = options.SgrParser ?? new SgrParser(_logger);
     }
 
     /// <summary>
@@ -503,14 +505,10 @@ public class Parser
         string raw = BytesToString(_escapeSequence);
         byte finalByte = _escapeSequence[^1];
 
-        // CSI SGR: parse using the standalone SGR parser (will be implemented in task 3.1)
+        // CSI SGR: parse using the dedicated SGR parser
         if (finalByte == 0x6d) // 'm'
         {
-            // TODO: Parse SGR sequence (will be implemented in task 3.1)
-            var sgrSequence = new SgrSequence
-            {
-                Type = "sgr", Implemented = false, Raw = raw, Messages = Array.Empty<SgrMessage>()
-            };
+            SgrSequence sgrSequence = _sgrParser.ParseSgrSequence(_escapeSequence.ToArray(), raw);
             _handlers.HandleSgr(sgrSequence);
         }
         else

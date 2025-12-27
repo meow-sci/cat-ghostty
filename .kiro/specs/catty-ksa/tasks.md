@@ -292,7 +292,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - User has validated both deployment targets work with the same shared ImGui controller
   - Ready to add more terminal features
 
-- [ ] 2. Add basic escape sequence parsing and control characters
+- [x] 2. Add basic escape sequence parsing and control characters
 - [x] 2.1 Add basic control character handling
   - Handle backspace (BS), tab (HT), bell (BEL)
   - Add basic cursor movement for control characters
@@ -493,7 +493,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - _Requirements: Code organization and maintainability_
 
 - [ ] 3. Add comprehensive SGR (text styling) support
-- [ ] 3.1 Create SGR data structures and color system
+- [x] 3.1 Create SGR data structures and color system
   - Create Color union type (default, indexed, RGB)
   - Create SgrAttributes struct with all text styling properties
   - Add UnderlineStyle enum (none, single, double, curly, dotted, dashed)

@@ -59,4 +59,10 @@ public class ParserOptions
     ///     If null, a default OscParser will be created.
     /// </summary>
     public IOscParser? OscParser { get; set; }
+
+    /// <summary>
+    ///     SGR parser for SGR sequence handling.
+    ///     If null, a default SgrParser will be created.
+    /// </summary>
+    public ISgrParser? SgrParser { get; set; }
 }
