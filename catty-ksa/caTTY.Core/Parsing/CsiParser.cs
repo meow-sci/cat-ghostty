@@ -295,6 +295,7 @@ public class CsiParser : ICsiParser
             "m" when isPrivate => CreatePrivateSgrMessage(raw, finalByte, parameters),
             "m" when intermediate.Length > 0 => CreateSgrWithIntermediateMessage(raw, finalByte, parameters,
                 intermediate),
+            "m" when !isPrivate && prefix == null && intermediate == "" => CreateStandardSgrMessage(raw, finalByte, parameters),
 
             _ => CreateUnknownMessage(raw, parameters, isPrivate, prefix, intermediate)
         };
@@ -613,6 +614,18 @@ public class CsiParser : ICsiParser
             FinalByte = finalByte,
             Parameters = parameters,
             Count = GetParameter(parameters, 0, 1)
+        };
+    }
+
+    private static CsiMessage CreateStandardSgrMessage(string raw, byte finalByte, int[] parameters)
+    {
+        return new CsiMessage
+        {
+            Type = "csi.sgr",
+            Raw = raw,
+            Implemented = true,
+            FinalByte = finalByte,
+            Parameters = parameters
         };
     }
 

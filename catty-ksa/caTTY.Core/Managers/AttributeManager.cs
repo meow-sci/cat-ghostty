@@ -370,4 +370,36 @@ public class AttributeManager : IAttributeManager
             underlineColor: _currentAttributes.UnderlineColor,
             font: _currentAttributes.Font);
     }
+
+    /// <summary>
+    ///     Parses SGR sequence from CSI parameters and creates an SgrSequence.
+    /// </summary>
+    /// <param name="parameters">The CSI parameters</param>
+    /// <param name="raw">The raw sequence string</param>
+    /// <returns>The parsed SGR sequence</returns>
+    public SgrSequence ParseSgrFromCsi(int[] parameters, string raw)
+    {
+        // Create a fake SGR sequence by converting CSI parameters to SGR format
+        // CSI parameters are already parsed, so we just need to create the SGR sequence
+        var sgrParser = new Parsing.SgrParser();
+        
+        // Convert parameters to byte array for SGR parser
+        // The SGR parser expects the full escape sequence, so we reconstruct it
+        string sgrRaw = $"\x1b[{string.Join(";", parameters)}m";
+        byte[] sgrBytes = System.Text.Encoding.UTF8.GetBytes(sgrRaw);
+        
+        return sgrParser.ParseSgrSequence(sgrBytes, sgrRaw);
+    }
+
+    /// <summary>
+    ///     Applies multiple SGR attributes from an array of messages.
+    /// </summary>
+    /// <param name="current">The current SGR attributes</param>
+    /// <param name="messages">The SGR messages to apply</param>
+    /// <returns>The updated SGR attributes</returns>
+    public SgrAttributes ApplyAttributes(SgrAttributes current, ReadOnlySpan<SgrMessage> messages)
+    {
+        var sgrParser = new Parsing.SgrParser();
+        return sgrParser.ApplyAttributes(current, messages);
+    }
 }

@@ -221,6 +221,12 @@ internal class TerminalParserHandlers : IParserHandlers
 
                 break;
 
+            case "csi.sgr":
+                // Standard SGR sequence (CSI ... m) - delegate to SGR parser
+                var sgrSequence = _terminal.AttributeManager.ParseSgrFromCsi(message.Parameters, message.Raw);
+                HandleSgrSequence(sgrSequence);
+                break;
+
             // Device query sequences
             case "csi.deviceAttributesPrimary":
                 // Primary DA query: respond with device attributes
@@ -291,8 +297,24 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleSgr(SgrSequence sequence)
     {
-        // TODO: Implement SGR sequence handling (task 3.1-3.6)
-        _logger.LogDebug("SGR sequence: {Type} - {Raw}", sequence.Type, sequence.Raw);
+        HandleSgrSequence(sequence);
+    }
+
+    /// <summary>
+    ///     Handles SGR sequence processing and applies attributes to the terminal.
+    /// </summary>
+    /// <param name="sequence">The SGR sequence to process</param>
+    private void HandleSgrSequence(SgrSequence sequence)
+    {
+        // Apply SGR messages to current attributes
+        var currentAttributes = _terminal.AttributeManager.CurrentAttributes;
+        var newAttributes = _terminal.AttributeManager.ApplyAttributes(currentAttributes, sequence.Messages);
+        _terminal.AttributeManager.CurrentAttributes = newAttributes;
+
+        // Sync with terminal state for compatibility
+        _terminal.State.CurrentSgrState = newAttributes;
+
+        _logger.LogDebug("Applied SGR sequence: {Raw} - {MessageCount} messages", sequence.Raw, sequence.Messages.Length);
     }
 
     public void HandleXtermOsc(XtermOscMessage message)

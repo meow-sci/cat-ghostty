@@ -542,7 +542,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/SgrStyleManager.ts
   - _Requirements: 12.2, 12.3_
 
-- [ ] 3.6 Integrate SGR parsing into CSI parser
+- [x] 3.6 Integrate SGR parsing into CSI parser
   - Add SGR sequence handling to CsiParser for 'm' command
   - Update terminal to track current SGR state
   - Apply attributes to characters written after SGR changes

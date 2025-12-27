@@ -77,4 +77,20 @@ public interface IAttributeManager
     /// </summary>
     /// <param name="blink">Whether blink should be enabled</param>
     void SetBlink(bool blink);
+
+    /// <summary>
+    ///     Parses SGR sequence from CSI parameters and creates an SgrSequence.
+    /// </summary>
+    /// <param name="parameters">The CSI parameters</param>
+    /// <param name="raw">The raw sequence string</param>
+    /// <returns>The parsed SGR sequence</returns>
+    SgrSequence ParseSgrFromCsi(int[] parameters, string raw);
+
+    /// <summary>
+    ///     Applies multiple SGR attributes from an array of messages.
+    /// </summary>
+    /// <param name="current">The current SGR attributes</param>
+    /// <param name="messages">The SGR messages to apply</param>
+    /// <returns>The updated SGR attributes</returns>
+    SgrAttributes ApplyAttributes(SgrAttributes current, ReadOnlySpan<SgrMessage> messages);
 }
