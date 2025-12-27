@@ -116,4 +116,77 @@ public class CursorMovementProperties
             return cursorValid && canWrite;
         });
     }
+
+    /// <summary>
+    ///     **Feature: catty-ksa, Property 12: Cursor wrapping behavior**
+    ///     **Validates: Requirements 8.3**
+    ///     Property: For any terminal with auto-wrap enabled, writing characters at the right edge should wrap to the next line.
+    ///     For any terminal with auto-wrap disabled, writing characters at the right edge should keep cursor at the edge.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property CursorWrappingBehavior()
+    {
+        return Prop.ForAll(
+            Arb.From(Gen.Choose(10, 120)), // Terminal width
+            Arb.From(Gen.Choose(5, 50)),   // Terminal height
+            Arb.From(Gen.Choose(1, 10)),   // Number of characters to write
+            (width, height, charCount) =>
+            {
+                // Test with auto-wrap enabled
+                var terminalWithWrap = new TerminalEmulator(width, height);
+                
+                // Enable auto-wrap mode (should be default, but make it explicit)
+                terminalWithWrap.Write("\x1b[?7h");
+                
+                // Position cursor at right edge
+                terminalWithWrap.Write($"\x1b[1;{width}H");
+                
+                // Write characters that should trigger wrapping
+                string testChars = new string('X', charCount);
+                terminalWithWrap.Write(testChars);
+                
+                ICursor cursorWithWrap = terminalWithWrap.Cursor;
+                
+                // Test with auto-wrap disabled
+                var terminalWithoutWrap = new TerminalEmulator(width, height);
+                
+                // Disable auto-wrap mode
+                terminalWithoutWrap.Write("\x1b[?7l");
+                
+                // Position cursor at right edge
+                terminalWithoutWrap.Write($"\x1b[1;{width}H");
+                
+                // Write the same characters
+                terminalWithoutWrap.Write(testChars);
+                
+                ICursor cursorWithoutWrap = terminalWithoutWrap.Cursor;
+                
+                // Verify wrapping behavior
+                bool wrapBehaviorCorrect;
+                if (charCount > 1)
+                {
+                    // With auto-wrap: cursor should have moved to next line(s)
+                    // Without auto-wrap: cursor should stay at right edge
+                    wrapBehaviorCorrect = cursorWithWrap.Row > 0 && cursorWithoutWrap.Row == 0 &&
+                                         cursorWithoutWrap.Col == width - 1;
+                }
+                else
+                {
+                    // Single character at edge: both should behave the same initially
+                    // The difference appears when writing additional characters
+                    wrapBehaviorCorrect = true;
+                }
+                
+                // Verify cursors are within bounds
+                bool cursorsInBounds = cursorWithWrap.Row >= 0 && cursorWithWrap.Row < height &&
+                                      cursorWithWrap.Col >= 0 && cursorWithWrap.Col < width &&
+                                      cursorWithoutWrap.Row >= 0 && cursorWithoutWrap.Row < height &&
+                                      cursorWithoutWrap.Col >= 0 && cursorWithoutWrap.Col < width;
+                
+                terminalWithWrap.Dispose();
+                terminalWithoutWrap.Dispose();
+                
+                return wrapBehaviorCorrect && cursorsInBounds;
+            });
+    }
 }

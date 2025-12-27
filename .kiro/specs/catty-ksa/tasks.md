@@ -101,7 +101,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/bufferOps.ts and cursor.ts wrapping behavior to ensure C# implementation provides identical cursor wrapping and line overflow handling
   - _Requirements: 8.3, 9.5, 20.1_
 
-- [ ] 5.8 Write property test for cursor wrapping behavior
+- [x] 5.8 Write property test for cursor wrapping behavior
   - **Property 12: Cursor wrapping behavior**
   - **Validates: Requirements 8.3**
 
