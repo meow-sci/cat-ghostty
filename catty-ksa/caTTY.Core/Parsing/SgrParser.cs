@@ -406,11 +406,11 @@ public class SgrParser : ISgrParser
                 
             case >= 90 and <= 97:
                 context.Index++;
-                return CreateSgrMessage("sgr.foregroundColor", false, new Color(BrightColors[param - 90]));
+                return CreateSgrMessage("sgr.foregroundColor", true, new Color(BrightColors[param - 90]));
                 
             case >= 100 and <= 107:
                 context.Index++;
-                return CreateSgrMessage("sgr.backgroundColor", false, new Color(BrightColors[param - 100]));
+                return CreateSgrMessage("sgr.backgroundColor", true, new Color(BrightColors[param - 100]));
                 
             case 58:
                 return ParseExtendedUnderlineColor(context);
@@ -566,67 +566,104 @@ public class SgrParser : ISgrParser
     private SgrMessage? ParseExtendedForegroundColor(SgrParseContext context)
     {
         context.Index++; // Skip 38
-        var color = ParseExtendedColor(context);
+        var color = ParseExtendedColor(context, out int consumed);
         if (color != null)
         {
+            context.Index += consumed;
             return CreateSgrMessage("sgr.foregroundColor", true, color);
         }
+        // If parsing failed, create unknown message for just the 38 parameter
         return CreateSgrMessage("sgr.unknown", false, 38);
     }
 
     private SgrMessage? ParseExtendedBackgroundColor(SgrParseContext context)
     {
         context.Index++; // Skip 48
-        var color = ParseExtendedColor(context);
+        var color = ParseExtendedColor(context, out int consumed);
         if (color != null)
         {
+            context.Index += consumed;
             return CreateSgrMessage("sgr.backgroundColor", true, color);
         }
+        // If parsing failed, create unknown message for just the 48 parameter
         return CreateSgrMessage("sgr.unknown", false, 48);
     }
 
     private SgrMessage? ParseExtendedUnderlineColor(SgrParseContext context)
     {
         context.Index++; // Skip 58
-        var color = ParseExtendedColor(context);
+        var color = ParseExtendedColor(context, out int consumed);
         if (color != null)
         {
+            context.Index += consumed;
             return CreateSgrMessage("sgr.underlineColor", true, color);
         }
+        // If parsing failed, create unknown message for just the 58 parameter
         return CreateSgrMessage("sgr.unknown", false, 58);
     }
 
-    private Color? ParseExtendedColor(SgrParseContext context)
+    private Color? ParseExtendedColor(SgrParseContext context, out int consumed)
     {
+        consumed = 0;
+        
         if (context.Index >= context.Params.Length)
             return null;
 
         int colorType = context.Params[context.Index];
 
-        if (colorType == 5 && context.Index + 1 < context.Params.Length)
+        if (colorType == 5)
         {
-            // 256-color mode
-            int colorIndex = context.Params[context.Index + 1];
-            if (colorIndex >= 0 && colorIndex <= 255)
+            // 256-color mode: 38;5;n or 38:5:n
+            if (context.Index + 1 < context.Params.Length)
             {
-                context.Index += 2;
-                return new Color((byte)colorIndex);
+                int colorIndex = context.Params[context.Index + 1];
+                if (colorIndex >= 0 && colorIndex <= 255)
+                {
+                    consumed = 2;
+                    return new Color((byte)colorIndex);
+                }
             }
-        }
-        else if (colorType == 2 && context.Index + 3 < context.Params.Length)
-        {
-            // RGB mode
-            int r = context.Params[context.Index + 1];
-            int g = context.Params[context.Index + 2];
-            int b = context.Params[context.Index + 3];
-            
-            if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255)
-            {
-                context.Index += 4;
-                return new Color((byte)r, (byte)g, (byte)b);
-            }
+            return null;
         }
 
+        if (colorType == 2)
+        {
+            // True color mode: 38;2;r;g;b or 38:2:r:g:b (or 38:2::r:g:b with colorspace)
+            // The ITU T.416 format includes an optional colorspace ID after the 2
+            
+            // Check if we have colon separators that might indicate colorspace format
+            bool hasColonSeparators = context.Index < context.Separators.Length && 
+                                     context.Separators[context.Index] == ":";
+
+            if (hasColonSeparators && context.Index + 4 < context.Params.Length)
+            {
+                // Try parsing with colorspace ID: 38:2:<colorspace>:r:g:b or 38:2::r:g:b
+                int r = context.Params[context.Index + 2];
+                int g = context.Params[context.Index + 3];
+                int b = context.Params[context.Index + 4];
+                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255)
+                {
+                    consumed = 5;
+                    return new Color((byte)r, (byte)g, (byte)b);
+                }
+            }
+
+            // Standard format: 38;2;r;g;b or 38:2:r:g:b
+            if (context.Index + 3 < context.Params.Length)
+            {
+                int r = context.Params[context.Index + 1];
+                int g = context.Params[context.Index + 2];
+                int b = context.Params[context.Index + 3];
+                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255)
+                {
+                    consumed = 4;
+                    return new Color((byte)r, (byte)g, (byte)b);
+                }
+            }
+            return null;
+        }
+
+        // Unknown color type
         return null;
     }
 

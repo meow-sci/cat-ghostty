@@ -516,7 +516,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts
   - _Requirements: 12.1, 12.2, 12.4, 12.5_
 
-- [ ] 3.3 Add extended color parsing (256-color and RGB)
+- [x] 3.3 Add extended color parsing (256-color and RGB)
   - Implement 256-color parsing (38;5;n, 48;5;n)
   - Add 24-bit RGB color parsing (38;2;r;g;b, 48;2;r;g;b)
   - Handle colon-separated color formats (38:2:r:g:b)
