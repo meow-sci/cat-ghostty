@@ -532,7 +532,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts advanced SGR features to ensure C# implementation supports all advanced SGR modes and underline variants identically
   - _Requirements: 12.1, 12.2_
 
-- [ ] 3.5 Create SGR state processor
+- [x] 3.5 Create SGR state processor
   - Create SgrState class to track current attributes
   - Implement SGR message processing logic
   - Handle attribute reset and individual attribute clearing
