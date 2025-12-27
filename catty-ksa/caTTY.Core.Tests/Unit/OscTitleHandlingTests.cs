@@ -142,29 +142,13 @@ public class OscTitleHandlingTests
     }
 
     [Test]
-    [Ignore("UTF-8 handling in OSC sequences needs further investigation")]
     public void OSC_SpecialCharacters_HandledCorrectly()
     {
-        // Test with just ASCII first to isolate the issue
-        string asciiTitle = "ASCII Title";
-        string asciiOscSequence = $"\x1b]2;{asciiTitle}\x07";
-
-        _terminal.Write(asciiOscSequence);
-        Console.WriteLine($"ASCII test - Expected: '{asciiTitle}', Actual: '{_terminal.State.WindowProperties.Title}'");
-
-        // Reset for UTF-8 test
-        _terminal.Write("\x1b]2;\x07"); // Clear title
-
-        // Test title with special characters (excluding emoji for now)
+        // Test title with special characters (UTF-8)
         string testTitle = "Title with special chars: éñ中文";
         string oscSequence = $"\x1b]2;{testTitle}\x07";
 
         _terminal.Write(oscSequence);
-
-        // Debug: Check what we actually got
-        string actualTitle = _terminal.State.WindowProperties.Title;
-        Console.WriteLine($"Expected title: '{testTitle}' (length: {testTitle.Length})");
-        Console.WriteLine($"Actual title: '{actualTitle}' (length: {actualTitle.Length})");
 
         // Verify special characters are preserved
         Assert.That(_terminal.State.WindowProperties.Title, Is.EqualTo(testTitle));

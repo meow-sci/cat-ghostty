@@ -192,12 +192,12 @@ public class Parser
     /// </summary>
     private void HandleOscState(byte b)
     {
-        // Guard against bytes outside the allowed OSC byte range (0x20 - 0x7E)
-        // Special allowances for BEL (0x07) and ESC (0x1b) must be allowed, these are valid terminators
+        // Allow UTF-8 bytes in OSC sequences
+        // Only reject control characters (0x00-0x1F) except for BEL (0x07) and ESC (0x1b) which are terminators
         // Keep 1:1 behavior with the pre-refactor Parser: warn + optionally emit as normal byte, without altering OSC state.
-        if (b != 0x07 && b != 0x1b && (b < 0x20 || b > 0x7e))
+        if (b < 0x20 && b != 0x07 && b != 0x1b)
         {
-            _logger.LogWarning("OSC: byte out of range 0x{Byte:X2}", b);
+            _logger.LogWarning("OSC: control character byte 0x{Byte:X2}", b);
             MaybeEmitNormalByteDuringEscapeSequence(b);
             return;
         }

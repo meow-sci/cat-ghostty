@@ -95,7 +95,7 @@ public class OscParserTests
         // Assert
         Assert.That(isComplete, Is.False);
         Assert.That(message, Is.Null);
-        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC: byte out of range 0x10"));
+        Assert.That(_logger.LogMessages, Has.Some.Contains("OSC: control character byte 0x10"));
         Assert.That(escapeSequence, Has.Count.EqualTo(2)); // Byte not added
     }
 
@@ -333,5 +333,37 @@ public class OscParserTests
         Assert.That(message, Is.Not.Null);
         Assert.That(message!.Implemented, Is.False);
         Assert.That(message.XtermMessage, Is.Null);
+    }
+
+    [Test]
+    public void ProcessOscByte_Utf8Bytes_AcceptsAndProcesses()
+    {
+        // Arrange
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x32, 0x3b }; // ESC ] 2 ;
+        
+        // UTF-8 bytes for "éñ中文" 
+        byte[] utf8Bytes = Encoding.UTF8.GetBytes("éñ中文");
+        
+        // Act & Assert - Process each UTF-8 byte
+        foreach (byte b in utf8Bytes)
+        {
+            bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+            Assert.That(isComplete, Is.False); // Should not complete until BEL
+            Assert.That(message, Is.Null);
+        }
+        
+        // Add BEL terminator
+        bool finalComplete = _parser.ProcessOscByte(0x07, escapeSequence, out OscMessage? finalMessage);
+        
+        // Assert
+        Assert.That(finalComplete, Is.True);
+        Assert.That(finalMessage, Is.Not.Null);
+        Assert.That(finalMessage!.Implemented, Is.True);
+        Assert.That(finalMessage.XtermMessage, Is.Not.Null);
+        Assert.That(finalMessage.XtermMessage!.Title, Is.EqualTo("éñ中文"));
+        
+        // Verify no warnings were logged for UTF-8 bytes
+        Assert.That(_logger.LogMessages, Has.None.Contains("control character"));
+        Assert.That(_logger.LogMessages, Has.None.Contains("out of range"));
     }
 }
