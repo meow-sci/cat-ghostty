@@ -24,7 +24,8 @@ public static class TerminalRenderingExperiments
         "Grid Alignment Test",
         "Performance Comparison",
         "Text Styling Experiments",
-        "Mouse Input - Scrolling Test"
+        "Mouse Input - Scrolling Test",
+        "Keyboard Focus - Line Discipline Test"
     ];
 
     // Terminal simulation data
@@ -211,6 +212,9 @@ public static class TerminalRenderingExperiments
                 break;
             case 6:
                 MouseInputExperiments.DrawExperiments();
+                break;
+            case 7:
+                TerminalLineDisciplineExperiments.DrawExperiments();
                 break;
         }
 
