@@ -6,14 +6,14 @@ Add mouse wheel scrolling support to the existing caTTY terminal emulator ImGui 
 
 ## Tasks
 
-- [ ] 1. Create mouse wheel scroll configuration
+- [x] 1. Create mouse wheel scroll configuration
   - Create MouseWheelScrollConfig class with validation
   - Add default configuration factory methods
   - Integrate with existing TerminalController constructor overloads
   - Add runtime configuration update method
   - _Requirements: 4.1, 4.4_
 
-- [ ] 1.1 Write unit tests for scroll configuration
+- [x] 1.1 Write unit tests for scroll configuration
   - Test configuration validation and defaults
   - Test invalid configuration rejection
   - Test runtime configuration updates

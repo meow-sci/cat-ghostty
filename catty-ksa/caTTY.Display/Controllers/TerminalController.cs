@@ -20,6 +20,7 @@ public class TerminalController : ITerminalController
 {
     private readonly TerminalRenderingConfig _config;
     private TerminalFontConfig _fontConfig;
+    private MouseWheelScrollConfig _scrollConfig;
 
     // Input handling
     private readonly StringBuilder _inputBuffer = new();
@@ -46,33 +47,33 @@ public class TerminalController : ITerminalController
     /// <param name="terminal">The terminal emulator instance</param>
     /// <param name="processManager">The process manager instance</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager)
-        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig())
+        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
     {
     }
 
     /// <summary>
     ///     Creates a new terminal controller with the specified rendering configuration.
-    ///     Uses automatic font detection for font configuration.
+    ///     Uses automatic font detection for font configuration and default scroll configuration.
     /// </summary>
     /// <param name="terminal">The terminal emulator instance</param>
     /// <param name="processManager">The process manager instance</param>
     /// <param name="config">The rendering configuration to use</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
         TerminalRenderingConfig config)
-        : this(terminal, processManager, config, FontContextDetector.DetectAndCreateConfig())
+        : this(terminal, processManager, config, FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
     {
     }
 
     /// <summary>
     ///     Creates a new terminal controller with the specified font configuration.
-    ///     Uses automatic DPI detection for rendering configuration.
+    ///     Uses automatic DPI detection for rendering configuration and default scroll configuration.
     /// </summary>
     /// <param name="terminal">The terminal emulator instance</param>
     /// <param name="processManager">The process manager instance</param>
     /// <param name="fontConfig">The font configuration to use</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
         TerminalFontConfig fontConfig)
-        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), fontConfig)
+        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), fontConfig, MouseWheelScrollConfig.CreateDefault())
     {
     }
 
@@ -85,15 +86,44 @@ public class TerminalController : ITerminalController
     /// <param name="fontConfig">The font configuration to use</param>
     public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
         TerminalRenderingConfig config, TerminalFontConfig fontConfig)
+        : this(terminal, processManager, config, fontConfig, MouseWheelScrollConfig.CreateDefault())
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new terminal controller with the specified scroll configuration.
+    ///     Uses automatic detection for rendering and font configurations.
+    /// </summary>
+    /// <param name="terminal">The terminal emulator instance</param>
+    /// <param name="processManager">The process manager instance</param>
+    /// <param name="scrollConfig">The mouse wheel scroll configuration to use</param>
+    public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
+        MouseWheelScrollConfig scrollConfig)
+        : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), scrollConfig)
+    {
+    }
+
+    /// <summary>
+    ///     Creates a new terminal controller with the specified configurations.
+    /// </summary>
+    /// <param name="terminal">The terminal emulator instance</param>
+    /// <param name="processManager">The process manager instance</param>
+    /// <param name="config">The rendering configuration to use</param>
+    /// <param name="fontConfig">The font configuration to use</param>
+    /// <param name="scrollConfig">The mouse wheel scroll configuration to use</param>
+    public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
+        TerminalRenderingConfig config, TerminalFontConfig fontConfig, MouseWheelScrollConfig scrollConfig)
     {
         _terminal = terminal ?? throw new ArgumentNullException(nameof(terminal));
         _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
+        _scrollConfig = scrollConfig ?? throw new ArgumentNullException(nameof(scrollConfig));
 
         // Validate configurations
         _config.Validate();
         _fontConfig.Validate();
+        _scrollConfig.Validate();
 
         // Note: Font loading is deferred until first render call when ImGui context is ready
         // LoadFonts(); // Moved to EnsureFontsLoaded()
@@ -379,6 +409,52 @@ public class TerminalController : ITerminalController
             
             // Re-throw the exception to notify caller of the failure
             throw new InvalidOperationException($"Failed to update font configuration: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    ///     Updates the mouse wheel scroll configuration at runtime.
+    /// </summary>
+    /// <param name="newScrollConfig">The new scroll configuration to apply</param>
+    /// <exception cref="ArgumentNullException">Thrown when newScrollConfig is null</exception>
+    /// <exception cref="ArgumentException">Thrown when newScrollConfig contains invalid values</exception>
+    public void UpdateScrollConfig(MouseWheelScrollConfig newScrollConfig)
+    {
+        if (newScrollConfig == null)
+        {
+            throw new ArgumentNullException(nameof(newScrollConfig));
+        }
+
+        try
+        {
+            // Validate the new configuration before applying any changes
+            newScrollConfig.Validate();
+
+            // Log the configuration change attempt
+            Console.WriteLine("TerminalController: Attempting runtime scroll configuration update");
+            Console.WriteLine($"  Previous: {_scrollConfig}");
+            Console.WriteLine($"  New: {newScrollConfig}");
+
+            // Update scroll configuration
+            _scrollConfig = newScrollConfig;
+
+            // Log successful configuration change
+            Console.WriteLine("TerminalController: Runtime scroll configuration updated successfully");
+            Console.WriteLine($"  Applied: {_scrollConfig}");
+        }
+        catch (ArgumentException ex)
+        {
+            // Log validation failure and re-throw
+            Console.WriteLine($"TerminalController: Scroll configuration validation failed: {ex.Message}");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Log unexpected errors during scroll configuration update
+            Console.WriteLine($"TerminalController: Unexpected error during scroll configuration update: {ex.Message}");
+            
+            // Re-throw the exception to notify caller of the failure
+            throw new InvalidOperationException($"Failed to update scroll configuration: {ex.Message}", ex);
         }
     }
 
