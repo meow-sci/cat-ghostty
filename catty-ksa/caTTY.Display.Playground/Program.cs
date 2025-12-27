@@ -25,6 +25,7 @@ public class Program
         Console.WriteLine("- Grid Alignment Test");
         Console.WriteLine("- Performance Comparison");
         Console.WriteLine("- Text Styling Experiments (NEW - Task 1.6)");
+        Console.WriteLine("- Mouse Input: Scrolling Test");
         Console.WriteLine();
 
         TerminalRenderingExperiments.Run();
