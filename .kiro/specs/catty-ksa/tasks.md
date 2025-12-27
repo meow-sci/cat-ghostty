@@ -93,7 +93,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/scrollback.ts
   - _Requirements: 14.3, 14.4_
 
-- [ ] 4.8 Write property test for viewport and auto-scroll behavior
+- [x] 4.8 Write property test for viewport and auto-scroll behavior
   - **Property 27: Viewport and auto-scroll behavior**
   - **Validates: Requirements 14.3, 14.4**
 
