@@ -2,39 +2,19 @@
 
 ## Overview
 
-This implementation plan creates a C# terminal emulator for the KSA game engine through incremental development. The plan prioritizes getting a minimal working MVP with real shell process integration as quickly as possible to validate the entire technology stack end-to-end. Each major task number represents a working program milestone that can be validated by the user.
+C# terminal emulator for KSA game engine via incremental MVP development. Each major task = working program milestone.
 
-**CRITICAL PLATFORM REQUIREMENT**: This implementation uses **Windows ConPTY (Pseudoconsole) exclusively** for PTY functionality. The target platform is **Windows 10 version 1809+ only**. No cross-platform support or fallback to basic process redirection is provided. ConPTY provides true terminal emulation following Microsoft's official documentation.
+**PLATFORM**: Windows ConPTY exclusively (Win10 1809+). No cross-platform/fallback.
+No fallback to stdout/stderr process redirection; follow Microsoft ConPTY docs.
 
-Based on fresh analysis of the TypeScript implementation complexity, the most complex areas have been identified and broken down appropriately:
+**COMPLEXITY BREAKDOWN** (from TypeScript analysis):
+- **High**: SGR parsing (556L), CSI parsing (437L), StatefulTerminal (936L), Buffer ops (455L), Parser state (541L), Alternate screen
+- **Medium**: OSC parsing (155L), Terminal modes, Scrollback (56L), Process mgmt  
+- **Low**: Basic structures, Control chars, ImGui integration
 
-**High Complexity Areas (requiring granular breakdown):**
-- **SGR (Select Graphic Rendition) parsing**: 556 lines - 12+ different SGR message types, complex color parsing (8-bit, 24-bit RGB), colon/semicolon separators, enhanced modes, underline styles
-- **CSI sequence parsing**: 437 lines - State machine with 8+ states, parameter parsing, private mode indicators, complex cursor operations
-- **StatefulTerminal integration**: 936 lines - Complex state management, multiple subsystems coordination, event handling
-- **Buffer operations**: 455 lines - Character insertion/deletion, scrolling operations, line manipulation, content preservation
-- **Parser state machine**: 541 lines - UTF-8 handling, multi-byte sequences, state transitions, escape sequence detection
-- **Alternate screen buffer management**: Dual buffer system, state isolation, scrollback interaction
+**DRIVERS**: SGR color formats, CSI state/params, UTF-8 stream decode/recovery, dual-buffer semantics.
 
-**Medium Complexity Areas (moderate breakdown):**
-- **OSC sequence parsing**: 155 lines - String termination handling, multiple OSC types (title, clipboard, hyperlinks)
-- **Terminal mode management**: Multiple DEC modes, application cursor keys, bracketed paste
-- **Scrollback buffer**: 56 lines - Circular buffer management, viewport tracking
-- **Process management**: Bidirectional data flow, lifecycle management, error handling
-
-**Lower Complexity Areas (minimal breakdown):**
-- **Basic data structures**: Cell, Cursor, Screen buffer
-- **Control character handling**: Standard C0 controls
-- **ImGui integration**: Display rendering, input handling
-
-The task breakdown reflects this complexity analysis while maintaining MVP focus on getting a working terminal as quickly as possible. Key improvements include:
-
-1. **ImGui rendering playground** - Added dedicated playground project (1.4-1.7) for experimenting with ImGui rendering techniques before implementing the full terminal controller
-2. **More granular StatefulTerminal breakdown** - Added separate state management task (1.8)
-3. **Enhanced parser complexity handling** - Added UTF-8 support as separate task (2.3-2.4) 
-4. **Better buffer operations granularity** - Split line/character operations (4.11-4.13)
-5. **Improved property test coverage** - Added property test for line/character operations (4.13)
-6. **Earlier UTF-8 handling** - Moved from section 6 to section 2 for better dependency flow
+**KEY IMPROVEMENTS**: ImGui playground (1.4-1.7), granular StatefulTerminal (1.8), UTF-8 separation (2.3-2.4), buffer ops split (4.11-4.13), line/char ops property test (4.13), earlier UTF-8 handling
 
 ## Tasks
 
