@@ -524,7 +524,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts extended color parsing to ensure C# implementation supports all color formats and edge cases identically
   - _Requirements: 12.1, 12.4_
 
-- [ ] 3.4 Implement advanced SGR features
+- [x] 3.4 Implement advanced SGR features
   - Add underline color support (58, 59)
   - Implement underline style subparameters (4:n)
   - Handle enhanced SGR modes (CSI > 4 ; n m)

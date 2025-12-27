@@ -377,7 +377,7 @@ public class SgrParserExtendedColorTests
             // Assert
             Assert.That(result.Messages, Has.Length.EqualTo(1), $"Failed for bright color code {code}");
             Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.foregroundColor"), $"Failed for bright color code {code}");
-            Assert.That(result.Messages[0].Implemented, Is.True, $"Bright color {code} should be implemented");
+            Assert.That(result.Messages[0].Implemented, Is.True, $"Bright color {code} should be implemented (matching TypeScript)");
             
             var color = (Color)result.Messages[0].Data!;
             Assert.That(color.Type, Is.EqualTo(ColorType.Named), $"Failed for bright color code {code}");
@@ -413,7 +413,7 @@ public class SgrParserExtendedColorTests
             // Assert
             Assert.That(result.Messages, Has.Length.EqualTo(1), $"Failed for bright background color code {code}");
             Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.backgroundColor"), $"Failed for bright background color code {code}");
-            Assert.That(result.Messages[0].Implemented, Is.True, $"Bright background color {code} should be implemented");
+            Assert.That(result.Messages[0].Implemented, Is.True, $"Bright background color {code} should be implemented (matching TypeScript)");
             
             var color = (Color)result.Messages[0].Data!;
             Assert.That(color.Type, Is.EqualTo(ColorType.Named), $"Failed for bright background color code {code}");

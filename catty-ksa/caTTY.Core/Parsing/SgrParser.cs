@@ -412,6 +412,46 @@ public class SgrParser : ISgrParser
                 context.Index++;
                 return CreateSgrMessage("sgr.backgroundColor", true, new Color(BrightColors[param - 100]));
                 
+            case 50:
+                context.Index++;
+                return CreateSgrMessage("sgr.disableProportionalSpacing", false);
+                
+            case 51:
+                context.Index++;
+                return CreateSgrMessage("sgr.framed", false);
+                
+            case 52:
+                context.Index++;
+                return CreateSgrMessage("sgr.encircled", false);
+                
+            case 53:
+                context.Index++;
+                return CreateSgrMessage("sgr.overlined", false);
+                
+            case 54:
+                context.Index++;
+                return CreateSgrMessage("sgr.notFramed", false);
+                
+            case 55:
+                context.Index++;
+                return CreateSgrMessage("sgr.notOverlined", false);
+                
+            case >= 60 and <= 65:
+                context.Index++;
+                return CreateSgrMessage("sgr.ideogram", false, GetIdeogramStyle(param));
+                
+            case 73:
+                context.Index++;
+                return CreateSgrMessage("sgr.superscript", false);
+                
+            case 74:
+                context.Index++;
+                return CreateSgrMessage("sgr.subscript", false);
+                
+            case 75:
+                context.Index++;
+                return CreateSgrMessage("sgr.notSuperscriptSubscript", false);
+                
             case 58:
                 return ParseExtendedUnderlineColor(context);
                 
@@ -468,6 +508,16 @@ public class SgrParser : ISgrParser
             "sgr.defaultBackground" => UpdateAttributeWithColor(current, backgroundColor: null),
             "sgr.defaultUnderlineColor" => UpdateAttributeWithColor(current, underlineColor: null),
             "sgr.font" when message.Data is int font => UpdateAttribute(current, font: font),
+            "sgr.disableProportionalSpacing" => current, // Not implemented, no change
+            "sgr.framed" => current, // Not implemented, no change
+            "sgr.encircled" => current, // Not implemented, no change
+            "sgr.overlined" => current, // Not implemented, no change
+            "sgr.notFramed" => current, // Not implemented, no change
+            "sgr.notOverlined" => current, // Not implemented, no change
+            "sgr.ideogram" => current, // Not implemented, no change
+            "sgr.superscript" => current, // Not implemented, no change
+            "sgr.subscript" => current, // Not implemented, no change
+            "sgr.notSuperscriptSubscript" => current, // Not implemented, no change
             _ => current // Unknown or unimplemented messages don't change attributes
         };
     }
@@ -560,6 +610,20 @@ public class SgrParser : ISgrParser
             4 => UnderlineStyle.Dotted,
             5 => UnderlineStyle.Dashed,
             _ => UnderlineStyle.Single
+        };
+    }
+
+    private static string GetIdeogramStyle(int param)
+    {
+        return param switch
+        {
+            60 => "underline",
+            61 => "doubleUnderline", 
+            62 => "overline",
+            63 => "doubleOverline",
+            64 => "stress",
+            65 => "reset",
+            _ => "unknown"
         };
     }
 
