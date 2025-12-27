@@ -241,6 +241,64 @@ public class TerminalEmulator : ITerminalEmulator
     }
 
     /// <summary>
+    ///     Scrolls the viewport up by the specified number of lines.
+    ///     Disables auto-scroll if not already at the top.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    public void ScrollViewportUp(int lines)
+    {
+        ThrowIfDisposed();
+        _scrollbackManager.ScrollUp(lines);
+        OnScreenUpdated();
+    }
+
+    /// <summary>
+    ///     Scrolls the viewport down by the specified number of lines.
+    ///     Re-enables auto-scroll if scrolled to the bottom.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    public void ScrollViewportDown(int lines)
+    {
+        ThrowIfDisposed();
+        _scrollbackManager.ScrollDown(lines);
+        OnScreenUpdated();
+    }
+
+    /// <summary>
+    ///     Scrolls to the top of the scrollback buffer.
+    ///     Disables auto-scroll.
+    /// </summary>
+    public void ScrollViewportToTop()
+    {
+        ThrowIfDisposed();
+        _scrollbackManager.ScrollToTop();
+        OnScreenUpdated();
+    }
+
+    /// <summary>
+    ///     Scrolls to the bottom of the scrollback buffer.
+    ///     Re-enables auto-scroll.
+    /// </summary>
+    public void ScrollViewportToBottom()
+    {
+        ThrowIfDisposed();
+        _scrollbackManager.ScrollToBottom();
+        OnScreenUpdated();
+    }
+
+    /// <summary>
+    ///     Gets whether auto-scroll is currently enabled.
+    ///     Auto-scroll is disabled when user scrolls up and re-enabled when they return to bottom.
+    /// </summary>
+    public bool IsAutoScrollEnabled => _scrollbackManager.AutoScrollEnabled;
+
+    /// <summary>
+    ///     Gets the current viewport offset from the bottom.
+    ///     0 means viewing the most recent content, positive values mean scrolled up into history.
+    /// </summary>
+    public int ViewportOffset => _scrollbackManager.ViewportOffset;
+
+    /// <summary>
     ///     Flushes any incomplete UTF-8 sequences in the parser.
     ///     This should be called when no more input is expected to ensure
     ///     incomplete sequences are handled gracefully.

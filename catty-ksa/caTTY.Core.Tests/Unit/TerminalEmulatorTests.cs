@@ -480,4 +480,122 @@ public class TerminalEmulatorTests
         // Act & Assert
         Assert.Throws<ObjectDisposedException>(() => terminal.Write("Test"));
     }
+
+    /// <summary>
+    ///     Tests that ScrollViewportUp disables auto-scroll and updates viewport offset.
+    /// </summary>
+    [Test]
+    public void ScrollViewportUp_FromBottom_DisablesAutoScroll()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        
+        // Fill the screen and add more content to create scrollback
+        for (int i = 0; i < 6; i++) // More lines than screen height
+        {
+            terminal.Write($"Line {i}\n");
+        }
+        
+        Assert.That(terminal.IsAutoScrollEnabled, Is.True);
+        Assert.That(terminal.ViewportOffset, Is.EqualTo(0));
+
+        // Act
+        terminal.ScrollViewportUp(2);
+
+        // Assert
+        Assert.That(terminal.IsAutoScrollEnabled, Is.False);
+        Assert.That(terminal.ViewportOffset, Is.EqualTo(2));
+    }
+
+    /// <summary>
+    ///     Tests that ScrollViewportDown to bottom re-enables auto-scroll.
+    /// </summary>
+    [Test]
+    public void ScrollViewportDown_ToBottom_EnablesAutoScroll()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        
+        // Fill the screen and add more content to create scrollback
+        for (int i = 0; i < 6; i++) // More lines than screen height
+        {
+            terminal.Write($"Line {i}\n");
+        }
+        
+        terminal.ScrollViewportUp(3); // Scroll up first
+        Assert.That(terminal.IsAutoScrollEnabled, Is.False);
+
+        // Act
+        terminal.ScrollViewportDown(3); // Scroll back to bottom
+
+        // Assert
+        Assert.That(terminal.IsAutoScrollEnabled, Is.True);
+        Assert.That(terminal.ViewportOffset, Is.EqualTo(0));
+    }
+
+    /// <summary>
+    ///     Tests that ScrollViewportToTop scrolls to the top and disables auto-scroll.
+    /// </summary>
+    [Test]
+    public void ScrollViewportToTop_DisablesAutoScroll()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        
+        // Fill the screen and add more content to create scrollback
+        for (int i = 0; i < 6; i++) // More lines than screen height
+        {
+            terminal.Write($"Line {i}\n");
+        }
+
+        // Act
+        terminal.ScrollViewportToTop();
+
+        // Assert
+        Assert.That(terminal.IsAutoScrollEnabled, Is.False);
+        Assert.That(terminal.ViewportOffset, Is.GreaterThan(0));
+    }
+
+    /// <summary>
+    ///     Tests that ScrollViewportToBottom scrolls to bottom and enables auto-scroll.
+    /// </summary>
+    [Test]
+    public void ScrollViewportToBottom_EnablesAutoScroll()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        
+        // Fill the screen and add more content to create scrollback
+        for (int i = 0; i < 6; i++) // More lines than screen height
+        {
+            terminal.Write($"Line {i}\n");
+        }
+        
+        terminal.ScrollViewportToTop(); // Scroll to top first
+        Assert.That(terminal.IsAutoScrollEnabled, Is.False);
+
+        // Act
+        terminal.ScrollViewportToBottom();
+
+        // Assert
+        Assert.That(terminal.IsAutoScrollEnabled, Is.True);
+        Assert.That(terminal.ViewportOffset, Is.EqualTo(0));
+    }
+
+    /// <summary>
+    ///     Tests that viewport methods throw ObjectDisposedException after disposal.
+    /// </summary>
+    [Test]
+    public void ViewportMethods_AfterDispose_ThrowObjectDisposedException()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        terminal.Dispose();
+
+        // Act & Assert
+        Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportUp(1));
+        Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportDown(1));
+        Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportToTop());
+        Assert.Throws<ObjectDisposedException>(() => terminal.ScrollViewportToBottom());
+    }
 }

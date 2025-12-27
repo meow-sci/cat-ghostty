@@ -81,7 +81,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts scroll region implementation to ensure C# provides identical scroll region behavior and cursor interaction
   - _Requirements: Requirement 10 from original spec_
 
-- [ ] 4.7 Add viewport management for scrollback navigation
+- [x] 4.7 Add viewport management for scrollback navigation
   - Create viewport offset tracking
   - Add methods for scrolling through history
   - Implement auto-scroll when new content arrives

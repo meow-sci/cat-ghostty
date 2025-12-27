@@ -55,6 +55,44 @@ public interface IScrollbackManager
     void SetViewportOffset(int offset);
 
     /// <summary>
+    ///     Whether auto-scroll is enabled (follows new content automatically).
+    ///     Disabled when user scrolls up, re-enabled when they return to bottom.
+    /// </summary>
+    bool AutoScrollEnabled { get; }
+
+    /// <summary>
+    ///     Scrolls the viewport up by the specified number of lines.
+    ///     Disables auto-scroll if not already at the top.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    void ScrollUp(int lines);
+
+    /// <summary>
+    ///     Scrolls the viewport down by the specified number of lines.
+    ///     Re-enables auto-scroll if scrolled to the bottom.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    void ScrollDown(int lines);
+
+    /// <summary>
+    ///     Scrolls to the top of the scrollback buffer.
+    ///     Disables auto-scroll.
+    /// </summary>
+    void ScrollToTop();
+
+    /// <summary>
+    ///     Scrolls to the bottom of the scrollback buffer.
+    ///     Re-enables auto-scroll.
+    /// </summary>
+    void ScrollToBottom();
+
+    /// <summary>
+    ///     Called when new content is added to notify viewport management.
+    ///     If auto-scroll is enabled, automatically scrolls to show new content.
+    /// </summary>
+    void OnNewContentAdded();
+
+    /// <summary>
     ///     Gets viewport rows combining scrollback and screen buffer content.
     /// </summary>
     /// <param name="screenBuffer">Current screen buffer</param>

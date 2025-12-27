@@ -18,6 +18,7 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
     private int _startIndex; // Index of the oldest line
     private int _currentLines; // Number of lines currently stored
     private int _viewportOffset; // Offset from bottom (0 = bottom, positive = scroll up)
+    private bool _autoScrollEnabled; // Whether to auto-scroll when new content arrives
 
     /// <summary>
     ///     Creates a new scrollback manager with the specified capacity.
@@ -38,6 +39,7 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
         _startIndex = 0;
         _currentLines = 0;
         _viewportOffset = 0;
+        _autoScrollEnabled = true; // Start with auto-scroll enabled
     }
 
     /// <inheritdoc />
@@ -55,6 +57,9 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
 
     /// <inheritdoc />
     public bool IsAtBottom => _viewportOffset == 0;
+
+    /// <inheritdoc />
+    public bool AutoScrollEnabled => _autoScrollEnabled;
 
     /// <inheritdoc />
     public void AddLine(ReadOnlySpan<Cell> line)
@@ -88,6 +93,9 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
         {
             lineArray[i] = Cell.Space;
         }
+
+        // Notify viewport management of new content
+        OnNewContentAdded();
     }
 
     /// <inheritdoc />
@@ -117,13 +125,59 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
         _startIndex = 0;
         _currentLines = 0;
         _viewportOffset = 0;
+        _autoScrollEnabled = true; // Reset to auto-scroll enabled
     }
 
     /// <inheritdoc />
     public void SetViewportOffset(int offset)
     {
         // Clamp offset to valid range [0, CurrentLines]
-        _viewportOffset = Math.Max(0, Math.Min(offset, _currentLines));
+        var newOffset = Math.Max(0, Math.Min(offset, _currentLines));
+        _viewportOffset = newOffset;
+        
+        // Update auto-scroll state based on viewport position
+        _autoScrollEnabled = (_viewportOffset == 0);
+    }
+
+    /// <inheritdoc />
+    public void ScrollUp(int lines)
+    {
+        if (lines <= 0) return;
+        
+        var newOffset = Math.Min(_viewportOffset + lines, _currentLines);
+        SetViewportOffset(newOffset);
+    }
+
+    /// <inheritdoc />
+    public void ScrollDown(int lines)
+    {
+        if (lines <= 0) return;
+        
+        var newOffset = Math.Max(_viewportOffset - lines, 0);
+        SetViewportOffset(newOffset);
+    }
+
+    /// <inheritdoc />
+    public void ScrollToTop()
+    {
+        SetViewportOffset(_currentLines);
+    }
+
+    /// <inheritdoc />
+    public void ScrollToBottom()
+    {
+        SetViewportOffset(0);
+    }
+
+    /// <inheritdoc />
+    public void OnNewContentAdded()
+    {
+        // If auto-scroll is enabled, keep viewport at bottom
+        // If user has scrolled up, don't yank the viewport
+        if (_autoScrollEnabled)
+        {
+            _viewportOffset = 0;
+        }
     }
 
     /// <inheritdoc />
@@ -140,6 +194,9 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
 
         var result = new List<ReadOnlyMemory<Cell>>(requestedRows);
         var scrollbackRows = _currentLines;
+        
+        // When _viewportOffset = 0 (at bottom), show all scrollback + screen buffer
+        // When _viewportOffset > 0 (scrolled up), show earlier content starting from that offset
         var viewportTop = Math.Max(0, Math.Min(_viewportOffset, scrollbackRows));
 
         for (int i = 0; i < requestedRows; i++)

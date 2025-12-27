@@ -60,6 +60,44 @@ public interface ITerminalEmulator : IDisposable
     void Resize(int width, int height);
 
     /// <summary>
+    ///     Scrolls the viewport up by the specified number of lines.
+    ///     Disables auto-scroll if not already at the top.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll up</param>
+    void ScrollViewportUp(int lines);
+
+    /// <summary>
+    ///     Scrolls the viewport down by the specified number of lines.
+    ///     Re-enables auto-scroll if scrolled to the bottom.
+    /// </summary>
+    /// <param name="lines">Number of lines to scroll down</param>
+    void ScrollViewportDown(int lines);
+
+    /// <summary>
+    ///     Scrolls to the top of the scrollback buffer.
+    ///     Disables auto-scroll.
+    /// </summary>
+    void ScrollViewportToTop();
+
+    /// <summary>
+    ///     Scrolls to the bottom of the scrollback buffer.
+    ///     Re-enables auto-scroll.
+    /// </summary>
+    void ScrollViewportToBottom();
+
+    /// <summary>
+    ///     Gets whether auto-scroll is currently enabled.
+    ///     Auto-scroll is disabled when user scrolls up and re-enabled when they return to bottom.
+    /// </summary>
+    bool IsAutoScrollEnabled { get; }
+
+    /// <summary>
+    ///     Gets the current viewport offset from the bottom.
+    ///     0 means viewing the most recent content, positive values mean scrolled up into history.
+    /// </summary>
+    int ViewportOffset { get; }
+
+    /// <summary>
     ///     Event raised when the screen content has been updated and needs refresh.
     /// </summary>
     event EventHandler<ScreenUpdatedEventArgs>? ScreenUpdated;

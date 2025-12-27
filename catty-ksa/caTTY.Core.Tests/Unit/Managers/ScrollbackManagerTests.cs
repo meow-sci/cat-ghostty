@@ -193,4 +193,153 @@ public class ScrollbackManagerTests
         }
         return new string(chars);
     }
+
+    [Test]
+    public void ScrollUp_FromBottom_DisablesAutoScroll()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.True);
+
+        // Act
+        _scrollbackManager.ScrollUp(1);
+
+        // Assert
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.False);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void ScrollDown_ToBottom_EnablesAutoScroll()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        _scrollbackManager.ScrollUp(2); // Scroll to top
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+
+        // Act
+        _scrollbackManager.ScrollDown(2); // Scroll back to bottom
+
+        // Assert
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.True);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ScrollToTop_DisablesAutoScroll()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 3"));
+
+        // Act
+        _scrollbackManager.ScrollToTop();
+
+        // Assert
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.False);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ScrollToBottom_EnablesAutoScroll()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        _scrollbackManager.ScrollToTop();
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+
+        // Act
+        _scrollbackManager.ScrollToBottom();
+
+        // Assert
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+        Assert.That(_scrollbackManager.IsAtBottom, Is.True);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void OnNewContentAdded_WithAutoScrollEnabled_KeepsViewportAtBottom()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+
+        // Act
+        _scrollbackManager.OnNewContentAdded();
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+    }
+
+    [Test]
+    public void OnNewContentAdded_WithAutoScrollDisabled_DoesNotChangeViewport()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+        _scrollbackManager.ScrollUp(1); // Disable auto-scroll
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(1));
+
+        // Act
+        _scrollbackManager.OnNewContentAdded();
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(1)); // Should not change
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+    }
+
+    [Test]
+    public void AddLine_WithAutoScrollEnabled_CallsOnNewContentAdded()
+    {
+        // Arrange
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+
+        // Act
+        _scrollbackManager.AddLine(CreateTestLine("New Line"));
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0));
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+    }
+
+    [Test]
+    public void ScrollUp_BeyondAvailableContent_ClampsToMaximum()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.AddLine(CreateTestLine("Line 2"));
+
+        // Act
+        _scrollbackManager.ScrollUp(10); // Try to scroll more than available
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(2)); // Clamped to current lines
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.False);
+    }
+
+    [Test]
+    public void ScrollDown_BeyondBottom_ClampsToZero()
+    {
+        // Arrange
+        _scrollbackManager.AddLine(CreateTestLine("Line 1"));
+        _scrollbackManager.ScrollUp(1);
+
+        // Act
+        _scrollbackManager.ScrollDown(10); // Try to scroll more than needed
+
+        // Assert
+        Assert.That(_scrollbackManager.ViewportOffset, Is.EqualTo(0)); // Clamped to bottom
+        Assert.That(_scrollbackManager.AutoScrollEnabled, Is.True);
+    }
 }
