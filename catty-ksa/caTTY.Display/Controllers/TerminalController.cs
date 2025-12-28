@@ -1062,6 +1062,13 @@ public class TerminalController : ITerminalController
             return;
         }
 
+        // Hide cursor when scrolled back in scrollback buffer (matches TypeScript behavior)
+        var scrollbackManager = _terminal.ScrollbackManager;
+        if (scrollbackManager != null && !scrollbackManager.IsAtBottom)
+        {
+            return; // Cursor should not be visible when viewing scrollback history
+        }
+
         ICursor cursor = _terminal.Cursor;
 
         // Ensure cursor position is within bounds
