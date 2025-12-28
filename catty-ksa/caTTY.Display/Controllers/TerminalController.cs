@@ -1171,7 +1171,7 @@ public class TerminalController : ITerminalController
       // Reset cursor renderer blink state
       _cursorRenderer.ResetBlinkState();
 
-      Console.WriteLine($"TerminalController: Cursor reset to theme defaults - Style: {defaultStyle}");
+      // Console.WriteLine($"TerminalController: Cursor reset to theme defaults - Style: {defaultStyle}");
     }
     catch (Exception ex)
     {
@@ -1195,7 +1195,7 @@ public class TerminalController : ITerminalController
 
     try
     {
-      Console.WriteLine($"TerminalController: Manual terminal resize requested: {cols}x{rows}");
+      // Console.WriteLine($"TerminalController: Manual terminal resize requested: {cols}x{rows}");
 
       // Resize the headless terminal emulator
       _terminal.Resize(cols, rows);
@@ -1207,7 +1207,7 @@ public class TerminalController : ITerminalController
         // Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
       }
 
-      Console.WriteLine($"TerminalController: Manual terminal resize completed successfully");
+      // Console.WriteLine($"TerminalController: Manual terminal resize completed successfully");
     }
     catch (Exception ex)
     {
