@@ -62,7 +62,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/app/src/ts/terminal/TerminalController.ts selection and copying logic to ensure C# ImGui implementation provides equivalent text extraction and selection behavior
   - _Requirements: 25.1, 25.2, 25.3, 25.4, 25.5_
 
-- [ ] 7.3 Enhance focus and window management
+- [x] 7.3 Enhance focus and window management
   - Improve focus state tracking
   - Add visual focus indicators
   - Handle window focus events properly

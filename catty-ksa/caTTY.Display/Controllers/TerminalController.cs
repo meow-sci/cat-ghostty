@@ -230,6 +230,23 @@ public class TerminalController : ITerminalController
     public bool HasFocus { get; private set; }
 
     /// <summary>
+    ///     Gets whether the terminal window was focused in the previous frame.
+    ///     Used for detecting focus state changes.
+    /// </summary>
+    private bool _wasFocusedLastFrame = false;
+
+    /// <summary>
+    ///     Gets whether input capture is currently active.
+    ///     When true, terminal should suppress game hotkeys bound to typing.
+    /// </summary>
+    public bool IsInputCaptureActive => HasFocus && IsVisible;
+
+    /// <summary>
+    ///     Event raised when the terminal focus state changes.
+    /// </summary>
+    public event EventHandler<FocusChangedEventArgs>? FocusChanged;
+
+    /// <summary>
     ///     Event raised when user input should be sent to the process.
     /// </summary>
     public event EventHandler<DataInputEventArgs>? DataInput;
@@ -255,8 +272,9 @@ public class TerminalController : ITerminalController
             // Create terminal window
             ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
 
-            // Track focus state
-            HasFocus = ImGui.IsWindowFocused();
+            // Track focus state and detect changes
+            bool currentFocus = ImGui.IsWindowFocused();
+            UpdateFocusState(currentFocus);
 
             // Handle window resize detection and terminal resizing
             HandleWindowResize();
@@ -279,6 +297,9 @@ public class TerminalController : ITerminalController
 
             // Render terminal content
             RenderTerminalContent();
+
+            // Render focus indicators
+            RenderFocusIndicators();
 
             // Handle input if focused
             if (HasFocus)
@@ -500,6 +521,174 @@ public class TerminalController : ITerminalController
             
             // Re-throw the exception wrapped in InvalidOperationException to provide more context
             throw new InvalidOperationException($"Failed to update scroll configuration: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    ///     Updates the focus state and handles focus change events.
+    ///     Provides visual focus indicators and manages input capture priority.
+    /// </summary>
+    /// <param name="currentFocus">The current focus state from ImGui</param>
+    private void UpdateFocusState(bool currentFocus)
+    {
+        bool focusChanged = currentFocus != _wasFocusedLastFrame;
+        
+        if (focusChanged)
+        {
+            // Log focus changes for debugging
+            Console.WriteLine($"TerminalController: Focus changed from {_wasFocusedLastFrame} to {currentFocus}");
+            
+            // Update focus state
+            HasFocus = currentFocus;
+            
+            // Handle focus gained
+            if (currentFocus && !_wasFocusedLastFrame)
+            {
+                OnFocusGained();
+            }
+            // Handle focus lost
+            else if (!currentFocus && _wasFocusedLastFrame)
+            {
+                OnFocusLost();
+            }
+            
+            // Raise focus changed event
+            FocusChanged?.Invoke(this, new FocusChangedEventArgs(currentFocus, _wasFocusedLastFrame));
+            
+            _wasFocusedLastFrame = currentFocus;
+        }
+        else
+        {
+            // Update focus state even if no change (for consistency)
+            HasFocus = currentFocus;
+        }
+    }
+
+    /// <summary>
+    ///     Handles focus gained event.
+    ///     Called when the terminal window gains focus.
+    /// </summary>
+    private void OnFocusGained()
+    {
+        try
+        {
+            // Make cursor immediately visible when gaining focus
+            _cursorRenderer.ForceVisible();
+            
+            // Clear any existing selection when gaining focus (matches TypeScript behavior)
+            // This prevents stale selections from interfering with new input
+            if (!_currentSelection.IsEmpty)
+            {
+                Console.WriteLine("TerminalController: Clearing selection on focus gained");
+                ClearSelection();
+            }
+            
+            // Reset cursor blink state to ensure it's visible
+            _cursorRenderer.ResetBlinkState();
+            
+            Console.WriteLine("TerminalController: Terminal gained focus - input capture active");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error handling focus gained: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Handles focus lost event.
+    ///     Called when the terminal window loses focus.
+    /// </summary>
+    private void OnFocusLost()
+    {
+        try
+        {
+            // Stop any ongoing selection when losing focus
+            if (_isSelecting)
+            {
+                Console.WriteLine("TerminalController: Stopping selection on focus lost");
+                _isSelecting = false;
+            }
+            
+            // Reset mouse wheel accumulator to prevent stuck scrolling
+            _wheelAccumulator = 0.0f;
+            
+            Console.WriteLine("TerminalController: Terminal lost focus - input capture inactive");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error handling focus lost: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Renders visual focus indicators for the terminal window.
+    ///     Provides clear visual feedback about focus state to match TypeScript implementation.
+    /// </summary>
+    private void RenderFocusIndicators()
+    {
+        try
+        {
+            // Get window draw list for custom drawing
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            
+            // Get window bounds for focus indicator
+            float2 windowMin = ImGui.GetWindowPos();
+            float2 windowMax = windowMin + ImGui.GetWindowSize();
+            
+            if (HasFocus)
+            {
+                // Draw subtle focus border (matches TypeScript visual feedback)
+                float4 focusColor = new float4(0.4f, 0.6f, 1.0f, 0.8f); // Light blue
+                uint focusColorU32 = ImGui.ColorConvertFloat4ToU32(focusColor);
+                
+                // Draw thin border around window content area
+                drawList.AddRect(windowMin, windowMax, focusColorU32, 0.0f, ImDrawFlags.None, 2.0f);
+            }
+            else
+            {
+                // Draw subtle unfocused border
+                float4 unfocusedColor = new float4(0.3f, 0.3f, 0.3f, 0.5f); // Dark gray
+                uint unfocusedColorU32 = ImGui.ColorConvertFloat4ToU32(unfocusedColor);
+                
+                // Draw thin border around window content area
+                drawList.AddRect(windowMin, windowMax, unfocusedColorU32, 0.0f, ImDrawFlags.None, 1.0f);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error rendering focus indicators: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Determines whether the terminal should capture input based on focus and visibility.
+    ///     When terminal is focused, it should suppress game hotkeys bound to typing.
+    ///     When terminal is unfocused/hidden, all input should pass through to game.
+    /// </summary>
+    /// <returns>True if terminal should capture input, false if input should pass to game</returns>
+    public bool ShouldCaptureInput()
+    {
+        // Terminal captures input only when both focused and visible
+        // This matches the TypeScript implementation's input priority management
+        return IsInputCaptureActive;
+    }
+
+    /// <summary>
+    ///     Forces the terminal to gain focus.
+    ///     This can be used by external systems to programmatically focus the terminal.
+    /// </summary>
+    public void ForceFocus()
+    {
+        try
+        {
+            // Set the window focus (ImGui will handle this on next frame)
+            // This may fail in unit test environments where ImGui is not initialized
+            ImGui.SetWindowFocus("Terminal");
+            Console.WriteLine("TerminalController: Focus forced programmatically");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Cannot force focus - ImGui not available: {ex.Message}");
         }
     }
 
@@ -1156,9 +1345,16 @@ public class TerminalController : ITerminalController
     /// <summary>
     ///     Handles keyboard input when the terminal has focus.
     ///     Enhanced to match TypeScript implementation with comprehensive key encoding.
+    ///     Integrates with game input system to manage input capture priority.
     /// </summary>
     private void HandleInput()
     {
+        // Verify focus state before processing input (defensive programming)
+        if (!HasFocus || !IsVisible)
+        {
+            return;
+        }
+
         ImGuiIOPtr io = ImGui.GetIO();
 
         // Note: Mouse input for selection is now handled in RenderTerminalContent()

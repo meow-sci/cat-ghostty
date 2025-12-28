@@ -20,6 +20,26 @@ public interface ITerminalController : IDisposable
     bool HasFocus { get; }
 
     /// <summary>
+    ///     Gets whether input capture is currently active.
+    ///     When true, terminal should suppress game hotkeys bound to typing.
+    /// </summary>
+    bool IsInputCaptureActive { get; }
+
+    /// <summary>
+    ///     Determines whether the terminal should capture input based on focus and visibility.
+    ///     When terminal is focused, it should suppress game hotkeys bound to typing.
+    ///     When terminal is unfocused/hidden, all input should pass through to game.
+    /// </summary>
+    /// <returns>True if terminal should capture input, false if input should pass to game</returns>
+    bool ShouldCaptureInput();
+
+    /// <summary>
+    ///     Forces the terminal to gain focus.
+    ///     This can be used by external systems to programmatically focus the terminal.
+    /// </summary>
+    void ForceFocus();
+
+    /// <summary>
     ///     Updates the controller state. Should be called each frame.
     /// </summary>
     /// <param name="deltaTime">Time elapsed since last update in seconds</param>
@@ -70,6 +90,11 @@ public interface ITerminalController : IDisposable
     ///     The string contains the encoded bytes/escape sequences to send.
     /// </summary>
     event EventHandler<DataInputEventArgs>? DataInput;
+
+    /// <summary>
+    ///     Event raised when the terminal focus state changes.
+    /// </summary>
+    event EventHandler<FocusChangedEventArgs>? FocusChanged;
 }
 
 /// <summary>
@@ -113,4 +138,41 @@ public class DataInputEventArgs : EventArgs
     ///     The input data as raw bytes.
     /// </summary>
     public byte[] Bytes { get; }
+}
+
+/// <summary>
+///     Event arguments for focus state changes in the terminal controller.
+/// </summary>
+public class FocusChangedEventArgs : EventArgs
+{
+    /// <summary>
+    ///     Creates new focus changed event arguments.
+    /// </summary>
+    /// <param name="hasFocus">Whether the terminal currently has focus</param>
+    /// <param name="previousFocus">Whether the terminal had focus in the previous state</param>
+    public FocusChangedEventArgs(bool hasFocus, bool previousFocus)
+    {
+        HasFocus = hasFocus;
+        PreviousFocus = previousFocus;
+    }
+
+    /// <summary>
+    ///     Whether the terminal currently has focus.
+    /// </summary>
+    public bool HasFocus { get; }
+
+    /// <summary>
+    ///     Whether the terminal had focus in the previous state.
+    /// </summary>
+    public bool PreviousFocus { get; }
+
+    /// <summary>
+    ///     Whether this represents a focus gained event.
+    /// </summary>
+    public bool FocusGained => HasFocus && !PreviousFocus;
+
+    /// <summary>
+    ///     Whether this represents a focus lost event.
+    /// </summary>
+    public bool FocusLost => !HasFocus && PreviousFocus;
 }
