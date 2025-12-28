@@ -32,18 +32,18 @@ This implementation plan breaks down the mouse input support feature into small,
   - **Property 1: Mouse Tracking Mode Event Reporting**
   - **Validates: Requirements R1.1, R1.2, R1.3**
 
-- [ ] 3. Coordinate Conversion System
+- [x] 3. Coordinate Conversion System
   - Implement CoordinateConverter class in caTTY.Display/Utils/
   - Add pixel-to-cell conversion with 1-based coordinate output
   - Implement boundary checking and coordinate clamping
   - Add metrics update methods for font/resize changes
   - _Requirements: R3.1, R3.2, R3.3, R3.4, R3.5_
 
-- [ ] 3.1 Write property test for coordinate conversion accuracy
+- [x] 3.1 Write property test for coordinate conversion accuracy
   - **Property 8: Coordinate Conversion Accuracy**
   - **Validates: Requirements R3.1, R3.2, R3.4**
 
-- [ ] 3.2 Write property test for boundary handling
+- [x] 3.2 Write property test for boundary handling
   - **Property 9: Coordinate Boundary Handling**
   - **Validates: Requirements R3.3, R3.5**
 
