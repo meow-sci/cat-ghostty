@@ -25,7 +25,8 @@ public static class TerminalRenderingExperiments
         "Performance Comparison",
         "Text Styling Experiments",
         "Mouse Input - Scrolling Test",
-        "Keyboard Focus - Line Discipline Test"
+        "Keyboard Focus - Line Discipline Test",
+        "Window Resize Detection Test"
     ];
 
     // Terminal simulation data
@@ -51,6 +52,12 @@ public static class TerminalRenderingExperiments
     // Performance tracking
     private static readonly List<float> _renderTimes = new();
     private static DateTime _lastFrameTime = DateTime.Now;
+
+    // Window resize tracking
+    private static float2 _lastWindowSize = new(0, 0);
+    private static float2 _currentWindowSize = new(0, 0);
+    private static readonly List<string> _resizeEvents = new();
+    private static DateTime _lastResizeTime = DateTime.MinValue;
 
     // Font metrics
     private static readonly float _fontSize = 32.0f;
@@ -215,6 +222,9 @@ public static class TerminalRenderingExperiments
                 break;
             case 7:
                 TerminalLineDisciplineExperiments.DrawExperiments();
+                break;
+            case 8:
+                DrawWindowResizeDetectionTest();
                 break;
         }
 
@@ -471,5 +481,131 @@ public static class TerminalRenderingExperiments
         MaybePopFont(fontUsed);
 
         ImGui.Dummy(new float2(TerminalWidth * smallCharWidth, TerminalHeight * smallLineHeight));
+    }
+
+    private static void DrawWindowResizeDetectionTest()
+    {
+        ImGui.Text("Window Resize Detection Test");
+        ImGui.Text("This experiment detects ImGui window resizing and reacts to it");
+        ImGui.Separator();
+
+        // Get current window size
+        _currentWindowSize = ImGui.GetWindowSize();
+        
+        // Check if window was resized
+        bool wasResized = false;
+        if (_lastWindowSize.X != 0 && _lastWindowSize.Y != 0) // Skip first frame
+        {
+            float deltaX = Math.Abs(_currentWindowSize.X - _lastWindowSize.X);
+            float deltaY = Math.Abs(_currentWindowSize.Y - _lastWindowSize.Y);
+            
+            // Consider it a resize if change is more than 1 pixel (to avoid floating point precision issues)
+            if (deltaX > 1.0f || deltaY > 1.0f)
+            {
+                wasResized = true;
+                _lastResizeTime = DateTime.Now;
+                
+                // Add resize event to history
+                string resizeEvent = $"[{_lastResizeTime:HH:mm:ss.fff}] Resize: {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} → {_currentWindowSize.X:F0}x{_currentWindowSize.Y:F0}";
+                _resizeEvents.Add(resizeEvent);
+                
+                // Keep only last 10 resize events
+                if (_resizeEvents.Count > 10)
+                {
+                    _resizeEvents.RemoveAt(0);
+                }
+            }
+        }
+
+        // Display current window information
+        ImGui.Text($"Current Window Size: {_currentWindowSize.X:F0} x {_currentWindowSize.Y:F0}");
+        ImGui.Text($"Previous Window Size: {_lastWindowSize.X:F0} x {_lastWindowSize.Y:F0}");
+        
+        // Show resize status
+        if (wasResized)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new float4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
+            ImGui.Text("WINDOW RESIZED!");
+            ImGui.PopStyleColor();
+        }
+        else
+        {
+            // Show time since last resize
+            if (_lastResizeTime != DateTime.MinValue)
+            {
+                var timeSinceResize = DateTime.Now - _lastResizeTime;
+                ImGui.Text($"Time since last resize: {timeSinceResize.TotalSeconds:F1}s");
+            }
+            else
+            {
+                ImGui.Text("No resize detected yet");
+            }
+        }
+
+        ImGui.Separator();
+
+        // Display resize history
+        ImGui.Text("Resize Event History:");
+        if (_resizeEvents.Count == 0)
+        {
+            ImGui.Text("  (No resize events yet)");
+        }
+        else
+        {
+            for (int i = _resizeEvents.Count - 1; i >= 0; i--) // Show most recent first
+            {
+                ImGui.Text($"  {_resizeEvents[i]}");
+            }
+        }
+
+        ImGui.Separator();
+
+        // Calculate terminal dimensions based on current window size
+        ImGui.Text("Terminal Dimension Calculations:");
+        
+        // Estimate available space for terminal (subtract some padding for UI elements)
+        float availableWidth = _currentWindowSize.X - 40; // Account for padding and scrollbars
+        float availableHeight = _currentWindowSize.Y - 200; // Account for header, separator, and other UI
+        
+        if (availableWidth > 0 && availableHeight > 0)
+        {
+            int terminalCols = (int)(availableWidth / _charWidth);
+            int terminalRows = (int)(availableHeight / _lineHeight);
+            
+            ImGui.Text($"Character Width: {_charWidth:F2}px");
+            ImGui.Text($"Line Height: {_lineHeight:F2}px");
+            ImGui.Text($"Available Space: {availableWidth:F0} x {availableHeight:F0}px");
+            ImGui.Text($"Calculated Terminal Size: {terminalCols} cols x {terminalRows} rows");
+            
+            // Show if this would be a valid terminal size
+            if (terminalCols >= 10 && terminalRows >= 3)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new float4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
+                ImGui.Text("✓ Valid terminal dimensions");
+                ImGui.PopStyleColor();
+            }
+            else
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new float4(1.0f, 0.0f, 0.0f, 1.0f)); // Red
+                ImGui.Text("✗ Window too small for terminal");
+                ImGui.PopStyleColor();
+            }
+        }
+        else
+        {
+            ImGui.Text("Window too small to calculate terminal dimensions");
+        }
+
+        ImGui.Separator();
+
+        // Instructions for testing
+        ImGui.Text("Testing Instructions:");
+        ImGui.Text("• Drag the window edges to resize");
+        ImGui.Text("• Drag the window corners to resize both dimensions");
+        ImGui.Text("• Watch the resize events appear in real-time");
+        ImGui.Text("• Observe how terminal dimensions would change");
+
+        // Update last window size for next frame
+        _lastWindowSize = _currentWindowSize;
     }
 }
