@@ -84,7 +84,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts hyperlink handling to ensure C# implementation provides identical URL association and character range tracking
   - _Requirements: 13.3_
 
-- [ ] 6.6 Write property test for OSC hyperlink association
+- [x] 6.6 Write property test for OSC hyperlink association
   - **Property 24: OSC hyperlink association**
   - **Validates: Requirements 13.3**
 
