@@ -119,7 +119,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/packages/terminal-emulation/src/terminal/stateful/charset.ts
   - _Requirements: 24.1, 24.2, 24.3, 24.4, 24.5_
 
-- [ ] 6.10 Test and validate advanced features
+- [x] 6.10 Test and validate advanced features
   - **USER VALIDATION REQUIRED**: Test OSC sequences and UTF-8 (including vim)
   - Verify window title changes work
   - Test UTF-8 and wide character display
