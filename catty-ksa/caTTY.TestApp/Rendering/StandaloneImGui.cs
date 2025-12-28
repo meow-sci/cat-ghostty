@@ -20,14 +20,15 @@ public static class StandaloneImGui
     private static Renderer? renderer;
     private static RenderPassState? rstate;
     private static Action? OnDrawUi;
+    private static DateTime _lastFrameTime = DateTime.Now;
 
     /// <summary>
     ///     Run the ImGui application loop with the specified UI drawing callback.
     /// </summary>
-    /// <param name="onDrawUi">Callback to draw the UI each frame</param>
-    public static void Run(Action onDrawUi)
+    /// <param name="onDrawUi">Callback to draw the UI each frame, receives delta time in seconds</param>
+    public static void Run(Action<float> onDrawUi)
     {
-        OnDrawUi = onDrawUi;
+        OnDrawUi = () => onDrawUi(GetDeltaTime());
         Init();
 
         Console.WriteLine("BRUTAL ImGui context initialized successfully");
@@ -40,6 +41,15 @@ public static class StandaloneImGui
         }
 
         Console.WriteLine("Application shutting down...");
+    }
+
+    /// <summary>
+    ///     Run the ImGui application loop with the specified UI drawing callback (legacy overload).
+    /// </summary>
+    /// <param name="onDrawUi">Callback to draw the UI each frame</param>
+    public static void Run(Action onDrawUi)
+    {
+        Run(_ => onDrawUi());
     }
 
     /// <summary>
@@ -164,5 +174,17 @@ public static class StandaloneImGui
         renderer!.Rebuild(VkPresentModeKHR.FifoKHR);
         renderer!.Device.WaitIdle();
         rstate!.Pass = renderer!.MainRenderPass;
+    }
+
+    /// <summary>
+    ///     Calculates delta time since last frame.
+    /// </summary>
+    /// <returns>Delta time in seconds</returns>
+    private static float GetDeltaTime()
+    {
+        DateTime currentTime = DateTime.Now;
+        float deltaTime = (float)(currentTime - _lastFrameTime).TotalSeconds;
+        _lastFrameTime = currentTime;
+        return deltaTime;
     }
 }

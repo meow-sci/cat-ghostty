@@ -777,21 +777,21 @@ public class TerminalEmulatorTests
 
         // Test different cursor styles
         terminal.Write("\x1b[2 q");    // Steady block
-        Assert.That(terminal.State.CursorStyle, Is.EqualTo(2));
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.SteadyBlock));
 
         terminal.Write("\x1b[4 q");    // Steady underline
-        Assert.That(terminal.State.CursorStyle, Is.EqualTo(4));
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.SteadyUnderline));
 
         terminal.Write("\x1b[6 q");    // Steady bar
-        Assert.That(terminal.State.CursorStyle, Is.EqualTo(6));
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.SteadyBar));
 
-        // Test invalid style (should default to 1)
+        // Test invalid style (should default to default style)
         terminal.Write("\x1b[10 q");   // Invalid style
-        Assert.That(terminal.State.CursorStyle, Is.EqualTo(1));
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.Default));
 
-        // Test style 0 (should map to 1)
-        terminal.Write("\x1b[0 q");    // Style 0 maps to 1
-        Assert.That(terminal.State.CursorStyle, Is.EqualTo(1));
+        // Test style 0 (should map to default, which is equivalent to blinking block)
+        terminal.Write("\x1b[0 q");    // Style 0 maps to default
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.Default));
 
         terminal.Dispose();
     }

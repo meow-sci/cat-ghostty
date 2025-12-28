@@ -119,8 +119,15 @@ public class TerminalTestApp : IDisposable
         Console.WriteLine("Try running colored commands like: ls --color, echo -e \"\\033[31mRed text\\033[0m\"");
         Console.WriteLine();
 
-        // Run the ImGui application loop
-        StandaloneImGui.Run(() => _controller.Render());
+        // Run the ImGui application loop with update and render
+        StandaloneImGui.Run((deltaTime) => 
+        {
+            // Update controller (handles cursor blinking)
+            _controller.Update(deltaTime);
+            
+            // Render the terminal
+            _controller.Render();
+        });
     }
 
     /// <summary>

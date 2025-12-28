@@ -149,7 +149,8 @@ public class CsiParser : ICsiParser
         // DECSCUSR: CSI Ps SP q
         if (final == "q" && intermediate == " ")
         {
-            int style = ValidateCursorStyle(GetParameter(parameters, 0, 0));
+            int styleParam = GetParameter(parameters, 0, 0);
+            CursorStyle validatedStyle = CursorStyleExtensions.ValidateStyle(styleParam);
             return new CsiMessage
             {
                 Type = "csi.setCursorStyle",
@@ -157,7 +158,7 @@ public class CsiParser : ICsiParser
                 Implemented = true,
                 FinalByte = finalByte,
                 Parameters = parameters,
-                CursorStyle = style
+                CursorStyle = validatedStyle.ToInt()
             };
         }
 
@@ -717,20 +718,5 @@ public class CsiParser : ICsiParser
 
         // DEC private modes can range from 1 to 65535 (16-bit unsigned integer range)
         return mode <= 65535;
-    }
-
-    /// <summary>
-    ///     Validates and normalizes cursor style parameter for DECSCUSR.
-    /// </summary>
-    private static int ValidateCursorStyle(int style)
-    {
-        // Validate style is a non-negative integer
-        if (style < 0)
-        {
-            return 0;
-        }
-
-        // Valid cursor styles are 0-6
-        return style > 6 ? 0 : style;
     }
 }

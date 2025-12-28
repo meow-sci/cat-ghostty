@@ -1,4 +1,5 @@
 using Brutal.Numerics;
+using caTTY.Core.Types;
 
 namespace caTTY.Display.Rendering;
 
@@ -63,6 +64,34 @@ public readonly struct TerminalColorPalette
 }
 
 /// <summary>
+/// Cursor configuration for terminal themes.
+/// </summary>
+public readonly struct CursorConfig
+{
+    /// <summary>
+    /// Default cursor style for the theme.
+    /// </summary>
+    public CursorStyle DefaultStyle { get; }
+
+    /// <summary>
+    /// Whether cursor should blink by default.
+    /// </summary>
+    public bool DefaultBlink { get; }
+
+    /// <summary>
+    /// Cursor blink interval in milliseconds.
+    /// </summary>
+    public int BlinkIntervalMs { get; }
+
+    public CursorConfig(CursorStyle defaultStyle, bool defaultBlink, int blinkIntervalMs = 500)
+    {
+        DefaultStyle = defaultStyle;
+        DefaultBlink = defaultBlink;
+        BlinkIntervalMs = blinkIntervalMs;
+    }
+}
+
+/// <summary>
 /// Complete terminal theme definition.
 /// </summary>
 public readonly struct TerminalTheme
@@ -70,12 +99,14 @@ public readonly struct TerminalTheme
     public string Name { get; }
     public ThemeType Type { get; }
     public TerminalColorPalette Colors { get; }
+    public CursorConfig Cursor { get; }
 
-    public TerminalTheme(string name, ThemeType type, TerminalColorPalette colors)
+    public TerminalTheme(string name, ThemeType type, TerminalColorPalette colors, CursorConfig cursor)
     {
         Name = name;
         Type = type;
         Colors = colors;
+        Cursor = cursor;
     }
 }
 
@@ -127,7 +158,8 @@ public static class ThemeManager
             background: new float4(0.0f, 0.0f, 0.0f, 1.0f),
             cursor: new float4(0.667f, 0.667f, 0.667f, 1.0f),
             selection: new float4(0.267f, 0.267f, 0.267f, 1.0f)
-        )
+        ),
+        new CursorConfig(CursorStyle.BlinkingBlock, true, 500)
     );
 
     /// <summary>
@@ -162,7 +194,8 @@ public static class ThemeManager
             background: new float4(1.0f, 1.0f, 1.0f, 1.0f),
             cursor: new float4(0.0f, 0.0f, 0.0f, 1.0f),
             selection: new float4(0.8f, 0.8f, 0.8f, 1.0f)
-        )
+        ),
+        new CursorConfig(CursorStyle.BlinkingBlock, true, 500)
     );
 
     /// <summary>
@@ -229,4 +262,19 @@ public static class ThemeManager
     /// Get the selection color from the current theme.
     /// </summary>
     public static float4 GetSelectionColor() => CurrentTheme.Colors.Selection;
+
+    /// <summary>
+    /// Get the default cursor style from the current theme.
+    /// </summary>
+    public static CursorStyle GetDefaultCursorStyle() => CurrentTheme.Cursor.DefaultStyle;
+
+    /// <summary>
+    /// Get the default cursor blink setting from the current theme.
+    /// </summary>
+    public static bool GetDefaultCursorBlink() => CurrentTheme.Cursor.DefaultBlink;
+
+    /// <summary>
+    /// Get the cursor blink interval from the current theme.
+    /// </summary>
+    public static int GetCursorBlinkInterval() => CurrentTheme.Cursor.BlinkIntervalMs;
 }

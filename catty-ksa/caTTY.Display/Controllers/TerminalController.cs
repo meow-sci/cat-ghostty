@@ -29,6 +29,9 @@ public class TerminalController : ITerminalController
     private readonly ITerminalEmulator _terminal;
     private bool _disposed;
 
+    // Cursor rendering
+    private readonly CursorRenderer _cursorRenderer = new();
+
     // Mouse wheel scrolling
     private float _wheelAccumulator = 0.0f;
 
@@ -155,6 +158,9 @@ public class TerminalController : ITerminalController
         // Subscribe to terminal events
         _terminal.ScreenUpdated += OnScreenUpdated;
         _terminal.ResponseEmitted += OnResponseEmitted;
+        
+        // Initialize cursor style to theme default
+        ResetCursorToThemeDefaults();
     }
 
     /// <summary>
@@ -283,13 +289,14 @@ public class TerminalController : ITerminalController
 
     /// <summary>
     ///     Updates the terminal controller state.
-    ///     This method can be used for time-based updates if needed.
+    ///     This method handles time-based updates like cursor blinking.
     /// </summary>
     /// <param name="deltaTime">Time elapsed since last update in seconds</param>
     public void Update(float deltaTime)
     {
-        // Currently no time-based updates needed
-        // This method is available for future enhancements like cursor blinking
+        // Update cursor blink state using theme configuration
+        int blinkInterval = ThemeManager.GetCursorBlinkInterval();
+        _cursorRenderer.UpdateBlinkState(blinkInterval);
     }
 
     /// <summary>
@@ -905,6 +912,31 @@ public class TerminalController : ITerminalController
     }
 
     /// <summary>
+    ///     Resets cursor style and blink state to theme defaults.
+    ///     Called during initialization and when theme changes.
+    /// </summary>
+    private void ResetCursorToThemeDefaults()
+    {
+        try
+        {
+            // Get theme defaults
+            CursorStyle defaultStyle = ThemeManager.GetDefaultCursorStyle();
+            
+            // Update terminal state using the new public API
+            _terminal.SetCursorStyle(defaultStyle);
+            
+            // Reset cursor renderer blink state
+            _cursorRenderer.ResetBlinkState();
+            
+            Console.WriteLine($"TerminalController: Cursor reset to theme defaults - Style: {defaultStyle}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error resetting cursor to theme defaults: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     ///     Manually triggers a terminal resize to the specified dimensions.
     ///     This method can be used for testing or external resize requests.
     /// </summary>
@@ -1053,22 +1085,11 @@ public class TerminalController : ITerminalController
     }
 
     /// <summary>
-    ///     Renders the terminal cursor.
+    ///     Renders the terminal cursor using the new cursor rendering system.
     /// </summary>
     private void RenderCursor(ImDrawListPtr drawList, float2 windowPos)
     {
-        if (!((TerminalEmulator)_terminal).State.CursorVisible)
-        {
-            return;
-        }
-
-        // Hide cursor when scrolled back in scrollback buffer (matches TypeScript behavior)
-        var scrollbackManager = _terminal.ScrollbackManager;
-        if (scrollbackManager != null && !scrollbackManager.IsAtBottom)
-        {
-            return; // Cursor should not be visible when viewing scrollback history
-        }
-
+        var terminalState = ((TerminalEmulator)_terminal).State;
         ICursor cursor = _terminal.Cursor;
 
         // Ensure cursor position is within bounds
@@ -1077,15 +1098,26 @@ public class TerminalController : ITerminalController
 
         float x = windowPos.X + (cursorCol * CurrentCharacterWidth);
         float y = windowPos.Y + (cursorRow * CurrentLineHeight);
-
-        // Use theme cursor color with transparency
-        float4 cursorColor = ThemeManager.GetCursorColor();
-        cursorColor.W = 0.8f; // Add transparency
-        
         var cursorPos = new float2(x, y);
-        var cursorRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
 
-        drawList.AddRectFilled(cursorPos, cursorRect, ImGui.ColorConvertFloat4ToU32(cursorColor));
+        // Get cursor color from theme
+        float4 cursorColor = ThemeManager.GetCursorColor();
+
+        // Check if terminal is at bottom (not scrolled back)
+        var scrollbackManager = _terminal.ScrollbackManager;
+        bool isAtBottom = scrollbackManager?.IsAtBottom ?? true;
+
+        // Render cursor using the new cursor rendering system
+        _cursorRenderer.RenderCursor(
+            drawList,
+            cursorPos,
+            CurrentCharacterWidth,
+            CurrentLineHeight,
+            terminalState.CursorStyle,
+            terminalState.CursorVisible,
+            cursorColor,
+            isAtBottom
+        );
     }
 
     /// <summary>
@@ -1107,6 +1139,9 @@ public class TerminalController : ITerminalController
 
             userProvidedInputThisFrame = true;
             _terminal.ScrollbackManager?.OnUserInput();
+            
+            // Make cursor immediately visible when user provides input
+            _cursorRenderer.ForceVisible();
         }
 
         // Handle mouse wheel input first
@@ -1631,5 +1666,14 @@ public class TerminalController : ITerminalController
                 Console.WriteLine($"Failed to send terminal response to process: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>
+    ///     Handles terminal reset events by resetting cursor to theme defaults.
+    ///     This method should be called when terminal reset sequences are processed.
+    /// </summary>
+    public void OnTerminalReset()
+    {
+        ResetCursorToThemeDefaults();
     }
 }

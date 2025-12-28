@@ -1,3 +1,5 @@
+using caTTY.Core.Types;
+
 namespace caTTY.Core.Types;
 
 /// <summary>
@@ -152,9 +154,9 @@ public class TerminalState
     public (int X, int Y)? SavedCursor { get; set; }
 
     /// <summary>
-    ///     Cursor style (1 = block, 2 = underline, etc.).
+    ///     Cursor style (DECSCUSR values 0-6).
     /// </summary>
-    public int CursorStyle { get; set; } = 1;
+    public CursorStyle CursorStyle { get; set; } = CursorStyle.BlinkingBlock;
 
     /// <summary>
     ///     Whether the cursor is visible.
@@ -437,7 +439,7 @@ public class TerminalState
         AlternateCursorY = 0;
         AlternateWrapPending = false;
         SavedCursor = null;
-        CursorStyle = 1;
+        CursorStyle = CursorStyle.BlinkingBlock;
         CursorVisible = true;
         WrapPending = false;
         ApplicationCursorKeys = false;

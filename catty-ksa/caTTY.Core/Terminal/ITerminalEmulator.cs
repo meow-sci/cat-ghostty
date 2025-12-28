@@ -152,4 +152,16 @@ public interface ITerminalEmulator : IDisposable
     /// </summary>
     /// <returns>True if bracketed paste mode is enabled, false otherwise</returns>
     bool IsBracketedPasteModeEnabled();
+
+    /// <summary>
+    ///     Sets the cursor style using DECSCUSR sequence parameters.
+    /// </summary>
+    /// <param name="style">Cursor style parameter from DECSCUSR sequence (0-6)</param>
+    void SetCursorStyle(int style);
+
+    /// <summary>
+    ///     Sets the cursor style using the CursorStyle enum.
+    /// </summary>
+    /// <param name="style">The cursor style to set</param>
+    void SetCursorStyle(CursorStyle style);
 }

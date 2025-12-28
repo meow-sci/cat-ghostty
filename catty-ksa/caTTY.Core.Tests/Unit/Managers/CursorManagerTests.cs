@@ -58,8 +58,8 @@ public class CursorManagerTests
     [Test]
     public void Style_GetSet_UpdatesCursorStyle()
     {
-        _manager.Style = 2;
-        Assert.That(_manager.Style, Is.EqualTo(2));
+        _manager.Style = CursorStyle.SteadyBlock;
+        Assert.That(_manager.Style, Is.EqualTo(CursorStyle.SteadyBlock));
     }
 
     [Test]

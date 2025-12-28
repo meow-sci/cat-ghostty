@@ -1,3 +1,5 @@
+using caTTY.Core.Types;
+
 namespace caTTY.Core.Managers;
 
 /// <summary>
@@ -21,9 +23,9 @@ public interface ICursorManager
     bool Visible { get; set; }
 
     /// <summary>
-    ///     Gets or sets the cursor style (1=block, 2=underline, etc.).
+    ///     Gets or sets the cursor style (DECSCUSR values 0-6).
     /// </summary>
-    int Style { get; set; }
+    CursorStyle Style { get; set; }
 
     /// <summary>
     ///     Gets whether wrap pending is active (next character will wrap to next line).

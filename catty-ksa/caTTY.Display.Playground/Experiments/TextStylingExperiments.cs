@@ -34,7 +34,7 @@ public static class TextStylingExperiments
     private static bool _blinkEnabled;
 
     // Cursor state
-    private static int _cursorType; // 0=block, 1=underline, 2=beam
+    private static int _cursorType; // 0=block, 1=underline, 2=bar, 3=block_hollow
     private static bool _cursorVisible = true;
     private static bool _cursorBlinking;
     private static DateTime _lastBlinkTime = DateTime.Now;
@@ -378,7 +378,7 @@ public static class TextStylingExperiments
 
         // Cursor controls
         ImGui.Text("Cursor Controls:");
-        string[] cursorTypes = new[] { "Block Cursor", "Underline Cursor", "Beam Cursor" };
+        string[] cursorTypes = new[] { "Block Cursor", "Underline Cursor", "Bar Cursor", "Block Hollow Cursor" };
         ImGui.Combo("Cursor Type", ref _cursorType, cursorTypes, cursorTypes.Length);
         ImGui.Checkbox("Cursor Visible", ref _cursorVisible);
         ImGui.Checkbox("Cursor Blinking", ref _cursorBlinking);
@@ -408,9 +408,9 @@ public static class TextStylingExperiments
 
         // Show all cursor types
         float cursorDemoY = ImGui.GetCursorScreenPos().Y;
-        string[] cursorNames = new[] { "Block", "Underline", "Beam" };
+        string[] cursorNames = new[] { "Block", "Underline", "Bar", "Block Hollow" };
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             var pos = new float2(windowPos.X, cursorDemoY + (i * _lineHeight));
             var textPos = new float2(pos.X + (_charWidth * 2), pos.Y);
@@ -423,13 +423,14 @@ public static class TextStylingExperiments
                 $"{cursorNames[i]} cursor");
         }
 
-        ImGui.Dummy(new float2(400, _lineHeight * 4));
+        ImGui.Dummy(new float2(400, _lineHeight * 5));
 
         ImGui.Separator();
         ImGui.Text("Cursor Implementation Notes:");
         ImGui.BulletText("Block: Filled rectangle covering entire character cell");
         ImGui.BulletText("Underline: Horizontal line at bottom of character cell");
-        ImGui.BulletText("Beam: Vertical line at left edge of character cell");
+        ImGui.BulletText("Bar: Vertical line at left edge of character cell");
+        ImGui.BulletText("Block Hollow: Outline rectangle of character cell");
         ImGui.BulletText("Blinking: Toggle visibility every 500ms when enabled");
         ImGui.BulletText("All cursors use ImGui DrawList for custom rendering");
     }
@@ -451,10 +452,15 @@ public static class TextStylingExperiments
                 drawList.AddLine(underlineStart, underlineEnd, cursorColor, 2.0f);
                 break;
 
-            case 2: // Beam cursor
-                var beamStart = new float2(pos.X, pos.Y);
-                var beamEnd = new float2(pos.X, pos.Y + _lineHeight);
-                drawList.AddLine(beamStart, beamEnd, cursorColor, 2.0f);
+            case 2: // Bar cursor
+                var barStart = new float2(pos.X, pos.Y);
+                var barEnd = new float2(pos.X, pos.Y + _lineHeight);
+                drawList.AddLine(barStart, barEnd, cursorColor, 2.0f);
+                break;
+
+            case 3: // Block hollow cursor
+                var hollowEnd = new float2(pos.X + _charWidth, pos.Y + _lineHeight);
+                drawList.AddRect(pos, hollowEnd, cursorColor, 0.0f, ImDrawFlags.None, 1.0f);
                 break;
         }
     }

@@ -1768,6 +1768,9 @@ public class TerminalEmulator : ITerminalEmulator
 
         // Update cursor to match reset state
         Cursor.SetPosition(State.CursorY, State.CursorX);
+        
+        // Reset cursor manager style to match state
+        _cursorManager.Style = State.CursorStyle;
     }
 
     /// <summary>
@@ -1899,17 +1902,30 @@ public class TerminalEmulator : ITerminalEmulator
     /// <summary>
     ///     Sets the cursor style (DECSCUSR).
     /// </summary>
-    /// <param name="style">Cursor style (1=block, 2=underline, 3=bar, etc.)</param>
-    internal void SetCursorStyle(int style)
+    /// <param name="style">Cursor style parameter from DECSCUSR sequence (0-6)</param>
+    public void SetCursorStyle(int style)
     {
-        // Validate and normalize cursor style
-        int normalizedStyle = ValidateCursorStyle(style);
+        // Validate and normalize cursor style using the new enum system
+        CursorStyle validatedStyle = CursorStyleExtensions.ValidateStyle(style);
         
         // Update cursor manager
-        _cursorManager.Style = normalizedStyle;
+        _cursorManager.Style = validatedStyle;
         
         // Update terminal state
-        State.CursorStyle = normalizedStyle;
+        State.CursorStyle = validatedStyle;
+    }
+
+    /// <summary>
+    ///     Sets the cursor style using the CursorStyle enum.
+    /// </summary>
+    /// <param name="style">The cursor style to set</param>
+    public void SetCursorStyle(CursorStyle style)
+    {
+        // Update cursor manager
+        _cursorManager.Style = style;
+        
+        // Update terminal state
+        State.CursorStyle = style;
     }
 
     /// <summary>
@@ -1966,26 +1982,4 @@ public class TerminalEmulator : ITerminalEmulator
         return State.BracketedPasteMode;
     }
 
-    /// <summary>
-    ///     Validates and normalizes cursor style parameter for DECSCUSR.
-    /// </summary>
-    /// <param name="style">Raw cursor style parameter</param>
-    /// <returns>Normalized cursor style (1-6)</returns>
-    private static int ValidateCursorStyle(int style)
-    {
-        // DECSCUSR cursor styles:
-        // 0 or 1 = blinking block
-        // 2 = steady block  
-        // 3 = blinking underline
-        // 4 = steady underline
-        // 5 = blinking bar
-        // 6 = steady bar
-        
-        if (style < 0 || style > 6)
-        {
-            return 1; // Default to blinking block
-        }
-        
-        return style == 0 ? 1 : style; // 0 maps to 1 (blinking block)
-    }
 }

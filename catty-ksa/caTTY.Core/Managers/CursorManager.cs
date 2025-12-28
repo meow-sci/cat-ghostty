@@ -52,9 +52,9 @@ public class CursorManager : ICursorManager
     }
 
     /// <summary>
-    ///     Gets or sets the cursor style (1=block, 2=underline, etc.).
+    ///     Gets or sets the cursor style (DECSCUSR values 0-6).
     /// </summary>
-    public int Style { get; set; } = 1;
+    public CursorStyle Style { get; set; } = CursorStyle.BlinkingBlock;
 
     /// <summary>
     ///     Gets whether wrap pending is active (next character will wrap to next line).
