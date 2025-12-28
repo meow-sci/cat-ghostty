@@ -88,7 +88,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 24: OSC hyperlink association**
   - **Validates: Requirements 13.3**
 
-- [ ] 6.7 Add unknown OSC sequence handling
+- [x] 6.7 Add unknown OSC sequence handling
   - Implement graceful handling of unknown OSC sequences
   - Log unknown sequences for debugging
   - Continue processing without errors
