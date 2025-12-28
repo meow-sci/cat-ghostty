@@ -1122,6 +1122,7 @@ public class TerminalController : ITerminalController
 
     /// <summary>
     ///     Handles keyboard input when the terminal has focus.
+    ///     Enhanced to match TypeScript implementation with comprehensive key encoding.
     /// </summary>
     private void HandleInput()
     {
@@ -1147,8 +1148,24 @@ public class TerminalController : ITerminalController
         // Handle mouse wheel input first
         HandleMouseWheelInput();
 
-        // Handle text input
-        if (io.InputQueueCharacters.Count > 0)
+        // Get current terminal state for input encoding
+        var terminalState = ((TerminalEmulator)_terminal).State;
+        bool applicationCursorKeys = terminalState.ApplicationCursorKeys;
+
+        // Create modifier state from ImGui
+        var modifiers = new KeyModifiers(
+            shift: io.KeyShift,
+            alt: io.KeyAlt,
+            ctrl: io.KeyCtrl,
+            meta: false // ImGui doesn't expose Meta key directly
+        );
+
+        // Handle special keys first (they take priority over text input)
+        bool specialKeyHandled = HandleSpecialKeys(modifiers, applicationCursorKeys, MarkUserInput);
+
+        // Only handle text input if no special key was processed
+        // This prevents double-sending when a key produces both a key event and text input
+        if (!specialKeyHandled && io.InputQueueCharacters.Count > 0)
         {
             for (int i = 0; i < io.InputQueueCharacters.Count; i++)
             {
@@ -1160,63 +1177,88 @@ public class TerminalController : ITerminalController
                 }
             }
         }
+    }
 
-        // Handle special keys
-        if (ImGui.IsKeyPressed(ImGuiKey.Enter))
+    /// <summary>
+    ///     Handles special key input using the keyboard input encoder.
+    ///     Provides comprehensive key handling matching TypeScript implementation.
+    /// </summary>
+    /// <returns>True if a special key was handled, false otherwise</returns>
+    private bool HandleSpecialKeys(KeyModifiers modifiers, bool applicationCursorKeys, Action markUserInput)
+    {
+        // Define key mappings from ImGuiKey to string
+        var keyMappings = new[]
         {
-            MarkUserInput();
-            SendToProcess("\r");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.Backspace))
+            // Basic keys
+            (ImGuiKey.Enter, "Enter"),
+            (ImGuiKey.Backspace, "Backspace"),
+            (ImGuiKey.Tab, "Tab"),
+            (ImGuiKey.Escape, "Escape"),
+            
+            // Arrow keys
+            (ImGuiKey.UpArrow, "ArrowUp"),
+            (ImGuiKey.DownArrow, "ArrowDown"),
+            (ImGuiKey.RightArrow, "ArrowRight"),
+            (ImGuiKey.LeftArrow, "ArrowLeft"),
+            
+            // Navigation keys
+            (ImGuiKey.Home, "Home"),
+            (ImGuiKey.End, "End"),
+            (ImGuiKey.Delete, "Delete"),
+            (ImGuiKey.Insert, "Insert"),
+            (ImGuiKey.PageUp, "PageUp"),
+            (ImGuiKey.PageDown, "PageDown"),
+            
+            // Function keys
+            (ImGuiKey.F1, "F1"),
+            (ImGuiKey.F2, "F2"),
+            (ImGuiKey.F3, "F3"),
+            (ImGuiKey.F4, "F4"),
+            (ImGuiKey.F5, "F5"),
+            (ImGuiKey.F6, "F6"),
+            (ImGuiKey.F7, "F7"),
+            (ImGuiKey.F8, "F8"),
+            (ImGuiKey.F9, "F9"),
+            (ImGuiKey.F10, "F10"),
+            (ImGuiKey.F11, "F11"),
+            (ImGuiKey.F12, "F12"),
+            
+            // Letter keys for Ctrl combinations
+            (ImGuiKey.A, "a"), (ImGuiKey.B, "b"), (ImGuiKey.C, "c"), (ImGuiKey.D, "d"),
+            (ImGuiKey.E, "e"), (ImGuiKey.F, "f"), (ImGuiKey.G, "g"), (ImGuiKey.H, "h"),
+            (ImGuiKey.I, "i"), (ImGuiKey.J, "j"), (ImGuiKey.K, "k"), (ImGuiKey.L, "l"),
+            (ImGuiKey.M, "m"), (ImGuiKey.N, "n"), (ImGuiKey.O, "o"), (ImGuiKey.P, "p"),
+            (ImGuiKey.Q, "q"), (ImGuiKey.R, "r"), (ImGuiKey.S, "s"), (ImGuiKey.T, "t"),
+            (ImGuiKey.U, "u"), (ImGuiKey.V, "v"), (ImGuiKey.W, "w"), (ImGuiKey.X, "x"),
+            (ImGuiKey.Y, "y"), (ImGuiKey.Z, "z")
+        };
+
+        // Process each key mapping
+        foreach (var (imguiKey, keyString) in keyMappings)
         {
-            MarkUserInput();
-            SendToProcess("\b");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.Tab))
-        {
-            MarkUserInput();
-            SendToProcess("\t");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.UpArrow))
-        {
-            MarkUserInput();
-            SendToProcess("\x1b[A");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.DownArrow))
-        {
-            MarkUserInput();
-            SendToProcess("\x1b[B");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.RightArrow))
-        {
-            MarkUserInput();
-            SendToProcess("\x1b[C");
-        }
-        else if (ImGui.IsKeyPressed(ImGuiKey.LeftArrow))
-        {
-            MarkUserInput();
-            SendToProcess("\x1b[D");
+            if (ImGui.IsKeyPressed(imguiKey))
+            {
+                // Use the keyboard input encoder to get the proper sequence
+                string? encoded = KeyboardInputEncoder.EncodeKeyEvent(keyString, modifiers, applicationCursorKeys);
+                
+                if (encoded != null)
+                {
+                    markUserInput();
+                    SendToProcess(encoded);
+                    return true; // Special key was handled
+                }
+            }
         }
 
-        // Handle Ctrl combinations
-        if (io.KeyCtrl)
+        // Handle keypad keys (minimal implementation as requested)
+        if (ImGui.IsKeyPressed(ImGuiKey.KeypadEnter))
         {
-            if (ImGui.IsKeyPressed(ImGuiKey.C))
-            {
-                MarkUserInput();
-                SendToProcess("\x03"); // Ctrl+C
-            }
-            else if (ImGui.IsKeyPressed(ImGuiKey.D))
-            {
-                MarkUserInput();
-                SendToProcess("\x04"); // Ctrl+D
-            }
-            else if (ImGui.IsKeyPressed(ImGuiKey.Z))
-            {
-                MarkUserInput();
-                SendToProcess("\x1a"); // Ctrl+Z
-            }
+            markUserInput();
+            SendToProcess("\r"); // Treat keypad Enter same as regular Enter for now
+            return true;
         }
+
+        return false; // No special key was handled
     }
 
     /// <summary>

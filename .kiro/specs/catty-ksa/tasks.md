@@ -30,7 +30,7 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 - [ ] 7. Add comprehensive input handling and selection
-- [ ] 7.1 Enhance keyboard input handling
+- [x] 7.1 Enhance keyboard input handling
   - Improve key-to-sequence conversion in ImGui controller
     - Define a single encoder entrypoint (key event → bytes)
     - Ensure text input and key events do not double-send
