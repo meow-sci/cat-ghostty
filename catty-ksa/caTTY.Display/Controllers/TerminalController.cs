@@ -797,8 +797,8 @@ public class TerminalController : ITerminalController
             }
             
             // Log the resize operation
-            Console.WriteLine($"TerminalController: Window resized from {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} to {currentWindowSize.X:F0}x{currentWindowSize.Y:F0}");
-            Console.WriteLine($"TerminalController: Resizing terminal from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
+            // Console.WriteLine($"TerminalController: Window resized from {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} to {currentWindowSize.X:F0}x{currentWindowSize.Y:F0}");
+            // Console.WriteLine($"TerminalController: Resizing terminal from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
             
             // Resize the headless terminal emulator (matches TypeScript StatefulTerminal behavior)
             _terminal.Resize(newCols, newRows);
@@ -809,7 +809,7 @@ public class TerminalController : ITerminalController
                 try
                 {
                     _processManager.Resize(newCols, newRows);
-                    Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
+                    // Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
                 }
                 catch (Exception ex)
                 {
@@ -822,7 +822,7 @@ public class TerminalController : ITerminalController
             _lastWindowSize = currentWindowSize;
             _lastResizeTime = now;
             
-            Console.WriteLine($"TerminalController: Terminal resize completed successfully");
+            // Console.WriteLine($"TerminalController: Terminal resize completed successfully");
         }
         catch (Exception ex)
         {
@@ -929,7 +929,7 @@ public class TerminalController : ITerminalController
             if (_processManager.IsRunning)
             {
                 _processManager.Resize(cols, rows);
-                Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
+                // Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
             }
             
             Console.WriteLine($"TerminalController: Manual terminal resize completed successfully");
