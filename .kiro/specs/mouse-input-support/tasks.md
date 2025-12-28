@@ -6,14 +6,14 @@ This implementation plan breaks down the mouse input support feature into small,
 
 ## Tasks
 
-- [ ] 1. Core Mouse Infrastructure Setup
+- [x] 1. Core Mouse Infrastructure Setup
   - Create basic mouse event types and enums in caTTY.Core/Types/
   - Implement MouseEvent, MouseEventType, MouseButton, KeyModifiers structures
   - Add MouseTrackingMode enum with Off, Click, Button, Any values
   - Create basic MouseTrackingConfig data structure
   - _Requirements: R1.1, R4.1, R9.1_
 
-- [ ] 1.1 Write property test for mouse event structure validation
+- [x] 1.1 Write property test for mouse event structure validation
   - **Property 1: Mouse Event Structure Integrity**
   - **Validates: Requirements R4.1, R4.2, R4.3**
 
