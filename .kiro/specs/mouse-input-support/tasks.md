@@ -66,14 +66,14 @@ This implementation plan breaks down the mouse input support feature into small,
   - **Property 6: Mouse Event Modifier Encoding**
   - **Validates: Requirements R2.4, R9.1, R9.2, R9.3, R9.4**
 
-- [ ] 5. Mouse State Management
+- [x] 5. Mouse State Management
   - Implement MouseStateManager class in caTTY.Core/Managers/
   - Add button state tracking and drag operation detection
   - Implement state consistency checking and recovery
   - Add position tracking for motion event optimization
   - _Requirements: R8.1, R8.3, R8.4, R8.5_
 
-- [ ] 5.1 Write property test for state consistency
+- [x] 5.1 Write property test for state consistency
   - **Property 16: Mouse State Consistency**
   - **Validates: Requirements R8.1, R8.3, R8.4, R8.5**
 
