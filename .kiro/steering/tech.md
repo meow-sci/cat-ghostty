@@ -39,6 +39,7 @@ inclusion: always
 ## BRUTAL ImGui
 **Fonts**: TTF in `Content/` folder, name = filename without .ttf, Push/Pop pattern with FontManager
 **Working Dir**: MUST run `dotnet run` from project folder (not solution root) for `./Content/` access
+**TestApp**: MUST run `dotnet run` from `caTTY.TestApp/` directory for correct Content/ path resolution
 **Preferred**: HackNerdFontMono-Regular, configurable sizing 8-72f, see `BRUTAL_IMGUI_NOTES.md`
 
 ## Windows ConPTY (CRITICAL)

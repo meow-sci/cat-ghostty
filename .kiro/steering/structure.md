@@ -42,5 +42,6 @@
 - **caTTY.Core**: Pure C# headless logic
 - **caTTY.Display**: ImGui integration with KSA DLLs
 - **Targets**: TestApp (dev), GameMod (prod)
+- **TestApp Usage**: Run `dotnet run` from `caTTY.TestApp/` directory for Content/ path resolution
 - **Dependencies**: TestApp/GameMod → Display → Core
 - **Reference**: See `KsaExampleMod/` for KSA integration patterns
