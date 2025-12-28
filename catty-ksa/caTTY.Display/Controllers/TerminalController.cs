@@ -910,7 +910,7 @@ public class TerminalController : ITerminalController
         if (ImGui.IsKeyPressed(ImGuiKey.Enter))
         {
             MarkUserInput();
-            SendToProcess("\r\n");
+            SendToProcess("\r");
         }
         else if (ImGui.IsKeyPressed(ImGuiKey.Backspace))
         {
