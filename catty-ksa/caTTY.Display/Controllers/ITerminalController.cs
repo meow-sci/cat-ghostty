@@ -31,6 +31,22 @@ public interface ITerminalController : IDisposable
     void Render();
 
     /// <summary>
+    ///     Gets the current terminal dimensions.
+    ///     Useful for debugging and integration testing.
+    /// </summary>
+    /// <returns>Current terminal dimensions (width, height)</returns>
+    (int width, int height) GetTerminalDimensions();
+
+    /// <summary>
+    ///     Manually triggers a terminal resize to the specified dimensions.
+    ///     This method can be used for testing or external resize requests.
+    /// </summary>
+    /// <param name="cols">New width in columns</param>
+    /// <param name="rows">New height in rows</param>
+    /// <exception cref="ArgumentException">Thrown when dimensions are invalid</exception>
+    void ResizeTerminal(int cols, int rows);
+
+    /// <summary>
     ///     Event raised when user input should be sent to the process.
     ///     The string contains the encoded bytes/escape sequences to send.
     /// </summary>

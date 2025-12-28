@@ -36,6 +36,12 @@ public class TerminalController : ITerminalController
     private float2 _lastTerminalOrigin;
     private float2 _lastTerminalSize;
 
+    // Window resize detection
+    private float2 _lastWindowSize = new(0, 0);
+    private bool _windowSizeInitialized = false;
+    private DateTime _lastResizeTime = DateTime.MinValue;
+    private const float RESIZE_DEBOUNCE_SECONDS = 0.1f; // Debounce rapid resize events
+
     // Font pointers for different styles
     private ImFontPtr _regularFont;
     private ImFontPtr _boldFont;
@@ -238,6 +244,9 @@ public class TerminalController : ITerminalController
 
             // Track focus state
             HasFocus = ImGui.IsWindowFocused();
+
+            // Handle window resize detection and terminal resizing
+            HandleWindowResize();
 
             // Display terminal info
             ImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
@@ -725,6 +734,210 @@ public class TerminalController : ITerminalController
         {
             // Ignore logging failures to prevent crashes
             Debug.WriteLine($"Failed to log font configuration: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Handles window resize detection and triggers terminal resizing when needed.
+    ///     Matches the TypeScript implementation's approach of detecting display size changes
+    ///     and updating both the headless terminal and the PTY process dimensions.
+    /// </summary>
+    private void HandleWindowResize()
+    {
+        try
+        {
+            // Get current window size (total window including title bar, borders, etc.)
+            float2 currentWindowSize = ImGui.GetWindowSize();
+            
+            // Initialize window size tracking on first frame
+            if (!_windowSizeInitialized)
+            {
+                _lastWindowSize = currentWindowSize;
+                _windowSizeInitialized = true;
+                return;
+            }
+            
+            // Check if window size has changed significantly (avoid floating point precision issues)
+            float deltaX = Math.Abs(currentWindowSize.X - _lastWindowSize.X);
+            float deltaY = Math.Abs(currentWindowSize.Y - _lastWindowSize.Y);
+            
+            if (deltaX <= 1.0f && deltaY <= 1.0f)
+            {
+                return; // No significant size change
+            }
+            
+            // Debounce rapid resize events to avoid excessive processing
+            DateTime now = DateTime.Now;
+            if ((now - _lastResizeTime).TotalSeconds < RESIZE_DEBOUNCE_SECONDS)
+            {
+                return;
+            }
+            
+            // Calculate new terminal dimensions based on available space
+            var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+            if (!newDimensions.HasValue)
+            {
+                return; // Invalid dimensions
+            }
+            
+            var (newCols, newRows) = newDimensions.Value;
+            
+            // Check if terminal dimensions would actually change
+            if (newCols == _terminal.Width && newRows == _terminal.Height)
+            {
+                _lastWindowSize = currentWindowSize;
+                return; // No terminal dimension change needed
+            }
+            
+            // Validate new dimensions are reasonable
+            if (newCols < 10 || newRows < 3 || newCols > 1000 || newRows > 1000)
+            {
+                Console.WriteLine($"TerminalController: Invalid terminal dimensions calculated: {newCols}x{newRows}, ignoring resize");
+                return;
+            }
+            
+            // Log the resize operation
+            Console.WriteLine($"TerminalController: Window resized from {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} to {currentWindowSize.X:F0}x{currentWindowSize.Y:F0}");
+            Console.WriteLine($"TerminalController: Resizing terminal from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
+            
+            // Resize the headless terminal emulator (matches TypeScript StatefulTerminal behavior)
+            _terminal.Resize(newCols, newRows);
+            
+            // Resize the PTY process (matches TypeScript BackendServer behavior)
+            if (_processManager.IsRunning)
+            {
+                try
+                {
+                    _processManager.Resize(newCols, newRows);
+                    Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"TerminalController: Failed to resize PTY process: {ex.Message}");
+                    // Continue anyway - terminal emulator resize succeeded
+                }
+            }
+            
+            // Update tracking variables
+            _lastWindowSize = currentWindowSize;
+            _lastResizeTime = now;
+            
+            Console.WriteLine($"TerminalController: Terminal resize completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error during window resize handling: {ex.Message}");
+            
+            #if DEBUG
+            Console.WriteLine($"TerminalController: Resize error stack trace: {ex.StackTrace}");
+            #endif
+        }
+    }
+
+    /// <summary>
+    ///     Calculates optimal terminal dimensions based on available window space.
+    ///     Uses character metrics to determine how many columns and rows can fit.
+    ///     Matches the approach used in the TypeScript implementation and playground experiments.
+    /// </summary>
+    /// <param name="availableSize">The available window content area size</param>
+    /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
+    private (int cols, int rows)? CalculateTerminalDimensions(float2 availableSize)
+    {
+        try
+        {
+            // Reserve space for UI elements (terminal info line, separator, padding)
+            const float UI_OVERHEAD_HEIGHT = 60.0f; // Approximate height of info line + separator + padding
+            const float PADDING_WIDTH = 20.0f; // Horizontal padding
+            
+            float availableWidth = availableSize.X - PADDING_WIDTH;
+            float availableHeight = availableSize.Y - UI_OVERHEAD_HEIGHT;
+            
+            // Ensure we have positive dimensions
+            if (availableWidth <= 0 || availableHeight <= 0)
+            {
+                return null;
+            }
+            
+            // Calculate dimensions using current character metrics
+            if (CurrentCharacterWidth <= 0 || CurrentLineHeight <= 0)
+            {
+                Console.WriteLine($"TerminalController: Invalid character metrics: width={CurrentCharacterWidth}, height={CurrentLineHeight}");
+                return null;
+            }
+            
+            int cols = (int)Math.Floor(availableWidth / CurrentCharacterWidth);
+            int rows = (int)Math.Floor(availableHeight / CurrentLineHeight);
+            
+            // Apply reasonable bounds (matching TypeScript validation)
+            cols = Math.Max(10, Math.Min(1000, cols));
+            rows = Math.Max(3, Math.Min(1000, rows));
+            
+            return (cols, rows);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error calculating terminal dimensions: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    ///     Gets the current terminal dimensions for external access.
+    ///     Useful for debugging and integration testing.
+    /// </summary>
+    /// <returns>Current terminal dimensions (width, height)</returns>
+    public (int width, int height) GetTerminalDimensions()
+    {
+        return (_terminal.Width, _terminal.Height);
+    }
+
+    /// <summary>
+    ///     Gets the current window size for debugging purposes.
+    /// </summary>
+    /// <returns>Current window content area size</returns>
+    public float2 GetCurrentWindowSize()
+    {
+        if (!_windowSizeInitialized)
+        {
+            return new float2(0, 0);
+        }
+        return _lastWindowSize;
+    }
+
+    /// <summary>
+    ///     Manually triggers a terminal resize to the specified dimensions.
+    ///     This method can be used for testing or external resize requests.
+    /// </summary>
+    /// <param name="cols">New width in columns</param>
+    /// <param name="rows">New height in rows</param>
+    /// <exception cref="ArgumentException">Thrown when dimensions are invalid</exception>
+    public void ResizeTerminal(int cols, int rows)
+    {
+        if (cols < 1 || rows < 1 || cols > 1000 || rows > 1000)
+        {
+            throw new ArgumentException($"Invalid terminal dimensions: {cols}x{rows}. Must be between 1x1 and 1000x1000.");
+        }
+
+        try
+        {
+            Console.WriteLine($"TerminalController: Manual terminal resize requested: {cols}x{rows}");
+            
+            // Resize the headless terminal emulator
+            _terminal.Resize(cols, rows);
+            
+            // Resize the PTY process if running
+            if (_processManager.IsRunning)
+            {
+                _processManager.Resize(cols, rows);
+                Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
+            }
+            
+            Console.WriteLine($"TerminalController: Manual terminal resize completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error during manual terminal resize: {ex.Message}");
+            throw new InvalidOperationException($"Failed to resize terminal to {cols}x{rows}: {ex.Message}", ex);
         }
     }
 

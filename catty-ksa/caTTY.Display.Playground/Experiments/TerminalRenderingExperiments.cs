@@ -26,7 +26,8 @@ public static class TerminalRenderingExperiments
         "Text Styling Experiments",
         "Mouse Input - Scrolling Test",
         "Keyboard Focus - Line Discipline Test",
-        "Window Resize Detection Test"
+        "Window Resize Detection Test",
+        "Terminal Resize Integration Test"
     ];
 
     // Terminal simulation data
@@ -225,6 +226,9 @@ public static class TerminalRenderingExperiments
                 break;
             case 8:
                 DrawWindowResizeDetectionTest();
+                break;
+            case 9:
+                DrawTerminalResizeIntegrationTest();
                 break;
         }
 
@@ -607,5 +611,130 @@ public static class TerminalRenderingExperiments
 
         // Update last window size for next frame
         _lastWindowSize = _currentWindowSize;
+    }
+
+    private static void DrawTerminalResizeIntegrationTest()
+    {
+        ImGui.Text("Terminal Resize Integration Test");
+        ImGui.Text("This experiment demonstrates the complete terminal resize flow");
+        ImGui.Separator();
+
+        // Get current window size
+        _currentWindowSize = ImGui.GetWindowSize();
+        
+        // Calculate what terminal dimensions would be with current window size
+        const float UI_OVERHEAD_HEIGHT = 200.0f; // More overhead for this demo
+        const float PADDING_WIDTH = 40.0f;
+        
+        float availableWidth = _currentWindowSize.X - PADDING_WIDTH;
+        float availableHeight = _currentWindowSize.Y - UI_OVERHEAD_HEIGHT;
+        
+        int calculatedCols = 0;
+        int calculatedRows = 0;
+        bool validDimensions = false;
+        
+        if (availableWidth > 0 && availableHeight > 0 && _charWidth > 0 && _lineHeight > 0)
+        {
+            calculatedCols = (int)Math.Floor(availableWidth / _charWidth);
+            calculatedRows = (int)Math.Floor(availableHeight / _lineHeight);
+            
+            // Apply bounds like the real controller
+            calculatedCols = Math.Max(10, Math.Min(1000, calculatedCols));
+            calculatedRows = Math.Max(3, Math.Min(1000, calculatedRows));
+            
+            validDimensions = calculatedCols >= 10 && calculatedRows >= 3;
+        }
+
+        // Display current state
+        ImGui.Text($"Current Window Size: {_currentWindowSize.X:F0} x {_currentWindowSize.Y:F0}");
+        ImGui.Text($"Available Space: {availableWidth:F0} x {availableHeight:F0}");
+        ImGui.Text($"Character Metrics: {_charWidth:F1} x {_lineHeight:F1}");
+        
+        ImGui.Separator();
+        
+        if (validDimensions)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new float4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
+            ImGui.Text($"✓ Calculated Terminal Size: {calculatedCols} cols x {calculatedRows} rows");
+            ImGui.PopStyleColor();
+        }
+        else
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, new float4(1.0f, 0.0f, 0.0f, 1.0f)); // Red
+            ImGui.Text("✗ Window too small for valid terminal dimensions");
+            ImGui.PopStyleColor();
+        }
+
+        ImGui.Separator();
+
+        // Show the resize flow explanation
+        ImGui.Text("Terminal Resize Flow (matches TypeScript implementation):");
+        ImGui.BulletText("1. ImGui window size change detected");
+        ImGui.BulletText("2. Calculate new terminal dimensions from available space");
+        ImGui.BulletText("3. Validate dimensions (10x3 minimum, 1000x1000 maximum)");
+        ImGui.BulletText("4. Call ITerminalEmulator.Resize(cols, rows) - headless logic");
+        ImGui.BulletText("5. Call IProcessManager.Resize(cols, rows) - PTY process");
+        ImGui.BulletText("6. Terminal content reflows to new dimensions");
+
+        ImGui.Separator();
+
+        // Show comparison with TypeScript
+        ImGui.Text("TypeScript Equivalent:");
+        ImGui.BulletText("TerminalController sends JSON: { type: 'resize', cols, rows }");
+        ImGui.BulletText("BackendServer calls pty.resize(cols, rows)");
+        ImGui.BulletText("StatefulTerminal handles dimension changes");
+
+        ImGui.Separator();
+
+        // Visual demonstration of terminal grid at calculated size
+        if (validDimensions)
+        {
+            ImGui.Text("Terminal Grid Preview:");
+            
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            float2 windowPos = ImGui.GetCursorScreenPos();
+            
+            // Draw a mini version of what the terminal would look like
+            float miniCharWidth = _charWidth * 0.3f;
+            float miniLineHeight = _lineHeight * 0.3f;
+            
+            // Draw grid outline
+            float gridWidth = calculatedCols * miniCharWidth;
+            float gridHeight = calculatedRows * miniLineHeight;
+            
+            uint gridColor = ImGui.ColorConvertFloat4ToU32(new float4(0.5f, 0.5f, 0.5f, 1.0f));
+            var gridRect = new float2(windowPos.X + gridWidth, windowPos.Y + gridHeight);
+            drawList.AddRect(windowPos, gridRect, gridColor);
+            
+            // Draw some sample grid lines
+            for (int col = 0; col <= Math.Min(calculatedCols, 20); col += 10)
+            {
+                float x = windowPos.X + (col * miniCharWidth);
+                var lineStart = new float2(x, windowPos.Y);
+                var lineEnd = new float2(x, windowPos.Y + gridHeight);
+                drawList.AddLine(lineStart, lineEnd, gridColor);
+            }
+            
+            for (int row = 0; row <= Math.Min(calculatedRows, 10); row += 5)
+            {
+                float y = windowPos.Y + (row * miniLineHeight);
+                var lineStart = new float2(windowPos.X, y);
+                var lineEnd = new float2(windowPos.X + gridWidth, y);
+                drawList.AddLine(lineStart, lineEnd, gridColor);
+            }
+            
+            // Add some sample text
+            drawList.AddText(new float2(windowPos.X + 2, windowPos.Y + 2), 
+                ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), 
+                $"{calculatedCols}x{calculatedRows}");
+            
+            ImGui.Dummy(new float2(gridWidth, gridHeight + 10));
+        }
+
+        ImGui.Separator();
+        ImGui.Text("Testing Instructions:");
+        ImGui.BulletText("Resize this window and watch the terminal dimensions update");
+        ImGui.BulletText("The grid preview shows what the terminal would look like");
+        ImGui.BulletText("Green text = valid dimensions, Red text = too small");
     }
 }
