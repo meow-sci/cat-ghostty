@@ -163,8 +163,6 @@ public class TerminalMod
             _processManager.ProcessExited += OnProcessExited;
             _processManager.ProcessError += OnProcessError;
 
-            _controller.DataInput += OnControllerDataInput;
-
             // Start a shell process
             // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
             
@@ -275,16 +273,6 @@ public class TerminalMod
     }
 
     /// <summary>
-    ///     Handles input from the terminal controller.
-    /// </summary>
-    private void OnControllerDataInput(object? sender, DataInputEventArgs e)
-    {
-        // The controller already sends data to the process manager,
-        // but we could add additional processing here if needed
-    }
-
-
-    /// <summary>
     ///     Gets a loaded font by name, or null if not found.
     /// </summary>
     public static ImFontPtr? GetFont(string fontName)
@@ -313,11 +301,6 @@ public class TerminalMod
                 _processManager.DataReceived -= OnProcessDataReceived;
                 _processManager.ProcessExited -= OnProcessExited;
                 _processManager.ProcessError -= OnProcessError;
-            }
-
-            if (_controller != null)
-            {
-                _controller.DataInput -= OnControllerDataInput;
             }
 
             // Dispose components in reverse order of creation

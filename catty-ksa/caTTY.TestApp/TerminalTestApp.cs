@@ -1,6 +1,7 @@
 using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
+using caTTY.Display.Types;
 using caTTY.TestApp.Rendering;
 
 namespace caTTY.TestApp;

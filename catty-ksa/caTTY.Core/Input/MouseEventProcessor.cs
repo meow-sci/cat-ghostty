@@ -65,7 +65,9 @@ public class MouseEventProcessor
             UpdateMouseState(mouseEvent);
 
             // Determine if this event should be handled locally or sent to application
-            if (ShouldHandleLocally(mouseEvent))
+            bool shouldHandleLocally = ShouldHandleLocally(mouseEvent);
+            
+            if (shouldHandleLocally)
             {
                 // Route to local handlers (selection, scrolling)
                 OnLocalMouseEvent(new MouseEventArgs(mouseEvent));
@@ -97,16 +99,21 @@ public class MouseEventProcessor
     {
         try
         {
+            var currentMode = _trackingManager.CurrentMode;
+            var selectionPriority = _trackingManager.Configuration.SelectionPriority;
+            var hasShift = mouseEvent.Modifiers.HasFlag(MouseKeyModifiers.Shift);
+            var hasButtonPressed = _stateManager.HasButtonPressed;
+            
             // R6.1: When shift key is held, handle selection locally instead of reporting to application
-            if (_trackingManager.Configuration.SelectionPriority && 
-                mouseEvent.Modifiers.HasFlag(MouseKeyModifiers.Shift))
+            if (selectionPriority && hasShift)
             {
                 return true;
             }
 
             // R1.4: When mouse tracking is disabled, handle all events locally
-            if (_trackingManager.CurrentMode == MouseTrackingMode.Off)
+            if (currentMode == MouseTrackingMode.Off)
             {
+                // Only log this once when tracking is first disabled to avoid spam
                 return true;
             }
 
@@ -114,7 +121,6 @@ public class MouseEventProcessor
             // (This is the same as the above check, but kept separate for clarity)
 
             // Check if the tracking mode supports this event type
-            var hasButtonPressed = _stateManager.HasButtonPressed;
             if (!_trackingManager.ShouldReportEvent(mouseEvent.Type, hasButtonPressed))
             {
                 return true;

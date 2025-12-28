@@ -88,18 +88,18 @@ This implementation plan breaks down the mouse input support feature into small,
   - **Property 3: Mouse Event Local Handling**
   - **Validates: Requirements R1.4, R6.1, R6.2**
 
-- [ ] 7. ImGui Mouse Input Detection
+- [x] 7. ImGui Mouse Input Detection
   - Implement MouseInputHandler class in caTTY.Display/Input/
   - Add ImGui mouse event detection (press, release, move, wheel)
   - Implement mouse capture for drag operations
   - Add focus-based event filtering
   - _Requirements: R4.1, R4.2, R4.3, R4.4, R4.5, R7.1, R7.3, R8.2_
 
-- [ ] 7.1 Write property test for button detection
+- [x] 7.1 Write property test for button detection
   - **Property 10: Mouse Button Detection**
   - **Validates: Requirements R4.1, R4.2, R4.3**
 
-- [ ] 7.2 Write property test for mouse capture
+- [x] 7.2 Write property test for mouse capture
   - **Property 17: Mouse Capture During Drag**
   - **Validates: Requirements R8.2, R8.3**
 
