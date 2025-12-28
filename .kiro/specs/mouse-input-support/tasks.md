@@ -77,14 +77,14 @@ This implementation plan breaks down the mouse input support feature into small,
   - **Property 16: Mouse State Consistency**
   - **Validates: Requirements R8.1, R8.3, R8.4, R8.5**
 
-- [ ] 6. Mouse Event Processing Core
+- [x] 6. Mouse Event Processing Core
   - Implement MouseEventProcessor class in caTTY.Core/Input/
   - Add event routing logic between application and local handlers
   - Implement shift-key bypass for selection priority
   - Create event validation and error handling
   - _Requirements: R1.4, R6.1, R6.2, R11.3_
 
-- [ ] 6.1 Write property test for event routing
+- [x] 6.1 Write property test for event routing
   - **Property 3: Mouse Event Local Handling**
   - **Validates: Requirements R1.4, R6.1, R6.2**
 
