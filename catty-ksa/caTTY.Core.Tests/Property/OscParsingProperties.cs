@@ -683,4 +683,97 @@ public class OscParsingProperties
             }
         });
     }
+
+    /// <summary>
+    ///     Generator for unknown OSC command numbers (not in the implemented set).
+    /// </summary>
+    public static Arbitrary<int> UnknownOscCommandArb =>
+        Arb.From(Gen.OneOf(
+            Gen.Choose(100, 999),       // High command numbers
+            Gen.Choose(13, 49),         // Mid-range unused commands
+            Gen.Choose(3, 7),           // Low unused commands
+            Gen.Choose(9, 9),           // Command 9 (not implemented)
+            Gen.Choose(12, 20),         // Commands 12-20 (mostly unused)
+            Gen.Choose(22, 51)          // Commands 22-51 (mostly unused)
+        ).Where(cmd => !IsImplementedOscCommand(cmd)));
+
+    /// <summary>
+    ///     Checks if an OSC command is implemented in the terminal.
+    /// </summary>
+    private static bool IsImplementedOscCommand(int command)
+    {
+        return command switch
+        {
+            0 or 1 or 2 => true,       // Title/icon commands
+            8 => true,                 // Hyperlink
+            10 or 11 => true,          // Color queries
+            21 => true,                // Window title query
+            52 => true,                // Clipboard
+            _ => false
+        };
+    }
+
+    /// <summary>
+    ///     **Feature: catty-ksa, Property 25: Unknown OSC sequence handling**
+    ///     **Validates: Requirements 13.5**
+    ///     Property: For any unknown OSC sequence, the terminal should ignore it without
+    ///     error and continue processing normally without affecting terminal state.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property UnknownOscSequenceHandlingIsGraceful()
+    {
+        return Prop.ForAll(UnknownOscCommandArb, SafeTextArb, OscTerminatorArb, 
+            (unknownCommand, payload, terminator) =>
+        {
+            // Handle null values
+            payload = payload ?? "";
+            terminator = terminator ?? "BEL";
+            
+            // Skip very long payloads to avoid timeout issues
+            if (payload.Length > 100) return true;
+
+            try
+            {
+                // Arrange - Create terminal and capture initial state
+                var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+                string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
+                
+                // Capture initial state
+                int initialWidth = terminal.Width;
+                int initialHeight = terminal.Height;
+                int initialCursorRow = terminal.Cursor.Row;
+                int initialCursorCol = terminal.Cursor.Col;
+                
+                // Track events to ensure unknown OSC doesn't emit any
+                bool anyEventFired = false;
+                terminal.TitleChanged += (s, e) => anyEventFired = true;
+                terminal.IconNameChanged += (s, e) => anyEventFired = true;
+                terminal.ClipboardRequest += (s, e) => anyEventFired = true;
+                terminal.Bell += (s, e) => anyEventFired = true;
+
+                // Act - Send unknown OSC sequence
+                string unknownOscSequence = $"\x1b]{unknownCommand};{payload}{terminatorBytes}";
+                terminal.Write(unknownOscSequence);
+
+                // Assert - Terminal should remain functional and unchanged
+                bool terminalStillFunctional = terminal.Width == initialWidth && 
+                                               terminal.Height == initialHeight;
+                bool cursorUnchanged = terminal.Cursor.Row == initialCursorRow && 
+                                       terminal.Cursor.Col == initialCursorCol;
+                bool noEventsEmitted = !anyEventFired;
+
+                // Test that terminal can still process normal text after unknown OSC
+                terminal.Write("test");
+                var testCell = terminal.ScreenBuffer.GetCell(initialCursorRow, initialCursorCol);
+                bool canStillWriteText = testCell.Character == 't';
+
+                return terminalStillFunctional && cursorUnchanged && noEventsEmitted && canStillWriteText;
+            }
+            catch (Exception)
+            {
+                // Unknown OSC sequences should never cause exceptions
+                return false;
+            }
+        });
+    }
 }

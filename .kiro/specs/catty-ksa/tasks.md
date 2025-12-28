@@ -95,7 +95,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts unknown sequence handling to ensure C# implementation provides identical graceful handling behavior
   - _Requirements: 13.5_
 
-- [ ] 6.8 Write property test for unknown OSC sequence handling
+- [x] 6.8 Write property test for unknown OSC sequence handling
   - **Property 25: Unknown OSC sequence handling**
   - **Validates: Requirements 13.5**
 
