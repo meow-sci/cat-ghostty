@@ -27,6 +27,7 @@ public class Program
         Console.WriteLine("- Text Styling Experiments (NEW - Task 1.6)");
         Console.WriteLine("- Mouse Input: Scrolling Test");
         Console.WriteLine("- Window Resize Detection Test (NEW)");
+        Console.WriteLine("- Text Selection Experiments (NEW - Addresses selection issue)");
         Console.WriteLine();
 
         TerminalRenderingExperiments.Run();

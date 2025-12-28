@@ -1,4 +1,5 @@
 using System.Text;
+using caTTY.Display.Types;
 
 namespace caTTY.Display.Controllers;
 
@@ -45,6 +46,24 @@ public interface ITerminalController : IDisposable
     /// <param name="rows">New height in rows</param>
     /// <exception cref="ArgumentException">Thrown when dimensions are invalid</exception>
     void ResizeTerminal(int cols, int rows);
+
+    /// <summary>
+    ///     Gets the current text selection.
+    /// </summary>
+    /// <returns>The current selection</returns>
+    TextSelection GetCurrentSelection();
+
+    /// <summary>
+    ///     Sets the current text selection.
+    /// </summary>
+    /// <param name="selection">The selection to set</param>
+    void SetSelection(TextSelection selection);
+
+    /// <summary>
+    ///     Copies the current selection to the clipboard.
+    /// </summary>
+    /// <returns>True if text was copied successfully, false otherwise</returns>
+    bool CopySelectionToClipboard();
 
     /// <summary>
     ///     Event raised when user input should be sent to the process.

@@ -7,6 +7,8 @@ using caTTY.Core.Types;
 using caTTY.Core.Utils;
 using caTTY.Display.Configuration;
 using caTTY.Display.Rendering;
+using caTTY.Display.Types;
+using caTTY.Display.Utils;
 using KSA;
 using float2 = Brutal.Numerics.float2;
 using float4 = Brutal.Numerics.float4;
@@ -34,6 +36,11 @@ public class TerminalController : ITerminalController
 
     // Mouse wheel scrolling
     private float _wheelAccumulator = 0.0f;
+
+    // Selection state
+    private TextSelection _currentSelection = TextSelection.None;
+    private bool _isSelecting = false;
+    private SelectionPosition _selectionStartPosition;
 
     // Cached terminal rect for mouse position -> cell coordinate conversion
     private float2 _lastTerminalOrigin;
@@ -989,11 +996,20 @@ public class TerminalController : ITerminalController
         _lastTerminalOrigin = windowPos;
         _lastTerminalSize = new float2(terminalWidth, terminalHeight);
 
+        // CRITICAL: Create an invisible button that captures mouse input and prevents window dragging
+        // This is the key to preventing ImGui window dragging when selecting text
+        ImGui.InvisibleButton("terminal_content", new float2(terminalWidth, terminalHeight));
+        bool terminalHovered = ImGui.IsItemHovered();
+        bool terminalActive = ImGui.IsItemActive();
+
+        // Get the draw position after the invisible button
+        float2 terminalDrawPos = windowPos;
+
         // Draw terminal background using theme
         float4 terminalBg = ThemeManager.GetDefaultBackground();
         uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
-        var terminalRect = new float2(windowPos.X + terminalWidth, windowPos.Y + terminalHeight);
-        drawList.AddRectFilled(windowPos, terminalRect, bgColor);
+        var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
+        drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
 
         // Get viewport content from ScrollbackManager instead of directly from screen buffer
         var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
@@ -1022,15 +1038,18 @@ public class TerminalController : ITerminalController
             for (int col = 0; col < Math.Min(rowSpan.Length, _terminal.Width); col++)
             {
                 Cell cell = rowSpan[col];
-                RenderCell(drawList, windowPos, row, col, cell);
+                RenderCell(drawList, terminalDrawPos, row, col, cell);
             }
         }
 
         // Render cursor
-        RenderCursor(drawList, windowPos);
+        RenderCursor(drawList, terminalDrawPos);
 
-        // Reserve space for the terminal
-        ImGui.Dummy(new float2(terminalWidth, terminalHeight));
+        // Handle mouse input only when the invisible button is hovered/active
+        if (terminalHovered || terminalActive)
+        {
+            HandleMouseInputForTerminal();
+        }
     }
 
     /// <summary>
@@ -1042,12 +1061,26 @@ public class TerminalController : ITerminalController
         float y = windowPos.Y + (row * CurrentLineHeight);
         var pos = new float2(x, y);
 
+        // Check if this cell is selected
+        bool isSelected = !_currentSelection.IsEmpty && _currentSelection.Contains(row, col);
+
         // Resolve colors using the new color resolution system
         float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
         float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
 
         // Apply SGR attributes to colors
         var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
+
+        // Apply selection highlighting
+        if (isSelected)
+        {
+            // Use selection colors - invert foreground and background for selected text
+            var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
+            var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
+            
+            bgColor = selectionBg;
+            fgColor = selectionFg;
+        }
 
         // Always draw background
         var bgRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
@@ -1070,14 +1103,14 @@ public class TerminalController : ITerminalController
                 ImGui.PopFont();
             }
 
-            // Draw underline if needed
-            if (StyleManager.ShouldRenderUnderline(cell.Attributes))
+            // Draw underline if needed (but not for selected text to avoid visual clutter)
+            if (!isSelected && StyleManager.ShouldRenderUnderline(cell.Attributes))
             {
                 RenderUnderline(drawList, pos, cell.Attributes, fgColor);
             }
 
-            // Draw strikethrough if needed
-            if (StyleManager.ShouldRenderStrikethrough(cell.Attributes))
+            // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
+            if (!isSelected && StyleManager.ShouldRenderStrikethrough(cell.Attributes))
             {
                 RenderStrikethrough(drawList, pos, fgColor);
             }
@@ -1128,6 +1161,9 @@ public class TerminalController : ITerminalController
     {
         ImGuiIOPtr io = ImGui.GetIO();
 
+        // Note: Mouse input for selection is now handled in RenderTerminalContent()
+        // via the invisible button approach to prevent window dragging
+
         // Any user input (typing/keypresses that generate terminal input) should snap to the latest output.
         // This is intentionally independent from new-content behavior.
         bool userProvidedInputThisFrame = false;
@@ -1176,6 +1212,161 @@ public class TerminalController : ITerminalController
                     SendToProcess(ch.ToString());
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Handles mouse input for selection and copying.
+    /// Integrates with ImGui mouse state to provide text selection functionality.
+    /// </summary>
+    private void HandleMouseInput()
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+
+        // CRITICAL: Check if mouse is over the terminal content area first
+        // This prevents window dragging when clicking in the terminal area
+        var mousePos = ImGui.GetMousePos();
+        bool mouseOverTerminal = IsMouseOverTerminal(mousePos);
+
+        if (!mouseOverTerminal)
+        {
+            return; // Don't handle mouse input if not over terminal content
+        }
+
+        // Handle mouse button press
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            // Check if Ctrl+C is being pressed for copy operation
+            if (io.KeyCtrl && !_currentSelection.IsEmpty)
+            {
+                CopySelectionToClipboard();
+                return;
+            }
+
+            // Start new selection
+            HandleSelectionMouseDown();
+        }
+
+        // Handle mouse drag for selection
+        if (ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+        {
+            HandleSelectionMouseMove();
+        }
+
+        // Handle mouse button release
+        if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        {
+            HandleSelectionMouseUp();
+        }
+
+        // Handle right-click for copy (alternative to Ctrl+C)
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Right) && !_currentSelection.IsEmpty)
+        {
+            CopySelectionToClipboard();
+        }
+
+        // Handle keyboard shortcuts for selection
+        if (io.KeyCtrl)
+        {
+            // Ctrl+A: Select all visible content
+            if (ImGui.IsKeyPressed(ImGuiKey.A))
+            {
+                SelectAllVisibleContent();
+            }
+            // Ctrl+C: Copy selection (handled above in mouse click, but also handle as pure keyboard shortcut)
+            else if (ImGui.IsKeyPressed(ImGuiKey.C) && !_currentSelection.IsEmpty)
+            {
+                CopySelectionToClipboard();
+            }
+        }
+
+        // Clear selection on Escape
+        if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+        {
+            ClearSelection();
+        }
+    }
+
+    /// <summary>
+    /// Selects all visible content in the terminal viewport.
+    /// </summary>
+    private void SelectAllVisibleContent()
+    {
+        if (_terminal.Height == 0 || _terminal.Width == 0)
+        {
+            return;
+        }
+
+        // Select from top-left to bottom-right of the visible area
+        var startPos = new SelectionPosition(0, 0);
+        var endPos = new SelectionPosition(_terminal.Height - 1, _terminal.Width - 1);
+        
+        _currentSelection = new TextSelection(startPos, endPos);
+        _isSelecting = false;
+
+        Console.WriteLine("TerminalController: Selected all visible content");
+    }
+
+    /// <summary>
+    /// Handles mouse input only when the invisible button is hovered/active.
+    /// This method contains the actual mouse input logic for text selection.
+    /// This approach prevents ImGui window dragging when selecting text in the terminal.
+    /// </summary>
+    private void HandleMouseInputForTerminal()
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+
+        // Handle mouse button press
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            // Check if Ctrl+C is being pressed for copy operation
+            if (io.KeyCtrl && !_currentSelection.IsEmpty)
+            {
+                CopySelectionToClipboard();
+                return;
+            }
+
+            // Start new selection
+            HandleSelectionMouseDown();
+        }
+
+        // Handle mouse drag for selection
+        if (ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+        {
+            HandleSelectionMouseMove();
+        }
+
+        // Handle mouse button release
+        if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        {
+            HandleSelectionMouseUp();
+        }
+
+        // Handle right-click for copy (alternative to Ctrl+C)
+        if (ImGui.IsMouseClicked(ImGuiMouseButton.Right) && !_currentSelection.IsEmpty)
+        {
+            CopySelectionToClipboard();
+        }
+
+        // Handle keyboard shortcuts for selection
+        if (io.KeyCtrl)
+        {
+            // Ctrl+A: Select all visible content
+            if (ImGui.IsKeyPressed(ImGuiKey.A))
+            {
+                SelectAllVisibleContent();
+            }
+            // Ctrl+C: Copy selection (handled above in mouse click, but also handle as pure keyboard shortcut)
+            else if (ImGui.IsKeyPressed(ImGuiKey.C) && !_currentSelection.IsEmpty)
+            {
+                CopySelectionToClipboard();
+            }
+        }
+
+        // Clear selection on Escape
+        if (ImGui.IsKeyPressed(ImGuiKey.Escape))
+        {
+            ClearSelection();
         }
     }
 
@@ -1515,6 +1706,197 @@ public class TerminalController : ITerminalController
         row0 = Math.Max(0, Math.Min(_terminal.Height - 1, row0));
 
         return (col0 + 1, row0 + 1);
+    }
+
+    /// <summary>
+    /// Converts mouse coordinates to terminal cell coordinates (0-based).
+    /// </summary>
+    /// <returns>The cell coordinates, or null if the mouse is outside the terminal area</returns>
+    private SelectionPosition? GetMouseCellCoordinates()
+    {
+        var mouse = ImGui.GetMousePos();
+
+        float relX = mouse.X - _lastTerminalOrigin.X;
+        float relY = mouse.Y - _lastTerminalOrigin.Y;
+
+        // Check if mouse is within terminal bounds
+        if (relX < 0 || relY < 0 || relX >= _lastTerminalSize.X || relY >= _lastTerminalSize.Y)
+        {
+            return null;
+        }
+
+        int col = (int)Math.Floor(relX / Math.Max(1e-6f, CurrentCharacterWidth));
+        int row = (int)Math.Floor(relY / Math.Max(1e-6f, CurrentLineHeight));
+
+        col = Math.Max(0, Math.Min(_terminal.Width - 1, col));
+        row = Math.Max(0, Math.Min(_terminal.Height - 1, row));
+
+        return new SelectionPosition(row, col);
+    }
+
+    /// <summary>
+    /// Checks if the mouse is currently over the terminal content area.
+    /// This is used to prevent window dragging when selecting text in the terminal.
+    /// </summary>
+    /// <param name="mousePos">The current mouse position in screen coordinates</param>
+    /// <returns>True if the mouse is over the terminal content area, false otherwise</returns>
+    private bool IsMouseOverTerminal(float2 mousePos)
+    {
+        float relX = mousePos.X - _lastTerminalOrigin.X;
+        float relY = mousePos.Y - _lastTerminalOrigin.Y;
+
+        // Check if mouse is within terminal bounds
+        return relX >= 0 && relY >= 0 && relX < _lastTerminalSize.X && relY < _lastTerminalSize.Y;
+    }
+
+    /// <summary>
+    /// Handles mouse button press for selection.
+    /// </summary>
+    private void HandleSelectionMouseDown()
+    {
+        var mousePos = GetMouseCellCoordinates();
+        if (!mousePos.HasValue)
+        {
+            return;
+        }
+
+        // Start new selection
+        _selectionStartPosition = mousePos.Value;
+        _currentSelection = TextSelection.Empty(mousePos.Value.Row, mousePos.Value.Col);
+        _isSelecting = true;
+    }
+
+    /// <summary>
+    /// Handles mouse movement for selection.
+    /// </summary>
+    private void HandleSelectionMouseMove()
+    {
+        if (!_isSelecting)
+        {
+            return;
+        }
+
+        var mousePos = GetMouseCellCoordinates();
+        if (!mousePos.HasValue)
+        {
+            return;
+        }
+
+        // Update selection to extend from start position to current mouse position
+        _currentSelection = new TextSelection(_selectionStartPosition, mousePos.Value);
+    }
+
+    /// <summary>
+    /// Handles mouse button release for selection.
+    /// </summary>
+    private void HandleSelectionMouseUp()
+    {
+        if (!_isSelecting)
+        {
+            return;
+        }
+
+        var mousePos = GetMouseCellCoordinates();
+        if (mousePos.HasValue)
+        {
+            // Finalize selection
+            _currentSelection = new TextSelection(_selectionStartPosition, mousePos.Value);
+        }
+
+        _isSelecting = false;
+    }
+
+    /// <summary>
+    /// Clears the current selection.
+    /// </summary>
+    private void ClearSelection()
+    {
+        _currentSelection = TextSelection.None;
+        _isSelecting = false;
+    }
+
+    /// <summary>
+    /// Copies the current selection to the clipboard.
+    /// </summary>
+    /// <returns>True if text was copied successfully, false otherwise</returns>
+    public bool CopySelectionToClipboard()
+    {
+        if (_currentSelection.IsEmpty)
+        {
+            return false;
+        }
+
+        try
+        {
+            // Get viewport content from ScrollbackManager
+            var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
+            for (int i = 0; i < _terminal.Height; i++)
+            {
+                var rowSpan = _terminal.ScreenBuffer.GetRow(i);
+                var rowArray = new Cell[rowSpan.Length];
+                rowSpan.CopyTo(rowArray);
+                screenBuffer[i] = rowArray.AsMemory();
+            }
+
+            var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
+            var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
+                screenBuffer, 
+                isAlternateScreenActive,
+                _terminal.Height
+            );
+
+            // Extract text from selection
+            string selectedText = TextExtractor.ExtractText(
+                _currentSelection,
+                viewportRows,
+                _terminal.Width,
+                normalizeLineEndings: true,
+                trimTrailingSpaces: true
+            );
+
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                return false;
+            }
+
+            // Copy to clipboard
+            bool success = ClipboardManager.SetText(selectedText);
+            
+            if (success)
+            {
+                Console.WriteLine($"TerminalController: Copied {selectedText.Length} characters to clipboard");
+            }
+            else
+            {
+                Console.WriteLine("TerminalController: Failed to copy selection to clipboard");
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TerminalController: Error copying selection to clipboard: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current text selection.
+    /// </summary>
+    /// <returns>The current selection</returns>
+    public TextSelection GetCurrentSelection()
+    {
+        return _currentSelection;
+    }
+
+    /// <summary>
+    /// Sets the current text selection.
+    /// </summary>
+    /// <param name="selection">The selection to set</param>
+    public void SetSelection(TextSelection selection)
+    {
+        _currentSelection = selection;
+        _isSelecting = false;
     }
 
     private static string EncodeAltScreenWheelAsKeys(bool directionUp, int lines, int rows, bool applicationCursorKeys)

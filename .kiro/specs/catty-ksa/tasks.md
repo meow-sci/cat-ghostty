@@ -50,7 +50,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - TypeScript reference: catty-web/app/src/ts/terminal/TerminalController.ts
   - _Requirements: 16.2, 16.3, 16.4, 16.5_
 
-- [ ] 7.2 Add selection and copying support
+- [x] 7.2 Add selection and copying support
   - Implement mouse selection in ImGui context
     - Map mouse coords to (row, col) in the terminal grid
   - Add visual selection highlighting

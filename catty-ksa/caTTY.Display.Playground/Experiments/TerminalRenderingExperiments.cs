@@ -27,7 +27,8 @@ public static class TerminalRenderingExperiments
         "Mouse Input - Scrolling Test",
         "Keyboard Focus - Line Discipline Test",
         "Window Resize Detection Test",
-        "Terminal Resize Integration Test"
+        "Terminal Resize Integration Test",
+        "Text Selection Experiments"
     ];
 
     // Terminal simulation data
@@ -229,6 +230,9 @@ public static class TerminalRenderingExperiments
                 break;
             case 9:
                 DrawTerminalResizeIntegrationTest();
+                break;
+            case 10:
+                TextSelectionExperiments.DrawExperiments();
                 break;
         }
 

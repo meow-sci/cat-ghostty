@@ -19,6 +19,11 @@
         <Folder Include="Rendering\"/>
     </ItemGroup>
 
+    <!-- Project references -->
+    <ItemGroup>
+        <ProjectReference Include="../caTTY.Display/caTTY.Display.csproj" />
+    </ItemGroup>
+
     <!-- SDK-style project auto-includes source files under the project directory; no explicit Compile needed -->
 
     <ItemGroup>
