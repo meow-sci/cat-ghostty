@@ -99,7 +99,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 25: Unknown OSC sequence handling**
   - **Validates: Requirements 13.5**
 
-- [ ] 6.9 Add character set support
+- [x] 6.9 Add character set support
   - Implement character set state model
     - Track G0/G1/G2/G3 designations
     - Track active GL/GR mappings (at least GL via SI/SO)

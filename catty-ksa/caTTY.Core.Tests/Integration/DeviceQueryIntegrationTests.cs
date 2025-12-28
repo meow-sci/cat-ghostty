@@ -88,7 +88,7 @@ public class DeviceQueryIntegrationTests
         Assert.That(_responses[2], Is.EqualTo("\x1b[0n")); // DSR
         Assert.That(_responses[3], Is.EqualTo("\x1b[1;1R")); // CPR (at origin)
         Assert.That(_responses[4], Is.EqualTo("\x1b[8;24;80t")); // Terminal size
-        Assert.That(_responses[5], Is.EqualTo("\x1b[?26;0n")); // Character set
+        Assert.That(_responses[5], Is.EqualTo("\x1b[?26;utf-8\x1b\\")); // Character set (UTF-8 by default)
     }
 
     [Test]

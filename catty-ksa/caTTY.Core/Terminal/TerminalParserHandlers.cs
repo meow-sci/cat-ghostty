@@ -52,28 +52,34 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleShiftIn()
     {
-        // TODO: Implement character set switching (task 6.9)
-        _logger.LogDebug("Shift In (SI) - character set switching not yet implemented");
+        _terminal.HandleShiftIn();
     }
 
     public void HandleShiftOut()
     {
-        // TODO: Implement character set switching (task 6.9)
-        _logger.LogDebug("Shift Out (SO) - character set switching not yet implemented");
+        _terminal.HandleShiftOut();
     }
 
     public void HandleNormalByte(int codePoint)
     {
-        // Convert Unicode code point to character and write to terminal
+        // Convert Unicode code point to character and apply character set translation
         if (codePoint <= 0xFFFF)
         {
             // Basic Multilingual Plane - single char
             char character = (char)codePoint;
-            _terminal.WriteCharacterAtCursor(character);
+            string translatedChar = _terminal.TranslateCharacter(character);
+            
+            // Write each character in the translated string
+            foreach (char c in translatedChar)
+            {
+                _terminal.WriteCharacterAtCursor(c);
+            }
         }
         else
         {
             // Supplementary planes - surrogate pair
+            // For supplementary planes, we don't apply character set translation
+            // as they are already Unicode and not subject to legacy character set mapping
             string characters = char.ConvertFromUtf32(codePoint);
             foreach (char c in characters)
             {
@@ -273,7 +279,7 @@ internal class TerminalParserHandlers : IParserHandlers
 
             case "csi.characterSetQuery":
                 // Character set query: respond with current character set
-                string charsetResponse = DeviceResponses.GenerateCharacterSetQueryResponse();
+                string charsetResponse = _terminal.GenerateCharacterSetQueryResponse();
                 _terminal.EmitResponse(charsetResponse);
                 break;
 

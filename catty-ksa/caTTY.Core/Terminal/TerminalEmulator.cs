@@ -22,6 +22,7 @@ public class TerminalEmulator : ITerminalEmulator
     private readonly IScrollbackManager _scrollbackManager;
     private readonly IScrollbackBuffer _scrollbackBuffer;
     private readonly IAlternateScreenManager _alternateScreenManager;
+    private readonly ICharacterSetManager _characterSetManager;
     private bool _disposed;
 
     /// <summary>
@@ -77,6 +78,7 @@ public class TerminalEmulator : ITerminalEmulator
         _cursorManager = new CursorManager(Cursor);
         _modeManager = new ModeManager();
         _attributeManager = new AttributeManager();
+        _characterSetManager = new CharacterSetManager(State);
         _alternateScreenManager = new AlternateScreenManager(State, _cursorManager, (DualScreenBuffer)ScreenBuffer);
 
         // Set up scrollback integration
@@ -1025,6 +1027,7 @@ public class TerminalEmulator : ITerminalEmulator
 
             case 2027: // UTF-8 Mode
                 State.Utf8Mode = enabled;
+                _characterSetManager.SetUtf8Mode(enabled);
                 break;
 
             default:
@@ -1775,21 +1778,54 @@ public class TerminalEmulator : ITerminalEmulator
     /// <param name="charset">The character set identifier</param>
     internal void DesignateCharacterSet(string slot, string charset)
     {
-        switch (slot)
+        CharacterSetKey slotKey = slot switch
         {
-            case "G0":
-                State.CharacterSets.G0 = charset;
-                break;
-            case "G1":
-                State.CharacterSets.G1 = charset;
-                break;
-            case "G2":
-                State.CharacterSets.G2 = charset;
-                break;
-            case "G3":
-                State.CharacterSets.G3 = charset;
-                break;
-        }
+            "G0" => CharacterSetKey.G0,
+            "G1" => CharacterSetKey.G1,
+            "G2" => CharacterSetKey.G2,
+            "G3" => CharacterSetKey.G3,
+            _ => CharacterSetKey.G0
+        };
+
+        _characterSetManager.DesignateCharacterSet(slotKey, charset);
+    }
+
+    /// <summary>
+    ///     Handles shift-in (SI) control character.
+    ///     Switches active character set to G0.
+    /// </summary>
+    internal void HandleShiftIn()
+    {
+        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G0);
+    }
+
+    /// <summary>
+    ///     Handles shift-out (SO) control character.
+    ///     Switches active character set to G1.
+    /// </summary>
+    internal void HandleShiftOut()
+    {
+        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G1);
+    }
+
+    /// <summary>
+    ///     Translates a character according to the current character set.
+    ///     Handles DEC Special Graphics and other character set mappings.
+    /// </summary>
+    /// <param name="ch">The character to translate</param>
+    /// <returns>The translated character string</returns>
+    internal string TranslateCharacter(char ch)
+    {
+        return _characterSetManager.TranslateCharacter(ch);
+    }
+
+    /// <summary>
+    ///     Generates a character set query response.
+    /// </summary>
+    /// <returns>The character set query response string</returns>
+    internal string GenerateCharacterSetQueryResponse()
+    {
+        return _characterSetManager.GenerateCharacterSetQueryResponse();
     }
 
     /// <summary>

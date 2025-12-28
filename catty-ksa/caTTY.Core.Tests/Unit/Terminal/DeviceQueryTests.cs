@@ -132,9 +132,9 @@ public class DeviceQueryTests
         // Act: Send character set query (CSI ? 26 n)
         _terminal.Write("\x1b[?26n");
 
-        // Assert: Should respond with current character set
+        // Assert: Should respond with current character set (UTF-8 by default)
         Assert.That(_responses, Has.Count.EqualTo(1));
-        Assert.That(_responses[0], Is.EqualTo("\x1b[?26;0n")); // Default ASCII charset
+        Assert.That(_responses[0], Is.EqualTo("\x1b[?26;utf-8\x1b\\")); // UTF-8 mode enabled by default
     }
 
     [Test]
