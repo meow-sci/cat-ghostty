@@ -17,18 +17,18 @@ This implementation plan breaks down the mouse input support feature into small,
   - **Property 1: Mouse Event Structure Integrity**
   - **Validates: Requirements R4.1, R4.2, R4.3**
 
-- [ ] 2. Mouse Tracking Mode Management
+- [x] 2. Mouse Tracking Mode Management
   - Implement MouseTrackingManager class in caTTY.Core/Managers/
   - Add mode setting, SGR encoding toggle, and event filtering logic
   - Create ShouldReportEvent method for mode-based event filtering
   - Integrate with existing terminal mode management system
   - _Requirements: R1.1, R1.2, R1.3, R1.5, R2.1, R2.2_
 
-- [ ] 2.1 Write property test for tracking mode resolution
+- [x] 2.1 Write property test for tracking mode resolution
   - **Property 2: Mouse Tracking Mode Resolution**
   - **Validates: Requirements R1.5**
 
-- [ ] 2.2 Write property test for event filtering by mode
+- [x] 2.2 Write property test for event filtering by mode
   - **Property 1: Mouse Tracking Mode Event Reporting**
   - **Validates: Requirements R1.1, R1.2, R1.3**
 
