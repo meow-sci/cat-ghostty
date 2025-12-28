@@ -11,6 +11,11 @@ public enum ShellType
     Auto,
 
     /// <summary>
+    ///     Windows Subsystem for Linux (wsl.exe) - Default for Windows.
+    /// </summary>
+    Wsl,
+
+    /// <summary>
     ///     Windows PowerShell (powershell.exe).
     /// </summary>
     PowerShell,
@@ -96,8 +101,8 @@ public class ProcessLaunchOptions
         // Set platform-specific defaults
         if (OperatingSystem.IsWindows())
         {
-            options.ShellType = ShellType.PowerShell;
-            options.Arguments.AddRange(["-NoLogo", "-NoProfile"]);
+            // Default to WSL2 for better terminal compatibility
+            options.ShellType = ShellType.Wsl;
             options.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
         else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
@@ -151,6 +156,33 @@ public class ProcessLaunchOptions
         ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.Cmd;
         options.Arguments.Clear();
+        return options;
+    }
+
+    /// <summary>
+    ///     Creates launch options for Windows Subsystem for Linux (WSL2).
+    /// </summary>
+    /// <param name="distribution">Optional WSL distribution name (e.g., "Ubuntu", "Debian"). If null, uses default distribution.</param>
+    /// <param name="workingDirectory">Optional working directory within WSL. If null, uses user home directory.</param>
+    /// <returns>WSL launch options</returns>
+    public static ProcessLaunchOptions CreateWsl(string? distribution = null, string? workingDirectory = null)
+    {
+        ProcessLaunchOptions options = CreateDefault();
+        options.ShellType = ShellType.Wsl;
+        options.Arguments.Clear();
+        
+        // Add distribution argument if specified
+        if (!string.IsNullOrEmpty(distribution))
+        {
+            options.Arguments.AddRange(["--distribution", distribution]);
+        }
+        
+        // Add working directory argument if specified
+        if (!string.IsNullOrEmpty(workingDirectory))
+        {
+            options.Arguments.AddRange(["--cd", workingDirectory]);
+        }
+        
         return options;
     }
 

@@ -166,7 +166,31 @@ public class TerminalMod
             _controller.DataInput += OnControllerDataInput;
 
             // Start a shell process
-            var options = ProcessLaunchOptions.CreateDefault();
+            // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
+            
+            // Option 1: Use default (WSL2 on Windows)
+            var options = ShellConfiguration.Default();
+            
+            // Option 2: Simple WSL2 configurations
+            // var options = ShellConfiguration.Wsl();                    // Default WSL distribution
+            // var options = ShellConfiguration.Wsl("Ubuntu");           // Specific distribution
+            // var options = ShellConfiguration.Wsl("Ubuntu", "/home/username"); // With working directory
+            
+            // Option 3: Windows shells
+            // var options = ShellConfiguration.PowerShell();            // Windows PowerShell
+            // var options = ShellConfiguration.PowerShellCore();        // PowerShell Core (pwsh)
+            // var options = ShellConfiguration.Cmd();                   // Command Prompt
+            
+            // Option 4: Common pre-configured shells
+            // var options = ShellConfiguration.Common.Ubuntu;           // Ubuntu WSL2
+            // var options = ShellConfiguration.Common.Debian;           // Debian WSL2
+            // var options = ShellConfiguration.Common.GitBash;          // Git Bash
+            // var options = ShellConfiguration.Common.Msys2Bash;        // MSYS2 Bash
+            
+            // Option 5: Custom shell
+            // var options = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
+
+            // Set terminal dimensions
             options.InitialWidth = _terminal.Width;
             options.InitialHeight = _terminal.Height;
 

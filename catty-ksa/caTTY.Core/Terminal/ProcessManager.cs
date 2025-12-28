@@ -520,6 +520,7 @@ public class ProcessManager : IProcessManager
         (string shellPath, var argsArray) = options.ShellType switch
         {
             ShellType.Auto => ResolveAutoShell(options),
+            ShellType.Wsl => ResolveWsl(options),
             ShellType.PowerShell => ResolvePowerShell(options),
             ShellType.PowerShellCore => ResolvePowerShellCore(options),
             ShellType.Cmd => ResolveCmd(options),
@@ -538,14 +539,21 @@ public class ProcessManager : IProcessManager
     {
         if (OperatingSystem.IsWindows())
         {
-            // Try PowerShell first, then cmd
+            // Try WSL first (new default), then PowerShell, then cmd
             try
             {
-                return ResolvePowerShell(options);
+                return ResolveWsl(options);
             }
             catch
             {
-                return ResolveCmd(options);
+                try
+                {
+                    return ResolvePowerShell(options);
+                }
+                catch
+                {
+                    return ResolveCmd(options);
+                }
             }
         }
 
@@ -568,6 +576,39 @@ public class ProcessManager : IProcessManager
         }
 
         throw new ProcessStartException("No suitable shell found on this system");
+    }
+
+    /// <summary>
+    ///     Resolves Windows Subsystem for Linux (wsl.exe).
+    /// </summary>
+    private static (string shellPath, string[] arguments) ResolveWsl(ProcessLaunchOptions options)
+    {
+        string? shellPath = FindExecutableInPath("wsl.exe") ?? FindExecutableInPath("wsl");
+
+        if (shellPath == null)
+        {
+            // Try common WSL installation paths
+            string[] wslPaths = [
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wsl.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "wsl.exe")
+            ];
+
+            foreach (string path in wslPaths)
+            {
+                if (File.Exists(path))
+                {
+                    shellPath = path;
+                    break;
+                }
+            }
+        }
+
+        if (shellPath == null || !File.Exists(shellPath))
+        {
+            throw new ProcessStartException("WSL (Windows Subsystem for Linux) not found. Please install WSL2 from the Microsoft Store or enable the Windows feature.", shellPath);
+        }
+
+        return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
     }
 
     /// <summary>

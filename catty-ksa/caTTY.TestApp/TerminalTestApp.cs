@@ -57,13 +57,34 @@ public class TerminalTestApp : IDisposable
         Console.WriteLine();
 
         // Start a shell process
-        var launchOptions = new ProcessLaunchOptions
-        {
-            ShellType = ShellType.Auto,
-            InitialWidth = _terminal.Width,
-            InitialHeight = _terminal.Height,
-            WorkingDirectory = Environment.CurrentDirectory
-        };
+        // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
+        
+        // Option 1: Use default (WSL2 on Windows)
+        var launchOptions = ShellConfiguration.Default();
+        
+        // Option 2: Simple WSL2 configurations
+        // var launchOptions = ShellConfiguration.Wsl();                    // Default WSL distribution
+        // var launchOptions = ShellConfiguration.Wsl("Ubuntu");           // Specific distribution
+        // var launchOptions = ShellConfiguration.Wsl("Ubuntu", "/home/username"); // With working directory
+        
+        // Option 3: Windows shells
+        // var launchOptions = ShellConfiguration.PowerShell();            // Windows PowerShell
+        // var launchOptions = ShellConfiguration.PowerShellCore();        // PowerShell Core (pwsh)
+        // var launchOptions = ShellConfiguration.Cmd();                   // Command Prompt
+        
+        // Option 4: Common pre-configured shells
+        // var launchOptions = ShellConfiguration.Common.Ubuntu;           // Ubuntu WSL2
+        // var launchOptions = ShellConfiguration.Common.Debian;           // Debian WSL2
+        // var launchOptions = ShellConfiguration.Common.GitBash;          // Git Bash
+        // var launchOptions = ShellConfiguration.Common.Msys2Bash;        // MSYS2 Bash
+        
+        // Option 5: Custom shell
+        // var launchOptions = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
+
+        // Set terminal dimensions
+        launchOptions.InitialWidth = _terminal.Width;
+        launchOptions.InitialHeight = _terminal.Height;
+        launchOptions.WorkingDirectory = Environment.CurrentDirectory;
 
         try
         {

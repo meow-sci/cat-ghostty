@@ -173,6 +173,62 @@ public class ProcessManagerTests
     }
 
     /// <summary>
+    ///     Tests that CreateWsl returns valid WSL launch options with default settings.
+    /// </summary>
+    [Test]
+    public void ProcessLaunchOptions_CreateWsl_ReturnsValidOptions()
+    {
+        // Act
+        var options = ProcessLaunchOptions.CreateWsl();
+
+        // Assert
+        Assert.That(options, Is.Not.Null);
+        Assert.That(options.ShellType, Is.EqualTo(ShellType.Wsl));
+        Assert.That(options.Arguments, Is.Empty); // No distribution or directory specified
+    }
+
+    /// <summary>
+    ///     Tests that CreateWsl returns valid WSL launch options with distribution specified.
+    /// </summary>
+    [Test]
+    public void ProcessLaunchOptions_CreateWsl_WithDistribution_ReturnsValidOptions()
+    {
+        // Arrange
+        const string distribution = "Ubuntu";
+
+        // Act
+        var options = ProcessLaunchOptions.CreateWsl(distribution);
+
+        // Assert
+        Assert.That(options, Is.Not.Null);
+        Assert.That(options.ShellType, Is.EqualTo(ShellType.Wsl));
+        Assert.That(options.Arguments, Contains.Item("--distribution"));
+        Assert.That(options.Arguments, Contains.Item(distribution));
+    }
+
+    /// <summary>
+    ///     Tests that CreateWsl returns valid WSL launch options with distribution and working directory.
+    /// </summary>
+    [Test]
+    public void ProcessLaunchOptions_CreateWsl_WithDistributionAndWorkingDirectory_ReturnsValidOptions()
+    {
+        // Arrange
+        const string distribution = "Ubuntu";
+        const string workingDirectory = "/home/user";
+
+        // Act
+        var options = ProcessLaunchOptions.CreateWsl(distribution, workingDirectory);
+
+        // Assert
+        Assert.That(options, Is.Not.Null);
+        Assert.That(options.ShellType, Is.EqualTo(ShellType.Wsl));
+        Assert.That(options.Arguments, Contains.Item("--distribution"));
+        Assert.That(options.Arguments, Contains.Item(distribution));
+        Assert.That(options.Arguments, Contains.Item("--cd"));
+        Assert.That(options.Arguments, Contains.Item(workingDirectory));
+    }
+
+    /// <summary>
     ///     Tests that StartAsync throws ProcessStartException when given an invalid shell path.
     /// </summary>
     [Test]
