@@ -54,15 +54,15 @@ This implementation plan breaks down the mouse input support feature into small,
   - Add coordinate range handling for encoding limitations
   - _Requirements: R2.1, R2.2, R2.3, R2.4, R2.5_
 
-- [ ] 4.1 Write property test for encoding format selection
+- [x] 4.1 Write property test for encoding format selection
   - **Property 4: Mouse Encoding Format Selection**
   - **Validates: Requirements R2.1, R2.2**
 
-- [ ] 4.2 Write property test for coordinate encoding range
+- [x] 4.2 Write property test for coordinate encoding range
   - **Property 5: Mouse Coordinate Encoding Range**
   - **Validates: Requirements R2.3**
 
-- [ ] 4.3 Write property test for modifier encoding
+- [x] 4.3 Write property test for modifier encoding
   - **Property 6: Mouse Event Modifier Encoding**
   - **Validates: Requirements R2.4, R9.1, R9.2, R9.3, R9.4**
 
