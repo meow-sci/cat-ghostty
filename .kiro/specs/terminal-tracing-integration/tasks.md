@@ -40,13 +40,13 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 1: Escape Sequence Tracing Completeness (CSI portion)**
   - **Validates: Requirements 1.1, 5.1**
 
-- [ ] 4. Integrate tracing into OscParser
+- [x] 4. Integrate tracing into OscParser
   - Add TraceHelper.TraceOscSequence calls in ProcessOscByte method when sequence completes
   - Include OSC command number and data payload in traces
   - Use Output direction for parsed OSC sequences
   - _Requirements: 1.2, 5.2_
 
-- [ ] 4.1 Write property test for OSC sequence tracing
+- [x] 4.1 Write property test for OSC sequence tracing
   - **Property 1: Escape Sequence Tracing Completeness (OSC portion)**
   - **Validates: Requirements 1.2, 5.2**
 

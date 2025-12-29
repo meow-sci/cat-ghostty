@@ -1,5 +1,6 @@
 using System.Text;
 using caTTY.Core.Types;
+using caTTY.Core.Tracing;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -52,6 +53,13 @@ public class OscParser : IOscParser
         if (b == 0x07) // BEL
         {
             message = CreateOscMessage(escapeSequence, "BEL");
+            
+            // Add tracing for completed OSC sequence
+            if (message?.XtermMessage != null)
+            {
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+            }
+            
             return true; // Sequence complete
         }
 
@@ -76,12 +84,26 @@ public class OscParser : IOscParser
         if (b == 0x5c) // \
         {
             message = CreateOscMessage(escapeSequence, "ST");
+            
+            // Add tracing for completed OSC sequence
+            if (message?.XtermMessage != null)
+            {
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+            }
+            
             return true; // Sequence complete
         }
 
         if (b == 0x07) // BEL
         {
             message = CreateOscMessage(escapeSequence, "BEL");
+            
+            // Add tracing for completed OSC sequence
+            if (message?.XtermMessage != null)
+            {
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+            }
+            
             return true; // Sequence complete
         }
 

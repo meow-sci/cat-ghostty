@@ -112,10 +112,60 @@ public class TerminalTracingProperties
                 .Select(chars => new string(chars))));
 
     /// <summary>
+    /// Generator for OSC command numbers.
+    /// </summary>
+    public static Arbitrary<int> OscCommandArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            0, 1, 2, 8, 10, 11, 21, 52
+        }));
+
+    /// <summary>
+    /// Generator for OSC data payloads.
+    /// </summary>
+    public static Arbitrary<string> OscDataArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "", "title", "test data", "https://example.com", "clipboard data"
+        }));
+
+    /// <summary>
     /// Generator for trace directions.
     /// </summary>
     public static Arbitrary<TraceDirection> TraceDirectionArb =>
         Arb.From(Gen.Elements(TraceDirection.Input, TraceDirection.Output));
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (OSC portion)**
+    /// **Validates: Requirements 1.2, 5.2**
+    /// Property: For any valid OSC sequence processed by the parser, the sequence should appear 
+    /// in the trace database with correct command, data payload, and direction information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property OscSequenceTracingCompleteness()
+    {
+        return Prop.ForAll(OscCommandArb, OscDataArb, TraceDirectionArb, (command, data, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace OSC sequence using TraceHelper
+            TraceHelper.TraceOscSequence(command, data, direction);
+            
+            // Assert - Verify OSC sequence is recorded correctly
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            // Build expected OSC sequence format: "OSC command [data]"
+            var expectedSequence = string.IsNullOrEmpty(data) ? $"OSC {command}" : $"OSC {command} {data}";
+            
+            return trace.Escape == expectedSequence && 
+                   trace.Direction == expectedDirection;
+        });
+    }
 
     /// <summary>
     /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (DCS portion)**
