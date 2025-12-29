@@ -232,7 +232,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceControlChar(controlByte, direction);
             
             // Assert - Verify control character is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -281,7 +281,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceEscSequence(escSequence, direction);
             
             // Assert - Verify ESC sequence is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -313,7 +313,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceOscSequence(command, data, direction);
             
             // Assert - Verify OSC sequence is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -355,11 +355,14 @@ public class TerminalTracingProperties
         // Act - Process DCS sequence through parser
         parser.PushBytes(dcsBytes);
         
+        // Flush buffered traces to database
+        TerminalTracer.Flush();
+        
         // Assert - First verify parser processed the DCS
         Assert.That(handlers.DcsMessages, Has.Count.EqualTo(1), "Parser should process DCS sequence");
         
         // Then verify tracing captured it
-        var traces = GetTracesFromDatabase();
+        var traces = GetTracesFromDatabaseWithFlush();
         Assert.That(traces, Has.Count.EqualTo(1), "Should have exactly one trace entry");
         
         var trace = traces[0];
@@ -389,7 +392,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceDcsSequence(command, parameters, null, direction);
             
             // Assert - Verify DCS sequence is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -423,7 +426,7 @@ public class TerminalTracingProperties
             TerminalTracer.TraceEscape(escapeSequence, direction);
             
             // Assert - Verify direction is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -452,7 +455,7 @@ public class TerminalTracingProperties
             TerminalTracer.TracePrintable(printableText, direction);
             
             // Assert - Verify direction is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -481,7 +484,7 @@ public class TerminalTracingProperties
             TerminalTracer.TraceEscape(escapeSequence);
             
             // Assert - Verify direction defaults to "output"
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -514,7 +517,7 @@ public class TerminalTracingProperties
             terminal.WriteCharacterAtCursor(character);
             
             // Assert - Verify character is traced with correct information
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -546,7 +549,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceUtf8Text(utf8Text, direction);
             
             // Assert - Verify UTF-8 text is recorded correctly
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -575,7 +578,7 @@ public class TerminalTracingProperties
             TerminalTracer.TracePrintable(printableText);
             
             // Assert - Verify direction defaults to "output"
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -603,7 +606,7 @@ public class TerminalTracingProperties
             TraceHelper.TraceWideCharacter(wideChar, direction);
             
             // Assert - Verify wide character is recorded with width indication
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -638,7 +641,7 @@ public class TerminalTracingProperties
             terminal.WriteCharacterAtCursor(wideChar);
             
             // Assert - Verify wide character is traced with width indication
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -677,7 +680,7 @@ public class TerminalTracingProperties
             terminal.Write(sgrBytes.AsSpan());
             
             // Assert - Verify SGR sequence is traced with attribute information
-            var traces = GetTracesFromDatabase();
+            var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
@@ -736,7 +739,16 @@ public class TerminalTracingProperties
                     TerminalTracer.DbFilename = db.DatabaseFilename;
                     TerminalTracer.Reset();
                     TerminalTracer.Enabled = true;
+                    
+                    // Clear any existing traces (including INIT traces)
+                    TerminalTracer.Flush();
+                    db.ClearDatabase();
+                    
+                    // Now trace the unique data
                     TerminalTracer.TraceEscape(uniqueData);
+                    
+                    // Flush buffered traces to ensure they're written to database
+                    TerminalTracer.Flush();
                 }
                 finally
                 {
@@ -793,6 +805,9 @@ public class TerminalTracingProperties
 
     private void ClearTraceDatabase()
     {
+        // First flush any buffered traces
+        TerminalTracer.Flush();
+        
         var databasePath = GetDatabasePath();
         if (databasePath == null) return;
         
@@ -810,6 +825,16 @@ public class TerminalTracingProperties
         {
             // Table might not exist yet, ignore
         }
+    }
+
+    /// <summary>
+    /// Helper method to flush traces and then get them from database.
+    /// </summary>
+    private List<TraceEntry> GetTracesFromDatabaseWithFlush()
+    {
+        // Flush any buffered traces first
+        TerminalTracer.Flush();
+        return GetTracesFromDatabase();
     }
 
     private List<TraceEntry> GetTracesFromDatabase()

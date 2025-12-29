@@ -37,6 +37,7 @@ public class TerminalTracerResetTests
         
         // Initialize tracer
         TerminalTracer.TraceEscape("test1");
+        TerminalTracer.Flush(); // Ensure tracer is fully initialized
         Assert.That(TerminalTracer.IsActive, Is.True);
         
         // Act - Reset the tracer
@@ -45,6 +46,7 @@ public class TerminalTracerResetTests
         // Assert - Should be able to reinitialize with different settings
         TerminalTracer.SetupTestDatabase();
         TerminalTracer.TraceEscape("test2");
+        TerminalTracer.Flush(); // Ensure tracer is fully initialized
         Assert.That(TerminalTracer.IsActive, Is.True);
     }
 
@@ -60,6 +62,7 @@ public class TerminalTracerResetTests
         
         // Act
         TerminalTracer.TraceEscape("test");
+        TerminalTracer.Flush(); // Ensure database is created
         
         // Assert
         var expectedPath = Path.Combine(tempDir, testFilename);

@@ -103,6 +103,9 @@ public class CsiSequenceTracingProperties
             // Act: Parse the CSI sequence (this should trigger tracing)
             var result = parser.ParseCsiSequence(sequenceBytes, sequence);
 
+            // Flush buffered traces to database
+            TerminalTracer.Flush();
+
             // Assert: Verify the sequence was traced
             var traces = GetTracesFromDatabase();
             
@@ -155,6 +158,9 @@ public class CsiSequenceTracingProperties
             parser.ParseCsiSequence(sequenceBytes, sequence);
             parser.ParseCsiSequence(sequenceBytes, sequence);
 
+            // Flush buffered traces to database
+            TerminalTracer.Flush();
+
             // Assert: Should have exactly 3 trace entries with identical content
             var traces = GetTracesFromDatabase();
             var csiTraces = traces.Where(t => t.EscapeSequence != null && 
@@ -203,6 +209,9 @@ public class CsiSequenceTracingProperties
                 // Act: Parse the sequence
                 parser.ParseCsiSequence(sequenceBytes, sequence);
                 
+                // Flush buffered traces to database
+                TerminalTracer.Flush();
+                
                 // Assert: Should be traced
                 var traces = GetTracesFromDatabase();
                 bool sequenceTraced = traces.Any(trace => 
@@ -247,6 +256,9 @@ public class CsiSequenceTracingProperties
 
             // Act: Parse the CSI sequence
             parser.ParseCsiSequence(sequenceBytes, sequence);
+
+            // Flush buffered traces to database
+            TerminalTracer.Flush();
 
             // Assert: All traces should have "output" direction
             var traces = GetTracesFromDatabase();

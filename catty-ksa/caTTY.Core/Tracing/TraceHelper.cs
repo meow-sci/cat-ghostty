@@ -17,7 +17,7 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceEscapeBytes(ReadOnlySpan<byte> bytes, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled || bytes.IsEmpty)
+    if (bytes.IsEmpty)
       return;
 
     var sb = new StringBuilder();
@@ -45,9 +45,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TracePrintableChar(char character, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     TerminalTracer.TracePrintable(character.ToString(), direction, row, col);
   }
 
@@ -60,8 +57,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceControlChar(byte controlByte, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
     var controlName = controlByte switch
     {
       0x00 => "NUL",
@@ -93,9 +88,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceCsiSequence(char command, string? parameters = null, char? prefix = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-    
     // Format as human-readable escape sequence: ESC[params;command
     var sequence = new StringBuilder("ESC[");
 
@@ -120,9 +112,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceOscSequence(int command, string? data = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     // Format as human-readable escape sequence: ESC]command;data\x07 or ESC]command;data\x1b\
     var sequence = $"ESC]{command}";
     if (!string.IsNullOrEmpty(data))
@@ -141,9 +130,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceEscSequence(string sequence, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     // Format as human-readable escape sequence: ESC + sequence
     TerminalTracer.TraceEscape($"ESC{sequence}", direction, row, col);
   }
@@ -159,9 +145,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceDcsSequence(string command, string? parameters = null, string? data = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     // Format as human-readable escape sequence: ESCP + parameters + command + data + ESC\
     var sequence = new StringBuilder("ESCP");
 
@@ -187,7 +170,7 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceUtf8Text(string text, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled || string.IsNullOrEmpty(text))
+    if (string.IsNullOrEmpty(text))
       return;
 
     TerminalTracer.TracePrintable(text, direction, row, col);
@@ -202,9 +185,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceWideCharacter(char character, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     TerminalTracer.TracePrintable($"{character} (wide)", direction, row, col);
   }
 
@@ -219,9 +199,6 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceStateTransition(string fromState, string toState, string trigger, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    if (!TerminalTracer.Enabled)
-      return;
-
     TerminalTracer.TraceEscape($"STATE: {fromState} -> {toState} ({trigger})", direction, row, col);
   }
 }

@@ -68,6 +68,9 @@ public class TracingPositionTests
         // Act - Write a character at the cursor position
         _terminal.Write("X");
         
+        // Flush buffered traces to database
+        TerminalTracer.Flush();
+        
         // Assert - Check that the trace includes the correct position
         using var connection = new SqliteConnection($"Data Source={_testDbPath}");
         connection.Open();
@@ -98,6 +101,9 @@ public class TracingPositionTests
         
         // Act - Send a CSI sequence
         _terminal.Write("\x1b[2J"); // Clear screen
+        
+        // Flush buffered traces to database
+        TerminalTracer.Flush();
         
         // Assert - Check that the CSI trace includes the correct position
         using var connection = new SqliteConnection($"Data Source={_testDbPath}");
