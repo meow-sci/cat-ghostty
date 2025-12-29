@@ -29,6 +29,7 @@
         <Folder Include="Parsing\"/>
         <Folder Include="Types\"/>
         <Folder Include="Utils\"/>
+        <Folder Include="Tracing\"/>
     </ItemGroup>
 
 </Project>
