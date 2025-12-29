@@ -1,5 +1,6 @@
 using System.Reflection;
 using caTTY.Core.Parsing;
+using caTTY.Core.Terminal;
 using caTTY.Core.Tests.Unit;
 using caTTY.Core.Tracing;
 using FsCheck;
@@ -437,6 +438,44 @@ public class TerminalTracingProperties
             
             return trace.Escape == escapeSequence && 
                    trace.Direction == "output";
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 3: Printable Character Tracing**
+    /// **Validates: Requirements 2.1, 2.4**
+    /// Property: For any printable character written to the screen buffer, the character should appear 
+    /// in the trace database with correct position and direction information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property PrintableCharacterTracing()
+    {
+        var printableCharArb = Arb.From(Gen.Choose(32, 126).Select(i => (char)i));
+        
+        return Prop.ForAll(printableCharArb, character =>
+        {
+            // Arrange - Clear any existing traces and create terminal emulator
+            ClearTraceDatabase();
+            
+            using var terminal = new TerminalEmulator(80, 24);
+            
+            // Act - Write character at cursor using the terminal emulator
+            // This should trigger tracing through WriteCharacterAtCursor
+            terminal.WriteCharacterAtCursor(character);
+            
+            // Assert - Verify character is traced with position information
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
+            
+            // The trace should contain the character and position information
+            // Format: "character at (row,col)"
+            var expectedTrace = $"{character} at (0,0)"; // Cursor starts at (0,0)
+            
+            return trace.Printable == expectedTrace && 
+                   trace.Direction == expectedDirection;
         });
     }
 

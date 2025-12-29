@@ -2,6 +2,7 @@ using System.Text;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
 using caTTY.Core.Managers;
+using caTTY.Core.Tracing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -795,6 +796,9 @@ public class TerminalEmulator : ITerminalEmulator
         bool isWide = IsWideCharacter(character);
         var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
+
+        // Trace the printable character with position information
+        TerminalTracer.TracePrintable($"{character} at ({_cursorManager.Row},{_cursorManager.Column})", TraceDirection.Output);
 
         // Handle cursor advancement and wrap pending logic
         if (_cursorManager.Column == Width - 1)

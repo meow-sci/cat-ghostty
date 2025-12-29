@@ -80,16 +80,16 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 2: Control Character Tracing**
   - **Validates: Requirements 1.5**
 
-- [ ] 8. Checkpoint - Ensure parser tracing tests pass
+- [x] 8. Checkpoint - Ensure parser tracing tests pass
   - Ensure all parser-level tracing tests pass, ask the user if questions arise.
 
-- [ ] 9. Integrate tracing into ScreenBufferManager
+- [x] 9. Integrate tracing into ScreenBufferManager
   - Add TerminalTracer.TracePrintable calls in WriteCharacter and related methods
   - Include character data and position information in traces
   - Use Output direction for characters written to screen buffer
   - _Requirements: 2.1, 2.4_
 
-- [ ] 9.1 Write property test for printable character tracing
+- [x] 9.1 Write property test for printable character tracing
   - **Property 3: Printable Character Tracing**
   - **Validates: Requirements 2.1, 2.4**
 
