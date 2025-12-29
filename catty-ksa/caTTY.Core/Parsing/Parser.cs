@@ -460,6 +460,12 @@ public class Parser
         // Use the dedicated UTF-8 decoder
         if (_utf8Decoder.ProcessByte(b, out int codePoint))
         {
+            // Trace the decoded UTF-8 character
+            string decodedText = char.ConvertFromUtf32(codePoint);
+            int? row = _cursorPositionProvider?.Row;
+            int? col = _cursorPositionProvider?.Column;
+            TraceHelper.TraceUtf8Text(decodedText, TraceDirection.Output, row, col);
+            
             _handlers.HandleNormalByte(codePoint);
         }
     }

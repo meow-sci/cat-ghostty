@@ -120,6 +120,16 @@ public class TerminalTracingProperties
         }));
 
     /// <summary>
+    /// Generator for valid UTF-8 strings.
+    /// </summary>
+    public static Arbitrary<string> ValidUtf8StringArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "Hello", "café", "naïve", "résumé", "piñata", "αβγδε", "こんにちは", "你好世界", 
+            "🌟🚀💻🎉", "Ω≈∞∑∏", "Test αβγ 123", "A", "é", "中", "🎉"
+        }));
+
+    /// <summary>
     /// Generator for printable text.
     /// </summary>
     public static Arbitrary<string> PrintableTextArb =>
@@ -143,6 +153,46 @@ public class TerminalTracingProperties
         Arb.From(Gen.Elements(new[]
         {
             "", "title", "test data", "https://example.com", "clipboard data"
+        }));
+
+    /// <summary>
+    /// Generator for wide characters (CJK, emoji, etc.).
+    /// </summary>
+    public static Arbitrary<char> WideCharacterArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            // CJK Unified Ideographs
+            '中', '国', '日', '本', '한', '국', '語', '言',
+            // Hiragana
+            'あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け', 'こ',
+            // Katakana  
+            'ア', 'イ', 'ウ', 'エ', 'オ', 'カ', 'キ', 'ク', 'ケ', 'コ',
+            // Fullwidth forms
+            'Ａ', 'Ｂ', 'Ｃ', '１', '２', '３',
+            // CJK symbols
+            '　', '、', '。', '「', '」'
+        }));
+
+    /// <summary>
+    /// Generator for SGR sequences.
+    /// </summary>
+    public static Arbitrary<string> SgrSequenceArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "\x1b[0m",      // Reset
+            "\x1b[1m",      // Bold
+            "\x1b[3m",      // Italic
+            "\x1b[4m",      // Underline
+            "\x1b[7m",      // Inverse
+            "\x1b[9m",      // Strikethrough
+            "\x1b[31m",     // Red foreground
+            "\x1b[42m",     // Green background
+            "\x1b[1;31m",   // Bold red
+            "\x1b[38;5;196m", // 256-color red
+            "\x1b[38;2;255;128;64m", // RGB orange
+            "\x1b[22m",     // Normal intensity
+            "\x1b[39m",     // Default foreground
+            "\x1b[49m"      // Default background
         }));
 
     /// <summary>
@@ -463,18 +513,46 @@ public class TerminalTracingProperties
             // This should trigger tracing through WriteCharacterAtCursor
             terminal.WriteCharacterAtCursor(character);
             
-            // Assert - Verify character is traced with position information
+            // Assert - Verify character is traced with correct information
             var traces = GetTracesFromDatabase();
             if (traces.Count != 1) return false;
             
             var trace = traces[0];
             var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
             
-            // The trace should contain the character and position information
-            // Format: "character at (row,col)" - cursor starts at (0,0)
-            var expectedTrace = $"{character} at (0,0)";
+            // The trace should contain just the character (no width indication for regular chars)
+            var expectedTrace = character.ToString();
             
             return trace.Printable == expectedTrace && 
+                   trace.Direction == expectedDirection;
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 4: UTF-8 Character Tracing**
+    /// **Validates: Requirements 2.2**
+    /// Property: For any UTF-8 multi-byte sequence decoded by the terminal, the resulting character 
+    /// should be traced with correct Unicode representation.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property Utf8CharacterTracing()
+    {
+        return Prop.ForAll(ValidUtf8StringArb, TraceDirectionArb, (utf8Text, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace UTF-8 text using TraceHelper
+            TraceHelper.TraceUtf8Text(utf8Text, direction);
+            
+            // Assert - Verify UTF-8 text is recorded correctly
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            return trace.Printable == utf8Text && 
                    trace.Direction == expectedDirection;
         });
     }
@@ -505,6 +583,212 @@ public class TerminalTracingProperties
             return trace.Printable == printableText && 
                    trace.Direction == "output";
         });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 5: Wide Character Tracing**
+    /// **Validates: Requirements 2.3**
+    /// Property: For any wide character (CJK, emoji) processed by the terminal, the character 
+    /// should be traced with appropriate width indication.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property WideCharacterTracing()
+    {
+        return Prop.ForAll(WideCharacterArb, TraceDirectionArb, (wideChar, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace wide character using TraceHelper
+            TraceHelper.TraceWideCharacter(wideChar, direction);
+            
+            // Assert - Verify wide character is recorded with width indication
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            // Build expected wide character format: "character (wide)"
+            var expectedTrace = $"{wideChar} (wide)";
+            
+            return trace.Printable == expectedTrace && 
+                   trace.Direction == expectedDirection;
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 5b: Wide Character Terminal Integration**
+    /// **Validates: Requirements 2.3**
+    /// Property: For any wide character written through the terminal emulator, the character 
+    /// should be traced with width indication and correct positioning.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property WideCharacterTerminalIntegration()
+    {
+        return Prop.ForAll(WideCharacterArb, wideChar =>
+        {
+            // Arrange - Clear any existing traces and create terminal emulator
+            ClearTraceDatabase();
+            
+            using var terminal = new TerminalEmulator(80, 24);
+            
+            // Act - Write wide character at cursor using the terminal emulator
+            // This should trigger tracing through WriteCharacterAtCursor with width indication
+            terminal.WriteCharacterAtCursor(wideChar);
+            
+            // Assert - Verify wide character is traced with width indication
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
+            
+            // The trace should contain the character with "(wide)" indication
+            var expectedTrace = $"{wideChar} (wide)";
+            
+            return trace.Printable == expectedTrace && 
+                   trace.Direction == expectedDirection;
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 6: SGR Sequence Tracing**
+    /// **Validates: Requirements 5.3**
+    /// Property: For any SGR (Select Graphic Rendition) sequence processed by the parser, 
+    /// the sequence should be traced with complete attribute change information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property SgrSequenceTracing()
+    {
+        return Prop.ForAll(SgrSequenceArb, sgrSequence =>
+        {
+            // Arrange - Clear any existing traces and create terminal emulator
+            ClearTraceDatabase();
+            
+            using var terminal = new TerminalEmulator(80, 24);
+            
+            // Get initial attributes before processing SGR
+            var initialAttributes = terminal.AttributeManager.CurrentAttributes;
+            
+            // Act - Process SGR sequence through terminal emulator
+            // This should trigger tracing through HandleSgrSequence
+            var sgrBytes = System.Text.Encoding.UTF8.GetBytes(sgrSequence);
+            terminal.Write(sgrBytes.AsSpan());
+            
+            // Assert - Verify SGR sequence is traced with attribute information
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = "output"; // SGR sequences are always Output direction
+            
+            // The trace should contain the raw SGR sequence and attribute change information
+            // Format: "sequence [changes]" where changes show what attributes changed
+            bool hasCorrectDirection = trace.Direction == expectedDirection;
+            bool hasEscapeSequence = trace.Escape != null;
+            bool containsRawSequence = trace.Escape?.Contains(sgrSequence) == true;
+            bool containsAttributeInfo = trace.Escape?.Contains("[") == true && trace.Escape?.Contains("]") == true;
+            
+            return hasCorrectDirection && hasEscapeSequence && containsRawSequence && containsAttributeInfo;
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 12: Test Database Isolation**
+    /// **Validates: Requirements 6.5**
+    /// Property: Multiple test database instances should be completely isolated from each other,
+    /// with each using separate UUID-based database files that don't interfere with each other.
+    /// </summary>
+    [Test]
+    public void TestDatabaseIsolation()
+    {
+        const int numDatabases = 3;
+        var databases = new List<TestTraceDatabase>();
+        var testData = new List<string>();
+        
+        try
+        {
+            // Arrange - Create multiple isolated test databases
+            for (int i = 0; i < numDatabases; i++)
+            {
+                var db = TestTraceDatabase.Create();
+                databases.Add(db);
+                
+                // Generate unique test data for each database
+                var uniqueData = $"test_data_{i}_{Guid.NewGuid():N}";
+                testData.Add(uniqueData);
+            }
+            
+            // Write unique data to each database separately
+            for (int i = 0; i < numDatabases; i++)
+            {
+                var db = databases[i];
+                var uniqueData = testData[i];
+                
+                // Store current state
+                var originalFilename = TerminalTracer.DbFilename;
+                var originalEnabled = TerminalTracer.Enabled;
+                
+                try
+                {
+                    // Configure tracer for this specific database
+                    TerminalTracer.DbFilename = db.DatabaseFilename;
+                    TerminalTracer.Reset();
+                    TerminalTracer.Enabled = true;
+                    TerminalTracer.TraceEscape(uniqueData);
+                }
+                finally
+                {
+                    // Always restore original state
+                    TerminalTracer.DbFilename = originalFilename;
+                    TerminalTracer.Enabled = originalEnabled;
+                    TerminalTracer.Reset();
+                }
+            }
+            
+            // Act & Assert - Verify each database contains only its own data
+            for (int i = 0; i < numDatabases; i++)
+            {
+                var db = databases[i];
+                var expectedData = testData[i];
+                
+                // Get traces directly from the database without changing TerminalTracer state
+                var traces = db.GetTraces();
+                
+                // Should have exactly one trace with the expected data
+                Assert.That(traces, Has.Count.EqualTo(1), $"Database {i} should have exactly one trace");
+                Assert.That(traces[0].EscapeSequence, Is.EqualTo(expectedData), $"Database {i} should contain its unique data");
+                
+                // Verify database filenames are unique
+                for (int j = i + 1; j < numDatabases; j++)
+                {
+                    Assert.That(databases[i].DatabaseFilename, Is.Not.EqualTo(databases[j].DatabaseFilename), 
+                        $"Database {i} and {j} should have unique filenames");
+                }
+                
+                // Verify database files exist and are separate
+                Assert.That(db.DatabaseExists(), Is.True, $"Database {i} file should exist");
+                
+                // Verify other databases don't contain this data
+                for (int j = 0; j < numDatabases; j++)
+                {
+                    if (i == j) continue;
+                    
+                    var otherTraces = databases[j].GetTraces();
+                    Assert.That(otherTraces.Any(t => t.EscapeSequence == expectedData), Is.False,
+                        $"Database {j} should not contain data from database {i}");
+                }
+            }
+        }
+        finally
+        {
+            // Cleanup - Dispose all test databases
+            foreach (var db in databases)
+            {
+                db.Dispose();
+            }
+        }
     }
 
     private void ClearTraceDatabase()

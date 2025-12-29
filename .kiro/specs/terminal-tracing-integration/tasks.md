@@ -94,43 +94,43 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 3: Printable Character Tracing**
   - **Validates: Requirements 2.1, 2.4**
 
-- [ ] 10. Integrate UTF-8 character tracing
+- [x] 10. Integrate UTF-8 character tracing
   - Add TraceHelper.TraceUtf8Text calls in UTF-8 decoder when characters are produced
   - Include Unicode representation and source bytes in traces
   - Use appropriate direction based on data source
   - _Requirements: 2.2_
 
-- [ ] 10.1 Write property test for UTF-8 character tracing
+- [x] 10.1 Write property test for UTF-8 character tracing
   - **Property 4: UTF-8 Character Tracing**
   - **Validates: Requirements 2.2**
 
-- [ ] 11. Integrate wide character tracing
+- [x] 11. Integrate wide character tracing
   - Add width indication to character traces for wide characters (CJK, emoji)
   - Ensure wide character traces include appropriate width information
   - Handle double-width character positioning correctly in traces
   - _Requirements: 2.3_
 
-- [ ] 11.1 Write property test for wide character tracing
+- [x] 11.1 Write property test for wide character tracing
   - **Property 5: Wide Character Tracing**
   - **Validates: Requirements 2.3**
 
-- [ ] 12. Integrate SGR sequence tracing
+- [x] 12. Integrate SGR sequence tracing
   - Add specific tracing for SGR sequences in SgrParser
   - Include complete attribute change information in traces
   - Use Output direction for SGR styling sequences
   - _Requirements: 5.3_
 
-- [ ] 12.1 Write property test for SGR sequence tracing
+- [x] 12.1 Write property test for SGR sequence tracing
   - **Property 6: SGR Sequence Tracing**
   - **Validates: Requirements 5.3**
 
-- [ ] 13. Implement test database infrastructure
+- [x] 13. Implement test database infrastructure
   - Create TestTraceDatabase helper class for UUID-based test database filenames
   - Implement test database creation in assembly directory
   - Add test database cleanup and isolation mechanisms
   - _Requirements: 3.1, 6.1, 6.2, 6.3, 6.5_
 
-- [ ] 13.1 Write property test for test database isolation
+- [x] 13.1 Write property test for test database isolation
   - **Property 12: Test Database Isolation**
   - **Validates: Requirements 6.5**
 

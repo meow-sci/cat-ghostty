@@ -277,9 +277,9 @@ public class ShellCommandSimulationTests
 
         // Assert
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 7).Character, Is.EqualTo('文'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 8).Character, Is.EqualTo('件'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 4).Character, Is.EqualTo('测')); // '测' is at position 4, not 3
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 5).Character, Is.EqualTo('试')); // '试' is at position 5, not 4
+        Assert.That(_terminal.ScreenBuffer.GetCell(0, 9).Character, Is.EqualTo('件')); // '件' is at position 9, not 8, because '文' is wide
+        Assert.That(_terminal.ScreenBuffer.GetCell(1, 6).Character, Is.EqualTo('测')); // '测' is at position 6, not 4, because '目录: ' takes up positions 0-5
+        Assert.That(_terminal.ScreenBuffer.GetCell(1, 8).Character, Is.EqualTo('试')); // '试' is at position 8, not 6, because '测' is wide
         Assert.That(_terminal.ScreenBuffer.GetCell(2, 8).Character, Is.EqualTo('✓'));
     }
 }

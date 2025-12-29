@@ -222,9 +222,9 @@ public class EscapeSequenceIntegrationTests
 
         // Assert
         Assert.That(_terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('世'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 7).Character, Is.EqualTo('界'));
+        Assert.That(_terminal.ScreenBuffer.GetCell(0, 8).Character, Is.EqualTo('界')); // '界' is at position 8, not 7, because '世' is wide
         Assert.That(_terminal.ScreenBuffer.GetCell(1, 0).Character, Is.EqualTo('测'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 1).Character, Is.EqualTo('试'));
+        Assert.That(_terminal.ScreenBuffer.GetCell(1, 2).Character, Is.EqualTo('试')); // '试' is at position 2, not 1, because '测' is wide
     }
 
     /// <summary>

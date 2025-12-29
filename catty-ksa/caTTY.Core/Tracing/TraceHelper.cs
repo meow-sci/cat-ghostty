@@ -194,6 +194,21 @@ public static class TraceHelper
   }
 
   /// <summary>
+  /// Trace a wide character with width indication for better debugging.
+  /// </summary>
+  /// <param name="character">Wide character to trace</param>
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  /// <param name="row">The cursor row position (0-based, nullable)</param>
+  /// <param name="col">The cursor column position (0-based, nullable)</param>
+  public static void TraceWideCharacter(char character, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
+  {
+    if (!TerminalTracer.Enabled)
+      return;
+
+    TerminalTracer.TracePrintable($"{character} (wide)", direction, row, col);
+  }
+
+  /// <summary>
   /// Trace parser state transitions for debugging.
   /// </summary>
   /// <param name="fromState">Previous parser state</param>

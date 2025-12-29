@@ -1,5 +1,6 @@
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
+using caTTY.Core.Tracing;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Terminal;
@@ -405,6 +406,9 @@ internal class TerminalParserHandlers : IParserHandlers
         // Sync with terminal state for compatibility
         _terminal.State.CurrentSgrState = newAttributes;
 
+        // Trace SGR sequence with complete attribute change information
+        TraceSgrSequence(sequence, currentAttributes, newAttributes);
+
         _logger.LogDebug("Applied SGR sequence: {Raw} - {MessageCount} messages", sequence.Raw, sequence.Messages.Length);
     }
 
@@ -725,5 +729,86 @@ internal class TerminalParserHandlers : IParserHandlers
         }
 
         return string.Join(";", parts) + "m";
+    }
+
+    /// <summary>
+    ///     Traces SGR sequence with complete attribute change information.
+    /// </summary>
+    /// <param name="sequence">The SGR sequence that was processed</param>
+    /// <param name="beforeAttributes">Attributes before applying the sequence</param>
+    /// <param name="afterAttributes">Attributes after applying the sequence</param>
+    private void TraceSgrSequence(SgrSequence sequence, SgrAttributes beforeAttributes, SgrAttributes afterAttributes)
+    {
+        if (!TerminalTracer.Enabled)
+            return;
+
+        // Get cursor position for tracing context
+        int? row = _terminal.Cursor?.Row;
+        int? col = _terminal.Cursor?.Col;
+
+        // Create a detailed trace message that includes the raw sequence and attribute changes
+        var traceMessage = $"{sequence.Raw} [";
+        
+        // Add information about what changed
+        var changes = new List<string>();
+        
+        if (beforeAttributes.Bold != afterAttributes.Bold)
+            changes.Add($"bold:{beforeAttributes.Bold}->{afterAttributes.Bold}");
+        if (beforeAttributes.Italic != afterAttributes.Italic)
+            changes.Add($"italic:{beforeAttributes.Italic}->{afterAttributes.Italic}");
+        if (beforeAttributes.Underline != afterAttributes.Underline)
+            changes.Add($"underline:{beforeAttributes.Underline}->{afterAttributes.Underline}");
+        if (beforeAttributes.Strikethrough != afterAttributes.Strikethrough)
+            changes.Add($"strikethrough:{beforeAttributes.Strikethrough}->{afterAttributes.Strikethrough}");
+        if (beforeAttributes.Inverse != afterAttributes.Inverse)
+            changes.Add($"inverse:{beforeAttributes.Inverse}->{afterAttributes.Inverse}");
+        if (beforeAttributes.Hidden != afterAttributes.Hidden)
+            changes.Add($"hidden:{beforeAttributes.Hidden}->{afterAttributes.Hidden}");
+        if (beforeAttributes.Blink != afterAttributes.Blink)
+            changes.Add($"blink:{beforeAttributes.Blink}->{afterAttributes.Blink}");
+        if (beforeAttributes.Faint != afterAttributes.Faint)
+            changes.Add($"faint:{beforeAttributes.Faint}->{afterAttributes.Faint}");
+        
+        // Check color changes
+        if (!Equals(beforeAttributes.ForegroundColor, afterAttributes.ForegroundColor))
+            changes.Add($"fg:{FormatColor(beforeAttributes.ForegroundColor)}->{FormatColor(afterAttributes.ForegroundColor)}");
+        if (!Equals(beforeAttributes.BackgroundColor, afterAttributes.BackgroundColor))
+            changes.Add($"bg:{FormatColor(beforeAttributes.BackgroundColor)}->{FormatColor(afterAttributes.BackgroundColor)}");
+        if (!Equals(beforeAttributes.UnderlineColor, afterAttributes.UnderlineColor))
+            changes.Add($"ul:{FormatColor(beforeAttributes.UnderlineColor)}->{FormatColor(afterAttributes.UnderlineColor)}");
+        
+        // Check underline style changes
+        if (beforeAttributes.UnderlineStyle != afterAttributes.UnderlineStyle)
+            changes.Add($"ul-style:{beforeAttributes.UnderlineStyle}->{afterAttributes.UnderlineStyle}");
+        
+        // Check font changes
+        if (beforeAttributes.Font != afterAttributes.Font)
+            changes.Add($"font:{beforeAttributes.Font}->{afterAttributes.Font}");
+
+        traceMessage += string.Join(", ", changes);
+        traceMessage += "]";
+
+        // Trace the SGR sequence with Output direction (program output to terminal)
+        TerminalTracer.TraceEscape(traceMessage, TraceDirection.Output, row, col);
+    }
+
+    /// <summary>
+    ///     Formats a color for tracing display.
+    /// </summary>
+    /// <param name="color">The color to format</param>
+    /// <returns>A string representation of the color</returns>
+    private static string FormatColor(Color? color)
+    {
+        if (!color.HasValue)
+            return "null";
+        
+        var c = color.Value;
+        return c.Type switch
+        {
+            ColorType.Named => c.NamedColor.ToString(),
+            ColorType.Indexed => $"#{c.Index}",
+            ColorType.Rgb => $"rgb({c.Red},{c.Green},{c.Blue})",
+            _ => "unknown"
+        };
     }
 }
