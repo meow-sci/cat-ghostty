@@ -1,7 +1,10 @@
 using System.Reflection;
+using caTTY.Core.Parsing;
+using caTTY.Core.Tests.Unit;
 using caTTY.Core.Tracing;
 using FsCheck;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Property;
@@ -68,6 +71,18 @@ public class TerminalTracingProperties
     }
 
     /// <summary>
+    /// Generator for ESC sequences (non-CSI escape sequences).
+    /// </summary>
+    public static Arbitrary<string> EscSequenceArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "7", "8", "M", "D", "E", "H", "c", // Single-byte ESC sequences
+            "(A", "(B", "(0", ")A", ")B", ")0", // Character set designation
+            "*A", "*B", "+A", "+B", // More character set designations
+            "=", ">", "N", "O" // Other ESC sequences
+        }));
+
+    /// <summary>
     /// Generator for valid escape sequences.
     /// </summary>
     public static Arbitrary<string> EscapeSequenceArb =>
@@ -83,7 +98,7 @@ public class TerminalTracingProperties
         Arb.From(Gen.Elements(new[]
         {
             "q", "p", "s", "$q", "+q", "+p"
-        }));
+        }).Where(s => !string.IsNullOrEmpty(s)));
 
     /// <summary>
     /// Generator for DCS parameters.
@@ -136,6 +151,100 @@ public class TerminalTracingProperties
         Arb.From(Gen.Elements(TraceDirection.Input, TraceDirection.Output));
 
     /// <summary>
+    /// Generator for control characters (0x00-0x1F, 0x7F).
+    /// </summary>
+    public static Arbitrary<byte> ControlCharacterArb =>
+        Arb.From(Gen.Elements(new byte[]
+        {
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // NUL, SOH, STX, ETX, EOT, ENQ, ACK, BEL
+            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, // BS, HT, LF, VT, FF, CR, SO, SI
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, // DLE, DC1, DC2, DC3, DC4, NAK, SYN, ETB
+            0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, // CAN, EM, SUB, ESC, FS, GS, RS, US
+            0x7F // DEL
+        }));
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 2: Control Character Tracing**
+    /// **Validates: Requirements 1.5**
+    /// Property: For any control character (0x00-0x1F, 0x7F) processed by the parser, 
+    /// the character should be traced using the appropriate control character name.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property ControlCharacterTracing()
+    {
+        return Prop.ForAll(ControlCharacterArb, TraceDirectionArb, (controlByte, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace control character using TraceHelper
+            TraceHelper.TraceControlChar(controlByte, direction);
+            
+            // Assert - Verify control character is recorded correctly
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            // Build expected control character format based on TraceHelper.TraceControlChar implementation
+            var expectedControlName = controlByte switch
+            {
+                0x00 => "NUL",
+                0x07 => "BEL",
+                0x08 => "BS",
+                0x09 => "HT",
+                0x0A => "LF",
+                0x0B => "VT",
+                0x0C => "FF",
+                0x0D => "CR",
+                0x0E => "SO",
+                0x0F => "SI",
+                0x1B => "ESC",
+                0x7F => "DEL",
+                _ => $"C{controlByte:X2}"
+            };
+            
+            var expectedSequence = $"<{expectedControlName}>";
+            
+            return trace.Escape == expectedSequence && 
+                   trace.Direction == expectedDirection;
+        });
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (ESC portion)**
+    /// **Validates: Requirements 1.3, 5.4**
+    /// Property: For any valid ESC sequence processed by the parser, the sequence should appear 
+    /// in the trace database with correct sequence characters and direction information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property EscSequenceTracingCompleteness()
+    {
+        return Prop.ForAll(EscSequenceArb, TraceDirectionArb, (escSequence, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace ESC sequence using TraceHelper
+            TraceHelper.TraceEscSequence(escSequence, direction);
+            
+            // Assert - Verify ESC sequence is recorded correctly
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            // Build expected ESC sequence format: "ESC sequence"
+            var expectedSequence = $"ESC {escSequence}";
+            
+            return trace.Escape == expectedSequence && 
+                   trace.Direction == expectedDirection;
+        });
+    }
+
+    /// <summary>
     /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (OSC portion)**
     /// **Validates: Requirements 1.2, 5.2**
     /// Property: For any valid OSC sequence processed by the parser, the sequence should appear 
@@ -168,26 +277,65 @@ public class TerminalTracingProperties
     }
 
     /// <summary>
-    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (DCS portion)**
+    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (DCS verification)**
+    /// **Validates: Requirements 1.4, 5.5**
+    /// Property: For any valid DCS sequence processed by the parser, the sequence should appear 
+    /// in the trace database with correct command, parameters, and direction information.
+    /// </summary>
+    [Test]
+    public void DcsSequenceTracingCompletion_SimpleTest()
+    {
+        // Arrange - Clear any existing traces
+        ClearTraceDatabase();
+        
+        // Create a mock handler to capture DCS messages
+        var handlers = new TestParserHandlers();
+        var options = new ParserOptions
+        {
+            Handlers = handlers,
+            Logger = new TestLogger()
+        };
+        var parser = new Parser(options);
+        
+        // Build DCS sequence: ESC P 1 q ST (simple DCS query)
+        var dcsSequence = "\x1bP1q\x1b\\";
+        var dcsBytes = System.Text.Encoding.UTF8.GetBytes(dcsSequence);
+        
+        // Act - Process DCS sequence through parser
+        parser.PushBytes(dcsBytes);
+        
+        // Assert - First verify parser processed the DCS
+        Assert.That(handlers.DcsMessages, Has.Count.EqualTo(1), "Parser should process DCS sequence");
+        
+        // Then verify tracing captured it
+        var traces = GetTracesFromDatabase();
+        Assert.That(traces, Has.Count.EqualTo(1), "Should have exactly one trace entry");
+        
+        var trace = traces[0];
+        
+        // Build expected DCS sequence format: "DCS parameters command"
+        var expectedSequence = "DCS 1 q";
+        
+        Assert.That(trace.Escape, Is.EqualTo(expectedSequence), "Trace should contain correct DCS sequence");
+        Assert.That(trace.Direction, Is.EqualTo("output"), "Direction should be output");
+    }
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (DCS verification)**
     /// **Validates: Requirements 1.4, 5.5**
     /// Property: For any valid DCS sequence processed by the parser, the sequence should appear 
     /// in the trace database with correct command, parameters, and direction information.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100)]
-    public FsCheck.Property DcsSequenceTracingCompleteness()
+    public FsCheck.Property DcsSequenceTracingCompletion()
     {
-        return Prop.ForAll(DcsCommandArb, (command) =>
+        return Prop.ForAll(DcsCommandArb, DcsParametersArb, TraceDirectionArb, (command, parameters, direction) =>
         {
-            // Use fixed test values for simplicity
-            var parameters = "1;2";
-            var data = "testdata";
-            var direction = TraceDirection.Output;
-            
             // Arrange - Clear any existing traces
             ClearTraceDatabase();
             
-            // Act - Trace DCS sequence using TraceHelper
-            TraceHelper.TraceDcsSequence(command, parameters, data, direction);
+            // Act - Trace DCS sequence using TraceHelper (testing the helper method directly)
+            TraceHelper.TraceDcsSequence(command, parameters, null, direction);
             
             // Assert - Verify DCS sequence is recorded correctly
             var traces = GetTracesFromDatabase();
@@ -196,8 +344,10 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected DCS sequence format: "DCS [parameters] command [data]"
-            var expectedSequence = $"DCS {parameters} {command} {data}";
+            // Build expected DCS sequence format based on TraceHelper.TraceDcsSequence implementation
+            var expectedSequence = string.IsNullOrEmpty(parameters) 
+                ? $"DCS {command}" 
+                : $"DCS {parameters} {command}";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;

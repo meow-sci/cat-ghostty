@@ -1,4 +1,5 @@
 using caTTY.Core.Types;
+using caTTY.Core.Tracing;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -52,11 +53,16 @@ public class EscParser : IEscParser
             message = HandleSingleByteEscSequence(b, escapeSequence);
             if (message != null)
             {
+                // Trace the complete ESC sequence
+                string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
+                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
                 return true; // Sequence complete
             }
 
             // Unknown single-byte ESC sequence (byte already added by HandleSingleByteEscSequence)
             string raw = BytesToString(escapeSequence);
+            string unknownSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
+            TraceHelper.TraceEscSequence(unknownSequence, TraceDirection.Output);
             _logger.LogDebug("ESC (opaque): {Raw}", raw);
             return true; // Complete unknown sequence
         }
@@ -122,6 +128,10 @@ public class EscParser : IEscParser
                     Implemented = true
                 };
 
+                // Trace the complete ESC sequence
+                string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
+                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
+
                 return true; // Sequence complete
             }
         }
@@ -132,6 +142,8 @@ public class EscParser : IEscParser
         if (b >= 0x30 && b <= 0x7e)
         {
             string raw = BytesToString(escapeSequence);
+            string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
+            TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
             _logger.LogDebug("ESC (opaque): {Raw}", raw);
             return true; // Sequence complete
         }

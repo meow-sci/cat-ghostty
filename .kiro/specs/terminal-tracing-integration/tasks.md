@@ -50,33 +50,33 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 1: Escape Sequence Tracing Completeness (OSC portion)**
   - **Validates: Requirements 1.2, 5.2**
 
-- [ ] 5. Integrate tracing into EscParser
+- [x] 5. Integrate tracing into EscParser
   - Add TraceHelper.TraceEscSequence calls in ProcessEscByte method when sequence completes
   - Include complete escape sequence characters after ESC
   - Use Output direction for parsed ESC sequences
   - _Requirements: 1.3, 5.4_
 
-- [ ] 5.1 Write property test for ESC sequence tracing
+- [x] 5.1 Write property test for ESC sequence tracing
   - **Property 1: Escape Sequence Tracing Completeness (ESC portion)**
   - **Validates: Requirements 1.3, 5.4**
 
-- [ ] 6. Integrate tracing into DcsParser
+- [x] 6. Integrate tracing into DcsParser
   - Add TraceHelper.TraceDcsSequence calls in ProcessDcsByte method when sequence completes
   - Include DCS command, parameters, and data payload in traces
   - Use Output direction for parsed DCS sequences
   - _Requirements: 1.4, 5.5_
 
-- [ ] 6.1 Write property test for DCS sequence tracing completion
+- [x] 6.1 Write property test for DCS sequence tracing completion
   - **Property 1: Escape Sequence Tracing Completeness (DCS verification)**
   - **Validates: Requirements 1.4, 5.5**
 
-- [ ] 7. Integrate control character tracing into Parser
+- [x] 7. Integrate control character tracing into Parser
   - Add TraceHelper.TraceControlChar calls for control characters (0x00-0x1F, 0x7F)
   - Use appropriate control character names (LF, CR, BEL, etc.)
   - Use Input direction for user control characters, Output for program control characters
   - _Requirements: 1.5_
 
-- [ ] 7.1 Write property test for control character tracing
+- [x] 7.1 Write property test for control character tracing
   - **Property 2: Control Character Tracing**
   - **Validates: Requirements 1.5**
 
