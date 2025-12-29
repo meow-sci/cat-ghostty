@@ -259,3 +259,11 @@ C# terminal emulator translating TypeScript caTTY for KSA game integration. VT10
 1. THE TerminalController SHALL provide methods to update font config at runtime
 2. WHEN font config changed THEN SHALL immediately apply new fonts to rendering
 3. THE Controller SHALL recalculate character metrics, maintain cursor accuracy
+
+### R35: Debug Tracing
+**User Story:** As a developer, I want optional debug tracing for terminal analysis.
+**Acceptance Criteria:**
+1. THE Core SHALL provide SQLite-based tracing system for escape sequences and printable text
+2. WHEN tracing disabled (default) THEN SHALL have minimal performance overhead (~1-2ns per call)
+3. WHEN tracing enabled THEN SHALL log terminal data to SQLite database with timestamps
+4. THE tracing system SHALL fail gracefully without breaking terminal functionality

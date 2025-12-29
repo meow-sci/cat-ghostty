@@ -9,6 +9,7 @@ inclusion: always
 - **Projects**: Core (headless), Display (ImGui), TestApp (dev), GameMod (prod), Tests
 - **KSA Integration**: `C:\Program Files\Kitten Space Agency\`, see `KsaExampleMod/` reference
 - **Code Style**: Immutable, pure functions, nullable types, `Span<T>`, Result<T> pattern
+- **Tracing**: SQLite-based debug tracing (disabled by default, `TerminalTracer.Enabled`)
 
 ## Code Organization (CRITICAL)
 **Size Limits**: Classes <400 lines, methods <50 lines, <10 public methods, <5 classes/file

@@ -20,6 +20,8 @@ catty-ksa.sln
 
 **Reference**: Use `KsaExampleMod/` for KSA integration patterns (project config, mod.toml, StarMap attributes, Harmony patching).
 
+**Tracing**: SQLite-based debug tracing system in `caTTY.Core/Tracing/` (disabled by default, `TerminalTracer.Enabled = true` to enable).
+
 ## Components and Interfaces
 
 ### Code Organization Principles

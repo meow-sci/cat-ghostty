@@ -15,7 +15,7 @@
 
 ## C# Implementation
 - `catty-ksa/`: .NET solution
-  - `caTTY.Core/`: headless terminal (Terminal/, Parsing/, Managers/, Types/)
+  - `caTTY.Core/`: headless terminal (Terminal/, Parsing/, Managers/, Types/, Tracing/)
   - `caTTY.Display/`: ImGui display controller
   - `caTTY.TestApp/`: standalone console app
   - `caTTY.GameMod/`: KSA game mod target
@@ -24,6 +24,7 @@
 ### Key Paths
 - `catty-ksa/caTTY.Core/Terminal/TerminalEmulator.cs`
 - `catty-ksa/caTTY.Core/Parsing/Parser.cs`
+- `catty-ksa/caTTY.Core/Tracing/TerminalTracer.cs`
 - `catty-ksa/caTTY.Display/Controllers/TerminalController.cs`
 
 ## Architecture Principles
