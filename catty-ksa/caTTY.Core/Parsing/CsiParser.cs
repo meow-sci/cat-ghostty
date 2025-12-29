@@ -1,5 +1,6 @@
 using System.Text;
 using caTTY.Core.Types;
+using caTTY.Core.Tracing;
 
 namespace caTTY.Core.Parsing;
 
@@ -53,7 +54,13 @@ public class CsiParser : ICsiParser
         string intermediateStr = intermediate.ToString();
 
         // Parse specific CSI commands based on final byte and modifiers
-        return ParseCsiCommand(finalByte, final, parameters, isPrivate, prefix, intermediateStr, raw);
+        var result = ParseCsiCommand(finalByte, final, parameters, isPrivate, prefix, intermediateStr, raw);
+        
+        // Trace the parsed CSI sequence
+        TraceHelper.TraceCsiSequence((char)finalByte, paramsText.ToString(), 
+            prefix?.FirstOrDefault(), TraceDirection.Output);
+        
+        return result;
     }
 
     /// <summary>

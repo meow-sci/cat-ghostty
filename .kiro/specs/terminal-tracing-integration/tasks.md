@@ -30,13 +30,13 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 1: Escape Sequence Tracing Completeness (DCS portion)**
   - **Validates: Requirements 1.4, 5.5**
 
-- [ ] 3. Integrate tracing into CsiParser
+- [x] 3. Integrate tracing into CsiParser
   - Add TraceHelper.TraceCsiSequence calls in ParseCsiSequence method
   - Include command character, parameters, and prefix in traces
   - Use Output direction for parsed CSI sequences
   - _Requirements: 1.1, 5.1_
 
-- [ ] 3.1 Write property test for CSI sequence tracing
+- [x] 3.1 Write property test for CSI sequence tracing
   - **Property 1: Escape Sequence Tracing Completeness (CSI portion)**
   - **Validates: Requirements 1.1, 5.1**
 
