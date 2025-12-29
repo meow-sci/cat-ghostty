@@ -13,6 +13,7 @@ namespace caTTY.Core.Parsing;
 public class OscParser : IOscParser
 {
     private readonly ILogger _logger;
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
     
     /// <summary>
     ///     Maximum allowed OSC payload length to prevent memory blowups.
@@ -23,9 +24,11 @@ public class OscParser : IOscParser
     ///     Creates a new OSC parser.
     /// </summary>
     /// <param name="logger">Logger for diagnostic messages</param>
-    public OscParser(ILogger logger)
+    /// <param name="cursorPositionProvider">Optional cursor position provider for tracing</param>
+    public OscParser(ILogger logger, ICursorPositionProvider? cursorPositionProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cursorPositionProvider = cursorPositionProvider;
     }
 
     /// <summary>
@@ -57,7 +60,7 @@ public class OscParser : IOscParser
             // Add tracing for completed OSC sequence
             if (message?.XtermMessage != null)
             {
-                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             }
             
             return true; // Sequence complete
@@ -88,7 +91,7 @@ public class OscParser : IOscParser
             // Add tracing for completed OSC sequence
             if (message?.XtermMessage != null)
             {
-                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             }
             
             return true; // Sequence complete
@@ -101,7 +104,7 @@ public class OscParser : IOscParser
             // Add tracing for completed OSC sequence
             if (message?.XtermMessage != null)
             {
-                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output);
+                TraceHelper.TraceOscSequence(message.XtermMessage.Command, message.XtermMessage.Payload, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             }
             
             return true; // Sequence complete

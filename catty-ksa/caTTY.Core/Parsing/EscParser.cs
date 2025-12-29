@@ -11,14 +11,17 @@ namespace caTTY.Core.Parsing;
 public class EscParser : IEscParser
 {
     private readonly ILogger _logger;
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
 
     /// <summary>
     ///     Creates a new ESC parser.
     /// </summary>
     /// <param name="logger">Logger for diagnostic messages</param>
-    public EscParser(ILogger logger)
+    /// <param name="cursorPositionProvider">Optional cursor position provider for tracing</param>
+    public EscParser(ILogger logger, ICursorPositionProvider? cursorPositionProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cursorPositionProvider = cursorPositionProvider;
     }
 
     /// <summary>
@@ -55,14 +58,14 @@ public class EscParser : IEscParser
             {
                 // Trace the complete ESC sequence
                 string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
-                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
+                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 return true; // Sequence complete
             }
 
             // Unknown single-byte ESC sequence (byte already added by HandleSingleByteEscSequence)
             string raw = BytesToString(escapeSequence);
             string unknownSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
-            TraceHelper.TraceEscSequence(unknownSequence, TraceDirection.Output);
+            TraceHelper.TraceEscSequence(unknownSequence, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             _logger.LogDebug("ESC (opaque): {Raw}", raw);
             return true; // Complete unknown sequence
         }
@@ -130,7 +133,7 @@ public class EscParser : IEscParser
 
                 // Trace the complete ESC sequence
                 string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
-                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
+                TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
 
                 return true; // Sequence complete
             }
@@ -143,7 +146,7 @@ public class EscParser : IEscParser
         {
             string raw = BytesToString(escapeSequence);
             string escSequence = BytesToString(escapeSequence.Skip(1)); // Skip the ESC byte
-            TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output);
+            TraceHelper.TraceEscSequence(escSequence, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             _logger.LogDebug("ESC (opaque): {Raw}", raw);
             return true; // Sequence complete
         }

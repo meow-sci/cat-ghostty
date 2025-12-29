@@ -15,7 +15,9 @@ public static class TracingIntegration
   /// Call this from your parser's PushBytes method.
   /// </summary>
   /// <param name="data">Raw input bytes</param>
-  public static void TraceInputBytes(ReadOnlySpan<byte> data)
+  /// <param name="row">Current cursor row position (0-based, nullable)</param>
+  /// <param name="col">Current cursor column position (0-based, nullable)</param>
+  public static void TraceInputBytes(ReadOnlySpan<byte> data, int? row = null, int? col = null)
   {
     if (!TerminalTracer.Enabled || data.IsEmpty)
       return;
@@ -32,7 +34,7 @@ public static class TracingIntegration
         // Flush any accumulated printable text
         if (printableBuffer.Length > 0)
         {
-          TerminalTracer.TracePrintable(printableBuffer.ToString());
+          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
           printableBuffer.Clear();
         }
         inEscape = true;
@@ -52,7 +54,7 @@ public static class TracingIntegration
         // Simple heuristic: end escape on certain characters
         if (IsEscapeTerminator(b))
         {
-          TerminalTracer.TraceEscape(escapeBuffer.ToString());
+          TerminalTracer.TraceEscape(escapeBuffer.ToString(), TraceDirection.Output, row, col);
           escapeBuffer.Clear();
           inEscape = false;
         }
@@ -66,21 +68,21 @@ public static class TracingIntegration
         // Flush printable text before control char
         if (printableBuffer.Length > 0)
         {
-          TerminalTracer.TracePrintable(printableBuffer.ToString());
+          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
           printableBuffer.Clear();
         }
-        TraceHelper.TraceControlChar(b);
+        TraceHelper.TraceControlChar(b, TraceDirection.Output, row, col);
       }
     }
 
     // Flush any remaining buffers
     if (printableBuffer.Length > 0)
     {
-      TerminalTracer.TracePrintable(printableBuffer.ToString());
+      TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
     }
     if (escapeBuffer.Length > 0)
     {
-      TerminalTracer.TraceEscape(escapeBuffer.ToString());
+      TerminalTracer.TraceEscape(escapeBuffer.ToString(), TraceDirection.Output, row, col);
     }
   }
 
@@ -91,7 +93,9 @@ public static class TracingIntegration
   /// <param name="command">CSI command character</param>
   /// <param name="parameters">Parsed parameters</param>
   /// <param name="prefix">Optional prefix character</param>
-  public static void TraceParsedCsi(char command, int[]? parameters = null, char? prefix = null)
+  /// <param name="row">Current cursor row position (0-based, nullable)</param>
+  /// <param name="col">Current cursor column position (0-based, nullable)</param>
+  public static void TraceParsedCsi(char command, int[]? parameters = null, char? prefix = null, int? row = null, int? col = null)
   {
     if (!TerminalTracer.Enabled)
       return;
@@ -100,7 +104,7 @@ public static class TracingIntegration
         ? string.Join(";", parameters)
         : null;
 
-    TraceHelper.TraceCsiSequence(command, paramStr, prefix);
+    TraceHelper.TraceCsiSequence(command, paramStr, prefix, TraceDirection.Output, row, col);
   }
 
   /// <summary>
@@ -109,12 +113,14 @@ public static class TracingIntegration
   /// </summary>
   /// <param name="command">OSC command number</param>
   /// <param name="data">OSC data payload</param>
-  public static void TraceParsedOsc(int command, string? data = null)
+  /// <param name="row">Current cursor row position (0-based, nullable)</param>
+  /// <param name="col">Current cursor column position (0-based, nullable)</param>
+  public static void TraceParsedOsc(int command, string? data = null, int? row = null, int? col = null)
   {
     if (!TerminalTracer.Enabled)
       return;
 
-    TraceHelper.TraceOscSequence(command, data);
+    TraceHelper.TraceOscSequence(command, data, TraceDirection.Output, row, col);
   }
 
   /// <summary>
@@ -129,7 +135,7 @@ public static class TracingIntegration
     if (!TerminalTracer.Enabled)
       return;
 
-    TerminalTracer.TracePrintable($"[{row},{col}] '{character}'");
+    TerminalTracer.TracePrintable($"[{row},{col}] '{character}'", TraceDirection.Output, row, col);
   }
 
   /// <summary>
@@ -138,7 +144,9 @@ public static class TracingIntegration
   /// </summary>
   /// <param name="codePoint">Decoded Unicode code point</param>
   /// <param name="sourceBytes">Original UTF-8 bytes</param>
-  public static void TraceUtf8Decode(int codePoint, ReadOnlySpan<byte> sourceBytes)
+  /// <param name="row">Current cursor row position (0-based, nullable)</param>
+  /// <param name="col">Current cursor column position (0-based, nullable)</param>
+  public static void TraceUtf8Decode(int codePoint, ReadOnlySpan<byte> sourceBytes, int? row = null, int? col = null)
   {
     if (!TerminalTracer.Enabled)
       return;
@@ -146,7 +154,7 @@ public static class TracingIntegration
     var character = char.ConvertFromUtf32(codePoint);
     var bytesHex = string.Join(" ", sourceBytes.ToArray().Select(b => $"{b:X2}"));
 
-    TerminalTracer.Trace($"UTF8: {bytesHex}", $"'{character}' (U+{codePoint:X4})");
+    TerminalTracer.Trace($"UTF8: {bytesHex}", $"'{character}' (U+{codePoint:X4})", TraceDirection.Output, row, col);
   }
 
   /// <summary>

@@ -11,14 +11,17 @@ namespace caTTY.Core.Parsing;
 public class DcsParser : IDcsParser
 {
     private readonly ILogger _logger;
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
 
     /// <summary>
     ///     Creates a new DCS parser.
     /// </summary>
     /// <param name="logger">Logger for diagnostic messages</param>
-    public DcsParser(ILogger logger)
+    /// <param name="cursorPositionProvider">Optional cursor position provider for tracing</param>
+    public DcsParser(ILogger logger, ICursorPositionProvider? cursorPositionProvider = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cursorPositionProvider = cursorPositionProvider;
     }
 
     /// <summary>

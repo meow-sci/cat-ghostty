@@ -10,6 +10,7 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - Add TraceDirection enum with Input/Output values
   - Add direction parameter to existing tracing methods with default Output
   - Update database schema to include direction column with migration support
+  - **REFACTORED**: Added row/col parameters to all tracing methods for cursor position tracking
   - _Requirements: 8.1, 8.2, 10.1, 10.4, 10.5_
 
 - [x] 1.1 Write property test for direction tracking

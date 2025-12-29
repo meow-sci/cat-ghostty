@@ -1,4 +1,5 @@
 using caTTY.Core.Terminal;
+using caTTY.Core.Tracing;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.Display.Types;
@@ -52,6 +53,7 @@ public class TerminalTestApp : IDisposable
     public async Task RunAsync()
     {
         Console.WriteLine("Starting shell process...");
+        // TerminalTracer.Enabled = true;
 
         // Display console color test if supported
         ConsoleColorTest.DisplayColorTest();

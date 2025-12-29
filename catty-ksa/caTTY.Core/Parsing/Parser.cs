@@ -24,6 +24,7 @@ public class Parser
     private readonly IParserHandlers _handlers;
     private readonly ILogger _logger;
     private readonly bool _processC0ControlsDuringEscapeSequence;
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
 
     // UTF-8 decoding
     private readonly IUtf8Decoder _utf8Decoder;
@@ -45,12 +46,13 @@ public class Parser
         _logger = options.Logger ?? throw new ArgumentNullException(nameof(options.Logger));
         _emitNormalBytesDuringEscapeSequence = options.EmitNormalBytesDuringEscapeSequence;
         _processC0ControlsDuringEscapeSequence = options.ProcessC0ControlsDuringEscapeSequence;
+        _cursorPositionProvider = options.CursorPositionProvider;
         _utf8Decoder = options.Utf8Decoder ?? new Utf8Decoder();
-        _csiParser = options.CsiParser ?? new CsiParser();
-        _escParser = options.EscParser ?? new EscParser(_logger);
-        _dcsParser = options.DcsParser ?? new DcsParser(_logger);
-        _oscParser = options.OscParser ?? new OscParser(_logger);
-        _sgrParser = options.SgrParser ?? new SgrParser(_logger);
+        _csiParser = options.CsiParser ?? new CsiParser(options.CursorPositionProvider);
+        _escParser = options.EscParser ?? new EscParser(_logger, options.CursorPositionProvider);
+        _dcsParser = options.DcsParser ?? new DcsParser(_logger, options.CursorPositionProvider);
+        _oscParser = options.OscParser ?? new OscParser(_logger, options.CursorPositionProvider);
+        _sgrParser = options.SgrParser ?? new SgrParser(_logger, options.CursorPositionProvider);
     }
 
     /// <summary>
@@ -564,7 +566,7 @@ public class Parser
         
         // Trace the DCS sequence with command, parameters, and data payload
         string? parametersString = _dcsParameters.Length > 0 ? string.Join(";", _dcsParameters) : null;
-        TraceHelper.TraceDcsSequence(_dcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output);
+        TraceHelper.TraceDcsSequence(_dcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
         
         _handlers.HandleDcs(message);
         ResetEscapeState();

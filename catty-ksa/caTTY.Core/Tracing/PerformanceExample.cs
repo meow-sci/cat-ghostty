@@ -45,9 +45,9 @@ public static class PerformanceExample
     // Warm up
     for (int i = 0; i < 1000; i++)
     {
-      TerminalTracer.TraceEscape("CSI H");
-      TerminalTracer.TracePrintable("test");
-      TraceHelper.TraceCsiSequence('H', "1;1");
+      TerminalTracer.TraceEscape("CSI H", TraceDirection.Output, 0, 0);
+      TerminalTracer.TracePrintable("test", TraceDirection.Output, 0, 4);
+      TraceHelper.TraceCsiSequence('H', "1;1", null, TraceDirection.Output, 1, 1);
     }
 
     // Force garbage collection before measurement
@@ -61,13 +61,13 @@ public static class PerformanceExample
     {
       // Mix of different trace operations to simulate real usage
       if (i % 4 == 0)
-        TerminalTracer.TraceEscape("CSI 2 J");
+        TerminalTracer.TraceEscape("CSI 2 J", TraceDirection.Output, 0, 0);
       else if (i % 4 == 1)
-        TerminalTracer.TracePrintable("Hello");
+        TerminalTracer.TracePrintable("Hello", TraceDirection.Output, 0, i % 80);
       else if (i % 4 == 2)
-        TraceHelper.TraceCsiSequence('H', "1;1");
+        TraceHelper.TraceCsiSequence('H', "1;1", null, TraceDirection.Output, 1, 1);
       else
-        TraceHelper.TraceControlChar(0x0A);
+        TraceHelper.TraceControlChar(0x0A, TraceDirection.Output, i % 24, 0);
     }
 
     stopwatch.Stop();
@@ -85,11 +85,11 @@ public static class PerformanceExample
     // GOOD: Check enabled flag first to avoid expensive operations
     if (TerminalTracer.Enabled)
     {
-      TerminalTracer.TraceEscape($"Complex calculation: {ExpensiveOperation()}");
+      TerminalTracer.TraceEscape($"Complex calculation: {ExpensiveOperation()}", TraceDirection.Output, 0, 0);
     }
 
     // BETTER: Use the helper methods which check internally
-    TraceHelper.TraceCsiSequence('H', "1;1"); // Already checks Enabled internally
+    TraceHelper.TraceCsiSequence('H', "1;1", null, TraceDirection.Output, 1, 1); // Already checks Enabled internally
 
     // BEST: For hot paths, cache the enabled state if checking frequently
     var tracingEnabled = TerminalTracer.Enabled;
@@ -97,7 +97,7 @@ public static class PerformanceExample
     {
       if (tracingEnabled)
       {
-        TerminalTracer.TracePrintable($"Character {i}");
+        TerminalTracer.TracePrintable($"Character {i}", TraceDirection.Output, i / 80, i % 80);
       }
       // ... hot path processing ...
     }

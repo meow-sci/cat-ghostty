@@ -1,3 +1,4 @@
+using caTTY.Core.Types;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -65,4 +66,10 @@ public class ParserOptions
     ///     If null, a default SgrParser will be created.
     /// </summary>
     public ISgrParser? SgrParser { get; set; }
+
+    /// <summary>
+    ///     Cursor position provider for tracing purposes.
+    ///     If null, parsers will trace without position information.
+    /// </summary>
+    public ICursorPositionProvider? CursorPositionProvider { get; set; }
 }

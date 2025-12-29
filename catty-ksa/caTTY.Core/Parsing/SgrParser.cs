@@ -12,6 +12,18 @@ namespace caTTY.Core.Parsing;
 public class SgrParser : ISgrParser
 {
     private readonly ILogger _logger;
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
+
+    /// <summary>
+    ///     Creates a new SGR parser.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostic messages</param>
+    /// <param name="cursorPositionProvider">Optional cursor position provider for tracing</param>
+    public SgrParser(ILogger logger, ICursorPositionProvider? cursorPositionProvider = null)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cursorPositionProvider = cursorPositionProvider;
+    }
 
     /// <summary>
     ///     Named colors for standard 8 colors (SGR 30-37, 40-47).

@@ -110,7 +110,9 @@ public static class TerminalTracer
                         time INTEGER NOT NULL,
                         escape_seq TEXT,
                         printable TEXT,
-                        direction TEXT NOT NULL DEFAULT 'output'
+                        direction TEXT NOT NULL DEFAULT 'output',
+                        row INTEGER,
+                        col INTEGER
                     )";
         createTableCommand.ExecuteNonQuery();
 
@@ -129,12 +131,14 @@ public static class TerminalTracer
   /// </summary>
   /// <param name="escapeSequence">The escape sequence to log</param>
   /// <param name="direction">The direction of data flow (default: Output)</param>
-  public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output)
+  /// <param name="row">The cursor row position (0-based, nullable)</param>
+  /// <param name="col">The cursor column position (0-based, nullable)</param>
+  public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
     if (!Enabled || string.IsNullOrEmpty(escapeSequence))
       return;
 
-    TraceInternal(escapeSequence, null, direction);
+    TraceInternal(escapeSequence, null, direction, row, col);
   }
 
   /// <summary>
@@ -142,12 +146,14 @@ public static class TerminalTracer
   /// </summary>
   /// <param name="printableText">The printable text to log</param>
   /// <param name="direction">The direction of data flow (default: Output)</param>
-  public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output)
+  /// <param name="row">The cursor row position (0-based, nullable)</param>
+  /// <param name="col">The cursor column position (0-based, nullable)</param>
+  public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
     if (!Enabled || string.IsNullOrEmpty(printableText))
       return;
 
-    TraceInternal(null, printableText, direction);
+    TraceInternal(null, printableText, direction, row, col);
   }
 
   /// <summary>
@@ -156,15 +162,17 @@ public static class TerminalTracer
   /// <param name="escapeSequence">The escape sequence to log</param>
   /// <param name="printableText">The printable text to log</param>
   /// <param name="direction">The direction of data flow (default: Output)</param>
-  public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output)
+  /// <param name="row">The cursor row position (0-based, nullable)</param>
+  /// <param name="col">The cursor column position (0-based, nullable)</param>
+  public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
     if (!Enabled || (string.IsNullOrEmpty(escapeSequence) && string.IsNullOrEmpty(printableText)))
       return;
 
-    TraceInternal(escapeSequence, printableText, direction);
+    TraceInternal(escapeSequence, printableText, direction, row, col);
   }
 
-  private static void TraceInternal(string? escapeSequence, string? printableText, TraceDirection direction)
+  private static void TraceInternal(string? escapeSequence, string? printableText, TraceDirection direction, int? row = null, int? col = null)
   {
     lock (_lock)
     {
@@ -184,13 +192,15 @@ public static class TerminalTracer
 
         var command = _connection.CreateCommand();
         command.CommandText = @"
-                    INSERT INTO trace (time, escape_seq, printable, direction) 
-                    VALUES (@time, @escape, @printable, @direction)";
+                    INSERT INTO trace (time, escape_seq, printable, direction, row, col) 
+                    VALUES (@time, @escape, @printable, @direction, @row, @col)";
 
         command.Parameters.AddWithValue("@time", timestamp);
         command.Parameters.AddWithValue("@escape", escapeSequence ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@printable", printableText ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@direction", directionString);
+        command.Parameters.AddWithValue("@row", row ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@col", col ?? (object)DBNull.Value);
 
         command.ExecuteNonQuery();
       }

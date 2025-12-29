@@ -89,7 +89,7 @@ public class TerminalTracingProperties
     public static Arbitrary<string> EscapeSequenceArb =>
         Arb.From(Gen.Elements(new[]
         {
-            "CSI H", "CSI 2J", "CSI 1;1H", "OSC 0 title", "ESC c", "DCS test"
+            "ESC[H", "ESC[2J", "ESC[1;1H", "ESC]0;title\\x07", "ESC7", "ESCPtest ESC\\"
         }));
 
     /// <summary>
@@ -237,8 +237,8 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected ESC sequence format: "ESC sequence"
-            var expectedSequence = $"ESC {escSequence}";
+            // Build expected ESC sequence format: "ESCsequence"
+            var expectedSequence = $"ESC{escSequence}";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -269,8 +269,8 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected OSC sequence format: "OSC command [data]"
-            var expectedSequence = string.IsNullOrEmpty(data) ? $"OSC {command}" : $"OSC {command} {data}";
+            // Build expected OSC sequence format: "ESC]command;data\x07"
+            var expectedSequence = string.IsNullOrEmpty(data) ? $"ESC]{command}\\x07" : $"ESC]{command};{data}\\x07";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -314,8 +314,8 @@ public class TerminalTracingProperties
         
         var trace = traces[0];
         
-        // Build expected DCS sequence format: "DCS parameters command"
-        var expectedSequence = "DCS 1 q";
+        // Build expected DCS sequence format: "ESCPparameterscommand ESC\"
+        var expectedSequence = "ESCP1qESC\\";
         
         Assert.That(trace.Escape, Is.EqualTo(expectedSequence), "Trace should contain correct DCS sequence");
         Assert.That(trace.Direction, Is.EqualTo("output"), "Direction should be output");
@@ -345,10 +345,10 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected DCS sequence format based on TraceHelper.TraceDcsSequence implementation
+            // Build expected DCS sequence format: "ESCPparameterscommand ESC\"
             var expectedSequence = string.IsNullOrEmpty(parameters) 
-                ? $"DCS {command}" 
-                : $"DCS {parameters} {command}";
+                ? $"ESCP{command}ESC\\" 
+                : $"ESCP{parameters}{command}ESC\\";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -471,8 +471,8 @@ public class TerminalTracingProperties
             var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
             
             // The trace should contain the character and position information
-            // Format: "character at (row,col)"
-            var expectedTrace = $"{character} at (0,0)"; // Cursor starts at (0,0)
+            // Format: "character at (row,col)" - cursor starts at (0,0)
+            var expectedTrace = $"{character} at (0,0)";
             
             return trace.Printable == expectedTrace && 
                    trace.Direction == expectedDirection;

@@ -12,7 +12,7 @@ namespace caTTY.Core.Terminal;
 ///     Core terminal emulator implementation that processes raw byte data and maintains screen state.
 ///     This is a headless implementation with no UI dependencies.
 /// </summary>
-public class TerminalEmulator : ITerminalEmulator
+public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 {
     private readonly ILogger _logger;
     private readonly Parser _parser;
@@ -95,7 +95,8 @@ public class TerminalEmulator : ITerminalEmulator
             Handlers = handlers,
             Logger = _logger,
             EmitNormalBytesDuringEscapeSequence = false,
-            ProcessC0ControlsDuringEscapeSequence = true
+            ProcessC0ControlsDuringEscapeSequence = true,
+            CursorPositionProvider = this
         };
         _parser = new Parser(parserOptions);
 
@@ -151,6 +152,16 @@ public class TerminalEmulator : ITerminalEmulator
     ///     Gets the current cursor state.
     /// </summary>
     public ICursor Cursor { get; }
+
+    /// <summary>
+    /// Gets the current cursor row position (0-based) for tracing purposes.
+    /// </summary>
+    public int Row => _cursorManager.Row;
+
+    /// <summary>
+    /// Gets the current cursor column position (0-based) for tracing purposes.
+    /// </summary>
+    public int Column => _cursorManager.Column;
 
     /// <summary>
     ///     Gets the scrollback buffer for accessing historical lines.
@@ -798,7 +809,7 @@ public class TerminalEmulator : ITerminalEmulator
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
         // Trace the printable character with position information
-        TerminalTracer.TracePrintable($"{character} at ({_cursorManager.Row},{_cursorManager.Column})", TraceDirection.Output);
+        TerminalTracer.TracePrintable(character.ToString(), TraceDirection.Output, _cursorManager.Row, _cursorManager.Column);
 
         // Handle cursor advancement and wrap pending logic
         if (_cursorManager.Column == Width - 1)

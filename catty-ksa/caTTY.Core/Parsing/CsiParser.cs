@@ -11,6 +11,16 @@ namespace caTTY.Core.Parsing;
 /// </summary>
 public class CsiParser : ICsiParser
 {
+    private readonly ICursorPositionProvider? _cursorPositionProvider;
+
+    /// <summary>
+    /// Creates a new CSI parser.
+    /// </summary>
+    /// <param name="cursorPositionProvider">Optional cursor position provider for tracing</param>
+    public CsiParser(ICursorPositionProvider? cursorPositionProvider = null)
+    {
+        _cursorPositionProvider = cursorPositionProvider;
+    }
     /// <summary>
     ///     Parses a complete CSI sequence from the provided bytes.
     /// </summary>
@@ -58,7 +68,7 @@ public class CsiParser : ICsiParser
         
         // Trace the parsed CSI sequence
         TraceHelper.TraceCsiSequence((char)finalByte, paramsText.ToString(), 
-            prefix?.FirstOrDefault(), TraceDirection.Output);
+            prefix?.FirstOrDefault(), TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
         
         return result;
     }
