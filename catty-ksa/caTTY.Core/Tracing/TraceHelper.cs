@@ -12,7 +12,8 @@ public static class TraceHelper
   /// Trace raw bytes as an escape sequence (for debugging parser input).
   /// </summary>
   /// <param name="bytes">Raw bytes to trace as escape sequence</param>
-  public static void TraceEscapeBytes(ReadOnlySpan<byte> bytes)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceEscapeBytes(ReadOnlySpan<byte> bytes, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled || bytes.IsEmpty)
       return;
@@ -30,26 +31,28 @@ public static class TraceHelper
       }
     }
 
-    TerminalTracer.TraceEscape(sb.ToString());
+    TerminalTracer.TraceEscape(sb.ToString(), direction);
   }
 
   /// <summary>
   /// Trace a single character as printable text.
   /// </summary>
   /// <param name="character">Character to trace</param>
-  public static void TracePrintableChar(char character)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TracePrintableChar(char character, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
 
-    TerminalTracer.TracePrintable(character.ToString());
+    TerminalTracer.TracePrintable(character.ToString(), direction);
   }
 
   /// <summary>
   /// Trace a control character with its name for better readability.
   /// </summary>
   /// <param name="controlByte">Control character byte (0-31)</param>
-  public static void TraceControlChar(byte controlByte)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceControlChar(byte controlByte, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
@@ -70,7 +73,7 @@ public static class TraceHelper
       _ => $"C{controlByte:X2}"
     };
 
-    TerminalTracer.TraceEscape($"<{controlName}>");
+    TerminalTracer.TraceEscape($"<{controlName}>", direction);
   }
 
   /// <summary>
@@ -79,7 +82,8 @@ public static class TraceHelper
   /// <param name="command">CSI command character</param>
   /// <param name="parameters">CSI parameters (can be null)</param>
   /// <param name="prefix">CSI prefix character (can be null)</param>
-  public static void TraceCsiSequence(char command, string? parameters = null, char? prefix = null)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceCsiSequence(char command, string? parameters = null, char? prefix = null, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
@@ -93,7 +97,7 @@ public static class TraceHelper
 
     sequence.Append($" {command}");
 
-    TerminalTracer.TraceEscape(sequence.ToString());
+    TerminalTracer.TraceEscape(sequence.ToString(), direction);
   }
 
   /// <summary>
@@ -101,7 +105,8 @@ public static class TraceHelper
   /// </summary>
   /// <param name="command">OSC command number</param>
   /// <param name="data">OSC data string</param>
-  public static void TraceOscSequence(int command, string? data = null)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceOscSequence(int command, string? data = null, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
@@ -110,31 +115,58 @@ public static class TraceHelper
     if (!string.IsNullOrEmpty(data))
       sequence += $" {data}";
 
-    TerminalTracer.TraceEscape(sequence);
+    TerminalTracer.TraceEscape(sequence, direction);
   }
 
   /// <summary>
   /// Trace an ESC sequence (non-CSI).
   /// </summary>
   /// <param name="sequence">The escape sequence characters after ESC</param>
-  public static void TraceEscSequence(string sequence)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceEscSequence(string sequence, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
 
-    TerminalTracer.TraceEscape($"ESC {sequence}");
+    TerminalTracer.TraceEscape($"ESC {sequence}", direction);
+  }
+
+  /// <summary>
+  /// Trace a DCS sequence with command, parameters, and data.
+  /// </summary>
+  /// <param name="command">DCS command string</param>
+  /// <param name="parameters">DCS parameters (can be null)</param>
+  /// <param name="data">DCS data payload (can be null)</param>
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceDcsSequence(string command, string? parameters = null, string? data = null, TraceDirection direction = TraceDirection.Output)
+  {
+    if (!TerminalTracer.Enabled)
+      return;
+
+    var sequence = new StringBuilder("DCS");
+
+    if (!string.IsNullOrEmpty(parameters))
+      sequence.Append($" {parameters}");
+
+    sequence.Append($" {command}");
+
+    if (!string.IsNullOrEmpty(data))
+      sequence.Append($" {data}");
+
+    TerminalTracer.TraceEscape(sequence.ToString(), direction);
   }
 
   /// <summary>
   /// Trace UTF-8 decoded text as printable content.
   /// </summary>
   /// <param name="text">UTF-8 decoded text</param>
-  public static void TraceUtf8Text(string text)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceUtf8Text(string text, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled || string.IsNullOrEmpty(text))
       return;
 
-    TerminalTracer.TracePrintable(text);
+    TerminalTracer.TracePrintable(text, direction);
   }
 
   /// <summary>
@@ -143,11 +175,12 @@ public static class TraceHelper
   /// <param name="fromState">Previous parser state</param>
   /// <param name="toState">New parser state</param>
   /// <param name="trigger">What triggered the transition</param>
-  public static void TraceStateTransition(string fromState, string toState, string trigger)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceStateTransition(string fromState, string toState, string trigger, TraceDirection direction = TraceDirection.Output)
   {
     if (!TerminalTracer.Enabled)
       return;
 
-    TerminalTracer.TraceEscape($"STATE: {fromState} -> {toState} ({trigger})");
+    TerminalTracer.TraceEscape($"STATE: {fromState} -> {toState} ({trigger})", direction);
   }
 }

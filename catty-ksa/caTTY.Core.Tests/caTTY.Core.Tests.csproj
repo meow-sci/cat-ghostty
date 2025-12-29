@@ -34,4 +34,12 @@
         <Folder Include="Property\"/>
     </ItemGroup>
 
+    <Target Name="CleanDatabaseFiles" AfterTargets="Clean">
+        <Message Importance="low" Text="Deleting *.db files from $(OutputPath)..." />
+        <ItemGroup>
+            <DbFiles Include="$(OutputPath)\**\*.db" />
+        </ItemGroup>
+        <Delete Files="@(DbFiles)" />
+    </Target>
+
 </Project>

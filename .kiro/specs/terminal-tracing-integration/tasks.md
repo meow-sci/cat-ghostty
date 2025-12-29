@@ -6,17 +6,17 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
 
 ## Tasks
 
-- [ ] 1. Enhance TerminalTracer with direction support
+- [x] 1. Enhance TerminalTracer with direction support
   - Add TraceDirection enum with Input/Output values
   - Add direction parameter to existing tracing methods with default Output
   - Update database schema to include direction column with migration support
   - _Requirements: 8.1, 8.2, 10.1, 10.4, 10.5_
 
-- [ ] 1.1 Write property test for direction tracking
+- [x] 1.1 Write property test for direction tracking
   - **Property 7: Direction Tracking Accuracy**
   - **Validates: Requirements 8.1, 8.2**
 
-- [ ] 1.2 Write property test for default direction handling
+- [x] 1.2 Write property test for default direction handling
   - **Property 15: Default Direction Handling**
   - **Validates: Requirements 10.5**
 

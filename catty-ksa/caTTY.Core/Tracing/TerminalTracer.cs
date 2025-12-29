@@ -4,6 +4,22 @@ using Microsoft.Data.Sqlite;
 namespace caTTY.Core.Tracing;
 
 /// <summary>
+/// Represents the direction of data flow in terminal tracing.
+/// </summary>
+public enum TraceDirection
+{
+  /// <summary>
+  /// Data flowing from user/application into the terminal (keyboard input, paste operations).
+  /// </summary>
+  Input,
+
+  /// <summary>
+  /// Data flowing from the running program to the terminal display (program output, escape sequences).
+  /// </summary>
+  Output
+}
+
+/// <summary>
 /// Terminal tracing system that logs escape sequences and printable characters to SQLite database.
 /// </summary>
 public static class TerminalTracer
@@ -20,6 +36,52 @@ public static class TerminalTracer
   public static bool Enabled { get; set; } = false;
 
   /// <summary>
+  /// Gets or sets the database path override. If set, this path will be used instead of the assembly directory.
+  /// </summary>
+  public static string? DbPath { get; set; } = null;
+
+  /// <summary>
+  /// Gets or sets the database filename override. If set, this filename will be used instead of "catty_trace.db".
+  /// </summary>
+  public static string? DbFilename { get; set; } = null;
+
+  /// <summary>
+  /// Helper method for test cases to set up a unique database filename and return it.
+  /// This is a convenience method that generates a UUID-based filename and sets DbFilename.
+  /// </summary>
+  /// <returns>The generated unique database filename</returns>
+  public static string SetupTestDatabase()
+  {
+    var testFilename = $"{Guid.NewGuid():N}.db";
+    DbFilename = testFilename;
+    return testFilename;
+  }
+
+  /// <summary>
+  /// Reset the tracing system to a clean state. This will close any existing connections,
+  /// reset all state variables, and prepare the tracer for reuse.
+  /// </summary>
+  public static void Reset()
+  {
+    lock (_lock)
+    {
+      try
+      {
+        _connection?.Close();
+        _connection?.Dispose();
+        _connection = null;
+      }
+      catch (Exception ex)
+      {
+        Console.Error.WriteLine($"Failed to close connection during reset: {ex.Message}");
+      }
+
+      _initialized = false;
+      _disposed = false;
+    }
+  }
+
+  /// <summary>
   /// Initialize the tracing database. Called automatically on first trace.
   /// </summary>
   public static void Initialize()
@@ -31,9 +93,10 @@ public static class TerminalTracer
 
       try
       {
-        string dllDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+        string dllDir = DbPath ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+        string filename = DbFilename ?? "catty_trace.db";
 
-        var dbPath = Path.Combine(dllDir, "catty_trace.db");
+        var dbPath = Path.Combine(dllDir, filename);
         var connectionString = $"Data Source={dbPath}";
 
         _connection = new SqliteConnection(connectionString);
@@ -45,8 +108,9 @@ public static class TerminalTracer
                     CREATE TABLE IF NOT EXISTS trace (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         time INTEGER NOT NULL,
-                        escape TEXT,
-                        printable TEXT
+                        escape_seq TEXT,
+                        printable TEXT,
+                        direction TEXT NOT NULL DEFAULT 'output'
                     )";
         createTableCommand.ExecuteNonQuery();
 
@@ -64,24 +128,26 @@ public static class TerminalTracer
   /// Log an escape sequence to the trace database.
   /// </summary>
   /// <param name="escapeSequence">The escape sequence to log</param>
-  public static void TraceEscape(string escapeSequence)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output)
   {
     if (!Enabled || string.IsNullOrEmpty(escapeSequence))
       return;
 
-    TraceInternal(escapeSequence, null);
+    TraceInternal(escapeSequence, null, direction);
   }
 
   /// <summary>
   /// Log printable characters to the trace database.
   /// </summary>
   /// <param name="printableText">The printable text to log</param>
-  public static void TracePrintable(string printableText)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output)
   {
     if (!Enabled || string.IsNullOrEmpty(printableText))
       return;
 
-    TraceInternal(null, printableText);
+    TraceInternal(null, printableText, direction);
   }
 
   /// <summary>
@@ -89,15 +155,16 @@ public static class TerminalTracer
   /// </summary>
   /// <param name="escapeSequence">The escape sequence to log</param>
   /// <param name="printableText">The printable text to log</param>
-  public static void Trace(string? escapeSequence, string? printableText)
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output)
   {
     if (!Enabled || (string.IsNullOrEmpty(escapeSequence) && string.IsNullOrEmpty(printableText)))
       return;
 
-    TraceInternal(escapeSequence, printableText);
+    TraceInternal(escapeSequence, printableText, direction);
   }
 
-  private static void TraceInternal(string? escapeSequence, string? printableText)
+  private static void TraceInternal(string? escapeSequence, string? printableText, TraceDirection direction)
   {
     lock (_lock)
     {
@@ -113,15 +180,17 @@ public static class TerminalTracer
       try
       {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var directionString = direction == TraceDirection.Input ? "input" : "output";
 
         var command = _connection.CreateCommand();
         command.CommandText = @"
-                    INSERT INTO trace (time, escape, printable) 
-                    VALUES (@time, @escape, @printable)";
+                    INSERT INTO trace (time, escape_seq, printable, direction) 
+                    VALUES (@time, @escape, @printable, @direction)";
 
         command.Parameters.AddWithValue("@time", timestamp);
         command.Parameters.AddWithValue("@escape", escapeSequence ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@printable", printableText ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@direction", directionString);
 
         command.ExecuteNonQuery();
       }
@@ -162,14 +231,13 @@ public static class TerminalTracer
   /// Get the current database file path for debugging purposes.
   /// </summary>
   /// <returns>The path to the SQLite database file, or null if not initialized</returns>
-  public static string? GetDatabasePath()
+  public static string GetDatabasePath()
   {
     lock (_lock)
     {
-      if (!_initialized || _connection == null)
-        return null;
-
-      return Path.Combine(Path.GetTempPath(), "catty_trace.db");
+      string dllDir = DbPath ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+      string filename = DbFilename ?? "catty_trace.db";
+      return Path.Combine(dllDir, filename);
     }
   }
 
