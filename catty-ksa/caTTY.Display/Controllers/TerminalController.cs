@@ -1860,6 +1860,14 @@ public class TerminalController : ITerminalController
     {
       if (ImGui.IsKeyPressed(imguiKey))
       {
+          // Special case: Don't process F12 in GameMod context to avoid conflict with terminal toggle
+        // In GameMod, F12 is reserved for terminal visibility toggle
+        if (keyString == "F12")
+        {
+          // Console.WriteLine($"DEBUG: F12 pressed in GameMod context, skipping F12 processing to avoid conflict");
+          return false; // Let F12 be handled by GameMod
+        }
+
         // Use the keyboard input encoder to get the proper sequence
         string? encoded = KeyboardInputEncoder.EncodeKeyEvent(keyString, modifiers, applicationCursorKeys);
 
@@ -2613,4 +2621,5 @@ public class TerminalController : ITerminalController
   {
     ResetCursorToThemeDefaults();
   }
+
 }

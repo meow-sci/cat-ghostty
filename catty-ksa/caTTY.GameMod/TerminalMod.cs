@@ -45,6 +45,7 @@ public class TerminalMod
       // Handle terminal toggle keybind (F12)
       if (ImGui.IsKeyPressed(ImGuiKey.F12))
       {
+        // Console.WriteLine($"DEBUG: GameMod detected F12 press, current _terminalVisible={_terminalVisible}");
         ToggleTerminal();
       }
 
@@ -231,11 +232,14 @@ public class TerminalMod
       return;
     }
 
+    Console.WriteLine($"DEBUG: ToggleTerminal called, changing _terminalVisible from {_terminalVisible} to {!_terminalVisible}");
+
     _terminalVisible = !_terminalVisible;
 
     if (_controller != null)
     {
       _controller.IsVisible = _terminalVisible;
+      // Console.WriteLine($"DEBUG: Set controller.IsVisible to {_terminalVisible}");
     }
 
     Console.WriteLine($"caTTY GameMod: Terminal {(_terminalVisible ? "shown" : "hidden")}");
