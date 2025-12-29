@@ -152,4 +152,12 @@
         </None>
     </ItemGroup>
 
+    <Target Name="CleanTestDatabaseFiles" AfterTargets="Clean">
+        <Message Importance="low" Text="Deleting *.db files from $(OutputPath)..." />
+        <ItemGroup>
+            <DbFiles Include="$(OutputPath)\**\*.db" />
+        </ItemGroup>
+        <Delete Files="@(DbFiles)" />
+    </Target>
+
 </Project>

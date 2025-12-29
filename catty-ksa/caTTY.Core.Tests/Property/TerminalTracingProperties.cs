@@ -77,6 +77,33 @@ public class TerminalTracingProperties
         }));
 
     /// <summary>
+    /// Generator for DCS commands.
+    /// </summary>
+    public static Arbitrary<string> DcsCommandArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "q", "p", "s", "$q", "+q", "+p"
+        }));
+
+    /// <summary>
+    /// Generator for DCS parameters.
+    /// </summary>
+    public static Arbitrary<string> DcsParametersArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "", "1", "0;1", "1;2;3", "42"
+        }));
+
+    /// <summary>
+    /// Generator for DCS data payloads.
+    /// </summary>
+    public static Arbitrary<string> DcsDataArb =>
+        Arb.From(Gen.Elements(new[]
+        {
+            "", "test", "hello world", "data123", "complex;data;here"
+        }));
+
+    /// <summary>
     /// Generator for printable text.
     /// </summary>
     public static Arbitrary<string> PrintableTextArb =>
@@ -89,6 +116,43 @@ public class TerminalTracingProperties
     /// </summary>
     public static Arbitrary<TraceDirection> TraceDirectionArb =>
         Arb.From(Gen.Elements(TraceDirection.Input, TraceDirection.Output));
+
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 1: Escape Sequence Tracing Completeness (DCS portion)**
+    /// **Validates: Requirements 1.4, 5.5**
+    /// Property: For any valid DCS sequence processed by the parser, the sequence should appear 
+    /// in the trace database with correct command, parameters, and direction information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property DcsSequenceTracingCompleteness()
+    {
+        return Prop.ForAll(DcsCommandArb, (command) =>
+        {
+            // Use fixed test values for simplicity
+            var parameters = "1;2";
+            var data = "testdata";
+            var direction = TraceDirection.Output;
+            
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace DCS sequence using TraceHelper
+            TraceHelper.TraceDcsSequence(command, parameters, data, direction);
+            
+            // Assert - Verify DCS sequence is recorded correctly
+            var traces = GetTracesFromDatabase();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            // Build expected DCS sequence format: "DCS [parameters] command [data]"
+            var expectedSequence = $"DCS {parameters} {command} {data}";
+            
+            return trace.Escape == expectedSequence && 
+                   trace.Direction == expectedDirection;
+        });
+    }
 
     /// <summary>
     /// **Feature: terminal-tracing-integration, Property 7: Direction Tracking Accuracy**

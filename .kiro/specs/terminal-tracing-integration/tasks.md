@@ -20,13 +20,13 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 15: Default Direction Handling**
   - **Validates: Requirements 10.5**
 
-- [ ] 2. Enhance TraceHelper with DCS support and direction parameters
+- [x] 2. Enhance TraceHelper with DCS support and direction parameters
   - Add TraceDcsSequence method for DCS sequence tracing
   - Add direction parameters to all existing TraceHelper methods
   - Ensure all methods call TerminalTracer with appropriate direction
   - _Requirements: 1.4, 5.5, 8.1, 8.2_
 
-- [ ] 2.1 Write property test for DCS sequence tracing
+- [x] 2.1 Write property test for DCS sequence tracing
   - **Property 1: Escape Sequence Tracing Completeness (DCS portion)**
   - **Validates: Requirements 1.4, 5.5**
 
