@@ -78,6 +78,10 @@
             <HintPath>$(KSAFolder)/Brutal.ImGui.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Brutal.Glfw" Condition="Exists('$(KSAFolder)/Brutal.Glfw.dll')">
+            <HintPath>$(KSAFolder)/Brutal.Glfw.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
             <HintPath>$(KSAFolder)/KSA.dll</HintPath>
             <Private>false</Private>

@@ -74,6 +74,15 @@ public class TerminalController : ITerminalController
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
 
+  private static int _numFocusedTerminals = 0;
+  private static int _numVisibleTerminals = 0;
+
+    /// <summary>
+  ///     Gets whether any terminal is visible and focused
+  /// </summary>
+  public static bool IsAnyTerminalActive => _numFocusedTerminals > 0 && _numVisibleTerminals > 0;
+
+
   /// <summary>
   ///     Creates a new terminal controller with default configuration.
   ///     This constructor maintains backward compatibility.
@@ -244,7 +253,18 @@ public class TerminalController : ITerminalController
   public bool IsVisible
   {
     get => _isVisible;
-    set => _isVisible = value;
+    set
+    {
+      _isVisible = value;
+      if (value)
+      {
+        _numVisibleTerminals++;
+      }
+      else
+      {
+        _numVisibleTerminals = Math.Max(0, _numVisibleTerminals - 1);
+      }
+    }
   }
 
   /// <summary>
@@ -570,6 +590,9 @@ public class TerminalController : ITerminalController
       // ImGui.PopStyleVar();
 
       // Console.WriteLine($"IsInputCaptureActive={IsInputCaptureActive}");
+
+      // ImGui.GetIO().WantCaptureKeyboard = true;
+      // Console.WriteLine($"ImGui.GetIO().WantCaptureKeyboard {ImGui.GetIO().WantCaptureKeyboard}");
       // ImGui.SetNextFrameWantCaptureKeyboard(true);
       // ImGui.SetKeyboardFocusHere();
 
@@ -605,6 +628,15 @@ public class TerminalController : ITerminalController
 
     if (focusChanged)
     {
+      if (currentFocus)
+      {
+        _numFocusedTerminals++;
+      }
+      else
+      {
+        _numFocusedTerminals = Math.Max(0, _numFocusedTerminals - 1);
+      }
+
       // Log focus changes for debugging
       Console.WriteLine($"TerminalController: Focus changed from {_wasFocusedLastFrame} to {currentFocus}");
 
@@ -1309,7 +1341,7 @@ public class TerminalController : ITerminalController
     {
       HandleMouseInputForTerminal();
     }
-    
+
     // Also handle mouse tracking for applications (this works regardless of hover state)
     HandleMouseTrackingForApplications();
   }
@@ -1495,24 +1527,24 @@ public class TerminalController : ITerminalController
     {
       // Sync mouse tracking configuration from terminal state
       SyncMouseTrackingConfiguration();
-      
+
       // Only process if mouse tracking is enabled
       var config = _mouseTrackingManager.Configuration;
       if (config.Mode == MouseTrackingMode.Off)
       {
         return; // No mouse tracking requested
       }
-      
+
       // Update mouse input handler with current terminal state
       _mouseInputHandler.SetTerminalFocus(HasFocus);
-      
+
       // Update coordinate converter with current terminal metrics
       UpdateCoordinateConverterMetrics();
-      
+
       // Update terminal size for mouse input handler
       var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
       _mouseInputHandler.UpdateTerminalSize(terminalSize, _terminal.Width, _terminal.Height);
-      
+
       // Process mouse input through the mouse input handler
       _mouseInputHandler.HandleMouseInput();
     }
@@ -1532,20 +1564,20 @@ public class TerminalController : ITerminalController
     {
       // Sync mouse tracking configuration from terminal state
       SyncMouseTrackingConfiguration();
-      
+
       // Update mouse input handler with current terminal state
       _mouseInputHandler.SetTerminalFocus(HasFocus);
-      
+
       // Update coordinate converter with current terminal metrics
       UpdateCoordinateConverterMetrics();
-      
+
       // Update terminal size for mouse input handler
       var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
       _mouseInputHandler.UpdateTerminalSize(terminalSize, _terminal.Width, _terminal.Height);
-      
+
       // Process mouse input through the mouse input handler
       _mouseInputHandler.HandleMouseInput();
-      
+
       // Also handle local selection (existing functionality)
       // This runs after mouse tracking to allow shift-key bypass
       HandleMouseInputForTerminal();
@@ -1563,8 +1595,8 @@ public class TerminalController : ITerminalController
   {
     // Update coordinate converter with current font metrics
     _coordinateConverter.UpdateMetrics(
-      CurrentCharacterWidth, 
-      CurrentLineHeight, 
+      CurrentCharacterWidth,
+      CurrentLineHeight,
       _lastTerminalOrigin);
   }
 
@@ -1576,10 +1608,10 @@ public class TerminalController : ITerminalController
     try
     {
       var terminalState = ((TerminalEmulator)_terminal).State;
-      
+
       // Convert terminal state mouse tracking bits to MouseTrackingMode
       MouseTrackingMode mode = MouseTrackingMode.Off;
-      
+
       // Check bits in priority order (highest mode wins)
       if ((terminalState.MouseTrackingModeBits & 4) != 0) // 1003 bit
       {
@@ -1593,14 +1625,14 @@ public class TerminalController : ITerminalController
       {
         mode = MouseTrackingMode.Click;
       }
-      
+
       // Only update if mode changed
       if (_mouseTrackingManager.CurrentMode != mode)
       {
         Console.WriteLine($"[DEBUG] Mouse tracking mode changed: {_mouseTrackingManager.CurrentMode} -> {mode} (bits={terminalState.MouseTrackingModeBits})");
         _mouseTrackingManager.SetTrackingMode(mode);
       }
-      
+
       // Only update if SGR encoding changed
       if (_mouseTrackingManager.SgrEncodingEnabled != terminalState.MouseSgrEncodingEnabled)
       {
@@ -1784,13 +1816,13 @@ public class TerminalController : ITerminalController
             (ImGuiKey.Backspace, "Backspace"),
             (ImGuiKey.Tab, "Tab"),
             (ImGuiKey.Escape, "Escape"),
-            
+
             // Arrow keys
             (ImGuiKey.UpArrow, "ArrowUp"),
             (ImGuiKey.DownArrow, "ArrowDown"),
             (ImGuiKey.RightArrow, "ArrowRight"),
             (ImGuiKey.LeftArrow, "ArrowLeft"),
-            
+
             // Navigation keys
             (ImGuiKey.Home, "Home"),
             (ImGuiKey.End, "End"),
@@ -1798,7 +1830,7 @@ public class TerminalController : ITerminalController
             (ImGuiKey.Insert, "Insert"),
             (ImGuiKey.PageUp, "PageUp"),
             (ImGuiKey.PageDown, "PageDown"),
-            
+
             // Function keys
             (ImGuiKey.F1, "F1"),
             (ImGuiKey.F2, "F2"),
@@ -1812,7 +1844,7 @@ public class TerminalController : ITerminalController
             (ImGuiKey.F10, "F10"),
             (ImGuiKey.F11, "F11"),
             (ImGuiKey.F12, "F12"),
-            
+
             // Letter keys for Ctrl combinations
             (ImGuiKey.A, "a"), (ImGuiKey.B, "b"), (ImGuiKey.C, "c"), (ImGuiKey.D, "d"),
             (ImGuiKey.E, "e"), (ImGuiKey.F, "f"), (ImGuiKey.G, "g"), (ImGuiKey.H, "h"),
@@ -2501,7 +2533,7 @@ public class TerminalController : ITerminalController
     {
       var mouseEvent = e.MouseEvent;
       var config = _mouseTrackingManager.Configuration;
-            
+
       // Generate the appropriate escape sequence
       string? escapeSequence = mouseEvent.Type switch
       {
