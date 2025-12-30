@@ -57,15 +57,15 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test interaction with DEC cursor save/restore (should be independent)
   - _Requirements: Parser integration, handler completeness_
 
-- [ ] 10. Implement DEC soft reset sequence
-- [ ] 10.1 Add DEC soft reset parsing to CsiParser
+- [x] 10. Implement DEC soft reset sequence
+- [x] 10.1 Add DEC soft reset parsing to CsiParser
   - Add parsing for CSI ! p (DECSTR - DEC Soft Terminal Reset) sequence
   - Create CsiMessage type for soft reset operation
   - Add intermediate character handling for '!' prefix
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for DECSTR parsing
   - _Requirements: DEC compatibility, terminal reset functionality_
 
-- [ ] 10.2 Implement soft reset functionality in TerminalEmulator
+- [x] 10.2 Implement soft reset functionality in TerminalEmulator
   - Add SoftReset method to TerminalEmulator
   - Reset terminal modes to initial state (cursor visibility, auto-wrap, etc.)
   - Reset SGR attributes to defaults
@@ -75,7 +75,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts soft reset implementation
   - _Requirements: Partial terminal state reset, mode restoration_
 
-- [ ] 10.3 Add CSI soft reset handler and testing
+- [x] 10.3 Add CSI soft reset handler and testing
   - Add case handler for "csi.decSoftReset" in TerminalParserHandlers
   - Wire up to TerminalEmulator SoftReset method
   - Add comprehensive unit tests for soft reset behavior

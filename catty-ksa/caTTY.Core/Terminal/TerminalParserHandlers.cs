@@ -365,6 +365,12 @@ internal class TerminalParserHandlers : IParserHandlers
                 }
                 break;
 
+            case "csi.decSoftReset":
+                // DEC soft reset (CSI ! p) - DECSTR
+                _terminal.SoftReset();
+                _logger.LogDebug("DEC soft reset executed");
+                break;
+
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

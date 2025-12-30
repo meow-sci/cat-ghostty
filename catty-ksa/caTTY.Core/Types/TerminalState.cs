@@ -316,7 +316,7 @@ public class TerminalState
     ///     Initializes tab stops at every 8th column.
     /// </summary>
     /// <param name="cols">Number of columns</param>
-    private void InitializeTabStops(int cols)
+    public void InitializeTabStops(int cols)
     {
         TabStops = new bool[cols];
         for (int i = 8; i < cols; i += 8)

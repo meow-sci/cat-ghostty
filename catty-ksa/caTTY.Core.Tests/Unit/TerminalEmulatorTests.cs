@@ -919,4 +919,291 @@ public class TerminalEmulatorTests
 
         terminal.Dispose();
     }
+
+    /// <summary>
+    ///     Tests that DEC soft reset (CSI ! p) resets terminal modes without clearing screen content.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsModeWithoutClearingScreen()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write some content to the screen
+        terminal.Write("Hello World");
+        terminal.Write("\x1b[10;20H"); // Move cursor to (10, 20)
+        
+        // Set some non-default modes
+        terminal.Write("\x1b[?1h");    // Application cursor keys on
+        terminal.Write("\x1b[?7l");    // Auto-wrap off
+        terminal.Write("\x1b[?25l");   // Cursor invisible
+        terminal.Write("\x1b[1;31m");  // Bold red text
+        
+        // Verify initial state
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('H'), "Screen content should be present");
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(9), "Cursor should be at row 9 (0-based)");
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(19), "Cursor should be at col 19 (0-based)");
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.True, "Application cursor keys should be on");
+        Assert.That(terminal.ModeManager.AutoWrapMode, Is.False, "Auto-wrap should be off");
+        Assert.That(terminal.ModeManager.CursorVisible, Is.False, "Cursor should be invisible");
+        Assert.That(terminal.AttributeManager.CurrentAttributes.Bold, Is.True, "Text should be bold");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Screen content should be preserved
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('H'), "Screen content should be preserved");
+        
+        // Assert: Cursor should be reset to home position (0,0)
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0), "Cursor should be reset to row 0");
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(0), "Cursor should be reset to col 0");
+        
+        // Assert: Terminal modes should be reset to defaults
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.False, "Application cursor keys should be reset to off");
+        Assert.That(terminal.ModeManager.AutoWrapMode, Is.True, "Auto-wrap should be reset to on");
+        Assert.That(terminal.ModeManager.CursorVisible, Is.True, "Cursor should be reset to visible");
+        
+        // Assert: SGR attributes should be reset to defaults
+        Assert.That(terminal.AttributeManager.CurrentAttributes.Bold, Is.False, "Bold should be reset");
+        Assert.That(terminal.AttributeManager.CurrentAttributes.ForegroundColor, Is.Null, "Foreground color should be reset");
+        Assert.That(terminal.AttributeManager.CurrentAttributes, Is.EqualTo(SgrAttributes.Default), "All attributes should be default");
+        
+        // Assert: Cursor style should be reset to default
+        Assert.That(terminal.State.CursorStyle, Is.EqualTo(CursorStyle.BlinkingBlock), "Cursor style should be reset to default");
+        
+        // Assert: Saved cursor positions should be cleared
+        Assert.That(terminal.State.SavedCursor, Is.Null, "DEC saved cursor should be cleared");
+        Assert.That(terminal.State.AnsiSavedCursor, Is.Null, "ANSI saved cursor should be cleared");
+        
+        // Assert: Wrap pending should be cleared
+        Assert.That(terminal.State.WrapPending, Is.False, "Wrap pending should be cleared");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset resets scroll region to full screen.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsScrollRegion()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Set a custom scroll region
+        terminal.Write("\x1b[5;20r"); // Set scroll region from row 5 to 20
+        
+        // Verify scroll region is set
+        Assert.That(terminal.State.ScrollTop, Is.EqualTo(4), "Scroll top should be set (0-based)");
+        Assert.That(terminal.State.ScrollBottom, Is.EqualTo(19), "Scroll bottom should be set (0-based)");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Scroll region should be reset to full screen
+        Assert.That(terminal.State.ScrollTop, Is.EqualTo(0), "Scroll top should be reset to 0");
+        Assert.That(terminal.State.ScrollBottom, Is.EqualTo(23), "Scroll bottom should be reset to full screen");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset resets character sets to defaults.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsCharacterSets()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Set non-default character sets
+        terminal.Write("\x1b(0"); // Set G0 to DEC Special Character Set
+        terminal.Write("\x1b)A"); // Set G1 to UK character set
+        
+        // Verify character sets are changed
+        Assert.That(terminal.State.CharacterSets.G0, Is.EqualTo("0"), "G0 should be DEC Special");
+        Assert.That(terminal.State.CharacterSets.G1, Is.EqualTo("A"), "G1 should be UK");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Character sets should be reset to ASCII
+        Assert.That(terminal.State.CharacterSets.G0, Is.EqualTo("B"), "G0 should be reset to ASCII");
+        Assert.That(terminal.State.CharacterSets.G1, Is.EqualTo("B"), "G1 should be reset to ASCII");
+        Assert.That(terminal.State.CharacterSets.G2, Is.EqualTo("B"), "G2 should be reset to ASCII");
+        Assert.That(terminal.State.CharacterSets.G3, Is.EqualTo("B"), "G3 should be reset to ASCII");
+        Assert.That(terminal.State.CharacterSets.Current, Is.EqualTo(CharacterSetKey.G0), "Current should be G0");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset resets tab stops to defaults.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsTabStops()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Clear all tab stops and set custom ones
+        terminal.Write("\x1b[3g"); // Clear all tab stops
+        terminal.Write("\x1b[10G\x1bH"); // Go to column 10 and set tab stop
+        terminal.Write("\x1b[20G\x1bH"); // Go to column 20 and set tab stop
+        
+        // Verify custom tab stops
+        Assert.That(terminal.State.TabStops[8], Is.False, "Default tab stop at 8 should be cleared");
+        Assert.That(terminal.State.TabStops[9], Is.True, "Custom tab stop at 10 should be set (0-based)");
+        Assert.That(terminal.State.TabStops[19], Is.True, "Custom tab stop at 20 should be set (0-based)");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Tab stops should be reset to defaults (every 8 columns)
+        Assert.That(terminal.State.TabStops[8], Is.True, "Default tab stop at 8 should be restored");
+        Assert.That(terminal.State.TabStops[16], Is.True, "Default tab stop at 16 should be restored");
+        Assert.That(terminal.State.TabStops[24], Is.True, "Default tab stop at 24 should be restored");
+        Assert.That(terminal.State.TabStops[9], Is.False, "Custom tab stop at 10 should be cleared");
+        Assert.That(terminal.State.TabStops[19], Is.False, "Custom tab stop at 20 should be cleared");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset resets character protection to unprotected.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsCharacterProtection()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Set character protection
+        terminal.Write("\x1b[2\"q"); // Set character protection to protected
+        
+        // Verify character protection is set
+        Assert.That(terminal.AttributeManager.CurrentCharacterProtection, Is.True, "Character protection should be enabled");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Character protection should be reset to unprotected
+        Assert.That(terminal.AttributeManager.CurrentCharacterProtection, Is.False, "Character protection should be reset to unprotected");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset resets UTF-8 mode to enabled.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_ResetsUtf8Mode()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Disable UTF-8 mode (this would normally be done through some sequence, but we'll set it directly for testing)
+        terminal.State.Utf8Mode = false;
+        
+        // Verify UTF-8 mode is disabled
+        Assert.That(terminal.State.Utf8Mode, Is.False, "UTF-8 mode should be disabled");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: UTF-8 mode should be reset to enabled
+        Assert.That(terminal.State.Utf8Mode, Is.True, "UTF-8 mode should be reset to enabled");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset preserves scrollback buffer content.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_PreservesScrollbackContent()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        
+        // Fill the screen and add more content to create scrollback
+        for (int i = 0; i < 6; i++) // More lines than screen height
+        {
+            terminal.Write($"Scrollback Line {i}\n");
+        }
+        
+        // Verify scrollback has content
+        int scrollbackLines = terminal.ScrollbackManager.CurrentLines;
+        Assert.That(scrollbackLines, Is.GreaterThan(0), "Scrollback should have content");
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: Scrollback content should be preserved
+        Assert.That(terminal.ScrollbackManager.CurrentLines, Is.EqualTo(scrollbackLines), "Scrollback content should be preserved");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset can be called multiple times without issues.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_CanBeCalledMultipleTimes()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write some content and set some modes
+        terminal.Write("Test content");
+        terminal.Write("\x1b[?1h"); // Application cursor keys on
+        terminal.Write("\x1b[1m");  // Bold
+
+        // Act: Perform multiple soft resets
+        terminal.Write("\x1b[!p");
+        terminal.Write("\x1b[!p");
+        terminal.Write("\x1b[!p");
+
+        // Assert: Should be in consistent reset state
+        Assert.That(terminal.Cursor.Row, Is.EqualTo(0), "Cursor should be at home");
+        Assert.That(terminal.Cursor.Col, Is.EqualTo(0), "Cursor should be at home");
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.False, "Application cursor keys should be off");
+        Assert.That(terminal.AttributeManager.CurrentAttributes.Bold, Is.False, "Bold should be off");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('T'), "Screen content should be preserved");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that soft reset updates all manager states consistently.
+    /// </summary>
+    [Test]
+    public void Write_DecSoftReset_UpdatesAllManagerStates()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Set various states
+        terminal.Write("\x1b[10;20H"); // Move cursor
+        terminal.Write("\x1b[?7l");    // Auto-wrap off
+        terminal.Write("\x1b[?25l");   // Cursor invisible
+        terminal.Write("\x1b[2 q");    // Steady block cursor
+        terminal.Write("\x1b[1;31m");  // Bold red
+
+        // Act: Perform soft reset
+        terminal.Write("\x1b[!p");
+
+        // Assert: All managers should be in sync with terminal state
+        Assert.That(terminal.CursorManager.Row, Is.EqualTo(terminal.State.CursorY), "Cursor manager row should match state");
+        Assert.That(terminal.CursorManager.Column, Is.EqualTo(terminal.State.CursorX), "Cursor manager column should match state");
+        Assert.That(terminal.CursorManager.Visible, Is.EqualTo(terminal.State.CursorVisible), "Cursor manager visibility should match state");
+        Assert.That(terminal.CursorManager.Style, Is.EqualTo(terminal.State.CursorStyle), "Cursor manager style should match state");
+        Assert.That(terminal.ModeManager.AutoWrapMode, Is.EqualTo(terminal.State.AutoWrapMode), "Mode manager auto-wrap should match state");
+        Assert.That(terminal.ModeManager.ApplicationCursorKeys, Is.EqualTo(terminal.State.ApplicationCursorKeys), "Mode manager app cursor keys should match state");
+        Assert.That(terminal.ModeManager.CursorVisible, Is.EqualTo(terminal.State.CursorVisible), "Mode manager cursor visibility should match state");
+        Assert.That(terminal.ModeManager.OriginMode, Is.EqualTo(terminal.State.OriginMode), "Mode manager origin mode should match state");
+        Assert.That(terminal.AttributeManager.CurrentAttributes, Is.EqualTo(terminal.State.CurrentSgrState), "Attribute manager should match state");
+
+        terminal.Dispose();
+    }
 }
