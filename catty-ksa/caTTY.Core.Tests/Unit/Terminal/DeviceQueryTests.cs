@@ -176,5 +176,102 @@ public class DeviceQueryTests
 
         Assert.That(DeviceResponses.GenerateCharacterSetQueryResponse("B"),
             Is.EqualTo("\x1b[?26;Bn"));
+
+        // Test color query responses
+        Assert.That(DeviceResponses.GenerateForegroundColorResponse(192, 192, 192),
+            Is.EqualTo("\x1b]10;rgb:c0c0/c0c0/c0c0\x1b\\"));
+
+        Assert.That(DeviceResponses.GenerateBackgroundColorResponse(0, 0, 0),
+            Is.EqualTo("\x1b]11;rgb:0000/0000/0000\x1b\\"));
+
+        // Test with different RGB values
+        Assert.That(DeviceResponses.GenerateForegroundColorResponse(255, 128, 64),
+            Is.EqualTo("\x1b]10;rgb:ffff/8080/4040\x1b\\"));
+
+        Assert.That(DeviceResponses.GenerateBackgroundColorResponse(32, 64, 128),
+            Is.EqualTo("\x1b]11;rgb:2020/4040/8080\x1b\\"));
+    }
+
+    [Test]
+    public void ColorQuery_ForegroundColor_ShouldRespondWithCurrentColor()
+    {
+        // Arrange - Set a specific foreground color
+        _terminal.Write("\x1b[38;2;255;128;64m"); // Set RGB foreground color
+        _responses.Clear();
+
+        // Act - Send foreground color query
+        _terminal.Write("\x1b]10;?\x07"); // OSC 10;? BEL
+
+        // Assert - Should respond with the current foreground color
+        Assert.That(_responses, Has.Count.EqualTo(1));
+        Assert.That(_responses[0], Is.EqualTo("\x1b]10;rgb:ffff/8080/4040\x1b\\"));
+    }
+
+    [Test]
+    public void ColorQuery_BackgroundColor_ShouldRespondWithCurrentColor()
+    {
+        // Arrange - Set a specific background color
+        _terminal.Write("\x1b[48;2;32;64;128m"); // Set RGB background color
+        _responses.Clear();
+
+        // Act - Send background color query
+        _terminal.Write("\x1b]11;?\x1b\\"); // OSC 11;? ST
+
+        // Assert - Should respond with the current background color
+        Assert.That(_responses, Has.Count.EqualTo(1));
+        Assert.That(_responses[0], Is.EqualTo("\x1b]11;rgb:2020/4040/8080\x1b\\"));
+    }
+
+    [Test]
+    public void ColorQuery_DefaultColors_ShouldRespondWithDefaults()
+    {
+        // Arrange - Reset terminal to default state
+        _terminal.Write("\x1b[0m"); // Reset SGR
+        _responses.Clear();
+
+        // Act - Send both color queries
+        _terminal.Write("\x1b]10;?\x07"); // Query foreground
+        _terminal.Write("\x1b]11;?\x07"); // Query background
+
+        // Assert - Should respond with default colors
+        Assert.That(_responses, Has.Count.EqualTo(2));
+        Assert.That(_responses[0], Is.EqualTo("\x1b]10;rgb:c0c0/c0c0/c0c0\x1b\\")); // Default foreground (light gray)
+        Assert.That(_responses[1], Is.EqualTo("\x1b]11;rgb:0000/0000/0000\x1b\\")); // Default background (black)
+    }
+
+    [Test]
+    public void ColorQuery_NamedColors_ShouldRespondWithCorrectRgb()
+    {
+        // Arrange - Set named colors
+        _terminal.Write("\x1b[31m"); // Red foreground
+        _terminal.Write("\x1b[44m"); // Blue background
+        _responses.Clear();
+
+        // Act - Send color queries
+        _terminal.Write("\x1b]10;?\x07"); // Query foreground
+        _terminal.Write("\x1b]11;?\x07"); // Query background
+
+        // Assert - Should respond with RGB values for named colors
+        Assert.That(_responses, Has.Count.EqualTo(2));
+        Assert.That(_responses[0], Is.EqualTo("\x1b]10;rgb:8080/0000/0000\x1b\\")); // Red (128,0,0)
+        Assert.That(_responses[1], Is.EqualTo("\x1b]11;rgb:0000/0000/8080\x1b\\")); // Blue (0,0,128)
+    }
+
+    [Test]
+    public void ColorQuery_IndexedColors_ShouldRespondWithCorrectRgb()
+    {
+        // Arrange - Set indexed colors
+        _terminal.Write("\x1b[38;5;196m"); // Bright red (index 196)
+        _terminal.Write("\x1b[48;5;21m");  // Bright blue (index 21)
+        _responses.Clear();
+
+        // Act - Send color queries
+        _terminal.Write("\x1b]10;?\x07"); // Query foreground
+        _terminal.Write("\x1b]11;?\x07"); // Query background
+
+        // Assert - Should respond with RGB values for indexed colors
+        Assert.That(_responses, Has.Count.EqualTo(2));
+        Assert.That(_responses[0], Is.EqualTo("\x1b]10;rgb:ffff/0000/0000\x1b\\")); // Bright red from 216-color cube
+        Assert.That(_responses[1], Is.EqualTo("\x1b]11;rgb:0000/0000/ffff\x1b\\")); // Bright blue from 216-color cube
     }
 }

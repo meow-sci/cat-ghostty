@@ -418,6 +418,46 @@ public class OscParserTests
     }
 
     [Test]
+    public void ProcessOscByte_BackgroundColorQuery_ParsesCorrectly()
+    {
+        // Arrange - OSC 11;? ST sequence (query background color)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x31, 0x3b, 0x3f, 0x1b }; // ESC ] 11;? ESC
+        byte b = 0x5c; // \
+
+        // Act
+        bool isComplete = _parser.ProcessOscEscapeByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.queryBackgroundColor"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(11));
+        Assert.That(message.XtermMessage.Payload, Is.EqualTo("?"));
+    }
+
+    [Test]
+    public void ProcessOscByte_ColorQueryWithParameters_ParsesCorrectly()
+    {
+        // Arrange - OSC 10;?;extra BEL sequence (query with extra parameters)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x3b, 0x3f, 0x3b, 0x65, 0x78, 0x74, 0x72, 0x61 }; // ESC ] 10;?;extra
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.Implemented, Is.True);
+        Assert.That(message.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.queryForegroundColor"));
+        Assert.That(message.XtermMessage.Command, Is.EqualTo(10));
+        Assert.That(message.XtermMessage.Payload, Is.EqualTo("?;extra"));
+    }
+
+    [Test]
     public void ProcessOscByte_PayloadTooLong_ReturnsNull()
     {
         // Arrange - Create a very long payload that exceeds the limit

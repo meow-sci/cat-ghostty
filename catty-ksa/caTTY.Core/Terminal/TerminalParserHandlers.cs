@@ -519,6 +519,24 @@ internal class TerminalParserHandlers : IParserHandlers
                 }
                 break;
 
+            case "osc.queryForegroundColor":
+                // OSC 10;? : Query foreground color - respond with current foreground color
+                var currentForeground = _terminal.GetCurrentForegroundColor();
+                string foregroundResponse = DeviceResponses.GenerateForegroundColorResponse(
+                    currentForeground.Red, currentForeground.Green, currentForeground.Blue);
+                _terminal.EmitResponse(foregroundResponse);
+                _logger.LogDebug("Query foreground color response: {Response}", foregroundResponse);
+                break;
+
+            case "osc.queryBackgroundColor":
+                // OSC 11;? : Query background color - respond with current background color
+                var currentBackground = _terminal.GetCurrentBackgroundColor();
+                string backgroundResponse = DeviceResponses.GenerateBackgroundColorResponse(
+                    currentBackground.Red, currentBackground.Green, currentBackground.Blue);
+                _terminal.EmitResponse(backgroundResponse);
+                _logger.LogDebug("Query background color response: {Response}", backgroundResponse);
+                break;
+
             default:
                 // Log unhandled xterm OSC sequences for debugging
                 _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);

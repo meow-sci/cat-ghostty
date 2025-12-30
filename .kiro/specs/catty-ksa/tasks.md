@@ -233,8 +233,8 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - _Requirements: Parser integration, mode state validation_
 
 
-- [ ] 18. Implement color query OSC sequences
-- [ ] 18.1 Add color query response generation
+- [x] 18. Implement color query OSC sequences
+- [x] 18.1 Add color query response generation
   - Add GenerateForegroundColorResponse method to DeviceResponses class
   - Add GenerateBackgroundColorResponse method to DeviceResponses class
   - Support RGB color format responses (rgb:rrrr/gggg/bbbb format)
@@ -242,7 +242,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts color response generation
   - _Requirements: Color query support, terminal theme integration_
 
-- [ ] 18.2 Implement OSC color query handlers
+- [x] 18.2 Implement OSC color query handlers
   - Add case handlers for "osc.queryForegroundColor" and "osc.queryBackgroundColor" in HandleXtermOsc
   - Wire up to DeviceResponses color query methods
   - Add current terminal state color resolution logic
@@ -250,7 +250,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts color query handling
   - _Requirements: OSC handler completeness, color query responses_
 
-- [ ] 18.3 Add comprehensive OSC color query testing
+- [x] 18.3 Add comprehensive OSC color query testing
   - Add unit tests for OSC 10;? (query foreground color) sequences
   - Add unit tests for OSC 11;? (query background color) sequences
   - Test color response format and RGB value accuracy
