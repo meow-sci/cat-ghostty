@@ -925,3 +925,228 @@
 - [x] 7.5 Checkpoint - Input handling and selection working
   - Keyboard input works comprehensively
   - Selection and copying function properly
+
+- [x] 9. Implement cursor save/restore (ANSI style) sequences
+- [x] 9.1 Add ANSI cursor save/restore parsing to CsiParser
+  - Add parsing for CSI s (save cursor) and CSI u (restore cursor) sequences
+  - Create CsiMessage types for cursor save/restore operations
+  - Add parameter validation and bounds checking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for ANSI cursor save/restore parsing
+  - _Requirements: Terminal compatibility, cursor state management_
+
+- [x] 9.2 Implement cursor save/restore functionality in TerminalEmulator
+  - Add SaveCursorPositionAnsi and RestoreCursorPositionAnsi methods to TerminalEmulator
+  - Implement cursor position storage separate from DEC save/restore (ESC 7/8)
+  - Add cursor state validation and bounds checking on restore
+  - Integrate with existing cursor management system
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor save/restore handling
+  - _Requirements: Cursor position persistence, state isolation_
+
+- [x] 9.3 Add CSI cursor save/restore handlers to TerminalParserHandlers
+  - Add case handlers for "csi.saveCursorPosition" and "csi.restoreCursorPosition"
+  - Wire up to TerminalEmulator save/restore methods
+  - Add comprehensive unit tests for ANSI cursor save/restore
+  - Test interaction with DEC cursor save/restore (should be independent)
+  - _Requirements: Parser integration, handler completeness_
+
+- [x] 10. Implement DEC soft reset sequence
+- [x] 10.1 Add DEC soft reset parsing to CsiParser
+  - Add parsing for CSI ! p (DECSTR - DEC Soft Terminal Reset) sequence
+  - Create CsiMessage type for soft reset operation
+  - Add intermediate character handling for '!' prefix
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for DECSTR parsing
+  - _Requirements: DEC compatibility, terminal reset functionality_
+
+- [x] 10.2 Implement soft reset functionality in TerminalEmulator
+  - Add SoftReset method to TerminalEmulator
+  - Reset terminal modes to initial state (cursor visibility, auto-wrap, etc.)
+  - Reset SGR attributes to defaults
+  - Clear tab stops and restore default tab stops
+  - Reset character sets to defaults
+  - Do NOT clear screen buffer or cursor position (key difference from hard reset)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts soft reset implementation
+  - _Requirements: Partial terminal state reset, mode restoration_
+
+- [x] 10.3 Add CSI soft reset handler and testing
+  - Add case handler for "csi.decSoftReset" in TerminalParserHandlers
+  - Wire up to TerminalEmulator SoftReset method
+  - Add comprehensive unit tests for soft reset behavior
+  - Test that screen content and cursor position are preserved
+  - Test that modes and attributes are properly reset
+  - _Requirements: Parser integration, reset behavior validation_
+
+- [-] 11. Implement insert mode (IRM) sequence
+- [x] 11.1 Add insert mode parsing and state tracking
+  - Add parsing for CSI 4 h (set insert mode) and CSI 4 l (reset insert mode) sequences
+  - Add InsertMode property to terminal mode state tracking
+  - Create CsiMessage type for insert mode operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for IRM parsing
+  - _Requirements: Terminal mode management, text insertion behavior_
+
+- [x] 11.2 Implement insert mode character writing behavior
+  - Modify character writing logic to respect insert mode state
+  - When insert mode active: shift existing characters right before writing new character
+  - When insert mode inactive: overwrite existing characters (default behavior)
+  - Add bounds checking and line overflow handling for insert mode
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts insert mode handling
+  - _Requirements: Character insertion, line management_
+
+- [x] 11.3 Add insert mode handler and testing
+  - Add case handler for "csi.insertMode" in TerminalParserHandlers
+  - Wire up to terminal mode state management
+  - Add comprehensive unit tests for insert mode behavior
+  - Test character insertion vs overwrite behavior
+  - Test line overflow and bounds checking in insert mode
+  - _Requirements: Mode switching, insertion behavior validation_
+
+- [x] 12. Implement window manipulation sequences
+- [x] 12.1 Add window manipulation parsing to CsiParser
+  - Add parsing for CSI Ps t sequences (window manipulation)
+  - Support common operations: minimize (2), restore (1), resize (8), query size (18)
+  - Create CsiMessage type with operation and parameter handling
+  - Add parameter validation for different operation types
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for window manipulation parsing
+  - _Requirements: Window control, parameter validation_
+
+- [x] 12.2 Implement window manipulation functionality
+  - Add HandleWindowManipulation method to TerminalEmulator
+  - Implement title stack operations (push/pop title) for vi compatibility
+  - Add window size query responses (report current terminal dimensions)
+  - Handle unsupported operations gracefully (ignore minimize/restore in game context)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts window manipulation handling
+  - _Requirements: Window state management, vi compatibility_
+
+- [x] 12.3 Add window manipulation handler and testing
+  - Add case handler for "csi.windowManipulation" in TerminalParserHandlers
+  - Wire up to TerminalEmulator window manipulation methods
+  - Add comprehensive unit tests for supported operations
+  - Test title stack operations and size queries
+  - Test graceful handling of unsupported operations
+  - _Requirements: Parser integration, operation handling_
+
+- [x] 13. Implement enhanced SGR mode sequences
+- [x] 13.1 Add enhanced SGR parsing to CsiParser
+  - Add parsing for CSI > Ps m sequences (enhanced SGR with > prefix)
+  - Support enhanced underline styles and color modes
+  - Create CsiMessage type for enhanced SGR operations
+  - Add prefix character handling and parameter validation
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for enhanced SGR parsing
+  - _Requirements: Advanced text styling, SGR extensions_
+
+- [x] 13.2 Implement enhanced SGR functionality in SgrParser
+  - Add HandleEnhancedSgrMode method to SgrParser
+  - Support enhanced underline styles (curly, dotted, dashed)
+  - Add enhanced color mode processing
+  - Integrate with existing SGR attribute system
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts for enhanced SGR handling
+  - _Requirements: Extended styling capabilities, attribute management_
+
+- [x] 13.3 Add enhanced SGR handler and testing
+  - Add case handler for "csi.enhancedSgrMode" in TerminalParserHandlers
+  - Wire up to SgrParser enhanced mode handling
+  - Add comprehensive unit tests for enhanced SGR features
+  - Test enhanced underline styles and color modes
+  - Test integration with standard SGR sequences
+  - _Requirements: Parser integration, enhanced styling validation_
+
+- [x] 14. Implement private SGR mode sequences
+- [x] 14.1 Add private SGR parsing to CsiParser
+  - Add parsing for CSI ? Ps m sequences (private SGR with ? prefix)
+  - Support private SGR modes for terminal-specific features
+  - Create CsiMessage type for private SGR operations
+  - Add prefix character handling and mode validation
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for private SGR parsing
+  - _Requirements: Terminal-specific features, private mode handling_
+
+- [x] 14.2 Implement private SGR functionality
+  - Add HandlePrivateSgrMode method to SgrParser
+  - Support private SGR modes (implementation-specific features)
+  - Add graceful handling of unknown private modes
+  - Integrate with existing SGR system without conflicts
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts private SGR handling
+  - _Requirements: Private mode support, graceful degradation_
+
+- [x] 14.3 Add private SGR handler and testing
+  - Add case handler for "csi.privateSgrMode" in TerminalParserHandlers
+  - Wire up to SgrParser private mode handling
+  - Add comprehensive unit tests for private SGR modes
+  - Test graceful handling of unknown private modes
+  - Test isolation from standard SGR sequences
+  - _Requirements: Parser integration, private mode validation_
+
+- [x] 15. Implement SGR with intermediate characters
+- [x] 15.1 Add SGR intermediate character parsing to CsiParser
+  - Add parsing for CSI Ps <intermediate> m sequences (e.g., CSI 0 % m)
+  - Support intermediate characters in SGR sequences
+  - Create CsiMessage type with intermediate character handling
+  - Add intermediate character validation and processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for SGR intermediate handling
+  - _Requirements: Extended SGR syntax, intermediate character support_
+
+- [x] 15.2 Implement SGR intermediate character functionality
+  - Add HandleSgrWithIntermediate method to SgrParser
+  - Support SGR sequences with intermediate characters
+  - Add intermediate character interpretation logic
+  - Integrate with existing SGR processing pipeline
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR intermediate handling
+  - _Requirements: Extended SGR processing, intermediate character interpretation_
+
+- [x] 15.3 Add SGR intermediate handler and testing
+  - Add case handler for "csi.sgrWithIntermediate" in TerminalParserHandlers
+  - Wire up to SgrParser intermediate character handling
+  - Add comprehensive unit tests for SGR with intermediate characters
+  - Test various intermediate character combinations
+  - Test integration with standard SGR sequences
+  - _Requirements: Parser integration, intermediate character validation_
+
+- [x] 17. Implement mouse reporting mode sequences
+- [x] 17.1 Add mouse reporting mode parsing to CsiParser
+  - Add parsing for mouse reporting mode sequences (CSI ? 1000 h/l, etc.)
+  - Create CsiMessage type for mouse reporting operations
+  - Add mode parameter validation and handling
+  - Support various mouse reporting modes (basic, extended, SGR)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for mouse reporting parsing
+  - _Requirements: Mouse input support, mode management_
+
+- [x] 17.2 Implement mouse reporting mode state tracking
+  - Add mouse reporting mode state to terminal mode management
+  - Track different mouse reporting modes (none, basic, extended, SGR)
+  - Add mode switching and validation logic
+  - Prepare infrastructure for future mouse input handling
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts mouse reporting handling
+  - _Requirements: Mouse mode management, state tracking_
+
+- [x] 17.3 Add mouse reporting handler and testing
+  - Add case handler for "csi.mouseReportingMode" in TerminalParserHandlers
+  - Wire up to terminal mouse mode state management
+  - Add comprehensive unit tests for mouse reporting modes
+  - Test mode switching and state validation
+  - Note: Actual mouse input handling deferred to future tasks
+  - _Requirements: Parser integration, mode state validation_
+
+
+- [x] 18. Implement color query OSC sequences
+- [x] 18.1 Add color query response generation
+  - Add GenerateForegroundColorResponse method to DeviceResponses class
+  - Add GenerateBackgroundColorResponse method to DeviceResponses class
+  - Support RGB color format responses (rgb:rrrr/gggg/bbbb format)
+  - Add current SGR state integration for color resolution
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts color response generation
+  - _Requirements: Color query support, terminal theme integration_
+
+- [x] 18.2 Implement OSC color query handlers
+  - Add case handlers for "osc.queryForegroundColor" and "osc.queryBackgroundColor" in HandleXtermOsc
+  - Wire up to DeviceResponses color query methods
+  - Add current terminal state color resolution logic
+  - Emit proper OSC response format for color queries
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts color query handling
+  - _Requirements: OSC handler completeness, color query responses_
+
+- [x] 18.3 Add comprehensive OSC color query testing
+  - Add unit tests for OSC 10;? (query foreground color) sequences
+  - Add unit tests for OSC 11;? (query background color) sequences
+  - Test color response format and RGB value accuracy
+  - Test integration with current SGR state and terminal themes
+  - Test proper OSC response emission and formatting
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/__tests__/Parser.test.ts OSC color query tests
+  - _Requirements: OSC color query validation, response format verification_
