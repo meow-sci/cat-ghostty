@@ -1,4 +1,5 @@
 using Brutal.ImGuiApi;
+using caTTY.Core.Types;
 using KSA;
 using ImGui = Brutal.ImGuiApi.ImGui;
 using float2 = Brutal.Numerics.float2;
@@ -201,9 +202,12 @@ public static class TextStylingExperiments
                 DrawCursorDisplayTechniques();
                 break;
             case 3:
-                DrawInteractiveStylingControls();
+                DrawUnderlineStyleVariants();
                 break;
             case 4:
+                DrawInteractiveStylingControls();
+                break;
+            case 5:
                 DrawStylingLimitationsAnalysis();
                 break;
         }
@@ -465,6 +469,158 @@ public static class TextStylingExperiments
         }
     }
 
+    private static void DrawUnderlineStyleVariants()
+    {
+        ImGui.Text("Underline Style Variants");
+        ImGui.Text("Testing different underline styles with colors (copied from TerminalController)");
+        ImGui.Separator();
+
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        float2 windowPos = ImGui.GetCursorScreenPos();
+
+        // Test different underline styles with colors
+        (string, UnderlineStyle, float4)[] underlineTests = new[]
+        {
+            ("Single Red Underline", UnderlineStyle.Single, new float4(1.0f, 0.0f, 0.0f, 1.0f)), // Red
+            ("Double Green Underline", UnderlineStyle.Double, new float4(0.0f, 1.0f, 0.0f, 1.0f)), // Green
+            ("Curly Yellow Underline", UnderlineStyle.Curly, new float4(1.0f, 1.0f, 0.0f, 1.0f)), // Yellow
+            ("Dotted Yellow Underline", UnderlineStyle.Dotted, new float4(1.0f, 1.0f, 0.0f, 1.0f)), // Yellow
+            ("Dashed Magenta Underline", UnderlineStyle.Dashed, new float4(1.0f, 0.0f, 1.0f, 1.0f)), // Magenta
+        };
+
+        for (int i = 0; i < underlineTests.Length; i++)
+        {
+            (string text, UnderlineStyle style, float4 color) = underlineTests[i];
+            float y = windowPos.Y + (i * _lineHeight);
+            var pos = new float2(windowPos.X, y);
+
+            // Draw the text
+            drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), text);
+
+            // Draw the underline with the specified style and color
+            DrawUnderlineStyle(drawList, pos, text.Length, style, color);
+        }
+
+        ImGui.Dummy(new float2(500, underlineTests.Length * _lineHeight));
+
+        ImGui.Separator();
+        ImGui.Text("Style Implementation Details:");
+        ImGui.BulletText("Single: Straight line with 3px thickness");
+        ImGui.BulletText("Double: Two parallel lines with 4px spacing");
+        ImGui.BulletText("Curly: Bezier curves with 4.0f amplitude for wavy effect");
+        ImGui.BulletText("Dotted: 3px dots with 3px spacing");
+        ImGui.BulletText("Dashed: 6px dashes with 4px spacing");
+    }
+
+    private static void DrawUnderlineStyle(ImDrawListPtr drawList, float2 pos, int textLength, UnderlineStyle style, float4 color)
+    {
+        float underlineY = pos.Y + _lineHeight - 2;
+        uint underlineColor = ImGui.ColorConvertFloat4ToU32(color);
+        float thickness = 3.0f;
+
+        switch (style)
+        {
+            case UnderlineStyle.Single:
+                var singleStart = new float2(pos.X, underlineY);
+                var singleEnd = new float2(pos.X + (textLength * _charWidth), underlineY);
+                drawList.AddLine(singleStart, singleEnd, underlineColor, thickness);
+                break;
+
+            case UnderlineStyle.Double:
+                // First line (bottom)
+                var doubleStart1 = new float2(pos.X, underlineY);
+                var doubleEnd1 = new float2(pos.X + (textLength * _charWidth), underlineY);
+                drawList.AddLine(doubleStart1, doubleEnd1, underlineColor, thickness);
+
+                // Second line (top) - spaced 4 pixels above
+                var doubleStart2 = new float2(pos.X, underlineY - 4);
+                var doubleEnd2 = new float2(pos.X + (textLength * _charWidth), underlineY - 4);
+                drawList.AddLine(doubleStart2, doubleEnd2, underlineColor, thickness);
+                break;
+
+            case UnderlineStyle.Curly:
+                RenderCurlyUnderline(drawList, pos, textLength, color, thickness);
+                break;
+
+            case UnderlineStyle.Dotted:
+                RenderDottedUnderline(drawList, pos, textLength, color, thickness);
+                break;
+
+            case UnderlineStyle.Dashed:
+                RenderDashedUnderline(drawList, pos, textLength, color, thickness);
+                break;
+        }
+    }
+
+    private static void RenderCurlyUnderline(ImDrawListPtr drawList, float2 pos, int textLength, float4 underlineColor, float thickness)
+    {
+        float underlineY = pos.Y + _lineHeight - 2;
+        uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+        float curlyThickness = Math.Max(3.0f, thickness);
+
+        // Create a wavy line using multiple bezier curve segments
+        float waveHeight = 4.0f; // Amplitude for visible waves
+        float totalWidth = textLength * _charWidth;
+        float segmentWidth = _charWidth / 2.0f; // 2 wave segments per character
+        int numSegments = (int)(totalWidth / segmentWidth);
+
+        for (int i = 0; i < numSegments; i++)
+        {
+            float startX = pos.X + (i * segmentWidth);
+            float endX = pos.X + ((i + 1) * segmentWidth);
+
+            // Alternate wave direction for each segment
+            float controlOffset = (i % 2 == 0) ? -waveHeight : waveHeight;
+
+            var p1 = new float2(startX, underlineY);
+            var p2 = new float2(startX + segmentWidth * 0.3f, underlineY + controlOffset);
+            var p3 = new float2(startX + segmentWidth * 0.7f, underlineY - controlOffset);
+            var p4 = new float2(endX, underlineY);
+
+            drawList.AddBezierCubic(p1, p2, p3, p4, color, curlyThickness);
+        }
+    }
+
+    private static void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, int textLength, float4 underlineColor, float thickness)
+    {
+        float underlineY = pos.Y + _lineHeight - 2;
+        uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+        float dottedThickness = Math.Max(3.0f, thickness);
+
+        float dotSize = 3.0f;
+        float spacing = 3.0f;
+        float totalStep = dotSize + spacing;
+        float totalWidth = textLength * _charWidth;
+
+        for (float x = pos.X; x < pos.X + totalWidth - dotSize; x += totalStep)
+        {
+            float dotEnd = Math.Min(x + dotSize, pos.X + totalWidth);
+            var dotStart = new float2(x, underlineY);
+            var dotEndPos = new float2(dotEnd, underlineY);
+            drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+        }
+    }
+
+    private static void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, int textLength, float4 underlineColor, float thickness)
+    {
+        float underlineY = pos.Y + _lineHeight - 2;
+        uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+        float dashedThickness = Math.Max(3.0f, thickness);
+
+        float dashSize = 6.0f;
+        float spacing = 4.0f;
+        float totalStep = dashSize + spacing;
+        float totalWidth = textLength * _charWidth;
+
+        for (float x = pos.X; x < pos.X + totalWidth - dashSize; x += totalStep)
+        {
+            float dashEnd = Math.Min(x + dashSize, pos.X + totalWidth);
+            var dashStart = new float2(x, underlineY);
+            var dashEndPos = new float2(dashEnd, underlineY);
+            drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+        }
+    }
+
     private static void DrawInteractiveStylingControls()
     {
         ImGui.Text("Interactive Styling Controls");
@@ -658,6 +814,7 @@ public static class TextStylingExperiments
         ImGui.BulletText("Italic text (true font support)");
         ImGui.BulletText("Bold+Italic combination (true font support)");
         ImGui.BulletText("Underline (custom line drawing)");
+        ImGui.BulletText("Advanced underline styles (double, curly, dotted, dashed)");
         ImGui.BulletText("Strikethrough (custom line drawing)");
         ImGui.BulletText("Color variations (foreground/background)");
         ImGui.BulletText("Inverse video (color swapping with visibility fixes)");
@@ -669,7 +826,6 @@ public static class TextStylingExperiments
         ImGui.Separator();
         ImGui.Text("❌ Limitations:");
         ImGui.BulletText("Font weight variations beyond bold (no semi-bold, extra-bold)");
-        ImGui.BulletText("Advanced underline styles (double, wavy, dotted)");
         ImGui.BulletText("Complex text shaping (ligatures, kerning)");
         ImGui.BulletText("Proportional font support (monospace assumption)");
 
