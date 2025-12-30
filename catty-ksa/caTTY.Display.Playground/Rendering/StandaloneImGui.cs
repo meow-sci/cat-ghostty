@@ -7,6 +7,7 @@ using Brutal.VulkanApi.Abstractions;
 using Core;
 using KSA;
 using RenderCore;
+using System.IO;
 using ImGui = Brutal.ImGuiApi.ImGui;
 
 namespace caTTY.Playground.Rendering;
@@ -72,6 +73,10 @@ public static class StandaloneImGui
         // This requires the working directory to be set to the KSA install (or the cwd having a Content folder with at least one ttf)
         KSA.Program.ConsoleWindow = new ConsoleWindow(); // required so fontmanager doesn't throw
         FontManager.Initialize(renderer.Device);
+        
+        // Load .iamttf fonts explicitly (similar to GameMod pattern)
+        LoadTerminalFonts();
+        
         Console.WriteLine("after fonts");
     }
 
@@ -128,5 +133,69 @@ public static class StandaloneImGui
         renderer!.Rebuild(VkPresentModeKHR.FifoKHR);
         renderer!.Device.WaitIdle();
         rstate!.Pass = renderer!.MainRenderPass;
+    }
+
+    /// <summary>
+    ///     Loads .iamttf fonts explicitly for standalone apps.
+    ///     Based on GameMod font loading pattern.
+    /// </summary>
+    private static void LoadTerminalFonts()
+    {
+        try
+        {
+            string currentDir = Directory.GetCurrentDirectory();
+            string fontsDir = Path.Combine(currentDir, "TerminalFonts");
+            Console.WriteLine($"Playground: Loading fonts from directory: {fontsDir}");
+
+            if (Directory.Exists(fontsDir))
+            {
+                string[] fontFiles = Directory.GetFiles(fontsDir, "*.iamttf");
+
+                if (fontFiles.Length > 0)
+                {
+                    ImGuiIOPtr io = ImGui.GetIO();
+                    ImFontAtlasPtr atlas = io.Fonts;
+
+                    foreach (string fontPath in fontFiles)
+                    {
+                        string fontName = Path.GetFileNameWithoutExtension(fontPath);
+                        Console.WriteLine($"Playground: Loading font: {fontPath}");
+
+                        if (File.Exists(fontPath))
+                        {
+                            float fontSize = 32.0f;
+                            var fontPathStr = new ImString(fontPath);
+                            ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
+                            
+                            // Add to FontManager.Fonts dictionary if possible
+                            try
+                            {
+                                FontManager.Fonts[fontName] = font;
+                                Console.WriteLine($"Playground: Added font '{fontName}' to FontManager");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Playground: Could not add font to FontManager: {ex.Message}");
+                            }
+                        }
+                    }
+
+                    Console.WriteLine($"Playground: Loaded {fontFiles.Length} fonts");
+                }
+                else
+                {
+                    Console.WriteLine("Playground: No .iamttf font files found in TerminalFonts folder");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Playground: TerminalFonts directory not found at: {fontsDir}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Playground: Font loading failed: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
     }
 }

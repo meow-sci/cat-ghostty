@@ -99,4 +99,11 @@
         </None>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Terminal fonts -->
+        <None Include="TerminalFonts/**/*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
 </Project>
