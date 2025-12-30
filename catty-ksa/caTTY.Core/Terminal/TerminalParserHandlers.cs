@@ -182,6 +182,16 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.SetCursorPosition(message.Count ?? 1, _terminal.Cursor.Col + 1);
                 break;
 
+            case "csi.saveCursorPosition":
+                // ANSI cursor save (CSI s) - separate from DEC save (ESC 7)
+                _terminal.SaveCursorPositionAnsi();
+                break;
+
+            case "csi.restoreCursorPosition":
+                // ANSI cursor restore (CSI u) - separate from DEC restore (ESC 8)
+                _terminal.RestoreCursorPositionAnsi();
+                break;
+
             case "csi.eraseInDisplay":
                 _terminal.ClearDisplay(message.Mode ?? 0);
                 break;

@@ -34,15 +34,15 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 The following tasks implement CSI sequences that are present in the TypeScript reference implementation but missing from the C# version. These were identified through comparison of the TypeScript and C# CSI handlers.
 
-- [ ] 9. Implement cursor save/restore (ANSI style) sequences
-- [ ] 9.1 Add ANSI cursor save/restore parsing to CsiParser
+- [x] 9. Implement cursor save/restore (ANSI style) sequences
+- [x] 9.1 Add ANSI cursor save/restore parsing to CsiParser
   - Add parsing for CSI s (save cursor) and CSI u (restore cursor) sequences
   - Create CsiMessage types for cursor save/restore operations
   - Add parameter validation and bounds checking
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for ANSI cursor save/restore parsing
   - _Requirements: Terminal compatibility, cursor state management_
 
-- [ ] 9.2 Implement cursor save/restore functionality in TerminalEmulator
+- [x] 9.2 Implement cursor save/restore functionality in TerminalEmulator
   - Add SaveCursorPositionAnsi and RestoreCursorPositionAnsi methods to TerminalEmulator
   - Implement cursor position storage separate from DEC save/restore (ESC 7/8)
   - Add cursor state validation and bounds checking on restore
@@ -50,7 +50,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor save/restore handling
   - _Requirements: Cursor position persistence, state isolation_
 
-- [ ] 9.3 Add CSI cursor save/restore handlers to TerminalParserHandlers
+- [x] 9.3 Add CSI cursor save/restore handlers to TerminalParserHandlers
   - Add case handlers for "csi.saveCursorPosition" and "csi.restoreCursorPosition"
   - Wire up to TerminalEmulator save/restore methods
   - Add comprehensive unit tests for ANSI cursor save/restore

@@ -304,4 +304,53 @@ public class CsiParserBasicTests
         Assert.That(result3.Type, Is.EqualTo("csi.cursorPositionReport"));
         Assert.That(result3.Implemented, Is.True);
     }
+
+    [Test]
+    public void ParseCsiSequence_AnsiCursorSaveRestore_ParsesCorrectly()
+    {
+        // ANSI cursor save (CSI s)
+        byte[] cursorSave = Encoding.ASCII.GetBytes("\x1b[s");
+        CsiMessage result1 = _parser.ParseCsiSequence(cursorSave, "\x1b[s");
+
+        Assert.That(result1.Type, Is.EqualTo("csi.saveCursorPosition"));
+        Assert.That(result1.Implemented, Is.True);
+        Assert.That(result1.Parameters, Is.Empty);
+        Assert.That(result1.Raw, Is.EqualTo("\x1b[s"));
+
+        // ANSI cursor restore (CSI u)
+        byte[] cursorRestore = Encoding.ASCII.GetBytes("\x1b[u");
+        CsiMessage result2 = _parser.ParseCsiSequence(cursorRestore, "\x1b[u");
+
+        Assert.That(result2.Type, Is.EqualTo("csi.restoreCursorPosition"));
+        Assert.That(result2.Implemented, Is.True);
+        Assert.That(result2.Parameters, Is.Empty);
+        Assert.That(result2.Raw, Is.EqualTo("\x1b[u"));
+    }
+
+    [Test]
+    public void ParseCsiSequence_AnsiCursorSaveRestore_DistinguishedFromPrivateModes()
+    {
+        // ANSI cursor save (CSI s) - non-private
+        byte[] ansiSave = Encoding.ASCII.GetBytes("\x1b[s");
+        CsiMessage result1 = _parser.ParseCsiSequence(ansiSave, "\x1b[s");
+
+        Assert.That(result1.Type, Is.EqualTo("csi.saveCursorPosition"));
+        Assert.That(result1.Implemented, Is.True);
+
+        // Private mode save (CSI ? 1 s) - should be different
+        byte[] privateSave = Encoding.ASCII.GetBytes("\x1b[?1s");
+        CsiMessage result2 = _parser.ParseCsiSequence(privateSave, "\x1b[?1s");
+
+        Assert.That(result2.Type, Is.EqualTo("csi.savePrivateMode"));
+        Assert.That(result2.Implemented, Is.True);
+        Assert.That(result2.DecModes, Is.EqualTo(new[] { 1 }));
+
+        // Private mode restore (CSI ? 1 r) - should be different from scroll region
+        byte[] privateRestore = Encoding.ASCII.GetBytes("\x1b[?1r");
+        CsiMessage result3 = _parser.ParseCsiSequence(privateRestore, "\x1b[?1r");
+
+        Assert.That(result3.Type, Is.EqualTo("csi.restorePrivateMode"));
+        Assert.That(result3.Implemented, Is.True);
+        Assert.That(result3.DecModes, Is.EqualTo(new[] { 1 }));
+    }
 }

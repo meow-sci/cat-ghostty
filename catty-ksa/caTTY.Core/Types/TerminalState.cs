@@ -149,9 +149,15 @@ public class TerminalState
     public bool AlternateWrapPending { get; set; }
 
     /// <summary>
-    ///     Saved cursor position for ESC 7 / ESC 8 sequences.
+    ///     Saved cursor position for ESC 7 / ESC 8 sequences (DEC style).
     /// </summary>
     public (int X, int Y)? SavedCursor { get; set; }
+
+    /// <summary>
+    ///     Saved cursor position for CSI s / CSI u sequences (ANSI style).
+    ///     This is separate from DEC cursor save/restore to maintain compatibility.
+    /// </summary>
+    public (int X, int Y)? AnsiSavedCursor { get; set; }
 
     /// <summary>
     ///     Cursor style (DECSCUSR values 0-6).
@@ -439,6 +445,7 @@ public class TerminalState
         AlternateCursorY = 0;
         AlternateWrapPending = false;
         SavedCursor = null;
+        AnsiSavedCursor = null;
         CursorStyle = CursorStyle.BlinkingBlock;
         CursorVisible = true;
         WrapPending = false;

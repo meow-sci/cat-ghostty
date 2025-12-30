@@ -1557,6 +1557,52 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     }
 
     /// <summary>
+    ///     Saves the current cursor position using ANSI style (CSI s).
+    ///     This is separate from DEC cursor save/restore (ESC 7/8) to maintain compatibility.
+    ///     Implements CSI s sequence.
+    /// </summary>
+    internal void SaveCursorPositionAnsi()
+    {
+        // Save current cursor position in ANSI saved cursor field
+        State.AnsiSavedCursor = (_cursorManager.Column, _cursorManager.Row);
+        
+        _logger.LogDebug("ANSI cursor saved at position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
+    }
+
+    /// <summary>
+    ///     Restores the previously saved ANSI cursor position.
+    ///     This is separate from DEC cursor save/restore (ESC 7/8) to maintain compatibility.
+    ///     Implements CSI u sequence.
+    /// </summary>
+    internal void RestoreCursorPositionAnsi()
+    {
+        if (State.AnsiSavedCursor.HasValue)
+        {
+            var (savedX, savedY) = State.AnsiSavedCursor.Value;
+            
+            // Validate and clamp the saved position to current buffer dimensions
+            int clampedX = Math.Max(0, Math.Min(savedX, Width - 1));
+            int clampedY = Math.Max(0, Math.Min(savedY, Height - 1));
+            
+            // Move cursor to the saved position
+            _cursorManager.MoveTo(clampedY, clampedX);
+            _cursorManager.SetWrapPending(false);
+            
+            // Sync state with cursor manager
+            State.CursorX = _cursorManager.Column;
+            State.CursorY = _cursorManager.Row;
+            State.WrapPending = _cursorManager.WrapPending;
+            
+            _logger.LogDebug("ANSI cursor restored to position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
+        }
+        else
+        {
+            // No saved position - this is a no-op (following xterm behavior)
+            _logger.LogDebug("ANSI cursor restore called but no saved position available");
+        }
+    }
+
+    /// <summary>
     ///     Handles reverse index (ESC M) - move cursor up; if at top margin, scroll region down.
     ///     Used by full-screen applications like less to scroll the display down within the scroll region.
     /// </summary>
