@@ -8,6 +8,7 @@ using Core;
 using KSA;
 using RenderCore;
 using System.IO;
+using caTTY.Display.Rendering;
 
 namespace caTTY.TestApp.Rendering;
 
@@ -104,9 +105,9 @@ public static class StandaloneImGui
         // Initialize font manager (requires KSA console window)
         KSA.Program.ConsoleWindow = new ConsoleWindow();
         FontManager.Initialize(renderer.Device);
-        
+
         // Load .iamttf fonts explicitly (similar to GameMod pattern)
-        LoadTerminalFonts();
+        CaTTYFontManager.LoadFonts();
     }
 
     /// <summary>
@@ -192,67 +193,4 @@ public static class StandaloneImGui
         return deltaTime;
     }
 
-    /// <summary>
-    ///     Loads .iamttf fonts explicitly for standalone apps.
-    ///     Based on GameMod font loading pattern.
-    /// </summary>
-    private static void LoadTerminalFonts()
-    {
-        try
-        {
-            string currentDir = Directory.GetCurrentDirectory();
-            string fontsDir = Path.Combine(currentDir, "TerminalFonts");
-            Console.WriteLine($"TestApp: Loading fonts from directory: {fontsDir}");
-
-            if (Directory.Exists(fontsDir))
-            {
-                string[] fontFiles = Directory.GetFiles(fontsDir, "*.iamttf");
-
-                if (fontFiles.Length > 0)
-                {
-                    ImGuiIOPtr io = ImGui.GetIO();
-                    ImFontAtlasPtr atlas = io.Fonts;
-
-                    foreach (string fontPath in fontFiles)
-                    {
-                        string fontName = Path.GetFileNameWithoutExtension(fontPath);
-                        Console.WriteLine($"TestApp: Loading font: {fontPath}");
-
-                        if (File.Exists(fontPath))
-                        {
-                            float fontSize = 32.0f;
-                            var fontPathStr = new ImString(fontPath);
-                            ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
-                            
-                            // Add to FontManager.Fonts dictionary if possible
-                            try
-                            {
-                                FontManager.Fonts[fontName] = font;
-                                Console.WriteLine($"TestApp: Added font '{fontName}' to FontManager");
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"TestApp: Could not add font to FontManager: {ex.Message}");
-                            }
-                        }
-                    }
-
-                    Console.WriteLine($"TestApp: Loaded {fontFiles.Length} fonts");
-                }
-                else
-                {
-                    Console.WriteLine("TestApp: No .iamttf font files found in TerminalFonts folder");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"TestApp: TerminalFonts directory not found at: {fontsDir}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"TestApp: Font loading failed: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
-        }
-    }
 }

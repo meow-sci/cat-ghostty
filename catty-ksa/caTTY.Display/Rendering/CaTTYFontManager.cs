@@ -63,6 +63,16 @@ public class CaTTYFontManager
                                 ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
                 LoadedFonts[fontName] = font;
 
+                // Add to FontManager.Fonts dictionary if possible
+                try
+                {
+                    FontManager.Fonts[fontName] = font;
+                    Console.WriteLine($"TestApp: Added font '{fontName}' to FontManager");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"TestApp: Could not add font to FontManager: {ex.Message}");
+                }
 
                 Console.WriteLine($"CaTTYFontManager: Loaded font '{fontName}' from {fontPath}");
               }
