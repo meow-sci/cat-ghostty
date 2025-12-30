@@ -30,20 +30,246 @@ This requirement applies to all test tasks throughout the implementation plan.
 
 
 
+## Missing CSI Sequence Implementation Tasks
+
+The following tasks implement CSI sequences that are present in the TypeScript reference implementation but missing from the C# version. These were identified through comparison of the TypeScript and C# CSI handlers.
+
+- [ ] 9. Implement cursor save/restore (ANSI style) sequences
+- [ ] 9.1 Add ANSI cursor save/restore parsing to CsiParser
+  - Add parsing for CSI s (save cursor) and CSI u (restore cursor) sequences
+  - Create CsiMessage types for cursor save/restore operations
+  - Add parameter validation and bounds checking
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for ANSI cursor save/restore parsing
+  - _Requirements: Terminal compatibility, cursor state management_
+
+- [ ] 9.2 Implement cursor save/restore functionality in TerminalEmulator
+  - Add SaveCursorPositionAnsi and RestoreCursorPositionAnsi methods to TerminalEmulator
+  - Implement cursor position storage separate from DEC save/restore (ESC 7/8)
+  - Add cursor state validation and bounds checking on restore
+  - Integrate with existing cursor management system
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts cursor save/restore handling
+  - _Requirements: Cursor position persistence, state isolation_
+
+- [ ] 9.3 Add CSI cursor save/restore handlers to TerminalParserHandlers
+  - Add case handlers for "csi.saveCursorPosition" and "csi.restoreCursorPosition"
+  - Wire up to TerminalEmulator save/restore methods
+  - Add comprehensive unit tests for ANSI cursor save/restore
+  - Test interaction with DEC cursor save/restore (should be independent)
+  - _Requirements: Parser integration, handler completeness_
+
+- [ ] 10. Implement DEC soft reset sequence
+- [ ] 10.1 Add DEC soft reset parsing to CsiParser
+  - Add parsing for CSI ! p (DECSTR - DEC Soft Terminal Reset) sequence
+  - Create CsiMessage type for soft reset operation
+  - Add intermediate character handling for '!' prefix
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for DECSTR parsing
+  - _Requirements: DEC compatibility, terminal reset functionality_
+
+- [ ] 10.2 Implement soft reset functionality in TerminalEmulator
+  - Add SoftReset method to TerminalEmulator
+  - Reset terminal modes to initial state (cursor visibility, auto-wrap, etc.)
+  - Reset SGR attributes to defaults
+  - Clear tab stops and restore default tab stops
+  - Reset character sets to defaults
+  - Do NOT clear screen buffer or cursor position (key difference from hard reset)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts soft reset implementation
+  - _Requirements: Partial terminal state reset, mode restoration_
+
+- [ ] 10.3 Add CSI soft reset handler and testing
+  - Add case handler for "csi.decSoftReset" in TerminalParserHandlers
+  - Wire up to TerminalEmulator SoftReset method
+  - Add comprehensive unit tests for soft reset behavior
+  - Test that screen content and cursor position are preserved
+  - Test that modes and attributes are properly reset
+  - _Requirements: Parser integration, reset behavior validation_
+
+- [ ] 11. Implement insert mode (IRM) sequence
+- [ ] 11.1 Add insert mode parsing and state tracking
+  - Add parsing for CSI 4 h (set insert mode) and CSI 4 l (reset insert mode) sequences
+  - Add InsertMode property to terminal mode state tracking
+  - Create CsiMessage type for insert mode operations
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for IRM parsing
+  - _Requirements: Terminal mode management, text insertion behavior_
+
+- [ ] 11.2 Implement insert mode character writing behavior
+  - Modify character writing logic to respect insert mode state
+  - When insert mode active: shift existing characters right before writing new character
+  - When insert mode inactive: overwrite existing characters (default behavior)
+  - Add bounds checking and line overflow handling for insert mode
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts insert mode handling
+  - _Requirements: Character insertion, line management_
+
+- [ ] 11.3 Add insert mode handler and testing
+  - Add case handler for "csi.insertMode" in TerminalParserHandlers
+  - Wire up to terminal mode state management
+  - Add comprehensive unit tests for insert mode behavior
+  - Test character insertion vs overwrite behavior
+  - Test line overflow and bounds checking in insert mode
+  - _Requirements: Mode switching, insertion behavior validation_
+
+- [ ] 12. Implement window manipulation sequences
+- [ ] 12.1 Add window manipulation parsing to CsiParser
+  - Add parsing for CSI Ps t sequences (window manipulation)
+  - Support common operations: minimize (2), restore (1), resize (8), query size (18)
+  - Create CsiMessage type with operation and parameter handling
+  - Add parameter validation for different operation types
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for window manipulation parsing
+  - _Requirements: Window control, parameter validation_
+
+- [ ] 12.2 Implement window manipulation functionality
+  - Add HandleWindowManipulation method to TerminalEmulator
+  - Implement title stack operations (push/pop title) for vi compatibility
+  - Add window size query responses (report current terminal dimensions)
+  - Handle unsupported operations gracefully (ignore minimize/restore in game context)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts window manipulation handling
+  - _Requirements: Window state management, vi compatibility_
+
+- [ ] 12.3 Add window manipulation handler and testing
+  - Add case handler for "csi.windowManipulation" in TerminalParserHandlers
+  - Wire up to TerminalEmulator window manipulation methods
+  - Add comprehensive unit tests for supported operations
+  - Test title stack operations and size queries
+  - Test graceful handling of unsupported operations
+  - _Requirements: Parser integration, operation handling_
+
+- [ ] 13. Implement enhanced SGR mode sequences
+- [ ] 13.1 Add enhanced SGR parsing to CsiParser
+  - Add parsing for CSI > Ps m sequences (enhanced SGR with > prefix)
+  - Support enhanced underline styles and color modes
+  - Create CsiMessage type for enhanced SGR operations
+  - Add prefix character handling and parameter validation
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for enhanced SGR parsing
+  - _Requirements: Advanced text styling, SGR extensions_
+
+- [ ] 13.2 Implement enhanced SGR functionality in SgrParser
+  - Add HandleEnhancedSgrMode method to SgrParser
+  - Support enhanced underline styles (curly, dotted, dashed)
+  - Add enhanced color mode processing
+  - Integrate with existing SGR attribute system
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts for enhanced SGR handling
+  - _Requirements: Extended styling capabilities, attribute management_
+
+- [ ] 13.3 Add enhanced SGR handler and testing
+  - Add case handler for "csi.enhancedSgrMode" in TerminalParserHandlers
+  - Wire up to SgrParser enhanced mode handling
+  - Add comprehensive unit tests for enhanced SGR features
+  - Test enhanced underline styles and color modes
+  - Test integration with standard SGR sequences
+  - _Requirements: Parser integration, enhanced styling validation_
+
+- [ ] 14. Implement private SGR mode sequences
+- [ ] 14.1 Add private SGR parsing to CsiParser
+  - Add parsing for CSI ? Ps m sequences (private SGR with ? prefix)
+  - Support private SGR modes for terminal-specific features
+  - Create CsiMessage type for private SGR operations
+  - Add prefix character handling and mode validation
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for private SGR parsing
+  - _Requirements: Terminal-specific features, private mode handling_
+
+- [ ] 14.2 Implement private SGR functionality
+  - Add HandlePrivateSgrMode method to SgrParser
+  - Support private SGR modes (implementation-specific features)
+  - Add graceful handling of unknown private modes
+  - Integrate with existing SGR system without conflicts
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts private SGR handling
+  - _Requirements: Private mode support, graceful degradation_
+
+- [ ] 14.3 Add private SGR handler and testing
+  - Add case handler for "csi.privateSgrMode" in TerminalParserHandlers
+  - Wire up to SgrParser private mode handling
+  - Add comprehensive unit tests for private SGR modes
+  - Test graceful handling of unknown private modes
+  - Test isolation from standard SGR sequences
+  - _Requirements: Parser integration, private mode validation_
+
+- [ ] 15. Implement SGR with intermediate characters
+- [ ] 15.1 Add SGR intermediate character parsing to CsiParser
+  - Add parsing for CSI Ps <intermediate> m sequences (e.g., CSI 0 % m)
+  - Support intermediate characters in SGR sequences
+  - Create CsiMessage type with intermediate character handling
+  - Add intermediate character validation and processing
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for SGR intermediate handling
+  - _Requirements: Extended SGR syntax, intermediate character support_
+
+- [ ] 15.2 Implement SGR intermediate character functionality
+  - Add HandleSgrWithIntermediate method to SgrParser
+  - Support SGR sequences with intermediate characters
+  - Add intermediate character interpretation logic
+  - Integrate with existing SGR processing pipeline
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR intermediate handling
+  - _Requirements: Extended SGR processing, intermediate character interpretation_
+
+- [ ] 15.3 Add SGR intermediate handler and testing
+  - Add case handler for "csi.sgrWithIntermediate" in TerminalParserHandlers
+  - Wire up to SgrParser intermediate character handling
+  - Add comprehensive unit tests for SGR with intermediate characters
+  - Test various intermediate character combinations
+  - Test integration with standard SGR sequences
+  - _Requirements: Parser integration, intermediate character validation_
+
+- [ ] 16. Implement unknown vi sequence handling
+- [ ] 16.1 Add unknown vi sequence parsing to CsiParser
+  - Add parsing for unknown vi sequences (graceful handling)
+  - Create CsiMessage type for unknown vi sequence operations
+  - Add sequence number extraction and validation
+  - Support graceful acknowledgment without implementation
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for unknown vi sequence parsing
+  - _Requirements: Vi compatibility, graceful degradation_
+
+- [ ] 16.2 Implement unknown vi sequence handling
+  - Add HandleUnknownViSequence method to TerminalEmulator
+  - Provide graceful acknowledgment for unknown vi sequences
+  - Log unknown sequences for debugging purposes
+  - Ensure terminal state remains stable
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts unknown vi sequence handling
+  - _Requirements: Vi compatibility, error resilience_
+
+- [ ] 16.3 Add unknown vi sequence handler and testing
+  - Add case handler for "csi.unknownViSequence" in TerminalParserHandlers
+  - Wire up to TerminalEmulator unknown sequence handling
+  - Add comprehensive unit tests for unknown vi sequences
+  - Test graceful handling and logging behavior
+  - Test terminal state stability after unknown sequences
+  - _Requirements: Parser integration, graceful error handling_
+
+- [ ] 17. Implement mouse reporting mode sequences
+- [ ] 17.1 Add mouse reporting mode parsing to CsiParser
+  - Add parsing for mouse reporting mode sequences (CSI ? 1000 h/l, etc.)
+  - Create CsiMessage type for mouse reporting operations
+  - Add mode parameter validation and handling
+  - Support various mouse reporting modes (basic, extended, SGR)
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for mouse reporting parsing
+  - _Requirements: Mouse input support, mode management_
+
+- [ ] 17.2 Implement mouse reporting mode state tracking
+  - Add mouse reporting mode state to terminal mode management
+  - Track different mouse reporting modes (none, basic, extended, SGR)
+  - Add mode switching and validation logic
+  - Prepare infrastructure for future mouse input handling
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts mouse reporting handling
+  - _Requirements: Mouse mode management, state tracking_
+
+- [ ] 17.3 Add mouse reporting handler and testing
+  - Add case handler for "csi.mouseReportingMode" in TerminalParserHandlers
+  - Wire up to terminal mouse mode state management
+  - Add comprehensive unit tests for mouse reporting modes
+  - Test mode switching and state validation
+  - Note: Actual mouse input handling deferred to future tasks
+  - _Requirements: Parser integration, mode state validation_
+
 
 
 
 ## Notes
 
-- All tasks are required for comprehensive implementation from the start
+- All tasks are required for comprehensive TypeScript compatibility
 - Each task references specific requirements for traceability
-- Checkpoints ensure incremental validation at working program milestones
-- Property tests validate universal correctness properties using FsCheck.NUnit
-- Unit tests validate specific examples and edge cases
+- Tasks are sized to optimize AI/LLM context window usage
+- Complex areas have been broken down into focused subtasks
 - The implementation follows the TypeScript version as a reference for behavior compatibility
-- Each major task number (1-8) results in a working program with incrementally more features
-- Subtasks are kept small to optimize AI/LLM context window usage
-- Complex areas identified from TypeScript analysis have been broken down into granular subtasks
+- Each major task number (9-17) implements a specific missing CSI sequence type
+- Subtasks are kept small and focused on specific implementation aspects
+- Property tests and comprehensive unit tests are included for each feature
 
 ## CRITICAL CODE ORGANIZATION REQUIREMENTS
 
