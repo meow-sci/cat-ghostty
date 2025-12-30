@@ -1808,7 +1808,7 @@ public class TerminalController : ITerminalController
   /// <returns>True if a special key was handled, false otherwise</returns>
   private bool HandleSpecialKeys(KeyModifiers modifiers, bool applicationCursorKeys, Action markUserInput)
   {
-    // Define key mappings from ImGuiKey to string
+    // Define key mappings from ImGuiKey to string for non-text keys
     var keyMappings = new[]
     {
             // Basic keys
@@ -1843,16 +1843,7 @@ public class TerminalController : ITerminalController
             (ImGuiKey.F9, "F9"),
             (ImGuiKey.F10, "F10"),
             (ImGuiKey.F11, "F11"),
-            (ImGuiKey.F12, "F12"),
-
-            // Letter keys for Ctrl combinations
-            (ImGuiKey.A, "a"), (ImGuiKey.B, "b"), (ImGuiKey.C, "c"), (ImGuiKey.D, "d"),
-            (ImGuiKey.E, "e"), (ImGuiKey.F, "f"), (ImGuiKey.G, "g"), (ImGuiKey.H, "h"),
-            (ImGuiKey.I, "i"), (ImGuiKey.J, "j"), (ImGuiKey.K, "k"), (ImGuiKey.L, "l"),
-            (ImGuiKey.M, "m"), (ImGuiKey.N, "n"), (ImGuiKey.O, "o"), (ImGuiKey.P, "p"),
-            (ImGuiKey.Q, "q"), (ImGuiKey.R, "r"), (ImGuiKey.S, "s"), (ImGuiKey.T, "t"),
-            (ImGuiKey.U, "u"), (ImGuiKey.V, "v"), (ImGuiKey.W, "w"), (ImGuiKey.X, "x"),
-            (ImGuiKey.Y, "y"), (ImGuiKey.Z, "z")
+            (ImGuiKey.F12, "F12")
         };
 
     // Process each key mapping
@@ -1876,6 +1867,37 @@ public class TerminalController : ITerminalController
           markUserInput();
           SendToProcess(encoded);
           return true; // Special key was handled
+        }
+      }
+    }
+
+    // Handle Ctrl+letter combinations separately (only when Ctrl is pressed)
+    if (modifiers.Ctrl)
+    {
+      var letterKeys = new[]
+      {
+        (ImGuiKey.A, "a"), (ImGuiKey.B, "b"), (ImGuiKey.C, "c"), (ImGuiKey.D, "d"),
+        (ImGuiKey.E, "e"), (ImGuiKey.F, "f"), (ImGuiKey.G, "g"), (ImGuiKey.H, "h"),
+        (ImGuiKey.I, "i"), (ImGuiKey.J, "j"), (ImGuiKey.K, "k"), (ImGuiKey.L, "l"),
+        (ImGuiKey.M, "m"), (ImGuiKey.N, "n"), (ImGuiKey.O, "o"), (ImGuiKey.P, "p"),
+        (ImGuiKey.Q, "q"), (ImGuiKey.R, "r"), (ImGuiKey.S, "s"), (ImGuiKey.T, "t"),
+        (ImGuiKey.U, "u"), (ImGuiKey.V, "v"), (ImGuiKey.W, "w"), (ImGuiKey.X, "x"),
+        (ImGuiKey.Y, "y"), (ImGuiKey.Z, "z")
+      };
+
+      foreach (var (imguiKey, keyString) in letterKeys)
+      {
+        if (ImGui.IsKeyPressed(imguiKey))
+        {
+          // Use the keyboard input encoder to get the proper Ctrl+letter sequence
+          string? encoded = KeyboardInputEncoder.EncodeKeyEvent(keyString, modifiers, applicationCursorKeys);
+
+          if (encoded != null)
+          {
+            markUserInput();
+            SendToProcess(encoded);
+            return true; // Ctrl+letter was handled
+          }
         }
       }
     }
