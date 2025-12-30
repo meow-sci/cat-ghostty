@@ -258,6 +258,33 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - _Requirements: Parser integration, mode state validation_
 
 
+- [ ] 18. Implement color query OSC sequences
+- [ ] 18.1 Add color query response generation
+  - Add GenerateForegroundColorResponse method to DeviceResponses class
+  - Add GenerateBackgroundColorResponse method to DeviceResponses class
+  - Support RGB color format responses (rgb:rrrr/gggg/bbbb format)
+  - Add current SGR state integration for color resolution
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/responses.ts color response generation
+  - _Requirements: Color query support, terminal theme integration_
+
+- [ ] 18.2 Implement OSC color query handlers
+  - Add case handlers for "osc.queryForegroundColor" and "osc.queryBackgroundColor" in HandleXtermOsc
+  - Wire up to DeviceResponses color query methods
+  - Add current terminal state color resolution logic
+  - Emit proper OSC response format for color queries
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/osc.ts color query handling
+  - _Requirements: OSC handler completeness, color query responses_
+
+- [ ] 18.3 Add comprehensive OSC color query testing
+  - Add unit tests for OSC 10;? (query foreground color) sequences
+  - Add unit tests for OSC 11;? (query background color) sequences
+  - Test color response format and RGB value accuracy
+  - Test integration with current SGR state and terminal themes
+  - Test proper OSC response emission and formatting
+  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/__tests__/Parser.test.ts OSC color query tests
+  - _Requirements: OSC color query validation, response format verification_
+
+
 
 
 ## Notes
@@ -268,6 +295,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
 - Complex areas have been broken down into focused subtasks
 - The implementation follows the TypeScript version as a reference for behavior compatibility
 - Each major task number (9-17) implements a specific missing CSI sequence type
+- Task 18 implements missing OSC color query sequences
 - Subtasks are kept small and focused on specific implementation aspects
 - Property tests and comprehensive unit tests are included for each feature
 
