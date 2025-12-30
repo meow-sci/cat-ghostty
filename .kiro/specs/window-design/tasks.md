@@ -24,9 +24,10 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - Use ImGui.BeginMenuBar() and ImGui.MenuItem() APIs
     - _Requirements: 1.1, 1.2, 1.3, 8.1_
 
-  - [ ] 2.2 Write unit tests for menu bar structure
-    - Test menu items exist and are properly labeled
-    - Test disabled states for unavailable options
+  - [ ] 2.2 Manual validation: Verify menu bar structure
+    - **Developer validation**: Confirm menu items exist and are properly labeled
+    - **Developer validation**: Verify disabled states for unavailable options
+    - **Developer validation**: Test menu dropdowns open and close correctly
     - _Requirements: 1.2, 8.1_
 
   - [ ] 2.3 Write property test for menu bar layout
@@ -40,10 +41,10 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - Implement proper spacing and sizing calculations
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-  - [ ] 3.2 Write unit tests for tab area components
-    - Test single tab is displayed with correct label
-    - Test add button is present and positioned correctly
-    - Test tooltip appears on add button hover
+  - [ ] 3.2 Manual validation: Verify tab area components
+    - **Developer validation**: Confirm single tab is displayed with correct label
+    - **Developer validation**: Verify add button is present and positioned correctly
+    - **Developer validation**: Test tooltip appears on add button hover
     - _Requirements: 2.2, 2.3, 2.4_
 
   - [ ] 3.3 Write property test for tab area layout
@@ -57,10 +58,10 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - Implement proper horizontal layout for controls
     - _Requirements: 3.1, 3.2, 3.4, 5.1, 5.2_
 
-  - [ ] 4.2 Write unit tests for settings area controls
-    - Test font size slider is present and functional
-    - Test terminal info is displayed correctly
-    - Test settings area contains expected widgets
+  - [ ] 4.2 Manual validation: Verify settings area controls
+    - **Developer validation**: Confirm font size slider is present and functional
+    - **Developer validation**: Verify terminal info is displayed correctly
+    - **Developer validation**: Test settings area contains expected widgets
     - _Requirements: 3.2, 3.4, 5.2_
 
   - [ ] 4.3 Write property test for settings functionality
@@ -105,9 +106,10 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - Add logging for debugging layout issues
     - _Requirements: 7.1, 7.5_
 
-  - [ ] 7.3 Write unit tests for error handling
-    - Test invalid window size handling
-    - Test fallback behavior for layout failures
+  - [ ] 7.3 Manual validation: Verify error handling behavior
+    - **Developer validation**: Test invalid window size handling
+    - **Developer validation**: Verify fallback behavior for layout failures
+    - **Developer validation**: Confirm graceful degradation when ImGui calls fail
     - _Requirements: 7.1_
 
 - [ ] 8. Implement responsive layout behavior
@@ -128,25 +130,27 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - Connect menu items to appropriate actions
     - _Requirements: 1.3, 8.1_
 
-  - [ ] 9.2 Write unit tests for menu actions
-    - Test copy/paste functionality
-    - Test font size adjustment methods
-    - Test menu item enable/disable states
+  - [ ] 9.2 Manual validation: Verify menu actions
+    - **Developer validation**: Test copy/paste functionality works correctly
+    - **Developer validation**: Verify font size adjustment methods function properly
+    - **Developer validation**: Confirm menu item enable/disable states are correct
     - _Requirements: 1.3_
 
 - [ ] 10. Checkpoint - Ensure all tests pass and layout works correctly
-  - Ensure all tests pass, ask the user if questions arise.
+  - Ensure all property tests pass, ask the user if questions arise.
+  - **Developer validation**: Manually verify all ImGui layout areas render correctly
 
 - [ ] 11. Final integration and validation
-  - [ ] 11.1 Test complete window rendering pipeline
-    - Verify all layout areas render correctly together
-    - Test interaction between different areas
-    - Validate single terminal instance constraint
+  - [ ] 11.1 Manual validation: Test complete window rendering pipeline
+    - **Developer validation**: Verify all layout areas render correctly together
+    - **Developer validation**: Test interaction between different areas
+    - **Developer validation**: Validate single terminal instance constraint
     - _Requirements: 6.1, 6.4_
 
-  - [ ] 11.2 Write integration tests for complete layout
-    - Test full window rendering from initialization to display
-    - Test cross-area interactions (settings affecting canvas)
+  - [ ] 11.2 Manual validation: Verify complete layout integration
+    - **Developer validation**: Test full window rendering from initialization to display
+    - **Developer validation**: Verify cross-area interactions (settings affecting canvas)
+    - **Developer validation**: Confirm layout stability across different window sizes
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [ ] 11.3 Write property test for single terminal constraint
@@ -154,14 +158,15 @@ This implementation plan transforms the current basic ImGui terminal window layo
     - **Validates: Requirements 2.2, 6.1, 6.4**
 
 - [ ] 12. Final checkpoint - Ensure all functionality works as expected
-  - Ensure all tests pass, ask the user if questions arise.
+  - Ensure all property tests pass, ask the user if questions arise.
+  - **Developer validation**: Manually verify complete window layout and functionality
 
 ## Notes
 
-- Tasks marked with comprehensive testing ensure robust implementation
+- Property tests validate universal correctness properties for non-UI logic
+- Manual validation tasks require developer verification of ImGui display functionality
+- Unit tests are only used for testable non-UI logic (layout calculations, error handling)
 - Each task references specific requirements for traceability
-- Checkpoints ensure incremental validation
-- Property tests validate universal correctness properties
-- Unit tests validate specific examples and edge cases
+- Checkpoints ensure incremental validation with both automated tests and manual verification
 - The implementation preserves all existing terminal functionality while adding the new layout structure
 - Multi-terminal functionality is explicitly not implemented in this phase - only UI structure preparation
