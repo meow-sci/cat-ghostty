@@ -115,13 +115,31 @@ public class ModeManagerTests
     }
 
     [Test]
+    public void InsertMode_DefaultsToFalse()
+    {
+        Assert.That(_manager.InsertMode, Is.False);
+    }
+
+    [Test]
+    public void InsertMode_CanBeSetAndGet()
+    {
+        _manager.InsertMode = true;
+        Assert.That(_manager.InsertMode, Is.True);
+
+        _manager.InsertMode = false;
+        Assert.That(_manager.InsertMode, Is.False);
+    }
+
+    [Test]
     public void SetMode_WithKnownMode_UpdatesProperty()
     {
         _manager.SetMode(4, true);  // Insert/Replace mode
         Assert.That(_manager.GetMode(4), Is.True);
+        Assert.That(_manager.InsertMode, Is.True);
 
         _manager.SetMode(4, false);
         Assert.That(_manager.GetMode(4), Is.False);
+        Assert.That(_manager.InsertMode, Is.False);
     }
 
     [Test]
@@ -242,6 +260,7 @@ public class ModeManagerTests
         Assert.That(_manager.CursorVisible, Is.True);
         Assert.That(_manager.OriginMode, Is.False);
         Assert.That(_manager.Utf8Mode, Is.True);
+        Assert.That(_manager.InsertMode, Is.False);
     }
 
     [Test]

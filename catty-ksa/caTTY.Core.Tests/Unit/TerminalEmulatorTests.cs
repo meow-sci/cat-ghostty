@@ -1206,4 +1206,219 @@ public class TerminalEmulatorTests
 
         terminal.Dispose();
     }
+
+    /// <summary>
+    ///     Tests that insert mode can be enabled and disabled via CSI sequences.
+    /// </summary>
+    [Test]
+    public void InsertMode_EnableAndDisable_UpdatesModeState()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+
+        // Act - Enable insert mode (CSI 4 h)
+        terminal.Write("\x1b[4h");
+
+        // Assert - Insert mode should be enabled
+        Assert.That(terminal.ModeManager.InsertMode, Is.True, "Insert mode should be enabled after CSI 4 h");
+
+        // Act - Disable insert mode (CSI 4 l)
+        terminal.Write("\x1b[4l");
+
+        // Assert - Insert mode should be disabled
+        Assert.That(terminal.ModeManager.InsertMode, Is.False, "Insert mode should be disabled after CSI 4 l");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that characters are inserted (not overwritten) when insert mode is enabled.
+    /// </summary>
+    [Test]
+    public void InsertMode_Enabled_InsertsCharactersInsteadOfOverwriting()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write initial text
+        terminal.Write("ABCDEF");
+        
+        // Move cursor to position 2 (between B and C)
+        terminal.Write("\x1b[1;3H"); // Row 1, Column 3 (1-indexed)
+        
+        // Enable insert mode
+        terminal.Write("\x1b[4h");
+
+        // Act - Write a character in insert mode
+        terminal.Write("X");
+
+        // Assert - Character should be inserted, shifting existing characters right
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('A'), "First character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('B'), "Second character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('X'), "Inserted character should be at cursor position");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('C'), "Third character should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('D'), "Fourth character should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 5).Character, Is.EqualTo('E'), "Fifth character should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('F'), "Sixth character should be shifted right");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that characters are overwritten (default behavior) when insert mode is disabled.
+    /// </summary>
+    [Test]
+    public void InsertMode_Disabled_OverwritesCharacters()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write initial text
+        terminal.Write("ABCDEF");
+        
+        // Move cursor to position 2 (at character C)
+        terminal.Write("\x1b[1;3H"); // Row 1, Column 3 (1-indexed)
+        
+        // Ensure insert mode is disabled (default state)
+        terminal.Write("\x1b[4l");
+
+        // Act - Write a character in replace mode (default)
+        terminal.Write("X");
+
+        // Assert - Character should overwrite existing character
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('A'), "First character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('B'), "Second character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('X'), "Character should overwrite at cursor position");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('D'), "Fourth character should remain (not shifted)");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('E'), "Fifth character should remain (not shifted)");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 5).Character, Is.EqualTo('F'), "Sixth character should remain (not shifted)");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that insert mode handles line overflow correctly by truncating characters at the right edge.
+    /// </summary>
+    [Test]
+    public void InsertMode_LineOverflow_TruncatesAtRightEdge()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(10, 24); // Small width for testing overflow
+        
+        // Fill the line completely
+        terminal.Write("0123456789");
+        
+        // Move cursor to position 5
+        terminal.Write("\x1b[1;6H"); // Row 1, Column 6 (1-indexed)
+        
+        // Enable insert mode
+        terminal.Write("\x1b[4h");
+
+        // Act - Insert a character when line is full
+        terminal.Write("X");
+
+        // Assert - Character should be inserted, rightmost character should be lost
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('0'), "First character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('4'), "Character before insertion point should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 5).Character, Is.EqualTo('X'), "Inserted character should be at cursor position");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('5'), "Characters should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 7).Character, Is.EqualTo('6'), "Characters should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 8).Character, Is.EqualTo('7'), "Characters should be shifted right");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 9).Character, Is.EqualTo('8'), "Last visible character should be shifted");
+        // Character '9' should be lost due to overflow
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that insert mode works correctly with wide characters (CJK).
+    /// </summary>
+    [Test]
+    public void InsertMode_WithWideCharacters_HandlesCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write initial text with a mix of normal and wide characters
+        terminal.Write("AB世CD");
+        
+        // Move cursor to position after 'B' (before wide character)
+        terminal.Write("\x1b[1;3H"); // Row 1, Column 3 (1-indexed)
+        
+        // Enable insert mode
+        terminal.Write("\x1b[4h");
+
+        // Act - Insert a normal character before wide character
+        terminal.Write("X");
+
+        // Assert - Character should be inserted, wide character should be shifted
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('A'), "First character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('B'), "Second character should remain");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('X'), "Inserted character should be at cursor position");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('世'), "Wide character should be shifted right");
+        // Wide character occupies two cells, so next normal character should be at position 5
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 5).Character, Is.EqualTo('C'), "Character after wide char should be shifted");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('D'), "Last character should be shifted");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that insert mode preserves character attributes when shifting characters.
+    /// </summary>
+    [Test]
+    public void InsertMode_PreservesCharacterAttributes_WhenShifting()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(80, 24);
+        
+        // Write text with bold attribute
+        terminal.Write("\x1b[1mABC\x1b[0m"); // Bold ABC, then reset
+        terminal.Write("DEF"); // Normal DEF
+        
+        // Move cursor to position 2 (between B and C)
+        terminal.Write("\x1b[1;3H"); // Row 1, Column 3 (1-indexed)
+        
+        // Enable insert mode
+        terminal.Write("\x1b[4h");
+
+        // Act - Insert a character with italic attribute
+        terminal.Write("\x1b[3mX\x1b[0m"); // Italic X, then reset
+
+        // Assert - Attributes should be preserved when characters are shifted
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Attributes.Bold, Is.True, "First character should remain bold");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Attributes.Bold, Is.True, "Second character should remain bold");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Attributes.Italic, Is.True, "Inserted character should be italic");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Attributes.Bold, Is.True, "Shifted character should preserve bold attribute");
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 4).Attributes.Bold, Is.False, "Character after bold section should not be bold");
+
+        terminal.Dispose();
+    }
+
+    /// <summary>
+    ///     Tests that insert mode at the right edge of the screen behaves correctly.
+    /// </summary>
+    [Test]
+    public void InsertMode_AtRightEdge_HandlesCorrectly()
+    {
+        // Arrange
+        var terminal = new TerminalEmulator(5, 24); // Very small width
+        
+        // Fill the line
+        terminal.Write("ABCDE");
+        
+        // Move cursor to the last position
+        terminal.Write("\x1b[1;5H"); // Row 1, Column 5 (1-indexed)
+        
+        // Enable insert mode
+        terminal.Write("\x1b[4h");
+
+        // Act - Try to insert at the right edge
+        terminal.Write("X");
+
+        // Assert - Should handle edge case gracefully
+        Assert.That(terminal.ScreenBuffer.GetCell(0, 4).Character, Is.EqualTo('X'), "Character should be inserted at right edge");
+
+        terminal.Dispose();
+    }
 }

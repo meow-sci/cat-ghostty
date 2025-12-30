@@ -220,7 +220,7 @@ public class CsiParser : ICsiParser
                 {
                     Type = "csi.insertMode",
                     Raw = raw,
-                    Implemented = false,
+                    Implemented = true,
                     FinalByte = finalByte,
                     Parameters = parameters,
                     Enable = final == "h"

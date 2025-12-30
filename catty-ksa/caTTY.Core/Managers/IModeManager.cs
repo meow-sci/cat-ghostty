@@ -36,6 +36,12 @@ public interface IModeManager
     bool Utf8Mode { get; set; }
 
     /// <summary>
+    ///     Gets or sets insert mode. When true, new characters are inserted, shifting existing characters right.
+    ///     When false, new characters overwrite existing characters (default behavior).
+    /// </summary>
+    bool InsertMode { get; set; }
+
+    /// <summary>
     ///     Sets a specific terminal mode by number.
     /// </summary>
     /// <param name="mode">Mode number</param>

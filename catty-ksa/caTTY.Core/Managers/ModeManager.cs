@@ -55,6 +55,12 @@ public class ModeManager : IModeManager
     public bool Utf8Mode { get; set; } = true;
 
     /// <summary>
+    ///     Gets or sets insert mode. When true, new characters are inserted, shifting existing characters right.
+    ///     When false, new characters overwrite existing characters (default behavior).
+    /// </summary>
+    public bool InsertMode { get; set; } = false;
+
+    /// <summary>
     ///     Sets a specific terminal mode by number.
     /// </summary>
     /// <param name="mode">Mode number</param>
@@ -67,7 +73,7 @@ public class ModeManager : IModeManager
         switch (mode)
         {
             case 4: // Insert/Replace mode (IRM)
-                // Will be implemented when character insertion is added
+                InsertMode = enabled;
                 break;
             case 20: // Automatic Newline mode (LNM)
                 // Will be implemented when line discipline is enhanced
@@ -276,6 +282,7 @@ public class ModeManager : IModeManager
         CursorVisible = true;
         OriginMode = false;
         Utf8Mode = true;
+        InsertMode = false;
     }
 
     /// <summary>

@@ -164,4 +164,11 @@ public interface ITerminalEmulator : IDisposable
     /// </summary>
     /// <param name="style">The cursor style to set</param>
     void SetCursorStyle(CursorStyle style);
+
+    /// <summary>
+    ///     Sets insert mode state. When enabled, new characters are inserted, shifting existing characters right.
+    ///     When disabled, new characters overwrite existing characters (default behavior).
+    /// </summary>
+    /// <param name="enabled">True to enable insert mode, false to disable</param>
+    void SetInsertMode(bool enabled);
 }

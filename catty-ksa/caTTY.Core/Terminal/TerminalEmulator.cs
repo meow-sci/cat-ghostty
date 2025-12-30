@@ -805,6 +805,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // Write the character to the screen buffer with current SGR attributes, protection status, and hyperlink URL
         // Determine if this is a wide character for proper cell marking
         bool isWide = IsWideCharacter(character);
+        
+        // Handle insert mode - shift existing characters right if insert mode is enabled
+        if (_modeManager.InsertMode)
+        {
+            // Insert mode: shift existing characters right before writing new character
+            int charactersToShift = isWide ? 2 : 1;
+            ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
+        }
+        
         var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
@@ -895,6 +904,55 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         if (character >= 0x2700 && character <= 0x27BF) return true;   // Dingbats
         
         return false;
+    }
+
+    /// <summary>
+    ///     Shifts characters to the right on the current line to make space for insertion.
+    ///     Used when insert mode is enabled to shift existing characters before writing new ones.
+    /// </summary>
+    /// <param name="row">The row to shift characters on</param>
+    /// <param name="startColumn">The column to start shifting from</param>
+    /// <param name="shiftAmount">Number of positions to shift (1 for normal chars, 2 for wide chars)</param>
+    private void ShiftCharactersRight(int row, int startColumn, int shiftAmount)
+    {
+        // Bounds checking
+        if (row < 0 || row >= Height || startColumn < 0 || startColumn >= Width)
+        {
+            return;
+        }
+
+        // Calculate how many characters we can actually shift
+        int availableSpace = Width - startColumn;
+        if (availableSpace <= shiftAmount)
+        {
+            // Not enough space to shift - clear from cursor to end of line
+            for (int col = startColumn; col < Width; col++)
+            {
+                var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
+                _screenBufferManager.SetCell(row, col, emptyCell);
+            }
+            return;
+        }
+
+        // Shift characters to the right, starting from the rightmost character
+        // Work backwards to avoid overwriting characters we haven't moved yet
+        for (int col = Width - 1 - shiftAmount; col >= startColumn; col--)
+        {
+            int targetCol = col + shiftAmount;
+            if (targetCol < Width)
+            {
+                // Get the cell to move
+                var sourceCell = _screenBufferManager.GetCell(row, col);
+                _screenBufferManager.SetCell(row, targetCol, sourceCell);
+            }
+        }
+
+        // Clear the positions where we're about to insert
+        for (int col = startColumn; col < startColumn + shiftAmount && col < Width; col++)
+        {
+            var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
+            _screenBufferManager.SetCell(row, col, emptyCell);
+        }
     }
 
     /// <summary>
@@ -2111,6 +2169,20 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         
         // Update terminal state
         State.CursorStyle = style;
+    }
+
+    /// <summary>
+    ///     Sets insert mode state. When enabled, new characters are inserted, shifting existing characters right.
+    ///     When disabled, new characters overwrite existing characters (default behavior).
+    /// </summary>
+    /// <param name="enabled">True to enable insert mode, false to disable</param>
+    public void SetInsertMode(bool enabled)
+    {
+        // Update mode manager
+        _modeManager.InsertMode = enabled;
+        
+        // Update terminal state for compatibility
+        _modeManager.SetMode(4, enabled);
     }
 
     /// <summary>

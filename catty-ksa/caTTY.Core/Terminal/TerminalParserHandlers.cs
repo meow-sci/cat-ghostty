@@ -371,6 +371,16 @@ internal class TerminalParserHandlers : IParserHandlers
                 _logger.LogDebug("DEC soft reset executed");
                 break;
 
+            case "csi.insertMode":
+                // Insert/Replace Mode (CSI 4 h/l) - IRM
+                if (message.Enable.HasValue)
+                {
+                    _terminal.SetInsertMode(message.Enable.Value);
+                    _logger.LogDebug("Insert mode {Action}: {Enabled}", 
+                        message.Enable.Value ? "set" : "reset", message.Enable.Value);
+                }
+                break;
+
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

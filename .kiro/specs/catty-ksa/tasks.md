@@ -83,15 +83,15 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test that modes and attributes are properly reset
   - _Requirements: Parser integration, reset behavior validation_
 
-- [ ] 11. Implement insert mode (IRM) sequence
-- [ ] 11.1 Add insert mode parsing and state tracking
+- [x] 11. Implement insert mode (IRM) sequence
+- [x] 11.1 Add insert mode parsing and state tracking
   - Add parsing for CSI 4 h (set insert mode) and CSI 4 l (reset insert mode) sequences
   - Add InsertMode property to terminal mode state tracking
   - Create CsiMessage type for insert mode operations
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for IRM parsing
   - _Requirements: Terminal mode management, text insertion behavior_
 
-- [ ] 11.2 Implement insert mode character writing behavior
+- [x] 11.2 Implement insert mode character writing behavior
   - Modify character writing logic to respect insert mode state
   - When insert mode active: shift existing characters right before writing new character
   - When insert mode inactive: overwrite existing characters (default behavior)
@@ -99,7 +99,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts insert mode handling
   - _Requirements: Character insertion, line management_
 
-- [ ] 11.3 Add insert mode handler and testing
+- [x] 11.3 Add insert mode handler and testing
   - Add case handler for "csi.insertMode" in TerminalParserHandlers
   - Wire up to terminal mode state management
   - Add comprehensive unit tests for insert mode behavior
@@ -110,7 +110,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
 - [ ] 12. Implement window manipulation sequences
 - [ ] 12.1 Add window manipulation parsing to CsiParser
   - Add parsing for CSI Ps t sequences (window manipulation)
-  - Support common operations: minimize (2), restore (1), resize (8), query size (18)
+  - Support common operations: minimize (2) (make this a noop), restore (1) (make this a noop), resize (8), query size (18)
   - Create CsiMessage type with operation and parameter handling
   - Add parameter validation for different operation types
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for window manipulation parsing
@@ -206,31 +206,6 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test various intermediate character combinations
   - Test integration with standard SGR sequences
   - _Requirements: Parser integration, intermediate character validation_
-
-- [ ] 16. Implement unknown vi sequence handling
-- [ ] 16.1 Add unknown vi sequence parsing to CsiParser
-  - Add parsing for unknown vi sequences (graceful handling)
-  - Create CsiMessage type for unknown vi sequence operations
-  - Add sequence number extraction and validation
-  - Support graceful acknowledgment without implementation
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for unknown vi sequence parsing
-  - _Requirements: Vi compatibility, graceful degradation_
-
-- [ ] 16.2 Implement unknown vi sequence handling
-  - Add HandleUnknownViSequence method to TerminalEmulator
-  - Provide graceful acknowledgment for unknown vi sequences
-  - Log unknown sequences for debugging purposes
-  - Ensure terminal state remains stable
-  - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts unknown vi sequence handling
-  - _Requirements: Vi compatibility, error resilience_
-
-- [ ] 16.3 Add unknown vi sequence handler and testing
-  - Add case handler for "csi.unknownViSequence" in TerminalParserHandlers
-  - Wire up to TerminalEmulator unknown sequence handling
-  - Add comprehensive unit tests for unknown vi sequences
-  - Test graceful handling and logging behavior
-  - Test terminal state stability after unknown sequences
-  - _Requirements: Parser integration, graceful error handling_
 
 - [ ] 17. Implement mouse reporting mode sequences
 - [ ] 17.1 Add mouse reporting mode parsing to CsiParser
