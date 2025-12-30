@@ -73,10 +73,10 @@ public static class StandaloneImGui
         // This requires the working directory to be set to the KSA install (or the cwd having a Content folder with at least one ttf)
         KSA.Program.ConsoleWindow = new ConsoleWindow(); // required so fontmanager doesn't throw
         FontManager.Initialize(renderer.Device);
-        
+
         // Load .iamttf fonts explicitly (similar to GameMod pattern)
         LoadTerminalFonts();
-        
+
         Console.WriteLine("after fonts");
     }
 
@@ -149,14 +149,16 @@ public static class StandaloneImGui
 
             if (Directory.Exists(fontsDir))
             {
-                string[] fontFiles = Directory.GetFiles(fontsDir, "*.iamttf");
+                string[] ttfFiles = Directory.GetFiles(fontsDir, "*.iamttf");
+                string[] otfFiles = Directory.GetFiles(fontsDir, "*.otf");
+                string[] allFiles = ttfFiles.Concat(otfFiles).ToArray();
 
-                if (fontFiles.Length > 0)
+                if (allFiles.Length > 0)
                 {
                     ImGuiIOPtr io = ImGui.GetIO();
                     ImFontAtlasPtr atlas = io.Fonts;
 
-                    foreach (string fontPath in fontFiles)
+                    foreach (string fontPath in allFiles)
                     {
                         string fontName = Path.GetFileNameWithoutExtension(fontPath);
                         Console.WriteLine($"Playground: Loading font: {fontPath}");
@@ -166,7 +168,7 @@ public static class StandaloneImGui
                             float fontSize = 32.0f;
                             var fontPathStr = new ImString(fontPath);
                             ImFontPtr font = atlas.AddFontFromFileTTF(fontPathStr, fontSize);
-                            
+
                             // Add to FontManager.Fonts dictionary if possible
                             try
                             {
@@ -180,7 +182,7 @@ public static class StandaloneImGui
                         }
                     }
 
-                    Console.WriteLine($"Playground: Loaded {fontFiles.Length} fonts");
+                    Console.WriteLine($"Playground: Loaded {allFiles.Length} fonts");
                 }
                 else
                 {

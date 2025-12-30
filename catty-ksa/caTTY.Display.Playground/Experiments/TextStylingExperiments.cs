@@ -119,18 +119,18 @@ public static class TextStylingExperiments
     private static void PushHackFont(out bool fontUsed, float? size = null, bool bold = false, bool italic = false)
     {
         // Determine font name based on styling
-        string fontName = "HackNerdFontMono-Regular";
+        string fontName = "JetBrainsMonoNerdFontMono-Regular";
         if (bold && italic)
         {
-            fontName = "HackNerdFontMono-BoldItalic";
+            fontName = "JetBrainsMonoNerdFontMono-BoldItalic";
         }
         else if (bold)
         {
-            fontName = "HackNerdFontMono-Bold";
+            fontName = "JetBrainsMonoNerdFontMono-Bold";
         }
         else if (italic)
         {
-            fontName = "HackNerdFontMono-Italic";
+            fontName = "JetBrainsMonoNerdFontMono-Italic";
         }
 
         if (FontManager.Fonts.TryGetValue(fontName, out ImFontPtr fontPtr))
@@ -145,7 +145,7 @@ public static class TextStylingExperiments
         }
 
         // Fallback to regular font if styled variant not available
-        if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out fontPtr))
+        if (FontManager.Fonts.TryGetValue("JetBrainsMonoNerdFontMono-Regular", out fontPtr))
         {
             ImGui.PushFont(fontPtr, size ?? _fontSize);
             fontUsed = true;

@@ -152,7 +152,7 @@ public static class TerminalRenderingExperiments
 
     private static void PushHackFont(out bool fontUsed, float? size = null)
     {
-        if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr fontPtr))
+        if (FontManager.Fonts.TryGetValue("JetBrainsMonoNerdFontMono-Regular", out ImFontPtr fontPtr))
         {
             ImGui.PushFont(fontPtr, size ?? _fontSize);
             fontUsed = true;
@@ -499,24 +499,24 @@ public static class TerminalRenderingExperiments
 
         // Get current window size
         _currentWindowSize = ImGui.GetWindowSize();
-        
+
         // Check if window was resized
         bool wasResized = false;
         if (_lastWindowSize.X != 0 && _lastWindowSize.Y != 0) // Skip first frame
         {
             float deltaX = Math.Abs(_currentWindowSize.X - _lastWindowSize.X);
             float deltaY = Math.Abs(_currentWindowSize.Y - _lastWindowSize.Y);
-            
+
             // Consider it a resize if change is more than 1 pixel (to avoid floating point precision issues)
             if (deltaX > 1.0f || deltaY > 1.0f)
             {
                 wasResized = true;
                 _lastResizeTime = DateTime.Now;
-                
+
                 // Add resize event to history
                 string resizeEvent = $"[{_lastResizeTime:HH:mm:ss.fff}] Resize: {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} → {_currentWindowSize.X:F0}x{_currentWindowSize.Y:F0}";
                 _resizeEvents.Add(resizeEvent);
-                
+
                 // Keep only last 10 resize events
                 if (_resizeEvents.Count > 10)
                 {
@@ -528,7 +528,7 @@ public static class TerminalRenderingExperiments
         // Display current window information
         ImGui.Text($"Current Window Size: {_currentWindowSize.X:F0} x {_currentWindowSize.Y:F0}");
         ImGui.Text($"Previous Window Size: {_lastWindowSize.X:F0} x {_lastWindowSize.Y:F0}");
-        
+
         // Show resize status
         if (wasResized)
         {
@@ -570,21 +570,21 @@ public static class TerminalRenderingExperiments
 
         // Calculate terminal dimensions based on current window size
         ImGui.Text("Terminal Dimension Calculations:");
-        
+
         // Estimate available space for terminal (subtract some padding for UI elements)
         float availableWidth = _currentWindowSize.X - 40; // Account for padding and scrollbars
         float availableHeight = _currentWindowSize.Y - 200; // Account for header, separator, and other UI
-        
+
         if (availableWidth > 0 && availableHeight > 0)
         {
             int terminalCols = (int)(availableWidth / _charWidth);
             int terminalRows = (int)(availableHeight / _lineHeight);
-            
+
             ImGui.Text($"Character Width: {_charWidth:F2}px");
             ImGui.Text($"Line Height: {_lineHeight:F2}px");
             ImGui.Text($"Available Space: {availableWidth:F0} x {availableHeight:F0}px");
             ImGui.Text($"Calculated Terminal Size: {terminalCols} cols x {terminalRows} rows");
-            
+
             // Show if this would be a valid terminal size
             if (terminalCols >= 10 && terminalRows >= 3)
             {
@@ -625,27 +625,27 @@ public static class TerminalRenderingExperiments
 
         // Get current window size
         _currentWindowSize = ImGui.GetWindowSize();
-        
+
         // Calculate what terminal dimensions would be with current window size
         const float UI_OVERHEAD_HEIGHT = 200.0f; // More overhead for this demo
         const float PADDING_WIDTH = 40.0f;
-        
+
         float availableWidth = _currentWindowSize.X - PADDING_WIDTH;
         float availableHeight = _currentWindowSize.Y - UI_OVERHEAD_HEIGHT;
-        
+
         int calculatedCols = 0;
         int calculatedRows = 0;
         bool validDimensions = false;
-        
+
         if (availableWidth > 0 && availableHeight > 0 && _charWidth > 0 && _lineHeight > 0)
         {
             calculatedCols = (int)Math.Floor(availableWidth / _charWidth);
             calculatedRows = (int)Math.Floor(availableHeight / _lineHeight);
-            
+
             // Apply bounds like the real controller
             calculatedCols = Math.Max(10, Math.Min(1000, calculatedCols));
             calculatedRows = Math.Max(3, Math.Min(1000, calculatedRows));
-            
+
             validDimensions = calculatedCols >= 10 && calculatedRows >= 3;
         }
 
@@ -653,9 +653,9 @@ public static class TerminalRenderingExperiments
         ImGui.Text($"Current Window Size: {_currentWindowSize.X:F0} x {_currentWindowSize.Y:F0}");
         ImGui.Text($"Available Space: {availableWidth:F0} x {availableHeight:F0}");
         ImGui.Text($"Character Metrics: {_charWidth:F1} x {_lineHeight:F1}");
-        
+
         ImGui.Separator();
-        
+
         if (validDimensions)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new float4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
@@ -694,22 +694,22 @@ public static class TerminalRenderingExperiments
         if (validDimensions)
         {
             ImGui.Text("Terminal Grid Preview:");
-            
+
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
             float2 windowPos = ImGui.GetCursorScreenPos();
-            
+
             // Draw a mini version of what the terminal would look like
             float miniCharWidth = _charWidth * 0.3f;
             float miniLineHeight = _lineHeight * 0.3f;
-            
+
             // Draw grid outline
             float gridWidth = calculatedCols * miniCharWidth;
             float gridHeight = calculatedRows * miniLineHeight;
-            
+
             uint gridColor = ImGui.ColorConvertFloat4ToU32(new float4(0.5f, 0.5f, 0.5f, 1.0f));
             var gridRect = new float2(windowPos.X + gridWidth, windowPos.Y + gridHeight);
             drawList.AddRect(windowPos, gridRect, gridColor);
-            
+
             // Draw some sample grid lines
             for (int col = 0; col <= Math.Min(calculatedCols, 20); col += 10)
             {
@@ -718,7 +718,7 @@ public static class TerminalRenderingExperiments
                 var lineEnd = new float2(x, windowPos.Y + gridHeight);
                 drawList.AddLine(lineStart, lineEnd, gridColor);
             }
-            
+
             for (int row = 0; row <= Math.Min(calculatedRows, 10); row += 5)
             {
                 float y = windowPos.Y + (row * miniLineHeight);
@@ -726,12 +726,12 @@ public static class TerminalRenderingExperiments
                 var lineEnd = new float2(windowPos.X + gridWidth, y);
                 drawList.AddLine(lineStart, lineEnd, gridColor);
             }
-            
+
             // Add some sample text
-            drawList.AddText(new float2(windowPos.X + 2, windowPos.Y + 2), 
-                ImGui.ColorConvertFloat4ToU32(_colorPalette[0]), 
+            drawList.AddText(new float2(windowPos.X + 2, windowPos.Y + 2),
+                ImGui.ColorConvertFloat4ToU32(_colorPalette[0]),
                 $"{calculatedCols}x{calculatedRows}");
-            
+
             ImGui.Dummy(new float2(gridWidth, gridHeight + 10));
         }
 
