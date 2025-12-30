@@ -273,4 +273,85 @@ public class SgrParserBasicTests
         Assert.That(success, Is.True);
         Assert.That(parameters, Is.EqualTo(new[] { 1, 4, 3, 31 }));
     }
+
+    [Test]
+    public void ParseSgrSequence_PrivateSgrMode4_CreatesUnderlineMessage()
+    {
+        // Arrange - Private SGR mode 4 (underline)
+        var raw = "\x1b[?4m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x3f, 0x34, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.underline"));
+        Assert.That(result.Messages[0].Implemented, Is.True);
+        
+        var style = (UnderlineStyle)result.Messages[0].Data!;
+        Assert.That(style, Is.EqualTo(UnderlineStyle.Single));
+    }
+
+    [Test]
+    public void ParseSgrSequence_PrivateSgrUnknownMode_CreatesUnimplementedMessage()
+    {
+        // Arrange - Private SGR mode 7 (unknown)
+        var raw = "\x1b[?7m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x3f, 0x37, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.privateMode"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+        
+        var parameters = (int[])result.Messages[0].Data!;
+        Assert.That(parameters, Is.EqualTo(new[] { 7 }));
+    }
+
+    [Test]
+    public void ParseSgrSequence_PrivateSgrMultipleParams_CreatesUnimplementedMessage()
+    {
+        // Arrange - Private SGR with multiple parameters
+        var raw = "\x1b[?4;5m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x3f, 0x34, 0x3b, 0x35, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.privateMode"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+        
+        var parameters = (int[])result.Messages[0].Data!;
+        Assert.That(parameters, Is.EqualTo(new[] { 4, 5 }));
+    }
+
+    [Test]
+    public void ParseSgrSequence_PrivateSgrIsolatedFromStandard_DoesNotAffectStandardSgr()
+    {
+        // Arrange - Standard SGR sequence (should not be affected by private SGR implementation)
+        var raw = "\x1b[4m"; // Standard underline (not private)
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x34, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.underline"));
+        Assert.That(result.Messages[0].Implemented, Is.True);
+        
+        // Should be standard underline, not private mode
+        var style = (UnderlineStyle)result.Messages[0].Data!;
+        Assert.That(style, Is.EqualTo(UnderlineStyle.Single));
+    }
 }

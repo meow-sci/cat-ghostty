@@ -262,6 +262,12 @@ internal class TerminalParserHandlers : IParserHandlers
                 HandleSgrSequence(enhancedSgrSequence);
                 break;
 
+            case "csi.privateSgrMode":
+                // Private SGR sequences with ? prefix (e.g., CSI ? 4 m)
+                var privateSgrSequence = _terminal.AttributeManager.ParsePrivateSgrFromCsi(message.Parameters, message.Raw);
+                HandleSgrSequence(privateSgrSequence);
+                break;
+
             // Device query sequences
             case "csi.deviceAttributesPrimary":
                 // Primary DA query: respond with device attributes

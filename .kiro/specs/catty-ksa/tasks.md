@@ -157,8 +157,8 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test integration with standard SGR sequences
   - _Requirements: Parser integration, enhanced styling validation_
 
-- [ ] 14. Implement private SGR mode sequences
-- [ ] 14.1 Add private SGR parsing to CsiParser
+- [x] 14. Implement private SGR mode sequences
+- [x] 14.1 Add private SGR parsing to CsiParser
   - Add parsing for CSI ? Ps m sequences (private SGR with ? prefix)
   - Support private SGR modes for terminal-specific features
   - Create CsiMessage type for private SGR operations
@@ -166,7 +166,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for private SGR parsing
   - _Requirements: Terminal-specific features, private mode handling_
 
-- [ ] 14.2 Implement private SGR functionality
+- [x] 14.2 Implement private SGR functionality
   - Add HandlePrivateSgrMode method to SgrParser
   - Support private SGR modes (implementation-specific features)
   - Add graceful handling of unknown private modes
@@ -174,7 +174,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts private SGR handling
   - _Requirements: Private mode support, graceful degradation_
 
-- [ ] 14.3 Add private SGR handler and testing
+- [x] 14.3 Add private SGR handler and testing
   - Add case handler for "csi.privateSgrMode" in TerminalParserHandlers
   - Wire up to SgrParser private mode handling
   - Add comprehensive unit tests for private SGR modes

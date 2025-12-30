@@ -804,10 +804,27 @@ public class SgrParser : ISgrParser
         return messages;
     }
 
+    /// <summary>
+    ///     Handles private SGR sequences with ? prefix (e.g., CSI ? 4 m).
+    ///     These are typically used for private/experimental features.
+    /// </summary>
+    /// <param name="parameters">The SGR parameters</param>
+    /// <returns>List of SGR messages for the private mode</returns>
     private List<SgrMessage> HandlePrivateSgrMode(int[] parameters)
     {
-        bool implemented = parameters.Length == 1 && parameters[0] == 4;
-        return new List<SgrMessage> { CreateSgrMessage("sgr.privateMode", implemented, parameters) };
+        var messages = new List<SgrMessage>();
+        
+        // Handle specific private SGR modes
+        if (parameters.Length == 1 && parameters[0] == 4)
+        {
+            // Private underline mode (?4m) - enable underline
+            messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Single));
+            return messages;
+        }
+        
+        // For other private modes, gracefully ignore with unimplemented message
+        messages.Add(CreateSgrMessage("sgr.privateMode", false, parameters));
+        return messages;
     }
 
     private List<SgrMessage> HandleSgrWithIntermediate(int[] parameters, string intermediate)

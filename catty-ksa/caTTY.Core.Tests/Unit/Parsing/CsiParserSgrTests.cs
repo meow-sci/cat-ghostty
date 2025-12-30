@@ -98,6 +98,54 @@ public class CsiParserSgrTests
     }
 
     [Test]
+    public void ParseCsiSequence_PrivateSgrImplemented_ShouldBeImplementedForMode4()
+    {
+        // Arrange
+        string sequence = "\x1b[?4m"; // Private SGR mode 4 (underline)
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.privateSgrMode"), "Should be private SGR message type");
+        Assert.That(message.Implemented, Is.True, "Mode 4 should be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 4 }), "Should have correct parameters");
+    }
+
+    [Test]
+    public void ParseCsiSequence_PrivateSgrUnknownMode_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[?7m"; // Private SGR mode 7 (unknown)
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.privateSgrMode"), "Should be private SGR message type");
+        Assert.That(message.Implemented, Is.False, "Unknown modes should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 7 }), "Should have correct parameters");
+    }
+
+    [Test]
+    public void ParseCsiSequence_PrivateSgrMultipleParams_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[?4;5m"; // Private SGR with multiple parameters
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.privateSgrMode"), "Should be private SGR message type");
+        Assert.That(message.Implemented, Is.False, "Multiple parameters should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 4, 5 }), "Should have correct parameters");
+    }
+
+    [Test]
     public void ParseCsiSequence_SgrWithIntermediate_ShouldReturnSgrWithIntermediateMessage()
     {
         // Arrange
