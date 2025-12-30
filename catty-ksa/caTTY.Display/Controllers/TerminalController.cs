@@ -177,6 +177,9 @@ public class TerminalController : ITerminalController
   // Terminal settings for current instance (preparation for multi-terminal support)
   private TerminalSettings _currentTerminalSettings = new();
 
+  // Font selection state
+  private string _currentFontFamily = "Hack"; // Default font family
+
   private static int _numFocusedTerminals = 0;
   private static int _numVisibleTerminals = 0;
 
@@ -303,6 +306,9 @@ public class TerminalController : ITerminalController
 
     // Initialize cursor style to theme default
     ResetCursorToThemeDefaults();
+
+    // Initialize current font family from configuration
+    InitializeCurrentFontFamily();
   }
 
   /// <summary>
@@ -382,6 +388,27 @@ public class TerminalController : ITerminalController
   ///     When true, terminal should suppress game hotkeys bound to typing.
   /// </summary>
   public bool IsInputCaptureActive => HasFocus && IsVisible;
+
+  /// <summary>
+  ///     Initializes the current font family from the font configuration.
+  ///     Detects which registered font family matches the current configuration.
+  /// </summary>
+  private void InitializeCurrentFontFamily()
+  {
+    try
+    {
+      // Determine current font family from configuration using CaTTYFontManager
+      var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(_fontConfig);
+      _currentFontFamily = detectedFamily ?? "Hack"; // Default fallback
+      
+      Console.WriteLine($"TerminalController: Initialized current font family: {_currentFontFamily}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error initializing current font family: {ex.Message}");
+      _currentFontFamily = "Hack"; // Safe fallback
+    }
+  }
 
   /// <summary>
   ///     Event raised when the terminal focus state changes.
@@ -556,6 +583,9 @@ public class TerminalController : ITerminalController
 
       // Check if font size is changing (for terminal resize trigger)
       bool fontSizeChanged = Math.Abs(_fontConfig.FontSize - newFontConfig.FontSize) > 0.1f;
+      
+      // Check if font family is changing (also requires terminal resize)
+      bool fontFamilyChanged = previousRegularFont != newFontConfig.RegularFontName;
 
       // Log the configuration change attempt
       Console.WriteLine("TerminalController: Attempting runtime font configuration update");
@@ -577,10 +607,17 @@ public class TerminalController : ITerminalController
       // Update font size immediately
       CurrentFontSize = _fontConfig.FontSize;
 
-      // Trigger terminal resize if font size changed
-      if (fontSizeChanged)
+      // Check if character metrics have changed after font loading
+      bool characterMetricsChanged = Math.Abs(CurrentCharacterWidth - previousCharWidth) > 0.1f ||
+                                   Math.Abs(CurrentLineHeight - previousLineHeight) > 0.1f;
+
+      // Trigger terminal resize if font size, font family, or character metrics changed
+      if (fontSizeChanged || fontFamilyChanged || characterMetricsChanged)
       {
-        // Console.WriteLine("TerminalController: Font size changed, triggering terminal resize");
+        Console.WriteLine($"TerminalController: Font configuration changed, triggering terminal resize");
+        Console.WriteLine($"  Font size changed: {fontSizeChanged}");
+        Console.WriteLine($"  Font family changed: {fontFamilyChanged}");
+        Console.WriteLine($"  Character metrics changed: {characterMetricsChanged}");
         TriggerTerminalResize();
       }
 
@@ -3195,6 +3232,7 @@ public class TerminalController : ITerminalController
         RenderFileMenu();
         RenderEditMenu();
         RenderViewMenu();
+        RenderFontMenu();
       }
       finally
       {
@@ -3305,6 +3343,65 @@ public class TerminalController : ITerminalController
       {
         ImGui.EndMenu();
       }
+    }
+  }
+
+  /// <summary>
+  /// Renders the Font menu with font family selection options.
+  /// </summary>
+  private void RenderFontMenu()
+  {
+    if (ImGui.BeginMenu("Font"))
+    {
+      try
+      {
+        var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
+        
+        foreach (var fontFamily in availableFonts)
+        {
+          bool isSelected = fontFamily == _currentFontFamily;
+          
+          if (ImGui.MenuItem(fontFamily, "", isSelected))
+          {
+            SelectFontFamily(fontFamily);
+          }
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Selects a font family and applies it to the terminal.
+  /// </summary>
+  /// <param name="displayName">The display name of the font family to select</param>
+  private void SelectFontFamily(string displayName)
+  {
+    try
+    {
+      Console.WriteLine($"TerminalController: Selecting font family: {displayName}");
+      
+      // Create new font configuration for the selected family
+      var newFontConfig = CaTTYFontManager.CreateFontConfigForFamily(displayName, _fontConfig.FontSize);
+      
+      // Validate the new configuration
+      newFontConfig.Validate();
+      
+      // Apply the new configuration immediately
+      UpdateFontConfig(newFontConfig);
+      
+      // Update current selection
+      _currentFontFamily = displayName;
+      
+      Console.WriteLine($"TerminalController: Successfully switched to font family: {displayName}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Failed to select font family {displayName}: {ex.Message}");
+      // Keep current font on error - no changes to _currentFontFamily or _fontConfig
     }
   }
 

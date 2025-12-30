@@ -87,15 +87,15 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Test edge cases (null inputs, empty strings, invalid configurations)
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 3. Add font selection UI to TerminalController
-- [ ] 3.1 Add font selection state to TerminalController
+- [-] 3. Add font selection UI to TerminalController
+- [x] 3.1 Add font selection state to TerminalController
   - Add private string _currentFontFamily field (default to "Hack")
   - Add InitializeCurrentFontFamily() method to detect current font from configuration
   - Call InitializeCurrentFontFamily() in constructor after font configuration is set
   - Add logging for current font family initialization
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 3.2 Add font selection menu to Render method
+- [x] 3.2 Add font selection menu to Render method
   - Add RenderFontSelectionMenu() method called from Render()
   - Use ImGui.BeginMenuBar() and ImGui.BeginMenu("Font") for menu structure
   - Iterate through CaTTYFontManager.GetAvailableFontFamilies() for menu items
@@ -103,7 +103,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Call SelectFontFamily() when menu item is clicked
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3.3 Add SelectFontFamily method to TerminalController
+- [x] 3.3 Add SelectFontFamily method to TerminalController
   - Accept displayName parameter for selected font family
   - Create new TerminalFontConfig using CaTTYFontManager.CreateFontConfigForFamily()
   - Validate the new configuration using Validate() method
@@ -112,11 +112,11 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Add comprehensive error handling with logging
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 7.1, 7.2, 7.3_
 
-- [ ] 3.4 Write property test for font selection UI state consistency
+- [x] 3.4 Write property test for font selection UI state consistency
   - **Property 3: Font Selection UI State Consistency**
   - **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 6.1, 6.2, 6.3, 6.4, 6.5**
 
-- [ ] 3.5 Write unit tests for font selection UI
+- [x] 3.5 Write unit tests for font selection UI
   - Test InitializeCurrentFontFamily() with various font configurations
   - Test SelectFontFamily() with valid font families
   - Test SelectFontFamily() with invalid font families (error handling)
