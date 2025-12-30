@@ -29,14 +29,14 @@ if (!(await dbFile.exists())) {
 
 const db = new Database(dbFile.name);
 
-let limitQueryPart = "";
+let limit: number | null = null;
 
 if (typeof values.limit === "string") {
-  const limit = parseInt(values.limit);
-  if (isNaN(limit)) {
+  const parsed = parseInt(values.limit);
+  if (isNaN(parsed)) {
     throw new Error(`--limit value '${values.limit}' is not a number`);
   }
-  limitQueryPart = ` limit ${limit}`;
+  limit = parsed
 }
 
 
@@ -52,12 +52,26 @@ interface Row {
 
 }
 
-const query = db.query(`select * from trace${limitQueryPart};`);
+let sql: string = "select * from trace order by id asc";
+
+if (typeof limit === "number") {
+sql = `
+SELECT * from 
+(
+  SELECT * FROM trace WHERE type != 'utf8' ORDER BY id DESC LIMIT ${limit}
+) AS t
+ORDER BY id ASC
+`;
+}
+
+const query = db.query(sql);
 const result = query.all() as Row[];
 
 for (const row of result) {
 
+  const timestamp = new Date(row.time).toISOString();
+
   const rowCol = `(${row.row.toString().padStart(3, " ")},${row.col.toString().padStart(3, " ")})`;
 
-  console.log(`${rowCol} ${row.type.padEnd(9, " ")} ${row.printable ?? row.escape_seq}`);
+  console.log(`${timestamp} ${rowCol} ${row.type.padEnd(9, " ")} ${row.printable ?? row.escape_seq}`);
 }
