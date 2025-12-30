@@ -400,4 +400,435 @@ public class FontRegistryProperties
             _ => (false, false, false) // Default for unknown fonts
         };
     }
+
+    /// <summary>
+    /// Generator for valid font sizes.
+    /// Produces font sizes within the valid range for terminal fonts.
+    /// </summary>
+    public static Arbitrary<float> ValidFontSizes()
+    {
+        return Gen.Choose(8, 72).Select(i => (float)i).ToArbitrary();
+    }
+
+    /// <summary>
+    /// Property 2: Font Configuration Generation with Variant Fallback
+    /// For any font family selection, the system should generate a TerminalFontConfig where 
+    /// fonts with all variants use appropriate variant names, and fonts with only Regular 
+    /// variant use Regular for all styles (Bold, Italic, BoldItalic).
+    /// Feature: font-selection-ui, Property 2: Font Configuration Generation with Variant Fallback
+    /// Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property FontConfigurationGenerationWithVariantFallback_ShouldCreateCorrectConfigurations()
+    {
+        return Prop.ForAll(ExpectedFontFamilyNames(), ValidFontSizes(), (displayName, fontSize) =>
+        {
+            try
+            {
+                // Ensure font registry is initialized
+                CaTTYFontManager.LoadFonts();
+
+                // Test that CreateFontConfigForFamily works for valid font families
+                var config = CaTTYFontManager.CreateFontConfigForFamily(displayName, fontSize);
+                bool configCreated = config != null;
+
+                if (!configCreated)
+                {
+                    return false.ToProperty().Label($"CreateFontConfigForFamily returned null for '{displayName}'");
+                }
+
+                // Test that the configuration is valid
+                try
+                {
+                    config!.Validate();
+                }
+                catch (Exception ex)
+                {
+                    return false.ToProperty().Label($"Generated configuration for '{displayName}' failed validation: {ex.Message}");
+                }
+
+                // Test that font size is set correctly
+                bool fontSizeCorrect = Math.Abs(config!.FontSize - fontSize) < 0.001f;
+
+                if (!fontSizeCorrect)
+                {
+                    return false.ToProperty().Label($"Font size mismatch for '{displayName}': expected {fontSize}, got {config.FontSize}");
+                }
+
+                // Test that AutoDetectContext is disabled
+                bool autoDetectDisabled = !config.AutoDetectContext;
+
+                if (!autoDetectDisabled)
+                {
+                    return false.ToProperty().Label($"AutoDetectContext should be false for generated configs, but was true for '{displayName}'");
+                }
+
+                // Get the font family definition to check variant availability
+                var definition = CaTTYFontManager.GetFontFamilyDefinition(displayName);
+                if (definition == null)
+                {
+                    return false.ToProperty().Label($"Font family definition not found for '{displayName}'");
+                }
+
+                // Test that Regular font name is always set correctly
+                string expectedRegular = $"{definition.FontBaseName}-Regular";
+                bool regularCorrect = config.RegularFontName == expectedRegular;
+
+                if (!regularCorrect)
+                {
+                    return false.ToProperty().Label($"Regular font name incorrect for '{displayName}': expected '{expectedRegular}', got '{config.RegularFontName}'");
+                }
+
+                // Test variant fallback logic
+                string expectedBold = definition.HasBold ? $"{definition.FontBaseName}-Bold" : expectedRegular;
+                string expectedItalic = definition.HasItalic ? $"{definition.FontBaseName}-Italic" : expectedRegular;
+                string expectedBoldItalic = definition.HasBoldItalic ? $"{definition.FontBaseName}-BoldItalic" : expectedRegular;
+
+                bool boldCorrect = config.BoldFontName == expectedBold;
+                bool italicCorrect = config.ItalicFontName == expectedItalic;
+                bool boldItalicCorrect = config.BoldItalicFontName == expectedBoldItalic;
+
+                if (!boldCorrect)
+                {
+                    return false.ToProperty().Label($"Bold font name incorrect for '{displayName}': expected '{expectedBold}', got '{config.BoldFontName}'");
+                }
+
+                if (!italicCorrect)
+                {
+                    return false.ToProperty().Label($"Italic font name incorrect for '{displayName}': expected '{expectedItalic}', got '{config.ItalicFontName}'");
+                }
+
+                if (!boldItalicCorrect)
+                {
+                    return false.ToProperty().Label($"BoldItalic font name incorrect for '{displayName}': expected '{expectedBoldItalic}', got '{config.BoldItalicFontName}'");
+                }
+
+                // Test that fonts with only Regular variant use Regular for all styles
+                if (!definition.HasBold && !definition.HasItalic && !definition.HasBoldItalic)
+                {
+                    bool allUseRegular = config.BoldFontName == expectedRegular &&
+                                        config.ItalicFontName == expectedRegular &&
+                                        config.BoldItalicFontName == expectedRegular;
+
+                    if (!allUseRegular)
+                    {
+                        return false.ToProperty().Label($"Font '{displayName}' with only Regular variant should use Regular for all styles");
+                    }
+                }
+
+                // Test that fonts with all variants use appropriate variant names
+                if (definition.HasBold && definition.HasItalic && definition.HasBoldItalic)
+                {
+                    bool allVariantsUsed = config.BoldFontName.EndsWith("-Bold") &&
+                                          config.ItalicFontName.EndsWith("-Italic") &&
+                                          config.BoldItalicFontName.EndsWith("-BoldItalic");
+
+                    if (!allVariantsUsed)
+                    {
+                        return false.ToProperty().Label($"Font '{displayName}' with all variants should use appropriate variant names");
+                    }
+                }
+
+                return true.ToProperty();
+            }
+            catch (Exception ex)
+            {
+                return false.ToProperty().Label($"Exception testing font configuration generation for '{displayName}': {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Property: Font Configuration Generation Error Handling
+    /// For any invalid font family name, CreateFontConfigForFamily should return a default
+    /// configuration without throwing exceptions.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property FontConfigurationGenerationErrorHandling_ShouldHandleInvalidFontFamilies()
+    {
+        return Prop.ForAll(Gen.Elements("", "NonExistentFont", "Invalid Font Name", null!).ToArbitrary(), 
+                          ValidFontSizes(), (invalidDisplayName, fontSize) =>
+        {
+            try
+            {
+                // Ensure font registry is initialized
+                CaTTYFontManager.LoadFonts();
+
+                // Test that CreateFontConfigForFamily handles invalid names gracefully
+                var config = CaTTYFontManager.CreateFontConfigForFamily(invalidDisplayName, fontSize);
+                bool configCreated = config != null;
+
+                if (!configCreated)
+                {
+                    return false.ToProperty().Label($"CreateFontConfigForFamily returned null for invalid name '{invalidDisplayName}'");
+                }
+
+                // Test that the returned configuration is valid (should be default)
+                try
+                {
+                    config!.Validate();
+                }
+                catch (Exception ex)
+                {
+                    return false.ToProperty().Label($"Default configuration for invalid name '{invalidDisplayName}' failed validation: {ex.Message}");
+                }
+
+                // Test that the configuration uses default font names (from CreateForTestApp)
+                var defaultConfig = TerminalFontConfig.CreateForTestApp();
+                bool usesDefaultFonts = config!.RegularFontName == defaultConfig.RegularFontName &&
+                                       config.BoldFontName == defaultConfig.BoldFontName &&
+                                       config.ItalicFontName == defaultConfig.ItalicFontName &&
+                                       config.BoldItalicFontName == defaultConfig.BoldItalicFontName;
+
+                if (!usesDefaultFonts)
+                {
+                    return false.ToProperty().Label($"Configuration for invalid name '{invalidDisplayName}' should use default font names");
+                }
+
+                return true.ToProperty();
+            }
+            catch (Exception ex)
+            {
+                return false.ToProperty().Label($"Exception testing error handling for invalid font name '{invalidDisplayName}': {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Generator for TerminalFontConfig instances based on registered font families.
+    /// Produces configurations that should be detectable by GetCurrentFontFamily.
+    /// </summary>
+    public static Arbitrary<TerminalFontConfig> ValidTerminalFontConfigs()
+    {
+        return Gen.Elements(new[]
+        {
+            "Jet Brains Mono", "Space Mono", "Hack", "Pro Font",
+            "Proggy Clean", "Shure Tech Mono", "Departure Mono"
+        }).SelectMany(displayName =>
+            ValidFontSizes().Generator.Select(fontSize =>
+                CaTTYFontManager.CreateFontConfigForFamily(displayName, fontSize)
+            )
+        ).ToArbitrary();
+    }
+
+    /// <summary>
+    /// Generator for TerminalFontConfig instances that should NOT be detectable.
+    /// Produces configurations with font names that don't match any registered family.
+    /// </summary>
+    public static Arbitrary<TerminalFontConfig> UndetectableTerminalFontConfigs()
+    {
+        var unknownFontNames = new[]
+        {
+            "UnknownFont-Regular",
+            "NonExistentFont-Regular", 
+            "CustomFont-Regular",
+            "Arial-Regular",
+            "Times-Regular"
+        };
+
+        return Gen.Elements(unknownFontNames).SelectMany(fontName =>
+            ValidFontSizes().Generator.Select(fontSize =>
+                new TerminalFontConfig
+                {
+                    RegularFontName = fontName,
+                    BoldFontName = fontName.Replace("-Regular", "-Bold"),
+                    ItalicFontName = fontName.Replace("-Regular", "-Italic"),
+                    BoldItalicFontName = fontName.Replace("-Regular", "-BoldItalic"),
+                    FontSize = fontSize,
+                    AutoDetectContext = false
+                }
+            )
+        ).ToArbitrary();
+    }
+
+    /// <summary>
+    /// Property 4: Current Font Family Detection
+    /// For any existing TerminalFontConfig, the system should correctly identify which 
+    /// registered font family it corresponds to by matching the RegularFontName against 
+    /// registered font base names, or return null if no match is found.
+    /// Feature: font-selection-ui, Property 4: Current Font Family Detection
+    /// Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property CurrentFontFamilyDetection_ShouldCorrectlyIdentifyFontFamilies()
+    {
+        return Prop.ForAll(ValidTerminalFontConfigs(), config =>
+        {
+            try
+            {
+                // Ensure font registry is initialized
+                CaTTYFontManager.LoadFonts();
+
+                // Test that GetCurrentFontFamily works for valid configurations
+                var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(config);
+                bool familyDetected = detectedFamily != null;
+
+                if (!familyDetected)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily returned null for valid config with RegularFontName: {config.RegularFontName}");
+                }
+
+                // Test that the detected family is in the registry
+                var availableFamilies = CaTTYFontManager.GetAvailableFontFamilies();
+                bool familyInRegistry = availableFamilies.Contains(detectedFamily!);
+
+                if (!familyInRegistry)
+                {
+                    return false.ToProperty().Label($"Detected family '{detectedFamily}' is not in the registry");
+                }
+
+                // Test that the detected family can generate the same configuration
+                var regeneratedConfig = CaTTYFontManager.CreateFontConfigForFamily(detectedFamily!, config.FontSize);
+                bool configMatches = regeneratedConfig.RegularFontName == config.RegularFontName;
+
+                if (!configMatches)
+                {
+                    return false.ToProperty().Label($"Regenerated config doesn't match original: expected '{config.RegularFontName}', got '{regeneratedConfig.RegularFontName}'");
+                }
+
+                // Test that the detection is consistent (calling again returns same result)
+                var detectedFamilyAgain = CaTTYFontManager.GetCurrentFontFamily(config);
+                bool detectionConsistent = detectedFamily == detectedFamilyAgain;
+
+                if (!detectionConsistent)
+                {
+                    return false.ToProperty().Label($"Font family detection inconsistent: first call returned '{detectedFamily}', second call returned '{detectedFamilyAgain}'");
+                }
+
+                // Test that the detected family has the correct font base name
+                var definition = CaTTYFontManager.GetFontFamilyDefinition(detectedFamily!);
+                if (definition == null)
+                {
+                    return false.ToProperty().Label($"No definition found for detected family '{detectedFamily}'");
+                }
+
+                string expectedRegular = $"{definition.FontBaseName}-Regular";
+                bool baseNameMatches = config.RegularFontName == expectedRegular;
+
+                if (!baseNameMatches)
+                {
+                    return false.ToProperty().Label($"Base name mismatch: config has '{config.RegularFontName}', expected '{expectedRegular}' for family '{detectedFamily}'");
+                }
+
+                return true.ToProperty();
+            }
+            catch (Exception ex)
+            {
+                return false.ToProperty().Label($"Exception testing font family detection for config with RegularFontName '{config.RegularFontName}': {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Property: Current Font Family Detection Null Handling
+    /// For any TerminalFontConfig that doesn't match registered font families,
+    /// GetCurrentFontFamily should return null without throwing exceptions.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property CurrentFontFamilyDetectionNullHandling_ShouldReturnNullForUnknownFonts()
+    {
+        return Prop.ForAll(UndetectableTerminalFontConfigs(), config =>
+        {
+            try
+            {
+                // Ensure font registry is initialized
+                CaTTYFontManager.LoadFonts();
+
+                // Test that GetCurrentFontFamily returns null for unknown fonts
+                var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(config);
+                bool returnedNull = detectedFamily == null;
+
+                if (!returnedNull)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily should return null for unknown font '{config.RegularFontName}', but returned '{detectedFamily}'");
+                }
+
+                // Test that calling multiple times is consistent
+                var detectedFamilyAgain = CaTTYFontManager.GetCurrentFontFamily(config);
+                bool consistentlyNull = detectedFamilyAgain == null;
+
+                if (!consistentlyNull)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily inconsistent: first call returned null, second call returned '{detectedFamilyAgain}'");
+                }
+
+                return true.ToProperty();
+            }
+            catch (Exception ex)
+            {
+                return false.ToProperty().Label($"Exception testing null handling for unknown font '{config.RegularFontName}': {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Property: Current Font Family Detection Error Handling
+    /// For any invalid TerminalFontConfig (null or invalid), GetCurrentFontFamily
+    /// should handle errors gracefully and return null.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 50)]
+    public FsCheck.Property CurrentFontFamilyDetectionErrorHandling_ShouldHandleInvalidConfigs()
+    {
+        return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>
+        {
+            try
+            {
+                // Ensure font registry is initialized
+                CaTTYFontManager.LoadFonts();
+
+                // Test null config
+                var detectedFamilyNull = CaTTYFontManager.GetCurrentFontFamily(null!);
+                bool nullConfigHandled = detectedFamilyNull == null;
+
+                if (!nullConfigHandled)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily should return null for null config, but returned '{detectedFamilyNull}'");
+                }
+
+                // Test config with null RegularFontName
+                var configWithNullFont = new TerminalFontConfig
+                {
+                    RegularFontName = null!,
+                    BoldFontName = "SomeFont-Bold",
+                    ItalicFontName = "SomeFont-Italic",
+                    BoldItalicFontName = "SomeFont-BoldItalic",
+                    FontSize = 32.0f,
+                    AutoDetectContext = false
+                };
+
+                var detectedFamilyNullFont = CaTTYFontManager.GetCurrentFontFamily(configWithNullFont);
+                bool nullFontHandled = detectedFamilyNullFont == null;
+
+                if (!nullFontHandled)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily should return null for config with null RegularFontName, but returned '{detectedFamilyNullFont}'");
+                }
+
+                // Test config with empty RegularFontName
+                var configWithEmptyFont = new TerminalFontConfig
+                {
+                    RegularFontName = "",
+                    BoldFontName = "SomeFont-Bold",
+                    ItalicFontName = "SomeFont-Italic",
+                    BoldItalicFontName = "SomeFont-BoldItalic",
+                    FontSize = 32.0f,
+                    AutoDetectContext = false
+                };
+
+                var detectedFamilyEmptyFont = CaTTYFontManager.GetCurrentFontFamily(configWithEmptyFont);
+                bool emptyFontHandled = detectedFamilyEmptyFont == null;
+
+                if (!emptyFontHandled)
+                {
+                    return false.ToProperty().Label($"GetCurrentFontFamily should return null for config with empty RegularFontName, but returned '{detectedFamilyEmptyFont}'");
+                }
+
+                return true.ToProperty();
+            }
+            catch (Exception ex)
+            {
+                return false.ToProperty().Label($"Exception testing error handling for invalid configs: {ex.Message}");
+            }
+        });
+    }
 }

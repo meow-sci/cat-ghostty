@@ -53,8 +53,8 @@ This requirement applies to all test tasks throughout the implementation plan.
   - **Property 1: Font Registry Completeness and Accuracy**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 5.2, 5.3, 5.4, 9.1-9.7, 10.1-10.7**
 
-- [ ] 2. Add font configuration generation with variant fallback
-- [ ] 2.1 Add CreateFontConfigForFamily method to CaTTYFontManager
+- [x] 2. Add font configuration generation with variant fallback
+- [x] 2.1 Add CreateFontConfigForFamily method to CaTTYFontManager
   - Accept displayName and optional fontSize parameters
   - Look up FontFamilyDefinition from registry
   - Create TerminalFontConfig with appropriate font names based on variant availability
@@ -63,7 +63,7 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Add comprehensive logging for font configuration generation
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 4.1, 4.2_
 
-- [ ] 2.2 Add GetCurrentFontFamily method to CaTTYFontManager
+- [x] 2.2 Add GetCurrentFontFamily method to CaTTYFontManager
   - Accept TerminalFontConfig parameter
   - Match RegularFontName against registered font base names
   - Return display name of matching font family
@@ -71,15 +71,15 @@ This requirement applies to all test tasks throughout the implementation plan.
   - Add logging for font family detection results
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 2.3 Write property test for font configuration generation
+- [x] 2.3 Write property test for font configuration generation
   - **Property 2: Font Configuration Generation with Variant Fallback**
   - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
 
-- [ ] 2.4 Write property test for current font family detection
+- [x] 2.4 Write property test for current font family detection
   - **Property 4: Current Font Family Detection**
   - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5**
 
-- [ ] 2.5 Write unit tests for font configuration generation
+- [x] 2.5 Write unit tests for font configuration generation
   - Test CreateFontConfigForFamily with fonts having all 4 variants
   - Test CreateFontConfigForFamily with fonts having only Regular variant
   - Test fallback behavior for unknown font families
