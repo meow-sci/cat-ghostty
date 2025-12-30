@@ -409,6 +409,27 @@ public class AttributeManager : IAttributeManager
     }
 
     /// <summary>
+    ///     Parses enhanced SGR sequence from CSI parameters and creates an SgrSequence.
+    ///     Used for enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m).
+    /// </summary>
+    /// <param name="parameters">The CSI parameters</param>
+    /// <param name="raw">The raw sequence string</param>
+    /// <returns>The parsed enhanced SGR sequence</returns>
+    public SgrSequence ParseEnhancedSgrFromCsi(int[] parameters, string raw)
+    {
+        // Create an enhanced SGR sequence by converting CSI parameters to enhanced SGR format
+        // Enhanced SGR sequences have the > prefix
+        var sgrParser = new Parsing.SgrParser();
+        
+        // Convert parameters to byte array for SGR parser
+        // The SGR parser expects the full escape sequence with > prefix
+        string sgrRaw = $"\x1b[>{string.Join(";", parameters)}m";
+        byte[] sgrBytes = System.Text.Encoding.UTF8.GetBytes(sgrRaw);
+        
+        return sgrParser.ParseSgrSequence(sgrBytes, sgrRaw);
+    }
+
+    /// <summary>
     ///     Applies multiple SGR attributes from an array of messages.
     /// </summary>
     /// <param name="current">The current SGR attributes</param>

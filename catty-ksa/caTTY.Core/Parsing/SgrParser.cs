@@ -745,10 +745,63 @@ public class SgrParser : ISgrParser
         return null;
     }
 
+    /// <summary>
+    ///     Handles enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m).
+    ///     These are typically used for advanced terminal features like enhanced underline styles.
+    /// </summary>
+    /// <param name="parameters">The SGR parameters</param>
+    /// <returns>List of SGR messages for the enhanced mode</returns>
     private List<SgrMessage> HandleEnhancedSgrMode(int[] parameters)
     {
-        bool implemented = parameters.Length >= 2 && parameters[0] == 4 && parameters[1] >= 0 && parameters[1] <= 5;
-        return new List<SgrMessage> { CreateSgrMessage("sgr.enhancedMode", implemented, parameters) };
+        var messages = new List<SgrMessage>();
+        
+        if (parameters.Length >= 2 && parameters[0] == 4)
+        {
+            // Enhanced underline mode: CSI > 4 ; n m
+            int underlineType = parameters[1];
+            
+            if (underlineType >= 0 && underlineType <= 5)
+            {
+                // Valid enhanced underline mode - create appropriate SGR message
+                switch (underlineType)
+                {
+                    case 0:
+                        // No underline
+                        messages.Add(CreateSgrMessage("sgr.notUnderlined", true));
+                        break;
+                    case 1:
+                        // Single underline
+                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Single));
+                        break;
+                    case 2:
+                        // Double underline
+                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Double));
+                        break;
+                    case 3:
+                        // Curly underline
+                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Curly));
+                        break;
+                    case 4:
+                        // Dotted underline
+                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Dotted));
+                        break;
+                    case 5:
+                        // Dashed underline
+                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Dashed));
+                        break;
+                }
+                
+                return messages;
+            }
+            
+            // Invalid underline type - create unimplemented message
+            messages.Add(CreateSgrMessage("sgr.enhancedMode", false, parameters));
+            return messages;
+        }
+        
+        // Other enhanced modes not yet supported - create unimplemented message
+        messages.Add(CreateSgrMessage("sgr.enhancedMode", false, parameters));
+        return messages;
     }
 
     private List<SgrMessage> HandlePrivateSgrMode(int[] parameters)

@@ -99,6 +99,15 @@ public interface IAttributeManager
     SgrSequence ParseSgrFromCsi(int[] parameters, string raw);
 
     /// <summary>
+    ///     Parses enhanced SGR sequence from CSI parameters and creates an SgrSequence.
+    ///     Used for enhanced SGR sequences with > prefix (e.g., CSI > 4 ; 2 m).
+    /// </summary>
+    /// <param name="parameters">The CSI parameters</param>
+    /// <param name="raw">The raw sequence string</param>
+    /// <returns>The parsed enhanced SGR sequence</returns>
+    SgrSequence ParseEnhancedSgrFromCsi(int[] parameters, string raw);
+
+    /// <summary>
     ///     Applies multiple SGR attributes from an array of messages.
     /// </summary>
     /// <param name="current">The current SGR attributes</param>

@@ -99,7 +99,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts insert mode handling
   - _Requirements: Character insertion, line management_
 
-- [-] 11.3 Add insert mode handler and testing
+- [x] 11.3 Add insert mode handler and testing
   - Add case handler for "csi.insertMode" in TerminalParserHandlers
   - Wire up to terminal mode state management
   - Add comprehensive unit tests for insert mode behavior
@@ -132,8 +132,8 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test graceful handling of unsupported operations
   - _Requirements: Parser integration, operation handling_
 
-- [ ] 13. Implement enhanced SGR mode sequences
-- [ ] 13.1 Add enhanced SGR parsing to CsiParser
+- [x] 13. Implement enhanced SGR mode sequences
+- [x] 13.1 Add enhanced SGR parsing to CsiParser
   - Add parsing for CSI > Ps m sequences (enhanced SGR with > prefix)
   - Support enhanced underline styles and color modes
   - Create CsiMessage type for enhanced SGR operations
@@ -141,7 +141,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for enhanced SGR parsing
   - _Requirements: Advanced text styling, SGR extensions_
 
-- [ ] 13.2 Implement enhanced SGR functionality in SgrParser
+- [x] 13.2 Implement enhanced SGR functionality in SgrParser
   - Add HandleEnhancedSgrMode method to SgrParser
   - Support enhanced underline styles (curly, dotted, dashed)
   - Add enhanced color mode processing
@@ -149,7 +149,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseSgr.ts for enhanced SGR handling
   - _Requirements: Extended styling capabilities, attribute management_
 
-- [ ] 13.3 Add enhanced SGR handler and testing
+- [x] 13.3 Add enhanced SGR handler and testing
   - Add case handler for "csi.enhancedSgrMode" in TerminalParserHandlers
   - Wire up to SgrParser enhanced mode handling
   - Add comprehensive unit tests for enhanced SGR features
