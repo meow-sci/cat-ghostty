@@ -49,8 +49,9 @@ The system distinguishes between two data flow directions:
 The existing TerminalTracer will be enhanced with:
 
 1. **Direction Support**: New overloads accepting direction parameter
-2. **Database Schema Update**: Addition of `direction` column to trace table
-3. **Migration Support**: Graceful handling of existing databases
+2. **Type Classification**: New overloads accepting type parameter for sequence classification
+3. **Database Schema Update**: Addition of `direction` and `type` columns to trace table
+4. **Migration Support**: Graceful handling of existing databases
 
 ```csharp
 public enum TraceDirection
@@ -61,16 +62,16 @@ public enum TraceDirection
 
 public static class TerminalTracer
 {
-    // Enhanced methods with direction support
-    public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output);
-    public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output);
-    public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output);
+    // Enhanced methods with direction and type support
+    public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output, string? type = null, int? row = null, int? col = null);
+    public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output, string? type = null, int? row = null, int? col = null);
+    public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output, string? type = null, int? row = null, int? col = null);
 }
 ```
 
 ### Enhanced TraceHelper
 
-TraceHelper will be extended with a new method for DCS sequences and direction support:
+TraceHelper will be extended with a new method for DCS sequences, direction support, and type classification:
 
 ```csharp
 public static class TraceHelper
@@ -78,10 +79,14 @@ public static class TraceHelper
     // New DCS tracing method
     public static void TraceDcsSequence(string command, string? parameters = null, string? data = null, TraceDirection direction = TraceDirection.Output);
     
-    // Enhanced existing methods with direction support
+    // Enhanced existing methods with direction and type support
     public static void TraceCsiSequence(char command, string? parameters = null, char? prefix = null, TraceDirection direction = TraceDirection.Output);
     public static void TraceOscSequence(int command, string? data = null, TraceDirection direction = TraceDirection.Output);
     public static void TraceEscSequence(string sequence, TraceDirection direction = TraceDirection.Output);
+    public static void TraceSgrSequence(string attributes, TraceDirection direction = TraceDirection.Output);
+    public static void TraceControlChar(byte controlChar, TraceDirection direction = TraceDirection.Output);
+    public static void TraceUtf8Text(string text, TraceDirection direction = TraceDirection.Output);
+    public static void TraceWideChar(string character, int width, TraceDirection direction = TraceDirection.Output);
 }
 ```
 
@@ -116,24 +121,40 @@ public static class TraceHelper
 
 ### Enhanced Database Schema
 
-The trace database schema will be updated to include direction tracking:
+The trace database schema will be updated to include direction and type tracking:
 
 ```sql
 CREATE TABLE trace (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     time INTEGER NOT NULL,           -- Unix timestamp in milliseconds
-    escape TEXT,                     -- Escape sequence (nullable)
+    type TEXT,                       -- Type classification (CSI, OSC, ESC, DCS, SGR, printable, control, utf8, wide)
+    escape_seq TEXT,                 -- Escape sequence (nullable)
     printable TEXT,                  -- Printable characters (nullable)
-    direction TEXT NOT NULL DEFAULT 'output'  -- 'input' or 'output'
+    direction TEXT NOT NULL DEFAULT 'output',  -- 'input' or 'output'
+    row INTEGER,                     -- Cursor row position (nullable)
+    col INTEGER                      -- Cursor column position (nullable)
 );
 ```
+
+### Type Classification System
+
+The system will use the following type classifications:
+- **"CSI"**: Control Sequence Introducer sequences (ESC[...)
+- **"OSC"**: Operating System Command sequences (ESC]...)
+- **"ESC"**: Simple escape sequences (ESC + single character)
+- **"DCS"**: Device Control String sequences (ESCP...)
+- **"SGR"**: Select Graphic Rendition sequences (subset of CSI for styling)
+- **"printable"**: Regular printable text characters
+- **"control"**: Control characters (0x00-0x1F, 0x7F)
+- **"utf8"**: UTF-8 multi-byte character sequences
+- **"wide"**: Wide characters (CJK, emoji) that occupy multiple columns
 
 ### Migration Strategy
 
 For existing databases, the system will:
-1. Detect missing `direction` column on first access
-2. Add column with `ALTER TABLE` statement
-3. Set default value to 'output' for backward compatibility
+1. Detect missing `direction` and `type` columns on first access
+2. Add columns with `ALTER TABLE` statements
+3. Set default values ('output' for direction, null for type) for backward compatibility
 4. Handle migration failures gracefully
 
 ### Test Database Configuration
@@ -216,6 +237,22 @@ public static class TestTraceDatabase
 *For any* trace operation where direction is not explicitly specified, the system should use "output" as the default direction value.
 **Validates: Requirements 10.5**
 
+### Property 16: Human-Readable Escape Sequence Formatting
+*For any* escape sequence traced to the database, the sequence should be formatted using consistent `\x1b...` notation with proper hexadecimal representation for control characters.
+**Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7**
+
+### Property 17: Type Classification Accuracy
+*For any* traced entry, the type field should correctly classify the entry as CSI, OSC, ESC, DCS, SGR, printable, control, utf8, or wide based on the content.
+**Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9**
+
+### Property 18: Type Query Filtering
+*For any* trace database query with type filter, the results should contain only traces matching the specified type classification.
+**Validates: Requirements 13.10**
+
+### Property 19: Default Type Handling
+*For any* trace operation where type is not explicitly specified, the system should use an appropriate default type value based on the content being traced.
+**Validates: Requirements 13.11**
+
 ## Error Handling
 
 ### Database Initialization Failures
@@ -259,6 +296,10 @@ Property-based tests will verify universal properties across all inputs using Fs
 - **Property 13**: Query traces with direction filters, verify filtering accuracy
 - **Property 14**: Read trace entries, verify direction information exposure
 - **Property 15**: Trace without specifying direction, verify default behavior
+- **Property 16**: Generate random escape sequences, verify human-readable `\x1b...` formatting
+- **Property 17**: Generate mixed trace entries, verify type classification accuracy
+- **Property 18**: Query traces with type filters, verify filtering accuracy
+- **Property 19**: Trace without specifying type, verify default type behavior
 
 Each property test will be tagged with: **Feature: terminal-tracing-integration, Property {number}: {property_text}**
 
@@ -267,4 +308,4 @@ Integration tests will verify end-to-end tracing behavior:
 - Complete terminal sessions with mixed escape sequences and text
 - Real-world terminal applications (vim, htop) with tracing enabled
 - Performance benchmarks with tracing enabled vs disabled
-- Database migration from old schema to new schema with direction column
+- Database migration from old schema to new schema with direction and type columns

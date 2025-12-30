@@ -110,7 +110,7 @@ public class TracingPositionTests
         connection.Open();
         
         var command = connection.CreateCommand();
-        command.CommandText = "SELECT escape_seq, row, col FROM trace WHERE escape_seq LIKE '%ESC[%J%' ORDER BY id DESC LIMIT 1";
+        command.CommandText = "SELECT escape_seq, row, col FROM trace WHERE escape_seq LIKE '%\\x1b[%J%' ORDER BY id DESC LIMIT 1";
         
         using var reader = command.ExecuteReader();
         Assert.That(reader.Read(), Is.True, "Should have at least one CSI trace entry");
@@ -119,7 +119,7 @@ public class TracingPositionTests
         var row = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
         var col = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
         
-        Assert.That(escapeSeq, Does.Contain("ESC["), "Should trace ESC[ sequence");
+        Assert.That(escapeSeq, Does.Contain("\\x1b["), "Should trace \\x1b[ sequence");
         Assert.That(escapeSeq, Does.Contain("J"), "Should trace the J command");
         Assert.That(row, Is.EqualTo(3), "Should trace the correct row position (0-based)");
         Assert.That(col, Is.EqualTo(7), "Should trace the correct column position (0-based)");

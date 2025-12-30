@@ -34,7 +34,7 @@ public static class TracingIntegration
         // Flush any accumulated printable text
         if (printableBuffer.Length > 0)
         {
-          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
+          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col, "printable");
           printableBuffer.Clear();
         }
         inEscape = true;
@@ -68,7 +68,7 @@ public static class TracingIntegration
         // Flush printable text before control char
         if (printableBuffer.Length > 0)
         {
-          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
+          TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col, "printable");
           printableBuffer.Clear();
         }
         TraceHelper.TraceControlChar(b, TraceDirection.Output, row, col);
@@ -78,7 +78,7 @@ public static class TracingIntegration
     // Flush any remaining buffers
     if (printableBuffer.Length > 0)
     {
-      TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col);
+      TerminalTracer.TracePrintable(printableBuffer.ToString(), TraceDirection.Output, row, col, "printable");
     }
     if (escapeBuffer.Length > 0)
     {
@@ -135,7 +135,7 @@ public static class TracingIntegration
     if (!TerminalTracer.Enabled)
       return;
 
-    TerminalTracer.TracePrintable($"[{row},{col}] '{character}'", TraceDirection.Output, row, col);
+    TerminalTracer.TracePrintable($"[{row},{col}] '{character}'", TraceDirection.Output, row, col, "printable");
   }
 
   /// <summary>

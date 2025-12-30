@@ -177,18 +177,47 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
   - **Property 14: Direction Information Exposure**
   - **Validates: Requirements 10.3**
 
-- [ ] 17. Final integration and validation
+- [x] 17. Implement human-readable escape sequence formatting
+  - Update TraceHelper methods to use consistent `\x1b` notation instead of "ESC"
+  - Ensure CSI sequences format as `\x1b[parameters;command`
+  - Ensure OSC sequences format as `\x1b]command;data\x07`
+  - Ensure ESC sequences format as `\x1b` followed by sequence characters
+  - Ensure DCS sequences format as `\x1bPparameterscommanddata\x1b\\`
+  - Ensure control characters format as `\x{XX}` hexadecimal notation
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
+
+- [x] 17.1 Write property test for human-readable formatting
+  - **Property 16: Human-Readable Escape Sequence Formatting**
+  - **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7**
+
+- [ ] 18. Final integration and validation
   - Integrate all tracing calls into the complete terminal processing pipeline
   - Verify end-to-end tracing functionality with real terminal sequences
   - Test with sample terminal applications and escape sequence patterns
   - _Requirements: All requirements integration_
 
-- [ ] 17.1 Write integration tests for complete tracing pipeline
+- [ ] 18.1 Write integration tests for complete tracing pipeline
   - Test complete terminal sessions with mixed escape sequences and text
   - Verify tracing captures all expected data with correct directions
   - Test real-world terminal application scenarios
 
-- [ ] 18. Final checkpoint - Ensure all tests pass
+- [x] 19. Add type parameter support to TerminalTracer
+  - Add type parameter to TraceEntry record and BufferTraceEntry method
+  - Update FlushBufferInternal to write type column to database
+  - Add optional type parameter to TraceEscape, TracePrintable, and Trace methods
+  - _Requirements: 13.1-13.11_
+
+- [x] 20. Update existing tracing calls to set type values
+  - Update all TraceHelper methods to pass appropriate type values ("CSI", "OSC", "ESC", "DCS", "SGR")
+  - Update ScreenBufferManager to pass "printable" type for character tracing
+  - Update control character tracing to pass "control" type
+  - _Requirements: 13.1-13.7_
+
+- [x] 20.1 Write property test for type classification
+  - **Property 17: Type Classification Accuracy**
+  - **Validates: Requirements 13.1-13.9**
+
+- [ ] 21. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
@@ -200,3 +229,4 @@ This implementation plan integrates SQLite-based tracing capabilities into the e
 - Unit tests validate specific examples and edge cases
 - All tracing calls should be made unconditionally, relying on TerminalTracer.Enabled for performance optimization
 - Test databases use UUID-based filenames for isolation and are placed in assembly directory for automatic cleanup
+- Type column should be populated for all trace entries with appropriate classification (CSI, OSC, ESC, DCS, SGR, printable, control, utf8, wide)

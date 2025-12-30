@@ -13,30 +13,31 @@ Integration of SQLite-based tracing capabilities into the existing caTTY termina
 - **Trace_Database**: SQLite database storing timestamped terminal activity
 - **Test_Database**: Ephemeral SQLite database with UUID filename for test isolation
 - **Data_Direction**: Flow direction of terminal data (input from user, output from program)
+- **Trace_Type**: Classification of trace entry type (CSI, OSC, ESC, DCS, SGR, printable, control, etc.)
 
 ## Requirements
 
 ### Requirement 1: Parser Integration
 
-**User Story:** As a developer, I want escape sequences traced during parsing, so that I can debug terminal behavior and analyze input patterns.
+**User Story:** As a developer, I want escape sequences traced during parsing with proper type classification, so that I can debug terminal behavior and analyze input patterns by sequence type.
 
 #### Acceptance Criteria
 
-1. WHEN Parser processes CSI sequences THEN the system SHALL trace them using TraceHelper.TraceCsiSequence
-2. WHEN Parser processes OSC sequences THEN the system SHALL trace them using TraceHelper.TraceOscSequence  
-3. WHEN Parser processes ESC sequences THEN the system SHALL trace them using TraceHelper.TraceEscSequence
-4. WHEN Parser processes DCS sequences THEN the system SHALL trace them using TraceHelper.TraceDcsSequence
-5. WHEN Parser processes control characters THEN the system SHALL trace them using TraceHelper.TraceControlChar
+1. WHEN Parser processes CSI sequences THEN the system SHALL trace them using TraceHelper.TraceCsiSequence with type "CSI"
+2. WHEN Parser processes OSC sequences THEN the system SHALL trace them using TraceHelper.TraceOscSequence with type "OSC"
+3. WHEN Parser processes ESC sequences THEN the system SHALL trace them using TraceHelper.TraceEscSequence with type "ESC"
+4. WHEN Parser processes DCS sequences THEN the system SHALL trace them using TraceHelper.TraceDcsSequence with type "DCS"
+5. WHEN Parser processes control characters THEN the system SHALL trace them using TraceHelper.TraceControlChar with type "control"
 
 ### Requirement 2: Character Output Tracing
 
-**User Story:** As a developer, I want printable characters traced when written to screen buffer, so that I can verify text output and character positioning.
+**User Story:** As a developer, I want printable characters traced when written to screen buffer with proper type classification, so that I can verify text output and character positioning by character type.
 
 #### Acceptance Criteria
 
-1. WHEN ScreenBufferManager writes printable characters THEN the system SHALL trace them using TerminalTracer.TracePrintable
-2. WHEN UTF-8 decoder produces characters THEN the system SHALL trace them using TraceHelper.TraceUtf8Text
-3. WHEN wide characters are processed THEN the system SHALL trace them with appropriate width indication
+1. WHEN ScreenBufferManager writes printable characters THEN the system SHALL trace them using TerminalTracer.TracePrintable with type "printable"
+2. WHEN UTF-8 decoder produces characters THEN the system SHALL trace them using TraceHelper.TraceUtf8Text with type "utf8"
+3. WHEN wide characters are processed THEN the system SHALL trace them with type "wide" and appropriate width indication
 4. WHEN characters are written with attributes THEN the system SHALL include position information in traces
 
 ### Requirement 3: Test Coverage
@@ -64,15 +65,15 @@ Integration of SQLite-based tracing capabilities into the existing caTTY termina
 
 ### Requirement 5: Integration Points
 
-**User Story:** As a developer, I want tracing integrated at key processing points, so that I can capture complete terminal activity.
+**User Story:** As a developer, I want tracing integrated at key processing points with proper type classification, so that I can capture complete terminal activity and filter by sequence type.
 
 #### Acceptance Criteria
 
-1. WHEN CsiParser handles sequences THEN the system SHALL trace parsed CSI commands with parameters
-2. WHEN OscParser handles sequences THEN the system SHALL trace OSC commands with data payloads
-3. WHEN SgrParser processes styling THEN the system SHALL trace SGR sequences with attribute changes
-4. WHEN EscParser handles escape sequences THEN the system SHALL trace ESC commands
-5. WHEN DcsParser handles device control THEN the system SHALL trace DCS sequences using TraceHelper.TraceDcsSequence
+1. WHEN CsiParser handles sequences THEN the system SHALL trace parsed CSI commands with parameters and type "CSI"
+2. WHEN OscParser handles sequences THEN the system SHALL trace OSC commands with data payloads and type "OSC"
+3. WHEN SgrParser processes styling THEN the system SHALL trace SGR sequences with attribute changes and type "SGR"
+4. WHEN EscParser handles escape sequences THEN the system SHALL trace ESC commands with type "ESC"
+5. WHEN DcsParser handles device control THEN the system SHALL trace DCS sequences using TraceHelper.TraceDcsSequence with type "DCS"
 
 ### Requirement 6: Test Database Management
 
@@ -124,15 +125,15 @@ Integration of SQLite-based tracing capabilities into the existing caTTY termina
 
 ### Requirement 10: Enhanced Database Schema
 
-**User Story:** As a developer, I want enhanced trace database schema, so that I can analyze directional data flow and sequence context.
+**User Story:** As a developer, I want enhanced trace database schema with type classification, so that I can analyze directional data flow, sequence context, and filter by trace entry type.
 
 #### Acceptance Criteria
 
-1. WHEN trace database is initialized THEN the system SHALL create table with direction column
-2. WHEN writing trace entries THEN the system SHALL populate direction field appropriately
-3. WHEN reading trace entries THEN the system SHALL expose direction information
+1. WHEN trace database is initialized THEN the system SHALL create table with direction and type columns
+2. WHEN writing trace entries THEN the system SHALL populate direction and type fields appropriately
+3. WHEN reading trace entries THEN the system SHALL expose direction and type information
 4. WHEN upgrading existing databases THEN the system SHALL handle schema migration gracefully
-5. WHEN direction is not specified THEN the system SHALL use appropriate default value
+5. WHEN direction or type is not specified THEN the system SHALL use appropriate default values
 
 ### Requirement 11: Error Handling
 
@@ -145,3 +146,35 @@ Integration of SQLite-based tracing capabilities into the existing caTTY termina
 3. WHEN database connection is lost THEN the system SHALL attempt reconnection on next trace
 4. WHEN tracing encounters exceptions THEN the system SHALL catch and log them without propagation
 5. WHEN database is locked THEN the system SHALL handle SQLite busy errors gracefully
+
+### Requirement 13: Type Classification and Filtering
+
+**User Story:** As a developer, I want trace entries classified by type, so that I can filter and analyze specific types of terminal activity (CSI, OSC, printable text, etc.).
+
+#### Acceptance Criteria
+
+1. WHEN tracing CSI sequences THEN the system SHALL set type field to "CSI"
+2. WHEN tracing OSC sequences THEN the system SHALL set type field to "OSC"
+3. WHEN tracing ESC sequences THEN the system SHALL set type field to "ESC"
+4. WHEN tracing DCS sequences THEN the system SHALL set type field to "DCS"
+5. WHEN tracing SGR sequences THEN the system SHALL set type field to "SGR"
+6. WHEN tracing printable characters THEN the system SHALL set type field to "printable"
+7. WHEN tracing control characters THEN the system SHALL set type field to "control"
+8. WHEN tracing UTF-8 characters THEN the system SHALL set type field to "utf8"
+9. WHEN tracing wide characters THEN the system SHALL set type field to "wide"
+10. WHEN querying traces THEN the system SHALL be able to filter by type field
+11. WHEN type is not specified THEN the system SHALL use appropriate default type value
+
+### Requirement 12: Human-Readable Escape Sequence Format
+
+**User Story:** As a developer, I want escape sequences stored in human-readable format using `\x1b...` notation, so that I can easily analyze and debug terminal sequences in the trace database.
+
+#### Acceptance Criteria
+
+1. WHEN tracing escape sequences THEN the system SHALL format them using `\x1b` notation instead of raw bytes
+2. WHEN tracing CSI sequences THEN the system SHALL format them as `\x1b[parameters;command`
+3. WHEN tracing OSC sequences THEN the system SHALL format them as `\x1b]command;data\x07`
+4. WHEN tracing ESC sequences THEN the system SHALL format them as `\x1b` followed by sequence characters
+5. WHEN tracing DCS sequences THEN the system SHALL format them as `\x1bPparameterscommanddata\x1b\\`
+6. WHEN tracing control characters THEN the system SHALL format them as `\x{XX}` where XX is the hexadecimal value
+7. WHEN storing sequences in database THEN the system SHALL ensure consistent human-readable formatting across all sequence types

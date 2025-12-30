@@ -111,7 +111,7 @@ public class CsiSequenceTracingProperties
             
             bool sequenceTraced = traces.Any(trace => 
                 trace.EscapeSequence != null && 
-                trace.EscapeSequence.Contains($"ESC[") &&
+                trace.EscapeSequence.Contains($"\\x1b[") &&
                 trace.EscapeSequence.Contains(command.ToString()) &&
                 trace.Direction == "output");
 
@@ -164,7 +164,7 @@ public class CsiSequenceTracingProperties
             // Assert: Should have exactly 3 trace entries with identical content
             var traces = GetTracesFromDatabase();
             var csiTraces = traces.Where(t => t.EscapeSequence != null && 
-                                            t.EscapeSequence.Contains("ESC[")).ToList();
+                                            t.EscapeSequence.Contains("\\x1b[")).ToList();
 
             bool correctCount = csiTraces.Count == 3;
             bool allIdentical = csiTraces.All(trace => 
@@ -216,7 +216,7 @@ public class CsiSequenceTracingProperties
                 var traces = GetTracesFromDatabase();
                 bool sequenceTraced = traces.Any(trace => 
                     trace.EscapeSequence != null && 
-                    trace.EscapeSequence.Contains("ESC[") &&
+                    trace.EscapeSequence.Contains("\\x1b[") &&
                     trace.EscapeSequence.Contains(command.ToString()));
                 
                 if (!sequenceTraced)
@@ -263,7 +263,7 @@ public class CsiSequenceTracingProperties
             // Assert: All traces should have "output" direction
             var traces = GetTracesFromDatabase();
             var csiTraces = traces.Where(t => t.EscapeSequence != null && 
-                                            t.EscapeSequence.Contains("ESC[")).ToList();
+                                            t.EscapeSequence.Contains("\\x1b[")).ToList();
 
             bool allOutputDirection = csiTraces.All(trace => trace.Direction == "output");
             bool hasTraces = csiTraces.Count > 0;

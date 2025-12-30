@@ -239,24 +239,8 @@ public class TerminalTracingProperties
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
             // Build expected control character format based on TraceHelper.TraceControlChar implementation
-            var expectedControlName = controlByte switch
-            {
-                0x00 => "NUL",
-                0x07 => "BEL",
-                0x08 => "BS",
-                0x09 => "HT",
-                0x0A => "LF",
-                0x0B => "VT",
-                0x0C => "FF",
-                0x0D => "CR",
-                0x0E => "SO",
-                0x0F => "SI",
-                0x1B => "ESC",
-                0x7F => "DEL",
-                _ => $"C{controlByte:X2}"
-            };
-            
-            var expectedSequence = $"<{expectedControlName}>";
+            // New format uses \x{XX} hexadecimal notation
+            var expectedSequence = $"\\x{controlByte:X2}";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -287,8 +271,8 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected ESC sequence format: "ESCsequence"
-            var expectedSequence = $"ESC{escSequence}";
+            // Build expected ESC sequence format: "\x1bsequence"
+            var expectedSequence = $"\\x1b{escSequence}";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -319,8 +303,8 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected OSC sequence format: "ESC]command;data\x07"
-            var expectedSequence = string.IsNullOrEmpty(data) ? $"ESC]{command}\\x07" : $"ESC]{command};{data}\\x07";
+            // Build expected OSC sequence format: "\x1b]command;data\x07"
+            var expectedSequence = string.IsNullOrEmpty(data) ? $"\\x1b]{command}\\x07" : $"\\x1b]{command};{data}\\x07";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -367,8 +351,8 @@ public class TerminalTracingProperties
         
         var trace = traces[0];
         
-        // Build expected DCS sequence format: "ESCPparameterscommand ESC\"
-        var expectedSequence = "ESCP1qESC\\";
+        // Build expected DCS sequence format: "\x1bPparameterscommand\x1b\\"
+        var expectedSequence = "\\x1bP1q\\x1b\\\\";
         
         Assert.That(trace.Escape, Is.EqualTo(expectedSequence), "Trace should contain correct DCS sequence");
         Assert.That(trace.Direction, Is.EqualTo("output"), "Direction should be output");
@@ -398,10 +382,10 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
             
-            // Build expected DCS sequence format: "ESCPparameterscommand ESC\"
+            // Build expected DCS sequence format: "\x1bPparameterscommand\x1b\\"
             var expectedSequence = string.IsNullOrEmpty(parameters) 
-                ? $"ESCP{command}ESC\\" 
-                : $"ESCP{parameters}{command}ESC\\";
+                ? $"\\x1bP{command}\\x1b\\\\" 
+                : $"\\x1bP{parameters}{command}\\x1b\\\\";
             
             return trace.Escape == expectedSequence && 
                    trace.Direction == expectedDirection;
@@ -686,14 +670,22 @@ public class TerminalTracingProperties
             var trace = traces[0];
             var expectedDirection = "output"; // SGR sequences are always Output direction
             
-            // The trace should contain the raw SGR sequence and attribute change information
-            // Format: "sequence [changes]" where changes show what attributes changed
+            // The trace should contain the formatted SGR sequence and attribute change information
+            // Current format: "\x1b[params]m - attribute_changes"
             bool hasCorrectDirection = trace.Direction == expectedDirection;
             bool hasEscapeSequence = trace.Escape != null;
-            bool containsRawSequence = trace.Escape?.Contains(sgrSequence) == true;
-            bool containsAttributeInfo = trace.Escape?.Contains("[") == true && trace.Escape?.Contains("]") == true;
             
-            return hasCorrectDirection && hasEscapeSequence && containsRawSequence && containsAttributeInfo;
+            // Check if trace contains the formatted sequence (with \x1b notation)
+            // Extract parameters from raw sequence for comparison
+            string expectedFormattedSequence = FormatSgrSequenceForTest(sgrSequence);
+            bool containsFormattedSequence = trace.Escape?.Contains(expectedFormattedSequence) == true;
+            
+            // Check if trace contains attribute change information (indicated by ":" and "->")
+            // Note: Some SGR sequences may not cause attribute changes (e.g., setting to current value)
+            // In such cases, the trace will just contain the formatted sequence with " - " but no changes
+            bool containsAttributeInfo = trace.Escape?.Contains(" - ") == true;
+            
+            return hasCorrectDirection && hasEscapeSequence && containsFormattedSequence && containsAttributeInfo;
         });
     }
 
@@ -803,6 +795,173 @@ public class TerminalTracingProperties
         }
     }
 
+    /// <summary>
+    /// **Feature: terminal-tracing-integration, Property 16: Human-Readable Escape Sequence Formatting**
+    /// **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7**
+    /// Property: For any escape sequence traced to the database, the sequence should be formatted 
+    /// using consistent \x1b... notation with proper hexadecimal representation for control characters.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    public FsCheck.Property HumanReadableEscapeSequenceFormatting()
+    {
+        return Prop.ForAll(EscapeSequenceTypeArb, TraceDirectionArb, (sequenceType, direction) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace different types of escape sequences using TraceHelper
+            switch (sequenceType.Type)
+            {
+                case "CSI":
+                    TraceHelper.TraceCsiSequence(sequenceType.Command, sequenceType.Parameters, sequenceType.Prefix, direction);
+                    break;
+                case "OSC":
+                    TraceHelper.TraceOscSequence(sequenceType.OscCommand, sequenceType.Data, direction);
+                    break;
+                case "ESC":
+                    TraceHelper.TraceEscSequence(sequenceType.EscSequence, direction);
+                    break;
+                case "DCS":
+                    TraceHelper.TraceDcsSequence(sequenceType.DcsCommand, sequenceType.Parameters, sequenceType.Data, direction);
+                    break;
+                case "CONTROL":
+                    TraceHelper.TraceControlChar(sequenceType.ControlByte, direction);
+                    break;
+            }
+            
+            // Assert - Verify the sequence is formatted with \x1b notation
+            var traces = GetTracesFromDatabaseWithFlush();
+            if (traces.Count != 1) return false;
+            
+            var trace = traces[0];
+            var expectedDirection = direction == TraceDirection.Input ? "input" : "output";
+            
+            if (trace.Direction != expectedDirection) return false;
+            if (trace.Escape == null) return false;
+            
+            // Verify formatting based on sequence type
+            switch (sequenceType.Type)
+            {
+                case "CSI":
+                    // Should format as \x1b[parameters;command
+                    if (!trace.Escape.StartsWith("\\x1b[")) return false;
+                    if (!trace.Escape.Contains(sequenceType.Command.ToString())) return false;
+                    if (!string.IsNullOrEmpty(sequenceType.Parameters) && !trace.Escape.Contains(sequenceType.Parameters)) return false;
+                    if (sequenceType.Prefix.HasValue && !trace.Escape.Contains(sequenceType.Prefix.Value.ToString())) return false;
+                    break;
+                    
+                case "OSC":
+                    // Should format as \x1b]command;data\x07
+                    if (!trace.Escape.StartsWith("\\x1b]")) return false;
+                    if (!trace.Escape.Contains(sequenceType.OscCommand.ToString())) return false;
+                    if (!trace.Escape.EndsWith("\\x07")) return false;
+                    if (!string.IsNullOrEmpty(sequenceType.Data) && !trace.Escape.Contains(sequenceType.Data)) return false;
+                    break;
+                    
+                case "ESC":
+                    // Should format as \x1b followed by sequence characters
+                    if (!trace.Escape.StartsWith("\\x1b")) return false;
+                    if (!trace.Escape.Contains(sequenceType.EscSequence)) return false;
+                    break;
+                    
+                case "DCS":
+                    // Should format as \x1bPparameterscommanddata\x1b\\
+                    if (!trace.Escape.StartsWith("\\x1bP")) return false;
+                    if (!trace.Escape.EndsWith("\\x1b\\\\")) return false;
+                    if (!trace.Escape.Contains(sequenceType.DcsCommand)) return false;
+                    if (!string.IsNullOrEmpty(sequenceType.Parameters) && !trace.Escape.Contains(sequenceType.Parameters)) return false;
+                    if (!string.IsNullOrEmpty(sequenceType.Data) && !trace.Escape.Contains(sequenceType.Data)) return false;
+                    break;
+                    
+                case "CONTROL":
+                    // Should format as \x{XX} hexadecimal notation
+                    var expectedFormat = $"\\x{sequenceType.ControlByte:X2}";
+                    if (trace.Escape != expectedFormat) return false;
+                    break;
+            }
+            
+            return true;
+        });
+    }
+
+    /// <summary>
+    /// Generator for different types of escape sequences to test formatting.
+    /// </summary>
+    public static Arbitrary<EscapeSequenceTestData> EscapeSequenceTypeArb =>
+        Arb.From(Gen.OneOf(
+            // CSI sequences
+            Gen.Zip(
+                Gen.Elements('A', 'B', 'C', 'D', 'H', 'J', 'K', 'm', 'n', 'r'),
+                Gen.Zip(
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("1", "1;2", "10;20")),
+                    Gen.OneOf(Gen.Constant((char?)null), Gen.Elements('?', '>').Select(c => (char?)c))
+                )
+            ).Select(t => new EscapeSequenceTestData 
+            { 
+                Type = "CSI", 
+                Command = t.Item1, 
+                Parameters = t.Item2.Item1, 
+                Prefix = t.Item2.Item2 
+            }),
+            
+            // OSC sequences
+            Gen.Zip(
+                Gen.Choose(0, 999),
+                Gen.OneOf(Gen.Constant(""), Gen.Elements("title", "icon", "color"))
+            ).Select(t => new EscapeSequenceTestData 
+            { 
+                Type = "OSC", 
+                OscCommand = t.Item1, 
+                Data = t.Item2 
+            }),
+            
+            // ESC sequences
+            Gen.Elements("7", "8", "D", "E", "M", "c").Select(seq => new EscapeSequenceTestData 
+            { 
+                Type = "ESC", 
+                EscSequence = seq 
+            }),
+            
+            // DCS sequences
+            Gen.Zip(
+                Gen.Elements("q", "p", "s"),
+                Gen.Zip(
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("1", "2;3")),
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("data", "payload"))
+                )
+            ).Select(t => new EscapeSequenceTestData 
+            { 
+                Type = "DCS", 
+                DcsCommand = t.Item1, 
+                Parameters = t.Item2.Item1, 
+                Data = t.Item2.Item2 
+            }),
+            
+            // Control characters
+            Gen.Elements((byte)0x00, (byte)0x07, (byte)0x08, (byte)0x09, (byte)0x0A, (byte)0x0D, (byte)0x1B, (byte)0x7F)
+                .Select(b => new EscapeSequenceTestData 
+                { 
+                    Type = "CONTROL", 
+                    ControlByte = b 
+                })
+        ));
+
+    /// <summary>
+    /// Test data structure for different escape sequence types.
+    /// </summary>
+    public class EscapeSequenceTestData
+    {
+        public string Type { get; set; } = "";
+        public char Command { get; set; }
+        public string? Parameters { get; set; }
+        public char? Prefix { get; set; }
+        public int OscCommand { get; set; }
+        public string? Data { get; set; }
+        public string EscSequence { get; set; } = "";
+        public string DcsCommand { get; set; } = "";
+        public byte ControlByte { get; set; }
+    }
+
     private void ClearTraceDatabase()
     {
         // First flush any buffered traces
@@ -873,10 +1032,261 @@ public class TerminalTracingProperties
         return traces;
     }
 
+    /// <summary>
+    /// Formats an SGR sequence for test comparison by converting to \x1b notation.
+    /// </summary>
+    /// <param name="rawSgrSequence">Raw SGR sequence with actual ESC character</param>
+    /// <returns>Formatted sequence with \x1b notation</returns>
+    private static string FormatSgrSequenceForTest(string rawSgrSequence)
+    {
+        // Convert ESC character (0x1B) to \x1b notation
+        return rawSgrSequence.Replace("\x1b", "\\x1b");
+    }
+
     private string? GetDatabasePath()
     {
         // Get the database path from TerminalTracer
         return TerminalTracer.GetDatabasePath();
+    }
+
+    /// <summary>
+    /// Property 17: Type Classification Accuracy
+    /// For any traced entry, the type field should correctly classify the entry as CSI, OSC, ESC, DCS, SGR, printable, control, utf8, or wide based on the content.
+    /// **Validates: Requirements 13.1-13.9**
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [Category("Property")]
+    public FsCheck.Property TypeClassification_ShouldAccuratelyClassifyTraceEntries()
+    {
+        return Prop.ForAll(TypeClassificationTestDataArb, (testData) =>
+        {
+            // Arrange - Clear any existing traces
+            ClearTraceDatabase();
+            
+            // Act - Trace using the appropriate method based on test data type
+            switch (testData.ExpectedType)
+            {
+                case "CSI":
+                    TraceHelper.TraceCsiSequence(testData.CsiCommand, testData.Parameters, testData.Prefix);
+                    break;
+                case "OSC":
+                    TraceHelper.TraceOscSequence(testData.OscCommand, testData.Data);
+                    break;
+                case "ESC":
+                    TraceHelper.TraceEscSequence(testData.EscSequence);
+                    break;
+                case "DCS":
+                    TraceHelper.TraceDcsSequence(testData.DcsCommand, testData.Parameters, testData.Data);
+                    break;
+                case "SGR":
+                    TraceHelper.TraceSgrSequence(testData.SgrAttributes);
+                    break;
+                case "control":
+                    TraceHelper.TraceControlChar(testData.ControlByte);
+                    break;
+                case "printable":
+                    TraceHelper.TracePrintableChar(testData.PrintableChar);
+                    break;
+                case "utf8":
+                    TraceHelper.TraceUtf8Text(testData.Utf8Text);
+                    break;
+                case "wide":
+                    TraceHelper.TraceWideCharacter(testData.WideChar);
+                    break;
+            }
+            
+            // Assert - Verify the type field is correctly set
+            var traces = GetTracesFromDatabaseWithType();
+            if (traces.Count != 1) 
+            {
+                Console.WriteLine($"Expected 1 trace, got {traces.Count}");
+                return false;
+            }
+            
+            var trace = traces[0];
+            bool result = trace.Type == testData.ExpectedType;
+            if (!result)
+            {
+                Console.WriteLine($"Type mismatch: Expected '{testData.ExpectedType}', got '{trace.Type}'");
+                Console.WriteLine($"Escape: '{trace.Escape}'");
+                Console.WriteLine($"Printable: '{trace.Printable}'");
+            }
+            return result;
+        });
+    }
+
+    /// <summary>
+    /// Generator for type classification test data.
+    /// </summary>
+    public static Arbitrary<TypeClassificationTestData> TypeClassificationTestDataArb =>
+        Arb.From(Gen.OneOf(
+            // CSI sequences
+            Gen.Zip(
+                Gen.Elements('A', 'B', 'C', 'D', 'H', 'J', 'K', 'm', 'n', 'r'),
+                Gen.Zip(
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("1", "1;2", "10;20")),
+                    Gen.OneOf(Gen.Constant((char?)null), Gen.Elements('?', '>').Select(c => (char?)c))
+                )
+            ).Select(t => new TypeClassificationTestData 
+            { 
+                ExpectedType = "CSI", 
+                CsiCommand = t.Item1, 
+                Parameters = t.Item2.Item1, 
+                Prefix = t.Item2.Item2 
+            }),
+            
+            // OSC sequences
+            Gen.Zip(
+                Gen.Elements(0, 1, 2, 4, 10, 11, 12),
+                Gen.OneOf(Gen.Constant(""), Gen.Elements("title", "test", "data"))
+            ).Select(t => new TypeClassificationTestData 
+            { 
+                ExpectedType = "OSC", 
+                OscCommand = t.Item1, 
+                Data = t.Item2 
+            }),
+            
+            // ESC sequences
+            Gen.Elements("7", "8", "M", "D", "E", "H", "c", "(A", "(B", "(0")
+                .Select(seq => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "ESC", 
+                    EscSequence = seq 
+                }),
+            
+            // DCS sequences
+            Gen.Zip(
+                Gen.Elements("q", "p", "s"),
+                Gen.Zip(
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("1", "2", "1;2")),
+                    Gen.OneOf(Gen.Constant(""), Gen.Elements("test", "data"))
+                )
+            ).Select(t => new TypeClassificationTestData 
+            { 
+                ExpectedType = "DCS", 
+                DcsCommand = t.Item1, 
+                Parameters = t.Item2.Item1, 
+                Data = t.Item2.Item2 
+            }),
+            
+            // SGR sequences
+            Gen.Elements("0", "1", "2", "3", "4", "7", "22", "23", "30", "31", "32", "39", "40", "41", "49")
+                .Select(attr => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "SGR", 
+                    SgrAttributes = attr 
+                }),
+            
+            // Control characters
+            Gen.Elements((byte)0x07, (byte)0x08, (byte)0x09, (byte)0x0A, (byte)0x0D, (byte)0x1B, (byte)0x7F)
+                .Select(b => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "control", 
+                    ControlByte = b 
+                }),
+            
+            // Printable characters
+            Gen.Elements('A', 'B', 'a', 'b', '1', '2', ' ', '!', '@', '#')
+                .Select(c => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "printable", 
+                    PrintableChar = c 
+                }),
+            
+            // UTF-8 text
+            Gen.Elements("Hello", "世界", "🌍", "café", "naïve")
+                .Select(text => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "utf8", 
+                    Utf8Text = text 
+                }),
+            
+            // Wide characters (CJK characters that are single UTF-16 code units)
+            Gen.Elements('世', '界', '中', '文', '日', '本')
+                .Select(c => new TypeClassificationTestData 
+                { 
+                    ExpectedType = "wide", 
+                    WideChar = c 
+                })
+        ));
+
+    /// <summary>
+    /// Get traces from database including type information.
+    /// </summary>
+    private List<TraceEntryWithType> GetTracesFromDatabaseWithType()
+    {
+        TerminalTracer.Flush(); // Ensure all traces are written
+        
+        var traces = new List<TraceEntryWithType>();
+        var databasePath = GetDatabasePath();
+        if (databasePath == null || !File.Exists(databasePath))
+            return traces;
+
+        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT escape_seq, printable, direction, type FROM trace ORDER BY time";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            traces.Add(new TraceEntryWithType
+            {
+                Escape = reader.IsDBNull(0) ? null : reader.GetString(0),
+                Printable = reader.IsDBNull(1) ? null : reader.GetString(1),
+                Direction = reader.GetString(2),
+                Type = reader.IsDBNull(3) ? null : reader.GetString(3)
+            });
+        }
+
+        return traces;
+    }
+
+    /// <summary>
+    /// Test data structure for type classification testing.
+    /// </summary>
+    public class TypeClassificationTestData
+    {
+        public string ExpectedType { get; set; } = "";
+        
+        // CSI data
+        public char CsiCommand { get; set; }
+        public string? Parameters { get; set; }
+        public char? Prefix { get; set; }
+        
+        // OSC data
+        public int OscCommand { get; set; }
+        public string? Data { get; set; }
+        
+        // ESC data
+        public string EscSequence { get; set; } = "";
+        
+        // DCS data
+        public string DcsCommand { get; set; } = "";
+        
+        // SGR data
+        public string SgrAttributes { get; set; } = "";
+        
+        // Control character data
+        public byte ControlByte { get; set; }
+        
+        // Printable character data
+        public char PrintableChar { get; set; }
+        
+        // UTF-8 text data
+        public string Utf8Text { get; set; } = "";
+        
+        // Wide character data
+        public char WideChar { get; set; }
+    }
+
+    private class TraceEntryWithType
+    {
+        public string? Escape { get; set; }
+        public string? Printable { get; set; }
+        public string Direction { get; set; } = "";
+        public string? Type { get; set; }
     }
 
     private class TraceEntry

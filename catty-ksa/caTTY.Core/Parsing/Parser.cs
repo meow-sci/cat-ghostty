@@ -150,7 +150,7 @@ public class Parser
         // Handle other C0 control characters that aren't explicitly handled
         if (b < 0x20 && b != 0x1b)
         {
-            TraceHelper.TraceControlChar(b, TraceDirection.Output);
+            TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             // These control characters are typically ignored or have no specific handler
             return;
         }
@@ -164,7 +164,7 @@ public class Parser
         // DEL (0x7F) should be ignored in terminal emulation
         if (b == 0x7F)
         {
-            TraceHelper.TraceControlChar(b, TraceDirection.Output);
+            TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
             return;
         }
 
@@ -465,7 +465,7 @@ public class Parser
             int? row = _cursorPositionProvider?.Row;
             int? col = _cursorPositionProvider?.Column;
             TraceHelper.TraceUtf8Text(decodedText, TraceDirection.Output, row, col);
-            
+
             _handlers.HandleNormalByte(codePoint);
         }
     }
@@ -493,35 +493,35 @@ public class Parser
         switch (b)
         {
             case 0x07: // Bell
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleBell();
                 return true;
             case 0x08: // Backspace
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleBackspace();
                 return true;
             case 0x09: // Tab
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleTab();
                 return true;
             case 0x0e: // Shift Out (SO)
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleShiftOut();
                 return true;
             case 0x0f: // Shift In (SI)
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleShiftIn();
                 return true;
             case 0x0a: // Line Feed
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleLineFeed();
                 return true;
             case 0x0c: // Form Feed
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleFormFeed();
                 return true;
             case 0x0d: // Carriage Return
-                TraceHelper.TraceControlChar(b, TraceDirection.Output);
+                TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
                 _handlers.HandleCarriageReturn();
                 return true;
         }
@@ -559,7 +559,7 @@ public class Parser
             CsiMessage message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
             _handlers.HandleCsi(message);
         }
-        
+
         ResetEscapeState();
     }
 
@@ -569,11 +569,11 @@ public class Parser
     private void FinishDcsSequence(string terminator)
     {
         DcsMessage message = _dcsParser.CreateDcsMessage(_escapeSequence, terminator, _dcsCommand, _dcsParameters);
-        
+
         // Trace the DCS sequence with command, parameters, and data payload
         string? parametersString = _dcsParameters.Length > 0 ? string.Join(";", _dcsParameters) : null;
         TraceHelper.TraceDcsSequence(_dcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
-        
+
         _handlers.HandleDcs(message);
         ResetEscapeState();
     }

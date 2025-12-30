@@ -69,7 +69,7 @@ internal class TerminalParserHandlers : IParserHandlers
             // Basic Multilingual Plane - single char
             char character = (char)codePoint;
             string translatedChar = _terminal.TranslateCharacter(character);
-            
+
             // Write each character in the translated string
             foreach (char c in translatedChar)
             {
@@ -746,12 +746,13 @@ internal class TerminalParserHandlers : IParserHandlers
         int? row = _terminal.Cursor?.Row;
         int? col = _terminal.Cursor?.Col;
 
-        // Create a detailed trace message that includes the raw sequence and attribute changes
-        var traceMessage = $"{sequence.Raw} [";
-        
+        // Create a detailed trace message that includes both raw and formatted sequence with attribute changes
+        var formattedSequence = $"\\x1b[{ExtractSgrParameters(sequence.Raw)}m";
+        var traceMessage = $"{formattedSequence} - ";
+
         // Add information about what changed
         var changes = new List<string>();
-        
+
         if (beforeAttributes.Bold != afterAttributes.Bold)
             changes.Add($"bold:{beforeAttributes.Bold}->{afterAttributes.Bold}");
         if (beforeAttributes.Italic != afterAttributes.Italic)
@@ -768,7 +769,7 @@ internal class TerminalParserHandlers : IParserHandlers
             changes.Add($"blink:{beforeAttributes.Blink}->{afterAttributes.Blink}");
         if (beforeAttributes.Faint != afterAttributes.Faint)
             changes.Add($"faint:{beforeAttributes.Faint}->{afterAttributes.Faint}");
-        
+
         // Check color changes
         if (!Equals(beforeAttributes.ForegroundColor, afterAttributes.ForegroundColor))
             changes.Add($"fg:{FormatColor(beforeAttributes.ForegroundColor)}->{FormatColor(afterAttributes.ForegroundColor)}");
@@ -776,20 +777,21 @@ internal class TerminalParserHandlers : IParserHandlers
             changes.Add($"bg:{FormatColor(beforeAttributes.BackgroundColor)}->{FormatColor(afterAttributes.BackgroundColor)}");
         if (!Equals(beforeAttributes.UnderlineColor, afterAttributes.UnderlineColor))
             changes.Add($"ul:{FormatColor(beforeAttributes.UnderlineColor)}->{FormatColor(afterAttributes.UnderlineColor)}");
-        
+
         // Check underline style changes
         if (beforeAttributes.UnderlineStyle != afterAttributes.UnderlineStyle)
             changes.Add($"ul-style:{beforeAttributes.UnderlineStyle}->{afterAttributes.UnderlineStyle}");
-        
+
         // Check font changes
         if (beforeAttributes.Font != afterAttributes.Font)
             changes.Add($"font:{beforeAttributes.Font}->{afterAttributes.Font}");
 
         traceMessage += string.Join(", ", changes);
-        traceMessage += "]";
+        traceMessage += "";
 
         // Trace the SGR sequence with Output direction (program output to terminal)
-        TerminalTracer.TraceEscape(traceMessage, TraceDirection.Output, row, col);
+        // Use TerminalTracer.TraceEscape with SGR type to preserve detailed attribute information
+        TerminalTracer.TraceEscape(traceMessage, TraceDirection.Output, row, col, "SGR");
     }
 
     /// <summary>
@@ -801,7 +803,7 @@ internal class TerminalParserHandlers : IParserHandlers
     {
         if (!color.HasValue)
             return "null";
-        
+
         var c = color.Value;
         return c.Type switch
         {
@@ -810,5 +812,29 @@ internal class TerminalParserHandlers : IParserHandlers
             ColorType.Rgb => $"rgb({c.Red},{c.Green},{c.Blue})",
             _ => "unknown"
         };
+    }
+
+    /// <summary>
+    ///     Extracts SGR parameters from a raw SGR sequence for tracing.
+    /// </summary>
+    /// <param name="rawSequence">The raw SGR sequence (e.g., "ESC[1;32m")</param>
+    /// <returns>The parameter string (e.g., "1;32")</returns>
+    private static string ExtractSgrParameters(string rawSequence)
+    {
+        // SGR sequences have the format ESC[<parameters>m
+        // Extract the parameters between '[' and 'm'
+        if (string.IsNullOrEmpty(rawSequence))
+            return "0"; // Default to reset
+
+        var startIndex = rawSequence.IndexOf('[');
+        var endIndex = rawSequence.LastIndexOf('m');
+
+        if (startIndex >= 0 && endIndex > startIndex)
+        {
+            var parameters = rawSequence.Substring(startIndex + 1, endIndex - startIndex - 1);
+            return string.IsNullOrEmpty(parameters) ? "0" : parameters;
+        }
+
+        return "0"; // Default to reset if parsing fails
     }
 }

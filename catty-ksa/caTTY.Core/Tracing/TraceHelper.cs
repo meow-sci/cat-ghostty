@@ -45,7 +45,7 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TracePrintableChar(char character, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    TerminalTracer.TracePrintable(character.ToString(), direction, row, col);
+    TerminalTracer.TracePrintable(character.ToString(), direction, row, col, "printable");
   }
 
   /// <summary>
@@ -57,24 +57,10 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceControlChar(byte controlByte, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    var controlName = controlByte switch
-    {
-      0x00 => "NUL",
-      0x07 => "BEL",
-      0x08 => "BS",
-      0x09 => "HT",
-      0x0A => "LF",
-      0x0B => "VT",
-      0x0C => "FF",
-      0x0D => "CR",
-      0x0E => "SO",
-      0x0F => "SI",
-      0x1B => "ESC",
-      0x7F => "DEL",
-      _ => $"C{controlByte:X2}"
-    };
+    // Format control characters as \x{XX} hexadecimal notation
+    var controlSequence = $"\\x{controlByte:X2}";
 
-    TerminalTracer.TraceEscape($"<{controlName}>", direction, row, col);
+    TerminalTracer.TraceEscape(controlSequence, direction, row, col, "control");
   }
 
   /// <summary>
@@ -88,8 +74,8 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceCsiSequence(char command, string? parameters = null, char? prefix = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    // Format as human-readable escape sequence: ESC[params;command
-    var sequence = new StringBuilder("ESC[");
+    // Format as human-readable escape sequence: \x1b[parameters;command
+    var sequence = new StringBuilder("\\x1b[");
 
     if (prefix.HasValue)
       sequence.Append(prefix);
@@ -99,7 +85,7 @@ public static class TraceHelper
 
     sequence.Append(command);
 
-    TerminalTracer.TraceEscape(sequence.ToString(), direction, row, col);
+    TerminalTracer.TraceEscape(sequence.ToString(), direction, row, col, "CSI");
   }
 
   /// <summary>
@@ -112,13 +98,13 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceOscSequence(int command, string? data = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    // Format as human-readable escape sequence: ESC]command;data\x07 or ESC]command;data\x1b\
-    var sequence = $"ESC]{command}";
+    // Format as human-readable escape sequence: \x1b]command;data\x07
+    var sequence = $"\\x1b]{command}";
     if (!string.IsNullOrEmpty(data))
       sequence += $";{data}";
     sequence += "\\x07"; // Show BEL terminator
 
-    TerminalTracer.TraceEscape(sequence, direction, row, col);
+    TerminalTracer.TraceEscape(sequence, direction, row, col, "OSC");
   }
 
   /// <summary>
@@ -130,8 +116,8 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceEscSequence(string sequence, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    // Format as human-readable escape sequence: ESC + sequence
-    TerminalTracer.TraceEscape($"ESC{sequence}", direction, row, col);
+    // Format as human-readable escape sequence: \x1b + sequence
+    TerminalTracer.TraceEscape($"\\x1b{sequence}", direction, row, col, "ESC");
   }
 
   /// <summary>
@@ -145,8 +131,8 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceDcsSequence(string command, string? parameters = null, string? data = null, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    // Format as human-readable escape sequence: ESCP + parameters + command + data + ESC\
-    var sequence = new StringBuilder("ESCP");
+    // Format as human-readable escape sequence: \x1bPparameterscommanddata\x1b\\
+    var sequence = new StringBuilder("\\x1bP");
 
     if (!string.IsNullOrEmpty(parameters))
       sequence.Append(parameters);
@@ -155,10 +141,10 @@ public static class TraceHelper
 
     if (!string.IsNullOrEmpty(data))
       sequence.Append(data);
-    
-    sequence.Append("ESC\\"); // Show ST terminator
 
-    TerminalTracer.TraceEscape(sequence.ToString(), direction, row, col);
+    sequence.Append("\\x1b\\\\"); // Show ST terminator
+
+    TerminalTracer.TraceEscape(sequence.ToString(), direction, row, col, "DCS");
   }
 
   /// <summary>
@@ -173,7 +159,7 @@ public static class TraceHelper
     if (string.IsNullOrEmpty(text))
       return;
 
-    TerminalTracer.TracePrintable(text, direction, row, col);
+    TerminalTracer.TracePrintable(text, direction, row, col, "utf8");
   }
 
   /// <summary>
@@ -185,7 +171,21 @@ public static class TraceHelper
   /// <param name="col">The cursor column position (0-based, nullable)</param>
   public static void TraceWideCharacter(char character, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
   {
-    TerminalTracer.TracePrintable($"{character} (wide)", direction, row, col);
+    TerminalTracer.TracePrintable($"{character} (wide)", direction, row, col, "wide");
+  }
+
+  /// <summary>
+  /// Trace an SGR (Select Graphic Rendition) sequence with attribute information.
+  /// </summary>
+  /// <param name="attributes">SGR attribute parameters</param>
+  /// <param name="direction">The direction of data flow (default: Output)</param>
+  /// <param name="row">The cursor row position (0-based, nullable)</param>
+  /// <param name="col">The cursor column position (0-based, nullable)</param>
+  public static void TraceSgrSequence(string attributes, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
+  {
+    // Format as human-readable SGR sequence: \x1b[attributes;m
+    var sequence = $"\\x1b[{attributes}m";
+    TerminalTracer.TraceEscape(sequence, direction, row, col, "SGR");
   }
 
   /// <summary>

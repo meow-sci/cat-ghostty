@@ -135,4 +135,45 @@ public class BatchedTracingTests
         Assert.That(TerminalTracer.BufferedEntryCount, Is.EqualTo(0), "Should not buffer when disabled");
         Assert.That(TerminalTracer.BufferedDataSize, Is.EqualTo(0), "Should not have buffered data when disabled");
     }
+
+    [Test]
+    public void BatchedTracing_TypeParameterShouldBeStoredInDatabase()
+    {
+        // Act - Add trace entries with type parameters
+        TerminalTracer.TraceEscape("\\x1b[H", TraceDirection.Output, 0, 0, "CSI");
+        TerminalTracer.TracePrintable("Hello", TraceDirection.Output, 0, 1, "printable");
+        TerminalTracer.Trace("\\x1b]0;Title\\x07", null, TraceDirection.Output, 0, 6, "OSC");
+        
+        // Flush to database
+        TerminalTracer.Flush();
+        
+        // Assert - Database should exist and contain type information
+        var dbPath = TerminalTracer.GetDatabasePath();
+        Assert.That(File.Exists(dbPath), Is.True, "Database file should exist");
+        
+        // Verify the database schema includes type column by attempting to read it
+        // This is a basic verification that the type parameter functionality is working
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+        connection.Open();
+        
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT type, escape_seq, printable FROM trace ORDER BY id";
+        
+        using var reader = command.ExecuteReader();
+        
+        // Verify first entry (CSI)
+        Assert.That(reader.Read(), Is.True, "Should have first trace entry");
+        Assert.That(reader["type"], Is.EqualTo("CSI"), "First entry should have CSI type");
+        Assert.That(reader["escape_seq"], Is.EqualTo("\\x1b[H"), "First entry should have correct escape sequence");
+        
+        // Verify second entry (printable)
+        Assert.That(reader.Read(), Is.True, "Should have second trace entry");
+        Assert.That(reader["type"], Is.EqualTo("printable"), "Second entry should have printable type");
+        Assert.That(reader["printable"], Is.EqualTo("Hello"), "Second entry should have correct printable text");
+        
+        // Verify third entry (OSC)
+        Assert.That(reader.Read(), Is.True, "Should have third trace entry");
+        Assert.That(reader["type"], Is.EqualTo("OSC"), "Third entry should have OSC type");
+        Assert.That(reader["escape_seq"], Is.EqualTo("\\x1b]0;Title\\x07"), "Third entry should have correct escape sequence");
+    }
 }

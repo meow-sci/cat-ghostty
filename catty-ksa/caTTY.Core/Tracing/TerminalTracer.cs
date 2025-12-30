@@ -28,7 +28,8 @@ internal record TraceEntry(
   string? PrintableText,
   TraceDirection Direction,
   int? Row,
-  int? Col
+  int? Col,
+  string? Type
 );
 
 /// <summary>
@@ -118,11 +119,12 @@ public static class TerminalTracer
       var command = _connection.CreateCommand();
       command.Transaction = transaction;
       command.CommandText = @"
-        INSERT INTO trace (time, escape_seq, printable, direction, row, col) 
-        VALUES (@time, @escape, @printable, @direction, @row, @col)";
+        INSERT INTO trace (time, type, escape_seq, printable, direction, row, col) 
+        VALUES (@time, @type, @escape, @printable, @direction, @row, @col)";
 
       // Prepare parameters once
       var timeParam = command.Parameters.Add("@time", SqliteType.Integer);
+      var typeParam = command.Parameters.Add("@type", SqliteType.Text);
       var escapeParam = command.Parameters.Add("@escape", SqliteType.Text);
       var printableParam = command.Parameters.Add("@printable", SqliteType.Text);
       var directionParam = command.Parameters.Add("@direction", SqliteType.Text);
@@ -133,6 +135,7 @@ public static class TerminalTracer
       foreach (var entry in _traceBuffer)
       {
         timeParam.Value = entry.Timestamp;
+        typeParam.Value = entry.Type ?? (object)DBNull.Value;
         escapeParam.Value = entry.EscapeSequence ?? (object)DBNull.Value;
         printableParam.Value = entry.PrintableText ?? (object)DBNull.Value;
         directionParam.Value = entry.Direction == TraceDirection.Input ? "input" : "output";
@@ -162,7 +165,7 @@ public static class TerminalTracer
   /// <summary>
   /// Adds a trace entry to the buffer and flushes if necessary.
   /// </summary>
-  private static void BufferTraceEntry(string? escapeSequence, string? printableText, TraceDirection direction, int? row, int? col)
+  private static void BufferTraceEntry(string? escapeSequence, string? printableText, TraceDirection direction, int? row, int? col, string? type = null)
   {
     if (!Enabled || (string.IsNullOrEmpty(escapeSequence) && string.IsNullOrEmpty(printableText)))
       return;
@@ -173,12 +176,12 @@ public static class TerminalTracer
         return;
 
       var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-      var entry = new TraceEntry(timestamp, escapeSequence, printableText, direction, row, col);
+      var entry = new TraceEntry(timestamp, escapeSequence, printableText, direction, row, col, type);
       
       _traceBuffer.Add(entry);
       
       // Estimate buffer size (rough calculation for memory management)
-      _currentBufferBytes += (escapeSequence?.Length ?? 0) + (printableText?.Length ?? 0) + 50; // 50 bytes overhead per entry
+      _currentBufferBytes += (escapeSequence?.Length ?? 0) + (printableText?.Length ?? 0) + (type?.Length ?? 0) + 50; // 50 bytes overhead per entry
       
       // Immediate flush conditions for responsiveness
       bool shouldFlush = _traceBuffer.Count >= MaxBufferSize ||
@@ -251,6 +254,7 @@ public static class TerminalTracer
                     CREATE TABLE IF NOT EXISTS trace (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         time INTEGER NOT NULL,
+                        type TEXT,
                         escape_seq TEXT,
                         printable TEXT,
                         direction TEXT NOT NULL DEFAULT 'output',
@@ -276,9 +280,10 @@ public static class TerminalTracer
   /// <param name="direction">The direction of data flow (default: Output)</param>
   /// <param name="row">The cursor row position (0-based, nullable)</param>
   /// <param name="col">The cursor column position (0-based, nullable)</param>
-  public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
+  /// <param name="type">The type classification of the trace entry (nullable)</param>
+  public static void TraceEscape(string escapeSequence, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null, string? type = null)
   {
-    BufferTraceEntry(escapeSequence, null, direction, row, col);
+    BufferTraceEntry(escapeSequence, null, direction, row, col, type);
   }
 
   /// <summary>
@@ -288,9 +293,10 @@ public static class TerminalTracer
   /// <param name="direction">The direction of data flow (default: Output)</param>
   /// <param name="row">The cursor row position (0-based, nullable)</param>
   /// <param name="col">The cursor column position (0-based, nullable)</param>
-  public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
+  /// <param name="type">The type classification of the trace entry (nullable)</param>
+  public static void TracePrintable(string printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null, string? type = null)
   {
-    BufferTraceEntry(null, printableText, direction, row, col);
+    BufferTraceEntry(null, printableText, direction, row, col, type);
   }
 
   /// <summary>
@@ -301,9 +307,10 @@ public static class TerminalTracer
   /// <param name="direction">The direction of data flow (default: Output)</param>
   /// <param name="row">The cursor row position (0-based, nullable)</param>
   /// <param name="col">The cursor column position (0-based, nullable)</param>
-  public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null)
+  /// <param name="type">The type classification of the trace entry (nullable)</param>
+  public static void Trace(string? escapeSequence, string? printableText, TraceDirection direction = TraceDirection.Output, int? row = null, int? col = null, string? type = null)
   {
-    BufferTraceEntry(escapeSequence, printableText, direction, row, col);
+    BufferTraceEntry(escapeSequence, printableText, direction, row, col, type);
   }
 
   /// <summary>
@@ -312,7 +319,7 @@ public static class TerminalTracer
   /// </summary>
   private static void TraceInternal(string? escapeSequence, string? printableText, TraceDirection direction, int? row = null, int? col = null)
   {
-    BufferTraceEntry(escapeSequence, printableText, direction, row, col);
+    BufferTraceEntry(escapeSequence, printableText, direction, row, col, null);
   }
 
   /// <summary>

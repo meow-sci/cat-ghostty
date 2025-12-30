@@ -819,7 +819,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
         // Trace the printable character with position and width information
         string traceText = isWide ? $"{character} (wide)" : character.ToString();
-        TerminalTracer.TracePrintable(traceText, TraceDirection.Output, _cursorManager.Row, _cursorManager.Column);
+        string traceType = isWide ? "wide" : "printable";
+        TerminalTracer.TracePrintable(traceText, TraceDirection.Output, _cursorManager.Row, _cursorManager.Column, traceType);
 
         // Handle cursor advancement and wrap pending logic
         if (_cursorManager.Column == Width - 1)
