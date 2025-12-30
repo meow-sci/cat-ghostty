@@ -6,48 +6,48 @@ This implementation plan transforms the current basic ImGui terminal window layo
 
 ## Tasks
 
-- [ ] 1. Create layout constants and helper structures
+- [x] 1. Create layout constants and helper structures
   - Define layout constants for heights, spacing, and dimensions
   - Create TerminalSettings class for future multi-terminal support
   - Add helper methods for layout calculations
   - _Requirements: 7.2, 7.3, 8.5_
 
-- [ ] 1.1 Write property test for layout constants validation
+- [x] 1.1 Write property test for layout constants validation
   - **Property 1: Layout constants are within reasonable ranges**
   - **Validates: Requirements 7.2, 7.3**
 
-- [ ] 2. Implement menu bar rendering
-  - [ ] 2.1 Create RenderMenuBar() method with ImGui menu widgets
+- [x] 2. Implement menu bar rendering
+  - [x] 2.1 Create RenderMenuBar() method with ImGui menu widgets
     - Implement File menu with New Terminal, Close Terminal, Exit options
     - Implement Edit menu with Copy, Paste, Select All options  
     - Implement View menu with zoom controls
     - Use ImGui.BeginMenuBar() and ImGui.MenuItem() APIs
     - _Requirements: 1.1, 1.2, 1.3, 8.1_
 
-  - [ ] 2.2 Manual validation: Verify menu bar structure
+  - [x] 2.2 Manual validation: Verify menu bar structure
     - **Developer validation**: Confirm menu items exist and are properly labeled
     - **Developer validation**: Verify disabled states for unavailable options
     - **Developer validation**: Test menu dropdowns open and close correctly
     - _Requirements: 1.2, 8.1_
 
-  - [ ] 2.3 Write property test for menu bar layout
+  - [x] 2.3 Write property test for menu bar layout
     - **Property 2: Menu bar spans full width and appears at top**
     - **Validates: Requirements 1.4, 1.5**
 
-- [ ] 3. Implement tab area rendering
-  - [ ] 3.1 Create RenderTabArea() method
+- [x] 3. Implement tab area rendering
+  - [x] 3.1 Create RenderTabArea() method
     - Display single tab representing current terminal instance
     - Add "+" button on right edge for future multi-terminal support
     - Implement proper spacing and sizing calculations
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
-  - [ ] 3.2 Manual validation: Verify tab area components
+  - [x] 3.2 Manual validation: Verify tab area components
     - **Developer validation**: Confirm single tab is displayed with correct label
     - **Developer validation**: Verify add button is present and positioned correctly
     - **Developer validation**: Test tooltip appears on add button hover
     - _Requirements: 2.2, 2.3, 2.4_
 
-  - [ ] 3.3 Write property test for tab area layout
+  - [x] 3.3 Write property test for tab area layout
     - **Property 3: Tab area maintains consistent height and full width**
     - **Validates: Requirements 2.1, 2.5**
 
@@ -160,6 +160,57 @@ This implementation plan transforms the current basic ImGui terminal window layo
 - [ ] 12. Final checkpoint - Ensure all functionality works as expected
   - Ensure all property tests pass, ask the user if questions arise.
   - **Developer validation**: Manually verify complete window layout and functionality
+
+- [ ] 13. Consolidate font configuration objects
+  - [ ] 13.1 Remove font configuration from TerminalSettings class
+    - Remove FontSize and FontName properties from TerminalSettings
+    - Update TerminalSettings.Validate() to remove font-related validation
+    - Update TerminalSettings.Clone() to remove font-related copying
+    - _Requirements: 9.1, 9.2, 9.5_
+
+  - [ ] 13.2 Update font size adjustment methods to use TerminalFontConfig directly
+    - Modify ResetFontSize(), IncreaseFontSize(), DecreaseFontSize() methods
+    - Remove UpdateTerminalSettings() calls and use UpdateFontConfig() directly
+    - Eliminate TerminalSettings intermediate object for font changes
+    - _Requirements: 9.3, 9.4_
+
+  - [ ] 13.3 Write property test for font configuration consolidation
+    - **Property 10: Only TerminalFontConfig stores font configuration**
+    - **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
+
+- [ ] 14. Implement automatic terminal resize on font changes
+  - [ ] 14.1 Add terminal resize trigger to UpdateFontConfig method
+    - Calculate new terminal dimensions after font metrics change
+    - Call terminal resize logic similar to HandleWindowResize
+    - Ensure PTY process dimensions are updated
+    - _Requirements: 10.1, 10.2, 10.4_
+
+  - [ ] 14.2 Create TriggerTerminalResize helper method
+    - Extract terminal resize logic from HandleWindowResize
+    - Make it reusable for both window resize and font change scenarios
+    - Maintain cursor position accuracy during resize
+    - _Requirements: 10.3, 10.5_
+
+  - [ ] 14.3 Write property test for automatic terminal resize
+    - **Property 11: Font changes trigger terminal dimension recalculation**
+    - **Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5**
+
+- [ ] 15. Final integration and validation of font fixes
+  - [ ] 15.1 Manual validation: Test font size changes trigger terminal resize
+    - **Developer validation**: Verify zoom in/out immediately recalculates terminal dimensions
+    - **Developer validation**: Confirm no manual window resize needed after font changes
+    - **Developer validation**: Test cursor position maintained during font-triggered resize
+    - _Requirements: 10.1, 10.2, 10.3_
+
+  - [ ] 15.2 Manual validation: Verify single font configuration source
+    - **Developer validation**: Confirm only TerminalFontConfig contains font settings
+    - **Developer validation**: Verify no duplicate font configuration in TerminalSettings
+    - **Developer validation**: Test font changes work correctly with consolidated configuration
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [ ] 16. Final checkpoint - Ensure all font configuration fixes work correctly
+  - Ensure all property tests pass, ask the user if questions arise.
+  - **Developer validation**: Manually verify font size changes and terminal resize behavior
 
 ## Notes
 

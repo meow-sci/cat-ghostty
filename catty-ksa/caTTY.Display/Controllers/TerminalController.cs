@@ -19,6 +19,122 @@ using float4 = Brutal.Numerics.float4;
 namespace caTTY.Display.Controllers;
 
 /// <summary>
+///     Layout constants for the terminal window design.
+///     Defines heights, spacing, and dimensions for the structured layout with constrained variable sizing.
+/// </summary>
+public static class LayoutConstants
+{
+    /// <summary>Height of the menu bar area in pixels (fixed)</summary>
+    public const float MENU_BAR_HEIGHT = 25.0f;
+    
+    /// <summary>Fixed height of the tab area in pixels for single terminal</summary>
+    public const float TAB_AREA_HEIGHT = 50.0f;
+    
+    /// <summary>Minimum height of the tab area in pixels</summary>
+    public const float MIN_TAB_AREA_HEIGHT = 30.0f;
+    
+    /// <summary>Maximum height of the tab area in pixels</summary>
+    public const float MAX_TAB_AREA_HEIGHT = 60.0f;
+    
+    /// <summary>Height per additional tab beyond the first</summary>
+    public const float TAB_HEIGHT_PER_EXTRA_TAB = 0.0f; // Single row of tabs
+    
+    /// <summary>Minimum height of the settings area in pixels</summary>
+    public const float MIN_SETTINGS_AREA_HEIGHT = 40.0f;
+    
+    /// <summary>Maximum height of the settings area in pixels</summary>
+    public const float MAX_SETTINGS_AREA_HEIGHT = 80.0f;
+    
+    /// <summary>Height per additional settings control row</summary>
+    public const float SETTINGS_HEIGHT_PER_CONTROL_ROW = 25.0f;
+    
+    /// <summary>Width of the add button in the tab area</summary>
+    public const float ADD_BUTTON_WIDTH = 30.0f;
+    
+    /// <summary>General spacing between UI elements</summary>
+    public const float ELEMENT_SPACING = 5.0f;
+    
+    /// <summary>Window padding for content areas</summary>
+    public const float WINDOW_PADDING = 10.0f;
+    
+    /// <summary>Minimum window width for proper layout</summary>
+    public const float MIN_WINDOW_WIDTH = 400.0f;
+    
+    /// <summary>Minimum window height for proper layout</summary>
+    public const float MIN_WINDOW_HEIGHT = 200.0f;
+    
+    /// <summary>Maximum reasonable font size for validation</summary>
+    public const float MAX_FONT_SIZE = 72.0f;
+    
+    /// <summary>Minimum reasonable font size for validation</summary>
+    public const float MIN_FONT_SIZE = 8.0f;
+}
+
+/// <summary>
+///     Terminal-specific settings for future multi-terminal support.
+///     Contains configuration options that apply to individual terminal instances.
+/// </summary>
+public class TerminalSettings
+{
+    /// <summary>Font size for this terminal instance</summary>
+    public float FontSize { get; set; } = 32.0f;
+    
+    /// <summary>Font name for this terminal instance</summary>
+    public string FontName { get; set; } = "HackNerdFontMono-Regular";
+    
+    /// <summary>Whether to show line numbers (future feature)</summary>
+    public bool ShowLineNumbers { get; set; } = false;
+    
+    /// <summary>Whether to enable word wrap (future feature)</summary>
+    public bool WordWrap { get; set; } = false;
+    
+    /// <summary>Terminal title for tab display</summary>
+    public string Title { get; set; } = "Terminal 1";
+    
+    /// <summary>Whether this terminal instance is active</summary>
+    public bool IsActive { get; set; } = true;
+    
+    /// <summary>
+    /// Validates the terminal settings for consistency and reasonable values.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when settings contain invalid values</exception>
+    public void Validate()
+    {
+        if (FontSize < LayoutConstants.MIN_FONT_SIZE || FontSize > LayoutConstants.MAX_FONT_SIZE)
+        {
+            throw new ArgumentException($"FontSize must be between {LayoutConstants.MIN_FONT_SIZE} and {LayoutConstants.MAX_FONT_SIZE}, got {FontSize}");
+        }
+        
+        if (string.IsNullOrWhiteSpace(FontName))
+        {
+            throw new ArgumentException("FontName cannot be null or empty");
+        }
+        
+        if (string.IsNullOrWhiteSpace(Title))
+        {
+            throw new ArgumentException("Title cannot be null or empty");
+        }
+    }
+    
+    /// <summary>
+    /// Creates a copy of the current settings.
+    /// </summary>
+    /// <returns>A new TerminalSettings instance with the same values</returns>
+    public TerminalSettings Clone()
+    {
+        return new TerminalSettings
+        {
+            FontSize = FontSize,
+            FontName = FontName,
+            ShowLineNumbers = ShowLineNumbers,
+            WordWrap = WordWrap,
+            Title = Title,
+            IsActive = IsActive
+        };
+    }
+}
+
+/// <summary>
 ///     ImGui terminal controller that handles display and input for the terminal emulator.
 ///     This is the shared controller implementation that is used by both the TestApp and GameMod.
 /// </summary>
@@ -73,6 +189,9 @@ public class TerminalController : ITerminalController
 
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
+
+  // Terminal settings for current instance (preparation for multi-terminal support)
+  private TerminalSettings _currentTerminalSettings = new();
 
   private static int _numFocusedTerminals = 0;
   private static int _numVisibleTerminals = 0;
@@ -312,8 +431,8 @@ public class TerminalController : ITerminalController
 
     try
     {
-      // Create terminal window
-      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+      // Create terminal window with menu bar
+      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar);
 
       // Track focus state and detect changes
       bool currentFocus = ImGui.IsWindowFocused();
@@ -322,6 +441,12 @@ public class TerminalController : ITerminalController
       // CRITICAL: Manage ImGui input capture based on terminal focus
       // This ensures the game doesn't process keyboard input when terminal is focused
       ManageInputCapture();
+
+      // Render menu bar
+      RenderMenuBar();
+
+      // Render tab area
+      RenderTabArea();
 
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
@@ -1142,6 +1267,7 @@ public class TerminalController : ITerminalController
   /// <summary>
   ///     Calculates optimal terminal dimensions based on available window space.
   ///     Uses character metrics to determine how many columns and rows can fit.
+  ///     Accounts for the complete UI layout structure: menu bar, tab area, terminal info, and padding.
   ///     Matches the approach used in the TypeScript implementation and playground experiments.
   /// </summary>
   /// <param name="availableSize">The available window content area size</param>
@@ -1150,12 +1276,22 @@ public class TerminalController : ITerminalController
   {
     try
     {
-      // Reserve space for UI elements (terminal info line, separator, padding)
-      const float UI_OVERHEAD_HEIGHT = 60.0f; // Approximate height of info line + separator + padding
+      // Calculate UI overhead: original terminal info + new menu bar + tab area
+      // Original calculation was 60.0f for terminal info + separator + padding
+      // Now add menu bar (25.0f) + tab area (50.0f) = +75.0f
+      const float ORIGINAL_UI_OVERHEAD = 60.0f; // Original: terminal info + separator + padding
+      float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
+      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
+      
+      float totalUIOverheadHeight = ORIGINAL_UI_OVERHEAD + menuBarHeight + tabAreaHeight;
+      
+      // Debug logging for UI overhead calculation
+      // Console.WriteLine($"TerminalController: UI Overhead - Original: {ORIGINAL_UI_OVERHEAD}, Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Total: {totalUIOverheadHeight}");
+      
       const float PADDING_WIDTH = 20.0f; // Horizontal padding
 
       float availableWidth = availableSize.X - PADDING_WIDTH;
-      float availableHeight = availableSize.Y - UI_OVERHEAD_HEIGHT;
+      float availableHeight = availableSize.Y - totalUIOverheadHeight;
 
       // Ensure we have positive dimensions
       if (availableWidth <= 0 || availableHeight <= 0)
@@ -1176,6 +1312,10 @@ public class TerminalController : ITerminalController
       // Apply reasonable bounds (matching TypeScript validation)
       cols = Math.Max(10, Math.Min(1000, cols));
       rows = Math.Max(3, Math.Min(1000, rows));
+
+      // Reduce rows by 1 to account for ImGui widget spacing that causes bottom clipping
+      // This prevents the bottom row from being cut off due to ImGui layout overhead
+      rows = Math.Max(3, rows - 1);
 
       return (cols, rows);
     }
@@ -2732,5 +2872,556 @@ public class TerminalController : ITerminalController
   {
     ResetCursorToThemeDefaults();
   }
+
+  #region Layout Helper Methods
+
+  /// <summary>
+  /// Calculates the current tab area height based on the number of terminal instances.
+  /// Uses constrained sizing to prevent excessive height growth.
+  /// </summary>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1 for current single terminal)</param>
+  /// <returns>Tab area height in pixels</returns>
+  private static float CalculateTabAreaHeight(int tabCount = 1)
+  {
+    float baseHeight = LayoutConstants.MIN_TAB_AREA_HEIGHT;
+    float extraHeight = Math.Max(0, (tabCount - 1) * LayoutConstants.TAB_HEIGHT_PER_EXTRA_TAB);
+    return Math.Min(LayoutConstants.MAX_TAB_AREA_HEIGHT, baseHeight + extraHeight);
+  }
+
+  /// <summary>
+  /// Calculates the current settings area height based on the number of control rows.
+  /// Uses constrained sizing to prevent excessive height growth.
+  /// </summary>
+  /// <param name="controlRows">Number of control rows (defaults to 1 for basic settings)</param>
+  /// <returns>Settings area height in pixels</returns>
+  private static float CalculateSettingsAreaHeight(int controlRows = 1)
+  {
+    float baseHeight = LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
+    float extraHeight = Math.Max(0, (controlRows - 1) * LayoutConstants.SETTINGS_HEIGHT_PER_CONTROL_ROW);
+    return Math.Min(LayoutConstants.MAX_SETTINGS_AREA_HEIGHT, baseHeight + extraHeight);
+  }
+
+  /// <summary>
+  /// Calculates the total height of all header areas (menu bar, tab area, settings area).
+  /// Uses current terminal state to determine variable area heights.
+  /// </summary>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
+  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
+  /// <returns>Total height of header areas in pixels</returns>
+  private static float CalculateHeaderHeight(int tabCount = 1, int settingsControlRows = 1)
+  {
+    return LayoutConstants.MENU_BAR_HEIGHT + 
+           CalculateTabAreaHeight(tabCount) + 
+           CalculateSettingsAreaHeight(settingsControlRows);
+  }
+
+  /// <summary>
+  /// Calculates the minimum possible header height (all areas at minimum size).
+  /// Used for minimum window size calculations and initial estimates.
+  /// </summary>
+  /// <returns>Minimum header height in pixels</returns>
+  private static float CalculateMinHeaderHeight()
+  {
+    return LayoutConstants.MENU_BAR_HEIGHT + 
+           LayoutConstants.MIN_TAB_AREA_HEIGHT + 
+           LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
+  }
+
+  /// <summary>
+  /// Calculates the maximum possible header height (all areas at maximum size).
+  /// Used for layout validation and bounds checking.
+  /// </summary>
+  /// <returns>Maximum header height in pixels</returns>
+  private static float CalculateMaxHeaderHeight()
+  {
+    return LayoutConstants.MENU_BAR_HEIGHT + 
+           LayoutConstants.MAX_TAB_AREA_HEIGHT + 
+           LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
+  }
+
+  /// <summary>
+  /// Calculates the available space for the terminal canvas after accounting for header areas.
+  /// Uses current header configuration for accurate space calculation.
+  /// </summary>
+  /// <param name="windowSize">Total window size</param>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
+  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
+  /// <returns>Available size for terminal canvas</returns>
+  private static float2 CalculateTerminalCanvasSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1)
+  {
+    float headerHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
+    float availableWidth = Math.Max(0, windowSize.X - LayoutConstants.WINDOW_PADDING * 2);
+    float availableHeight = Math.Max(0, windowSize.Y - headerHeight - LayoutConstants.WINDOW_PADDING * 2);
+    
+    return new float2(availableWidth, availableHeight);
+  }
+
+  /// <summary>
+  /// Validates that window dimensions are sufficient for the layout with current configuration.
+  /// Accounts for variable header heights in validation.
+  /// </summary>
+  /// <param name="windowSize">Window size to validate</param>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
+  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
+  /// <returns>True if window size is valid for layout</returns>
+  private static bool ValidateWindowSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1)
+  {
+    // Check basic minimum dimensions
+    if (windowSize.X < LayoutConstants.MIN_WINDOW_WIDTH || 
+        windowSize.Y < LayoutConstants.MIN_WINDOW_HEIGHT)
+    {
+      return false;
+    }
+
+    // Check that window can accommodate current header configuration
+    float currentHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
+    float minRequiredHeight = currentHeaderHeight + LayoutConstants.WINDOW_PADDING * 2 + 50.0f; // 50px minimum for terminal content
+    
+    return windowSize.Y >= minRequiredHeight;
+  }
+
+  /// <summary>
+  /// Calculates the position for the terminal canvas area.
+  /// Accounts for current header height configuration.
+  /// </summary>
+  /// <param name="windowPos">Window position</param>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
+  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
+  /// <returns>Position where terminal canvas should be rendered</returns>
+  private static float2 CalculateTerminalCanvasPosition(float2 windowPos, int tabCount = 1, int settingsControlRows = 1)
+  {
+    float headerHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
+    return new float2(
+      windowPos.X + LayoutConstants.WINDOW_PADDING,
+      windowPos.Y + headerHeight + LayoutConstants.WINDOW_PADDING
+    );
+  }
+
+  /// <summary>
+  /// Calculates optimal terminal dimensions using two-pass approach for stability.
+  /// Prevents sizing oscillation by using conservative estimates.
+  /// </summary>
+  /// <param name="windowSize">Current window size</param>
+  /// <param name="charWidth">Character width in pixels</param>
+  /// <param name="lineHeight">Line height in pixels</param>
+  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
+  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
+  /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
+  private static (int cols, int rows)? CalculateOptimalTerminalDimensions(
+    float2 windowSize, 
+    float charWidth, 
+    float lineHeight,
+    int tabCount = 1, 
+    int settingsControlRows = 1)
+  {
+    try
+    {
+      // Validate inputs
+      if (charWidth <= 0 || lineHeight <= 0 || windowSize.X <= 0 || windowSize.Y <= 0)
+      {
+        return null;
+      }
+
+      // Pass 1: Estimate with minimum header height for conservative sizing
+      float minHeaderHeight = CalculateMinHeaderHeight();
+      float estimatedAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
+      float estimatedAvailableHeight = windowSize.Y - minHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
+      
+      if (estimatedAvailableWidth <= 0 || estimatedAvailableHeight <= 0)
+      {
+        return null;
+      }
+
+      int estimatedCols = (int)Math.Floor(estimatedAvailableWidth / charWidth);
+      int estimatedRows = (int)Math.Floor(estimatedAvailableHeight / lineHeight);
+
+      // Pass 2: Calculate with actual header height
+      float actualHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
+      float actualAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
+      float actualAvailableHeight = windowSize.Y - actualHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
+      
+      if (actualAvailableWidth <= 0 || actualAvailableHeight <= 0)
+      {
+        return null;
+      }
+
+      int actualCols = (int)Math.Floor(actualAvailableWidth / charWidth);
+      int actualRows = (int)Math.Floor(actualAvailableHeight / lineHeight);
+
+      // Use the more conservative (smaller) result to prevent oscillation
+      int finalCols = Math.Min(estimatedCols, actualCols);
+      int finalRows = Math.Min(estimatedRows, actualRows);
+
+      // Apply reasonable bounds
+      finalCols = Math.Max(10, Math.Min(1000, finalCols));
+      finalRows = Math.Max(3, Math.Min(1000, finalRows));
+
+      return (finalCols, finalRows);
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error calculating optimal terminal dimensions: {ex.Message}");
+      return null;
+    }
+  }
+
+  /// <summary>
+  /// Gets the current terminal settings instance.
+  /// </summary>
+  /// <returns>Current terminal settings</returns>
+  public TerminalSettings GetCurrentTerminalSettings()
+  {
+    return _currentTerminalSettings.Clone();
+  }
+
+  /// <summary>
+  /// Updates the current terminal settings and applies changes.
+  /// </summary>
+  /// <param name="newSettings">New settings to apply</param>
+  /// <exception cref="ArgumentNullException">Thrown when newSettings is null</exception>
+  /// <exception cref="ArgumentException">Thrown when newSettings contains invalid values</exception>
+  public void UpdateTerminalSettings(TerminalSettings newSettings)
+  {
+    if (newSettings == null)
+    {
+      throw new ArgumentNullException(nameof(newSettings));
+    }
+
+    // Validate settings before applying
+    newSettings.Validate();
+
+    // Store previous settings for comparison
+    var previousSettings = _currentTerminalSettings.Clone();
+
+    try
+    {
+      // Update settings
+      _currentTerminalSettings = newSettings.Clone();
+
+      // Apply font changes if font size or name changed
+      if (Math.Abs(previousSettings.FontSize - newSettings.FontSize) > 0.1f ||
+          previousSettings.FontName != newSettings.FontName)
+      {
+        var newFontConfig = new TerminalFontConfig
+        {
+          FontSize = newSettings.FontSize,
+          RegularFontName = newSettings.FontName,
+          BoldFontName = _fontConfig.BoldFontName,
+          ItalicFontName = _fontConfig.ItalicFontName,
+          BoldItalicFontName = _fontConfig.BoldItalicFontName,
+          AutoDetectContext = _fontConfig.AutoDetectContext
+        };
+        UpdateFontConfig(newFontConfig);
+      }
+
+      Console.WriteLine($"TerminalController: Terminal settings updated successfully");
+    }
+    catch (Exception ex)
+    {
+      // Restore previous settings on failure
+      _currentTerminalSettings = previousSettings;
+      Console.WriteLine($"TerminalController: Failed to update terminal settings: {ex.Message}");
+      throw;
+    }
+  }
+
+  #endregion
+
+  #region Menu Bar Rendering
+
+  /// <summary>
+  /// Renders the menu bar with File, Edit, and View menus.
+  /// Uses ImGui menu widgets to provide standard menu functionality.
+  /// </summary>
+  private void RenderMenuBar()
+  {
+    if (ImGui.BeginMenuBar())
+    {
+      try
+      {
+        RenderFileMenu();
+        RenderEditMenu();
+        RenderViewMenu();
+      }
+      finally
+      {
+        ImGui.EndMenuBar();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Renders the File menu with terminal management options.
+  /// </summary>
+  private void RenderFileMenu()
+  {
+    if (ImGui.BeginMenu("File"))
+    {
+      try
+      {
+        // New Terminal - disabled for single terminal phase
+        if (ImGui.MenuItem("New Terminal", "Ctrl+Shift+T", false, false))
+        {
+          ShowNotImplementedMessage("Multi-terminal support");
+        }
+
+        // Close Terminal - disabled for single terminal phase
+        if (ImGui.MenuItem("Close Terminal", "Ctrl+Shift+W", false, false))
+        {
+          ShowNotImplementedMessage("Multi-terminal support");
+        }
+
+        ImGui.Separator();
+
+        // Exit - closes the terminal window
+        if (ImGui.MenuItem("Exit", "Alt+F4"))
+        {
+          _isVisible = false;
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Renders the Edit menu with text operations.
+  /// </summary>
+  private void RenderEditMenu()
+  {
+    if (ImGui.BeginMenu("Edit"))
+    {
+      try
+      {
+        // Copy - enabled only when selection exists
+        bool hasSelection = !_currentSelection.IsEmpty;
+        if (ImGui.MenuItem("Copy", "Ctrl+C", false, hasSelection))
+        {
+          CopySelectionToClipboard();
+        }
+
+        // Paste - always enabled
+        if (ImGui.MenuItem("Paste", "Ctrl+V"))
+        {
+          PasteFromClipboard();
+        }
+
+        // Select All - always enabled
+        if (ImGui.MenuItem("Select All", "Ctrl+A"))
+        {
+          SelectAllText();
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Renders the View menu with zoom controls.
+  /// </summary>
+  private void RenderViewMenu()
+  {
+    if (ImGui.BeginMenu("View"))
+    {
+      try
+      {
+        // Reset Zoom
+        if (ImGui.MenuItem("Reset Zoom", "Ctrl+0"))
+        {
+          ResetFontSize();
+        }
+
+        // Zoom In
+        if (ImGui.MenuItem("Zoom In", "Ctrl++"))
+        {
+          IncreaseFontSize();
+        }
+
+        // Zoom Out
+        if (ImGui.MenuItem("Zoom Out", "Ctrl+-"))
+        {
+          DecreaseFontSize();
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Shows a message for not-yet-implemented features.
+  /// </summary>
+  /// <param name="feature">The feature name to display</param>
+  private void ShowNotImplementedMessage(string feature)
+  {
+    Console.WriteLine($"TerminalController: {feature} not implemented in this phase");
+    // Future: Could show ImGui popup
+  }
+
+  /// <summary>
+  /// Renders the tab area with single tab and add button.
+  /// Displays the current terminal instance tab and a "+" button for future multi-terminal support.
+  /// Uses proper spacing and sizing calculations to maintain consistent layout.
+  /// </summary>
+  private void RenderTabArea()
+  {
+    try
+    {
+      // Get available width for tab area
+      float availableWidth = ImGui.GetContentRegionAvail().X;
+      
+      // Calculate dimensions using fixed tab area height
+      float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
+      float spacing = LayoutConstants.ELEMENT_SPACING;
+      float tabWidth = Math.Max(100.0f, availableWidth - addButtonWidth - spacing);
+      
+      // Use fixed tab area height for consistent layout
+      float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
+      
+      // Create a child region for the tab area to maintain consistent height
+      if (ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar))
+      {
+        try
+        {
+          // Single tab representing current terminal instance
+          ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.2f, 0.3f, 0.5f, 1.0f)); // Active tab color
+          ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.3f, 0.4f, 0.6f, 1.0f)); // Hover color
+          ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.1f, 0.2f, 0.4f, 1.0f)); // Pressed color
+          
+          try
+          {
+            // Display the terminal tab with title from settings
+            string tabLabel = $"{_currentTerminalSettings.Title}##tab_0";
+            if (ImGui.Button(tabLabel, new float2(tabWidth, tabHeight - 5.0f)))
+            {
+              // Tab is already active (single terminal), no action needed
+              // Future: Switch to this terminal when multi-terminal is implemented
+            }
+          }
+          finally
+          {
+            ImGui.PopStyleColor(3); // Pop all three colors
+          }
+          
+          // Add button on the right
+          ImGui.SameLine();
+          if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
+          {
+            ShowNotImplementedMessage("Multi-terminal support will be added in a future phase");
+          }
+          
+          // Show tooltip on add button hover
+          if (ImGui.IsItemHovered())
+          {
+            ImGui.SetTooltip("Add new terminal (Coming soon)");
+          }
+        }
+        finally
+        {
+          ImGui.EndChild();
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error rendering tab area: {ex.Message}");
+      
+      // Fallback: render a simple text indicator if tab rendering fails
+      ImGui.Text("Terminal 1");
+      ImGui.SameLine();
+      ImGui.Text("[+]");
+    }
+  }
+
+  /// <summary>
+  /// Pastes text from the clipboard to the terminal.
+  /// </summary>
+  private void PasteFromClipboard()
+  {
+    try
+    {
+      string? clipboardText = ClipboardManager.GetText();
+      if (!string.IsNullOrEmpty(clipboardText))
+      {
+        SendToProcess(clipboardText);
+        Console.WriteLine($"TerminalController: Pasted {clipboardText.Length} characters from clipboard");
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error pasting from clipboard: {ex.Message}");
+    }
+  }
+
+  /// <summary>
+  /// Selects all text in the terminal.
+  /// </summary>
+  private void SelectAllText()
+  {
+    SelectAllVisibleContent();
+  }
+
+  /// <summary>
+  /// Resets the font size to the default value.
+  /// </summary>
+  private void ResetFontSize()
+  {
+    try
+    {
+      var newSettings = _currentTerminalSettings.Clone();
+      newSettings.FontSize = 32.0f; // Default font size
+      UpdateTerminalSettings(newSettings);
+      Console.WriteLine("TerminalController: Font size reset to default");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error resetting font size: {ex.Message}");
+    }
+  }
+
+  /// <summary>
+  /// Increases the font size by 2 points.
+  /// </summary>
+  private void IncreaseFontSize()
+  {
+    try
+    {
+      var newSettings = _currentTerminalSettings.Clone();
+      newSettings.FontSize = Math.Min(LayoutConstants.MAX_FONT_SIZE, newSettings.FontSize + 1.0f);
+      UpdateTerminalSettings(newSettings);
+      Console.WriteLine($"TerminalController: Font size increased to {newSettings.FontSize}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error increasing font size: {ex.Message}");
+    }
+  }
+
+  /// <summary>
+  /// Decreases the font size by 2 points.
+  /// </summary>
+  private void DecreaseFontSize()
+  {
+    try
+    {
+      var newSettings = _currentTerminalSettings.Clone();
+      newSettings.FontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, newSettings.FontSize - 1.0f);
+      UpdateTerminalSettings(newSettings);
+      Console.WriteLine($"TerminalController: Font size decreased to {newSettings.FontSize}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error decreasing font size: {ex.Message}");
+    }
+  }
+
+  #endregion
 
 }

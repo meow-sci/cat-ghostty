@@ -186,7 +186,7 @@ private void RenderTabArea()
 ```csharp
 private void RenderSettingsArea()
 {
-    // Font size controls
+    // Font size controls - using TerminalFontConfig directly
     ImGui.Text("Font Size:");
     ImGui.SameLine();
     
@@ -195,8 +195,16 @@ private void RenderSettingsArea()
     {
         if (Math.Abs(currentSize - _fontConfig.FontSize) > 0.1f)
         {
-            var newConfig = _fontConfig with { FontSize = currentSize };
-            UpdateFontConfig(newConfig);
+            var newConfig = new TerminalFontConfig
+            {
+                FontSize = currentSize,
+                RegularFontName = _fontConfig.RegularFontName,
+                BoldFontName = _fontConfig.BoldFontName,
+                ItalicFontName = _fontConfig.ItalicFontName,
+                BoldItalicFontName = _fontConfig.BoldItalicFontName,
+                AutoDetectContext = _fontConfig.AutoDetectContext
+            };
+            UpdateFontConfig(newConfig); // Will trigger automatic terminal resize
         }
     }
     
@@ -289,17 +297,108 @@ private static class LayoutConstants
 ### Settings State
 ```csharp
 // Terminal-specific settings (for future multi-terminal support)
+// Font configuration removed - now handled by TerminalFontConfig only
 private class TerminalSettings
 {
-    public float FontSize { get; set; }
-    public string FontName { get; set; } = "HackNerdFontMono-Regular";
     public bool ShowLineNumbers { get; set; } = false;
     public bool WordWrap { get; set; } = false;
+    public string Title { get; set; } = "Terminal 1";
+    public bool IsActive { get; set; } = true;
     
-    // Future: Color scheme, cursor style, etc.
+    // FontSize and FontName removed - use TerminalFontConfig instead
 }
 
-private TerminalSettings _currentTerminalSettings = new();
+// Single source of truth for font configuration
+private TerminalFontConfig _fontConfig;
+```
+
+### Font Configuration Consolidation
+
+The current implementation has duplicate font configuration storage:
+- `TerminalFontConfig _fontConfig` (existing, proper location)
+- `TerminalSettings _currentTerminalSettings` (contains duplicate FontSize/FontName)
+
+**Solution**: Remove font-related properties from `TerminalSettings` and use only `TerminalFontConfig`:
+
+```csharp
+// BEFORE (problematic):
+private void IncreaseFontSize()
+{
+    var newSettings = _currentTerminalSettings.Clone();
+    newSettings.FontSize = Math.Min(MAX_FONT_SIZE, newSettings.FontSize + 1.0f);
+    UpdateTerminalSettings(newSettings); // Creates new TerminalFontConfig
+}
+
+// AFTER (consolidated):
+private void IncreaseFontSize()
+{
+    var newFontConfig = new TerminalFontConfig
+    {
+        FontSize = Math.Min(MAX_FONT_SIZE, _fontConfig.FontSize + 1.0f),
+        RegularFontName = _fontConfig.RegularFontName,
+        BoldFontName = _fontConfig.BoldFontName,
+        ItalicFontName = _fontConfig.ItalicFontName,
+        BoldItalicFontName = _fontConfig.BoldItalicFontName,
+        AutoDetectContext = _fontConfig.AutoDetectContext
+    };
+    UpdateFontConfig(newFontConfig);
+    TriggerTerminalResize(); // NEW: Automatic resize
+}
+```
+
+### Automatic Terminal Resize on Font Changes
+
+**Problem**: Font size changes don't trigger terminal dimension recalculation, requiring manual window resize.
+
+**Solution**: Add terminal resize trigger to `UpdateFontConfig` method:
+
+```csharp
+public void UpdateFontConfig(TerminalFontConfig newFontConfig)
+{
+    // ... existing validation and font loading logic ...
+    
+    // NEW: Trigger terminal resize after font metrics change
+    if (Math.Abs(_fontConfig.FontSize - newFontConfig.FontSize) > 0.1f)
+    {
+        _fontConfig = newFontConfig;
+        
+        // Reload fonts and recalculate metrics
+        LoadFonts();
+        CalculateCharacterMetrics();
+        
+        // Trigger terminal resize with new character metrics
+        TriggerTerminalResize();
+    }
+}
+
+private void TriggerTerminalResize()
+{
+    try
+    {
+        // Get current window size
+        float2 currentWindowSize = ImGui.GetWindowSize();
+        
+        // Calculate new terminal dimensions with updated character metrics
+        var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+        if (!newDimensions.HasValue) return;
+        
+        var (newCols, newRows) = newDimensions.Value;
+        
+        // Apply resize if dimensions changed
+        if (newCols != _terminal.Width || newRows != _terminal.Height)
+        {
+            _terminal.Resize(newCols, newRows);
+            if (_processManager.IsRunning)
+            {
+                _processManager.Resize(newCols, newRows);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"TerminalController: Error during font-triggered resize: {ex.Message}");
+    }
+}
 ```
 
 ## Correctness Properties
@@ -349,6 +448,14 @@ After analyzing all acceptance criteria, several properties can be consolidated:
 ### Property 9: Info Bar Integration
 *For any* terminal state change (resize, process status change), the info bar information should be displayed in the settings area and update dynamically without interfering with other elements
 **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
+
+### Property 10: Font Configuration Consolidation
+*For any* font configuration operation, only the TerminalFontConfig object should be used for storing and managing font size and font name, with no duplicate storage in other configuration objects
+**Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
+
+### Property 11: Automatic Terminal Resize on Font Changes
+*For any* font size change operation, the terminal row and column dimensions should be recalculated and applied immediately without requiring manual window resize
+**Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5**
 
 ## Error Handling
 

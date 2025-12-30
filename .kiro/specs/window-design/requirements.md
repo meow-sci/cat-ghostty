@@ -111,3 +111,27 @@ This specification defines the redesign of the ImGui terminal window interface t
 3. THE Settings_Area SHALL use appropriate ImGui widgets for each control type
 4. THE Terminal_Canvas SHALL maintain current ImGui rendering approach
 5. THE Terminal_Window SHALL follow ImGui layout and styling conventions
+
+### Requirement 9: Font Configuration Consolidation
+
+**User Story:** As a developer, I want a single source of truth for font configuration, so that font settings are consistent and not duplicated across multiple objects.
+
+#### Acceptance Criteria
+
+1. THE Terminal_Window SHALL use only TerminalFontConfig for font size and font name storage
+2. THE Terminal_Window SHALL remove duplicate font configuration from TerminalSettings class
+3. WHEN font configuration changes, THE Terminal_Window SHALL update the single TerminalFontConfig instance
+4. THE Terminal_Window SHALL maintain backward compatibility with existing TerminalFontConfig usage
+5. THE Terminal_Window SHALL eliminate confusion between multiple font configuration objects
+
+### Requirement 10: Automatic Terminal Resize on Font Changes
+
+**User Story:** As a terminal user, I want the terminal dimensions to automatically adjust when I change font size, so that I don't need to manually resize the window to see the effect.
+
+#### Acceptance Criteria
+
+1. WHEN font size changes through zoom menu items, THE Terminal_Window SHALL recalculate terminal row and column dimensions
+2. WHEN font configuration is updated, THE Terminal_Window SHALL trigger terminal resize calculation immediately
+3. THE Terminal_Window SHALL maintain cursor position accuracy during font-triggered resizes
+4. THE Terminal_Window SHALL update both the headless terminal and PTY process dimensions after font changes
+5. THE Terminal_Window SHALL provide the same resize behavior as manual window resizing
