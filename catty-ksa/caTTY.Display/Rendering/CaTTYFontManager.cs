@@ -1,6 +1,7 @@
 using System.Reflection;
 using Brutal.ImGuiApi;
 using KSA;
+using caTTY.Display.Configuration;
 
 namespace caTTY.Display.Rendering;
 
@@ -10,7 +11,9 @@ namespace caTTY.Display.Rendering;
 public class CaTTYFontManager
 {
   public static Dictionary<string, ImFontPtr> LoadedFonts = new();
+  private static readonly Dictionary<string, FontFamilyDefinition> _fontRegistry = new();
   private static bool _fontsLoaded;
+  private static bool _registryInitialized;
 
 
   /// <summary>
@@ -92,11 +95,91 @@ public class CaTTYFontManager
         }
       }
 
+      // Initialize font registry after loading fonts
+      InitializeFontRegistry();
+
       _fontsLoaded = true;
     }
     catch (Exception ex)
     {
       Console.WriteLine($"CaTTYFontManager: Error loading fonts: {ex.Message}");
     }
+  }
+
+  /// <summary>
+  /// Initializes the font registry with hardcoded font family definitions.
+  /// Called automatically during font loading process.
+  /// </summary>
+  private static void InitializeFontRegistry()
+  {
+    if (_registryInitialized) return;
+
+    Console.WriteLine("CaTTYFontManager: Initializing font registry...");
+
+    // Register fonts with all 4 variants
+    RegisterFontFamily("Jet Brains Mono", "JetBrainsMonoNerdFontMono", 
+      hasRegular: true, hasBold: true, hasItalic: true, hasBoldItalic: true);
+    RegisterFontFamily("Space Mono", "SpaceMonoNerdFontMono", 
+      hasRegular: true, hasBold: true, hasItalic: true, hasBoldItalic: true);
+    RegisterFontFamily("Hack", "HackNerdFontMono", 
+      hasRegular: true, hasBold: true, hasItalic: true, hasBoldItalic: true);
+
+    // Register fonts with Regular variant only
+    RegisterFontFamily("Pro Font", "ProFontWindowsNerdFontMono", 
+      hasRegular: true, hasBold: false, hasItalic: false, hasBoldItalic: false);
+    RegisterFontFamily("Proggy Clean", "ProggyCleanNerdFontMono", 
+      hasRegular: true, hasBold: false, hasItalic: false, hasBoldItalic: false);
+    RegisterFontFamily("Shure Tech Mono", "ShureTechMonoNerdFontMono", 
+      hasRegular: true, hasBold: false, hasItalic: false, hasBoldItalic: false);
+    RegisterFontFamily("Departure Mono", "DepartureMonoNerdFont", 
+      hasRegular: true, hasBold: false, hasItalic: false, hasBoldItalic: false);
+
+    Console.WriteLine($"CaTTYFontManager: Font registry initialized with {_fontRegistry.Count} font families");
+    _registryInitialized = true;
+  }
+
+  /// <summary>
+  /// Registers a font family in the registry with its display name and variant availability.
+  /// </summary>
+  /// <param name="displayName">User-friendly display name for the font family.</param>
+  /// <param name="fontBaseName">Base name used for font file naming.</param>
+  /// <param name="hasRegular">Whether the Regular variant is available.</param>
+  /// <param name="hasBold">Whether the Bold variant is available.</param>
+  /// <param name="hasItalic">Whether the Italic variant is available.</param>
+  /// <param name="hasBoldItalic">Whether the BoldItalic variant is available.</param>
+  private static void RegisterFontFamily(string displayName, string fontBaseName, 
+    bool hasRegular = true, bool hasBold = false, bool hasItalic = false, bool hasBoldItalic = false)
+  {
+    var definition = new FontFamilyDefinition
+    {
+      DisplayName = displayName,
+      FontBaseName = fontBaseName,
+      HasRegular = hasRegular,
+      HasBold = hasBold,
+      HasItalic = hasItalic,
+      HasBoldItalic = hasBoldItalic
+    };
+
+    _fontRegistry[displayName] = definition;
+    Console.WriteLine($"CaTTYFontManager: Registered font family: {displayName} -> {fontBaseName}");
+  }
+
+  /// <summary>
+  /// Gets a read-only list of available font family display names.
+  /// </summary>
+  /// <returns>A read-only list of display names for all registered font families.</returns>
+  public static IReadOnlyList<string> GetAvailableFontFamilies()
+  {
+    return _fontRegistry.Keys.ToList().AsReadOnly();
+  }
+
+  /// <summary>
+  /// Gets the font family definition for the specified display name.
+  /// </summary>
+  /// <param name="displayName">The display name of the font family to look up.</param>
+  /// <returns>The FontFamilyDefinition if found, null otherwise.</returns>
+  public static FontFamilyDefinition? GetFontFamilyDefinition(string displayName)
+  {
+    return _fontRegistry.TryGetValue(displayName, out var definition) ? definition : null;
   }
 }
