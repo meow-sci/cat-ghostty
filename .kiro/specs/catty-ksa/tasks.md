@@ -207,8 +207,8 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test integration with standard SGR sequences
   - _Requirements: Parser integration, intermediate character validation_
 
-- [ ] 17. Implement mouse reporting mode sequences
-- [ ] 17.1 Add mouse reporting mode parsing to CsiParser
+- [x] 17. Implement mouse reporting mode sequences
+- [x] 17.1 Add mouse reporting mode parsing to CsiParser
   - Add parsing for mouse reporting mode sequences (CSI ? 1000 h/l, etc.)
   - Create CsiMessage type for mouse reporting operations
   - Add mode parameter validation and handling
@@ -216,7 +216,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for mouse reporting parsing
   - _Requirements: Mouse input support, mode management_
 
-- [ ] 17.2 Implement mouse reporting mode state tracking
+- [x] 17.2 Implement mouse reporting mode state tracking
   - Add mouse reporting mode state to terminal mode management
   - Track different mouse reporting modes (none, basic, extended, SGR)
   - Add mode switching and validation logic
@@ -224,7 +224,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts mouse reporting handling
   - _Requirements: Mouse mode management, state tracking_
 
-- [ ] 17.3 Add mouse reporting handler and testing
+- [x] 17.3 Add mouse reporting handler and testing
   - Add case handler for "csi.mouseReportingMode" in TerminalParserHandlers
   - Wire up to terminal mouse mode state management
   - Add comprehensive unit tests for mouse reporting modes
