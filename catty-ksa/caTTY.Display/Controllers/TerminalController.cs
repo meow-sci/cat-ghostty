@@ -433,8 +433,8 @@ public class TerminalController : ITerminalController
     // Ensure fonts are loaded before rendering (deferred loading)
     EnsureFontsLoaded();
 
-    // Push monospace font if available
-    PushMonospaceFont(out bool fontUsed);
+    // Push UI font for menus, tabs, and info widgets (always Hack Regular 32.0f)
+    PushUIFont(out bool uiFontUsed);
 
     try
     {
@@ -449,10 +449,10 @@ public class TerminalController : ITerminalController
       // This ensures the game doesn't process keyboard input when terminal is focused
       ManageInputCapture();
 
-      // Render menu bar
+      // Render menu bar (uses UI font)
       RenderMenuBar();
 
-      // Render tab area
+      // Render tab area (uses UI font)
       RenderTabArea();
 
       // Handle window resize detection and terminal resizing
@@ -461,7 +461,7 @@ public class TerminalController : ITerminalController
       // Process any pending font-triggered terminal resize
       ProcessPendingFontResize();
 
-      // Display terminal info
+      // Display terminal info (uses UI font)
       ImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
       ImGui.SameLine();
       ImGui.Text($"Cursor: ({_terminal.Cursor.Row}, {_terminal.Cursor.Col})");
@@ -477,10 +477,17 @@ public class TerminalController : ITerminalController
 
       ImGui.Separator();
 
-      // Render terminal content
+      // Pop UI font before rendering terminal content
+      MaybePopFont(uiFontUsed);
+      uiFontUsed = false; // Mark as popped
+
+      // Render terminal content (uses terminal content font)
       RenderTerminalContent();
 
-      // Render focus indicators
+      // Push UI font again for focus indicators
+      PushUIFont(out uiFontUsed);
+
+      // Render focus indicators (uses UI font)
       RenderFocusIndicators();
 
       // Handle input if focused
@@ -493,7 +500,7 @@ public class TerminalController : ITerminalController
     }
     finally
     {
-      MaybePopFont(fontUsed);
+      MaybePopFont(uiFontUsed);
     }
   }
 
@@ -1554,74 +1561,84 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalContent()
   {
-    ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-    float2 windowPos = ImGui.GetCursorScreenPos();
-
-    // Calculate terminal area
-    float terminalWidth = _terminal.Width * CurrentCharacterWidth;
-    float terminalHeight = _terminal.Height * CurrentLineHeight;
-
-    // Cache terminal rect for input encoding (mouse wheel / mouse reporting)
-    _lastTerminalOrigin = windowPos;
-    _lastTerminalSize = new float2(terminalWidth, terminalHeight);
-
-    // CRITICAL: Create an invisible button that captures mouse input and prevents window dragging
-    // This is the key to preventing ImGui window dragging when selecting text
-    ImGui.InvisibleButton("terminal_content", new float2(terminalWidth, terminalHeight));
-    bool terminalHovered = ImGui.IsItemHovered();
-    bool terminalActive = ImGui.IsItemActive();
-
-    // Get the draw position after the invisible button
-    float2 terminalDrawPos = windowPos;
-
-    // Draw terminal background using theme
-    float4 terminalBg = ThemeManager.GetDefaultBackground();
-    uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
-    var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
-    drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
-
-    // Get viewport content from ScrollbackManager instead of directly from screen buffer
-    var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
-    for (int i = 0; i < _terminal.Height; i++)
+    // Push terminal content font for this rendering section
+    PushTerminalContentFont(out bool terminalFontUsed);
+    
+    try
     {
-      var rowSpan = _terminal.ScreenBuffer.GetRow(i);
-      var rowArray = new Cell[rowSpan.Length];
-      rowSpan.CopyTo(rowArray);
-      screenBuffer[i] = rowArray.AsMemory();
-    }
+      ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+      float2 windowPos = ImGui.GetCursorScreenPos();
 
-    // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
-    var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
-    var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
-        screenBuffer,
-        isAlternateScreenActive,
-        _terminal.Height
-    );
+      // Calculate terminal area
+      float terminalWidth = _terminal.Width * CurrentCharacterWidth;
+      float terminalHeight = _terminal.Height * CurrentLineHeight;
 
-    // Render each cell from the viewport content
-    for (int row = 0; row < Math.Min(viewportRows.Count, _terminal.Height); row++)
-    {
-      var rowMemory = viewportRows[row];
-      var rowSpan = rowMemory.Span;
+      // Cache terminal rect for input encoding (mouse wheel / mouse reporting)
+      _lastTerminalOrigin = windowPos;
+      _lastTerminalSize = new float2(terminalWidth, terminalHeight);
 
-      for (int col = 0; col < Math.Min(rowSpan.Length, _terminal.Width); col++)
+      // CRITICAL: Create an invisible button that captures mouse input and prevents window dragging
+      // This is the key to preventing ImGui window dragging when selecting text
+      ImGui.InvisibleButton("terminal_content", new float2(terminalWidth, terminalHeight));
+      bool terminalHovered = ImGui.IsItemHovered();
+      bool terminalActive = ImGui.IsItemActive();
+
+      // Get the draw position after the invisible button
+      float2 terminalDrawPos = windowPos;
+
+      // Draw terminal background using theme
+      float4 terminalBg = ThemeManager.GetDefaultBackground();
+      uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
+      var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
+      drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
+
+      // Get viewport content from ScrollbackManager instead of directly from screen buffer
+      var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
+      for (int i = 0; i < _terminal.Height; i++)
       {
-        Cell cell = rowSpan[col];
-        RenderCell(drawList, terminalDrawPos, row, col, cell);
+        var rowSpan = _terminal.ScreenBuffer.GetRow(i);
+        var rowArray = new Cell[rowSpan.Length];
+        rowSpan.CopyTo(rowArray);
+        screenBuffer[i] = rowArray.AsMemory();
       }
+
+      // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
+      var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
+      var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
+          screenBuffer,
+          isAlternateScreenActive,
+          _terminal.Height
+      );
+
+      // Render each cell from the viewport content
+      for (int row = 0; row < Math.Min(viewportRows.Count, _terminal.Height); row++)
+      {
+        var rowMemory = viewportRows[row];
+        var rowSpan = rowMemory.Span;
+
+        for (int col = 0; col < Math.Min(rowSpan.Length, _terminal.Width); col++)
+        {
+          Cell cell = rowSpan[col];
+          RenderCell(drawList, terminalDrawPos, row, col, cell);
+        }
+      }
+
+      // Render cursor
+      RenderCursor(drawList, terminalDrawPos);
+
+      // Handle mouse input only when the invisible button is hovered/active
+      if (terminalHovered || terminalActive)
+      {
+        HandleMouseInputForTerminal();
+      }
+
+      // Also handle mouse tracking for applications (this works regardless of hover state)
+      HandleMouseTrackingForApplications();
     }
-
-    // Render cursor
-    RenderCursor(drawList, terminalDrawPos);
-
-    // Handle mouse input only when the invisible button is hovered/active
-    if (terminalHovered || terminalActive)
+    finally
     {
-      HandleMouseInputForTerminal();
+      MaybePopFont(terminalFontUsed);
     }
-
-    // Also handle mouse tracking for applications (this works regardless of hover state)
-    HandleMouseTrackingForApplications();
   }
 
   /// <summary>
@@ -2822,9 +2839,73 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  ///     Pushes a monospace font if available.
+  ///     Pushes the fixed UI font (Hack Regular 32.0f) for menus, tabs, and info widgets.
+  ///     This font never changes regardless of user font selection.
   /// </summary>
-  private void PushMonospaceFont(out bool fontUsed)
+  private void PushUIFont(out bool fontUsed)
+  {
+    try
+    {
+      // Always use Hack Regular at 32.0f for UI elements
+      if (CaTTYFontManager.LoadedFonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr hackFont))
+      {
+        ImGui.PushFont(hackFont, 32.0f);
+        fontUsed = true;
+        return;
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error pushing UI font from CaTTYFontManager: {ex.Message}");
+    }
+
+    // Fallback: Try FontManager (works in standalone apps)
+    try
+    {
+      if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr fontPtr))
+      {
+        ImGui.PushFont(fontPtr, 32.0f);
+        fontUsed = true;
+        return;
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: FontManager.Fonts not available for UI font: {ex.Message}");
+    }
+
+    // Try the GameMod's font loading system (works in game mod context)
+    try
+    {
+      var gameModType = Type.GetType("caTTY.GameMod.TerminalMod, caTTY");
+      if (gameModType != null)
+      {
+        MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
+        if (getFontMethod != null)
+        {
+          object? result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-Regular" });
+          if (result is ImFontPtr font)
+          {
+            ImGui.PushFont(font, 32.0f);
+            fontUsed = true;
+            return;
+          }
+        }
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: GameMod font loading failed for UI font: {ex.Message}");
+    }
+
+    fontUsed = false;
+  }
+
+  /// <summary>
+  ///     Pushes a monospace font for terminal content rendering.
+  ///     This uses the user-selected font and size.
+  /// </summary>
+  private void PushTerminalContentFont(out bool fontUsed)
   {
     try
     {
@@ -2881,6 +2962,16 @@ public class TerminalController : ITerminalController
     }
 
     fontUsed = false;
+  }
+
+  /// <summary>
+  ///     Pushes a monospace font if available.
+  ///     DEPRECATED: Use PushUIFont() for UI elements or PushTerminalContentFont() for terminal content.
+  /// </summary>
+  private void PushMonospaceFont(out bool fontUsed)
+  {
+    // For backward compatibility, delegate to terminal content font
+    PushTerminalContentFont(out fontUsed);
   }
 
   /// <summary>
@@ -3220,7 +3311,7 @@ public class TerminalController : ITerminalController
   #region Menu Bar Rendering
 
   /// <summary>
-  /// Renders the menu bar with File, Edit, and View menus.
+  /// Renders the menu bar with File, Edit, and Font menus.
   /// Uses ImGui menu widgets to provide standard menu functionality.
   /// </summary>
   private void RenderMenuBar()
@@ -3231,7 +3322,6 @@ public class TerminalController : ITerminalController
       {
         RenderFileMenu();
         RenderEditMenu();
-        RenderViewMenu();
         RenderFontMenu();
       }
       finally
@@ -3313,41 +3403,7 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Renders the View menu with zoom controls.
-  /// </summary>
-  private void RenderViewMenu()
-  {
-    if (ImGui.BeginMenu("View"))
-    {
-      try
-      {
-        // Reset Zoom
-        if (ImGui.MenuItem("Reset Zoom", "Ctrl+0"))
-        {
-          ResetFontSize();
-        }
-
-        // Zoom In
-        if (ImGui.MenuItem("Zoom In", "Ctrl++"))
-        {
-          IncreaseFontSize();
-        }
-
-        // Zoom Out
-        if (ImGui.MenuItem("Zoom Out", "Ctrl+-"))
-        {
-          DecreaseFontSize();
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the Font menu with font family selection options.
+  /// Renders the Font menu with font size slider and font family selection options.
   /// </summary>
   private void RenderFontMenu()
   {
@@ -3355,6 +3411,18 @@ public class TerminalController : ITerminalController
     {
       try
       {
+        // Font Size Slider
+        int currentFontSize = (int)_fontConfig.FontSize;
+        ImGui.Text("Font Size:");
+        ImGui.SameLine();
+        if (ImGui.SliderInt("##FontSize", ref currentFontSize, 10, 72))
+        {
+          SetFontSize((float)currentFontSize);
+        }
+        
+        ImGui.Separator();
+        
+        // Font Family Selection
         var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
         
         foreach (var fontFamily in availableFonts)
@@ -3516,6 +3584,35 @@ public class TerminalController : ITerminalController
   private void SelectAllText()
   {
     SelectAllVisibleContent();
+  }
+
+  /// <summary>
+  /// Sets the font size to the specified value.
+  /// </summary>
+  /// <param name="fontSize">The new font size to set</param>
+  private void SetFontSize(float fontSize)
+  {
+    try
+    {
+      // Clamp the font size to valid range
+      fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, fontSize));
+      
+      var newFontConfig = new TerminalFontConfig
+      {
+        FontSize = fontSize,
+        RegularFontName = _fontConfig.RegularFontName,
+        BoldFontName = _fontConfig.BoldFontName,
+        ItalicFontName = _fontConfig.ItalicFontName,
+        BoldItalicFontName = _fontConfig.BoldItalicFontName,
+        AutoDetectContext = _fontConfig.AutoDetectContext
+      };
+      UpdateFontConfig(newFontConfig);
+      Console.WriteLine($"TerminalController: Font size set to {fontSize}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error setting font size: {ex.Message}");
+    }
   }
 
   /// <summary>
