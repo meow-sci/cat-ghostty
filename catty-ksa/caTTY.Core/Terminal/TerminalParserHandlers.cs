@@ -381,6 +381,15 @@ internal class TerminalParserHandlers : IParserHandlers
                 }
                 break;
 
+            case "csi.windowManipulation":
+                // Window manipulation commands (CSI Ps t) - handle title stack operations and size queries
+                if (message.Operation.HasValue)
+                {
+                    int[] windowParams = message.WindowParams ?? Array.Empty<int>();
+                    _terminal.HandleWindowManipulation(message.Operation.Value, windowParams);
+                }
+                break;
+
             default:
                 // TODO: Implement other CSI sequence handling (task 2.8, etc.)
                 _logger.LogDebug("CSI sequence: {Type} - {Raw}", message.Type, message.Raw);

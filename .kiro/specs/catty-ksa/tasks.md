@@ -83,7 +83,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test that modes and attributes are properly reset
   - _Requirements: Parser integration, reset behavior validation_
 
-- [x] 11. Implement insert mode (IRM) sequence
+- [-] 11. Implement insert mode (IRM) sequence
 - [x] 11.1 Add insert mode parsing and state tracking
   - Add parsing for CSI 4 h (set insert mode) and CSI 4 l (reset insert mode) sequences
   - Add InsertMode property to terminal mode state tracking
@@ -99,7 +99,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts insert mode handling
   - _Requirements: Character insertion, line management_
 
-- [x] 11.3 Add insert mode handler and testing
+- [-] 11.3 Add insert mode handler and testing
   - Add case handler for "csi.insertMode" in TerminalParserHandlers
   - Wire up to terminal mode state management
   - Add comprehensive unit tests for insert mode behavior
@@ -107,16 +107,16 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test line overflow and bounds checking in insert mode
   - _Requirements: Mode switching, insertion behavior validation_
 
-- [ ] 12. Implement window manipulation sequences
-- [ ] 12.1 Add window manipulation parsing to CsiParser
+- [x] 12. Implement window manipulation sequences
+- [x] 12.1 Add window manipulation parsing to CsiParser
   - Add parsing for CSI Ps t sequences (window manipulation)
-  - Support common operations: minimize (2) (make this a noop), restore (1) (make this a noop), resize (8), query size (18)
+  - Support common operations: minimize (2), restore (1), resize (8), query size (18)
   - Create CsiMessage type with operation and parameter handling
   - Add parameter validation for different operation types
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for window manipulation parsing
   - _Requirements: Window control, parameter validation_
 
-- [ ] 12.2 Implement window manipulation functionality
+- [x] 12.2 Implement window manipulation functionality
   - Add HandleWindowManipulation method to TerminalEmulator
   - Implement title stack operations (push/pop title) for vi compatibility
   - Add window size query responses (report current terminal dimensions)
@@ -124,7 +124,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts window manipulation handling
   - _Requirements: Window state management, vi compatibility_
 
-- [ ] 12.3 Add window manipulation handler and testing
+- [x] 12.3 Add window manipulation handler and testing
   - Add case handler for "csi.windowManipulation" in TerminalParserHandlers
   - Wire up to TerminalEmulator window manipulation methods
   - Add comprehensive unit tests for supported operations
