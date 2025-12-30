@@ -127,6 +127,19 @@ public interface IScreenBufferManager
     void DeleteCharactersInLine(int count, int cursorRow, int cursorCol, SgrAttributes currentSgrAttributes, bool currentCharacterProtection);
 
     /// <summary>
+    ///     Erases characters at the cursor position within the current line.
+    ///     Implements CSI X (Erase Character) sequence.
+    ///     Characters are replaced with blank characters using current SGR attributes.
+    ///     Does not shift other characters - erases in place.
+    /// </summary>
+    /// <param name="count">Number of characters to erase</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="cursorCol">Current cursor column (0-based)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for blank characters</param>
+    /// <param name="currentCharacterProtection">Current character protection status for blank characters</param>
+    void EraseCharactersInLine(int count, int cursorRow, int cursorCol, SgrAttributes currentSgrAttributes, bool currentCharacterProtection);
+
+    /// <summary>
     ///     Sets the scrollback integration callbacks for proper scrollback behavior.
     /// </summary>
     /// <param name="pushScrollbackRow">Callback to push a row to scrollback buffer</param>

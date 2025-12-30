@@ -558,4 +558,45 @@ public class ScreenBufferManager : IScreenBufferManager
             _screenBuffer.SetCell(cursorRow, x, blankCell);
         }
     }
+
+    /// <summary>
+    ///     Erases characters at the cursor position within the current line.
+    ///     Implements CSI X (Erase Character) sequence.
+    ///     Characters are replaced with blank characters using current SGR attributes.
+    ///     Does not shift other characters - erases in place.
+    /// </summary>
+    /// <param name="count">Number of characters to erase</param>
+    /// <param name="cursorRow">Current cursor row (0-based)</param>
+    /// <param name="cursorCol">Current cursor column (0-based)</param>
+    /// <param name="currentSgrAttributes">Current SGR attributes for blank characters</param>
+    /// <param name="currentCharacterProtection">Current character protection status for blank characters</param>
+    public void EraseCharactersInLine(int count, int cursorRow, int cursorCol, SgrAttributes currentSgrAttributes, bool currentCharacterProtection)
+    {
+        if (count <= 0)
+        {
+            return;
+        }
+        if (cursorRow < 0 || cursorRow >= Height)
+        {
+            return;
+        }
+        if (cursorCol < 0 || cursorCol >= Width)
+        {
+            return;
+        }
+
+        // Calculate the actual number of characters to erase (limited by remaining characters in line)
+        int n = Math.Min(count, Width - cursorCol);
+        if (n <= 0)
+        {
+            return;
+        }
+
+        // Replace characters with blank characters (no shifting)
+        var blankCell = new Cell(' ', currentSgrAttributes, currentCharacterProtection);
+        for (int x = cursorCol; x < cursorCol + n; x++)
+        {
+            _screenBuffer.SetCell(cursorRow, x, blankCell);
+        }
+    }
 }

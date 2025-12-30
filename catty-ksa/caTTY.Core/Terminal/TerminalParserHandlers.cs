@@ -326,6 +326,11 @@ internal class TerminalParserHandlers : IParserHandlers
                 _terminal.DeleteCharactersInLine(message.Count ?? 1);
                 break;
 
+            case "csi.eraseCharacter":
+                // Erase Character (CSI X) - erase characters at cursor position
+                _terminal.EraseCharactersInLine(message.Count ?? 1);
+                break;
+
             case "csi.savePrivateMode":
                 // Save private modes (CSI ? Pm s)
                 if (message.DecModes != null)

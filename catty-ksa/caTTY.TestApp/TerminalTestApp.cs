@@ -53,7 +53,7 @@ public class TerminalTestApp : IDisposable
     public async Task RunAsync()
     {
         Console.WriteLine("Starting shell process...");
-        TerminalTracer.Enabled = true;
+        // TerminalTracer.Enabled = true;
 
         // Display console color test if supported
         ConsoleColorTest.DisplayColorTest();

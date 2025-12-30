@@ -1809,6 +1809,29 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     }
 
     /// <summary>
+    ///     Erases characters at the cursor position within the current line.
+    ///     Implements CSI X (Erase Character) sequence.
+    ///     Erases characters by replacing them with blank characters using current SGR attributes.
+    ///     Does not move the cursor or shift other characters.
+    /// </summary>
+    /// <param name="count">Number of characters to erase (minimum 1)</param>
+    internal void EraseCharactersInLine(int count)
+    {
+        count = Math.Max(1, count);
+        
+        // Clear wrap pending state
+        _cursorManager.SetWrapPending(false);
+
+        // Use screen buffer manager for character erasure within current line
+        _screenBufferManager.EraseCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
+
+        // Sync state with managers
+        State.CursorX = _cursorManager.Column;
+        State.CursorY = _cursorManager.Row;
+        State.WrapPending = _cursorManager.WrapPending;
+    }
+
+    /// <summary>
     ///     Resets the terminal to its initial state.
     ///     Implements ESC c (Reset to Initial State) sequence.
     /// </summary>
