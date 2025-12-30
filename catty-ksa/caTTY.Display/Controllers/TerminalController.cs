@@ -2422,23 +2422,38 @@ public class TerminalController : ITerminalController
     switch (attributes.UnderlineStyle)
     {
       case UnderlineStyle.Single:
-        drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+        uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+        float singleThickness = Math.Max(3.0f, thickness);
+        drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
         break;
 
       case UnderlineStyle.Double:
-        // Draw two lines for double underline
-        drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
-        var doubleStart = new float2(pos.X, underlineY - 2);
-        var doubleEnd = new float2(pos.X + CurrentCharacterWidth, underlineY - 2);
-        drawList.AddLine(doubleStart, doubleEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+        // Draw two lines for double underline with proper spacing
+        uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+        float doubleThickness = Math.Max(3.0f, thickness);
+        
+        // First line (bottom) - same position as single underline
+        drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
+        
+        // Second line (top) - spaced 4 pixels above the first for better visibility
+        var doubleStart = new float2(pos.X, underlineY - 4);
+        var doubleEnd = new float2(pos.X + CurrentCharacterWidth, underlineY - 4);
+        drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
         break;
 
       case UnderlineStyle.Curly:
+        // Draw wavy line using bezier curves for a smooth curly effect
+        RenderCurlyUnderline(drawList, pos, underlineColor, thickness);
+        break;
+
       case UnderlineStyle.Dotted:
+        // Draw dotted line using small segments with spacing
+        RenderDottedUnderline(drawList, pos, underlineColor, thickness);
+        break;
+
       case UnderlineStyle.Dashed:
-        // For now, render these as single underlines (conservative approach)
-        // Future enhancement could implement proper curly/dotted/dashed rendering
-        drawList.AddLine(underlineStart, underlineEnd, ImGui.ColorConvertFloat4ToU32(underlineColor), thickness);
+        // Draw dashed line using longer segments with spacing
+        RenderDashedUnderline(drawList, pos, underlineColor, thickness);
         break;
     }
   }
@@ -2452,6 +2467,80 @@ public class TerminalController : ITerminalController
     var strikeStart = new float2(pos.X, strikeY);
     var strikeEnd = new float2(pos.X + CurrentCharacterWidth, strikeY);
     drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+  }
+
+  /// <summary>
+  ///     Renders a curly underline using bezier curves for smooth wavy effect.
+  /// </summary>
+  private void RenderCurlyUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness)
+  {
+    float underlineY = pos.Y + CurrentLineHeight - 2;
+    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+    float curlyThickness = Math.Max(3.0f, thickness);
+    
+    // Create a wavy line using multiple bezier curve segments with much higher amplitude
+    float waveHeight = 4.0f; // Much bigger amplitude for very visible waves
+    float segmentWidth = CurrentCharacterWidth / 2.0f; // 2 wave segments per character for smoother curves
+    
+    for (int i = 0; i < 2; i++)
+    {
+      float startX = pos.X + (i * segmentWidth);
+      float endX = pos.X + ((i + 1) * segmentWidth);
+      
+      // Alternate wave direction for each segment to create continuous wave
+      float controlOffset = (i % 2 == 0) ? -waveHeight : waveHeight;
+      
+      var p1 = new float2(startX, underlineY);
+      var p2 = new float2(startX + segmentWidth * 0.3f, underlineY + controlOffset);
+      var p3 = new float2(startX + segmentWidth * 0.7f, underlineY - controlOffset);
+      var p4 = new float2(endX, underlineY);
+      
+      drawList.AddBezierCubic(p1, p2, p3, p4, color, curlyThickness);
+    }
+  }
+
+  /// <summary>
+  ///     Renders a dotted underline using small line segments with spacing.
+  /// </summary>
+  private void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness)
+  {
+    float underlineY = pos.Y + CurrentLineHeight - 2;
+    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+    float dottedThickness = Math.Max(3.0f, thickness);
+    
+    float dotSize = 3.0f; // Increased dot size for better visibility
+    float spacing = 3.0f; // Increased spacing for clearer separation
+    float totalStep = dotSize + spacing;
+    
+    for (float x = pos.X; x < pos.X + CurrentCharacterWidth - dotSize; x += totalStep)
+    {
+      float dotEnd = Math.Min(x + dotSize, pos.X + CurrentCharacterWidth);
+      var dotStart = new float2(x, underlineY);
+      var dotEndPos = new float2(dotEnd, underlineY);
+      drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+    }
+  }
+
+  /// <summary>
+  ///     Renders a dashed underline using longer line segments with spacing.
+  /// </summary>
+  private void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness)
+  {
+    float underlineY = pos.Y + CurrentLineHeight - 2;
+    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+    float dashedThickness = Math.Max(3.0f, thickness);
+    
+    float dashSize = 6.0f; // Increased dash length for better visibility
+    float spacing = 4.0f; // Increased spacing for clearer separation
+    float totalStep = dashSize + spacing;
+    
+    for (float x = pos.X; x < pos.X + CurrentCharacterWidth - dashSize; x += totalStep)
+    {
+      float dashEnd = Math.Min(x + dashSize, pos.X + CurrentCharacterWidth);
+      var dashStart = new float2(x, underlineY);
+      var dashEndPos = new float2(dashEnd, underlineY);
+      drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+    }
   }
 
   /// <summary>

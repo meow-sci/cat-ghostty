@@ -103,7 +103,8 @@ public static class StyleManager
     {
         if (attributes.UnderlineColor.HasValue)
         {
-            return ColorResolver.Resolve(attributes.UnderlineColor.Value);
+            var resolvedColor = ColorResolver.Resolve(attributes.UnderlineColor.Value, false);
+            return resolvedColor;
         }
         
         return foregroundColor;
