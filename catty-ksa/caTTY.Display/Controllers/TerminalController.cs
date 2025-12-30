@@ -26,46 +26,46 @@ public static class LayoutConstants
 {
     /// <summary>Height of the menu bar area in pixels (fixed)</summary>
     public const float MENU_BAR_HEIGHT = 25.0f;
-    
+
     /// <summary>Fixed height of the tab area in pixels for single terminal</summary>
     public const float TAB_AREA_HEIGHT = 50.0f;
-    
+
     /// <summary>Minimum height of the tab area in pixels</summary>
     public const float MIN_TAB_AREA_HEIGHT = 30.0f;
-    
+
     /// <summary>Maximum height of the tab area in pixels</summary>
     public const float MAX_TAB_AREA_HEIGHT = 60.0f;
-    
+
     /// <summary>Height per additional tab beyond the first</summary>
     public const float TAB_HEIGHT_PER_EXTRA_TAB = 0.0f; // Single row of tabs
-    
+
     /// <summary>Minimum height of the settings area in pixels</summary>
     public const float MIN_SETTINGS_AREA_HEIGHT = 40.0f;
-    
+
     /// <summary>Maximum height of the settings area in pixels</summary>
     public const float MAX_SETTINGS_AREA_HEIGHT = 80.0f;
-    
+
     /// <summary>Height per additional settings control row</summary>
     public const float SETTINGS_HEIGHT_PER_CONTROL_ROW = 25.0f;
-    
+
     /// <summary>Width of the add button in the tab area</summary>
     public const float ADD_BUTTON_WIDTH = 30.0f;
-    
+
     /// <summary>General spacing between UI elements</summary>
     public const float ELEMENT_SPACING = 5.0f;
-    
+
     /// <summary>Window padding for content areas</summary>
     public const float WINDOW_PADDING = 10.0f;
-    
+
     /// <summary>Minimum window width for proper layout</summary>
     public const float MIN_WINDOW_WIDTH = 400.0f;
-    
+
     /// <summary>Minimum window height for proper layout</summary>
     public const float MIN_WINDOW_HEIGHT = 200.0f;
-    
+
     /// <summary>Maximum reasonable font size for validation</summary>
     public const float MAX_FONT_SIZE = 72.0f;
-    
+
     /// <summary>Minimum reasonable font size for validation</summary>
     public const float MIN_FONT_SIZE = 8.0f;
 }
@@ -73,49 +73,34 @@ public static class LayoutConstants
 /// <summary>
 ///     Terminal-specific settings for future multi-terminal support.
 ///     Contains configuration options that apply to individual terminal instances.
+///     Font configuration is handled separately by TerminalFontConfig.
 /// </summary>
 public class TerminalSettings
 {
-    /// <summary>Font size for this terminal instance</summary>
-    public float FontSize { get; set; } = 32.0f;
-    
-    /// <summary>Font name for this terminal instance</summary>
-    public string FontName { get; set; } = "HackNerdFontMono-Regular";
-    
     /// <summary>Whether to show line numbers (future feature)</summary>
     public bool ShowLineNumbers { get; set; } = false;
-    
+
     /// <summary>Whether to enable word wrap (future feature)</summary>
     public bool WordWrap { get; set; } = false;
-    
+
     /// <summary>Terminal title for tab display</summary>
     public string Title { get; set; } = "Terminal 1";
-    
+
     /// <summary>Whether this terminal instance is active</summary>
     public bool IsActive { get; set; } = true;
-    
+
     /// <summary>
     /// Validates the terminal settings for consistency and reasonable values.
     /// </summary>
     /// <exception cref="ArgumentException">Thrown when settings contain invalid values</exception>
     public void Validate()
     {
-        if (FontSize < LayoutConstants.MIN_FONT_SIZE || FontSize > LayoutConstants.MAX_FONT_SIZE)
-        {
-            throw new ArgumentException($"FontSize must be between {LayoutConstants.MIN_FONT_SIZE} and {LayoutConstants.MAX_FONT_SIZE}, got {FontSize}");
-        }
-        
-        if (string.IsNullOrWhiteSpace(FontName))
-        {
-            throw new ArgumentException("FontName cannot be null or empty");
-        }
-        
         if (string.IsNullOrWhiteSpace(Title))
         {
             throw new ArgumentException("Title cannot be null or empty");
         }
     }
-    
+
     /// <summary>
     /// Creates a copy of the current settings.
     /// </summary>
@@ -124,8 +109,6 @@ public class TerminalSettings
     {
         return new TerminalSettings
         {
-            FontSize = FontSize,
-            FontName = FontName,
             ShowLineNumbers = ShowLineNumbers,
             WordWrap = WordWrap,
             Title = Title,
@@ -176,6 +159,7 @@ public class TerminalController : ITerminalController
   private float2 _lastWindowSize = new(0, 0);
   private bool _windowSizeInitialized = false;
   private DateTime _lastResizeTime = DateTime.MinValue;
+  private bool _fontResizePending = false; // Flag to trigger resize on next render frame
   private const float RESIZE_DEBOUNCE_SECONDS = 0.1f; // Debounce rapid resize events
 
   // Font pointers for different styles
@@ -336,10 +320,6 @@ public class TerminalController : ITerminalController
   /// </summary>
   public float CurrentLineHeight { get; private set; }
 
-  /// <summary>
-  ///     Gets the current DPI scaling factor for debugging purposes.
-  /// </summary>
-  public float CurrentDpiScalingFactor => _config.DpiScalingFactor;
 
   /// <summary>
   ///     Gets the current font configuration for debugging purposes.
@@ -450,6 +430,9 @@ public class TerminalController : ITerminalController
 
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
+
+      // Process any pending font-triggered terminal resize
+      ProcessPendingFontResize();
 
       // Display terminal info
       ImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
@@ -571,6 +554,9 @@ public class TerminalController : ITerminalController
       float previousFontSize = CurrentFontSize;
       string previousRegularFont = _fontConfig.RegularFontName;
 
+      // Check if font size is changing (for terminal resize trigger)
+      bool fontSizeChanged = Math.Abs(_fontConfig.FontSize - newFontConfig.FontSize) > 0.1f;
+
       // Log the configuration change attempt
       Console.WriteLine("TerminalController: Attempting runtime font configuration update");
       Console.WriteLine($"  Previous: Font={previousRegularFont}, Size={previousFontSize:F1}, CharWidth={previousCharWidth:F1}, LineHeight={previousLineHeight:F1}");
@@ -590,6 +576,13 @@ public class TerminalController : ITerminalController
 
       // Update font size immediately
       CurrentFontSize = _fontConfig.FontSize;
+
+      // Trigger terminal resize if font size changed
+      if (fontSizeChanged)
+      {
+        // Console.WriteLine("TerminalController: Font size changed, triggering terminal resize");
+        TriggerTerminalResize();
+      }
 
       // Verify cursor position accuracy after font changes
       // The cursor position in terminal coordinates should remain the same,
@@ -1135,7 +1128,7 @@ public class TerminalController : ITerminalController
     try
     {
       Console.WriteLine(
-          $"TerminalController: FontSize={CurrentFontSize:F1}, CharWidth={CurrentCharacterWidth:F1}, LineHeight={CurrentLineHeight:F1}, DpiScale={_config.DpiScalingFactor:F1}");
+          $"TerminalController: FontSize={CurrentFontSize:F1}, CharWidth={CurrentCharacterWidth:F1}, LineHeight={CurrentLineHeight:F1}");
     }
     catch (Exception ex)
     {
@@ -1282,12 +1275,12 @@ public class TerminalController : ITerminalController
       const float ORIGINAL_UI_OVERHEAD = 60.0f; // Original: terminal info + separator + padding
       float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
       float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
-      
+
       float totalUIOverheadHeight = ORIGINAL_UI_OVERHEAD + menuBarHeight + tabAreaHeight;
-      
+
       // Debug logging for UI overhead calculation
       // Console.WriteLine($"TerminalController: UI Overhead - Original: {ORIGINAL_UI_OVERHEAD}, Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Total: {totalUIOverheadHeight}");
-      
+
       const float PADDING_WIDTH = 20.0f; // Horizontal padding
 
       float availableWidth = availableSize.X - PADDING_WIDTH;
@@ -1347,6 +1340,114 @@ public class TerminalController : ITerminalController
       return new float2(0, 0);
     }
     return _lastWindowSize;
+  }
+
+  /// <summary>
+  ///     Triggers terminal resize calculation based on current window size and updated character metrics.
+  ///     This method is called when font configuration changes to ensure terminal dimensions
+  ///     are recalculated with the new character metrics without requiring manual window resize.
+  /// </summary>
+  private void TriggerTerminalResize()
+  {
+    try
+    {
+      // Set flag to trigger resize on next render frame instead of immediately
+      // This ensures we're in the proper ImGui context when calculating dimensions
+      _fontResizePending = true;
+      // Console.WriteLine("TerminalController: Font-triggered terminal resize scheduled for next render frame");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error scheduling font-triggered terminal resize: {ex.Message}");
+
+#if DEBUG
+      Console.WriteLine($"TerminalController: Font-triggered resize scheduling error stack trace: {ex.StackTrace}");
+#endif
+    }
+  }
+
+  /// <summary>
+  ///     Performs the actual terminal resize calculation when font changes are pending.
+  ///     Called during render frame when ImGui context is available.
+  /// </summary>
+  private void ProcessPendingFontResize()
+  {
+    if (!_fontResizePending)
+      return;
+
+    try
+    {
+      // Get current window size (we're now in ImGui render context)
+      float2 currentWindowSize = ImGui.GetWindowSize();
+
+      // Skip if window size is not initialized or invalid
+      if (!_windowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
+      {
+        Console.WriteLine("TerminalController: Cannot process pending font resize - window size not initialized or invalid");
+        _fontResizePending = false; // Clear flag to avoid infinite retries
+        return;
+      }
+
+      // Calculate new terminal dimensions with updated character metrics
+      var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+      if (!newDimensions.HasValue)
+      {
+        Console.WriteLine("TerminalController: Cannot process pending font resize - invalid dimensions calculated");
+        _fontResizePending = false; // Clear flag to avoid infinite retries
+        return;
+      }
+
+      var (newCols, newRows) = newDimensions.Value;
+
+      // Check if terminal dimensions would actually change
+      if (newCols == _terminal.Width && newRows == _terminal.Height)
+      {
+        Console.WriteLine($"TerminalController: Terminal dimensions unchanged ({newCols}x{newRows}), no resize needed");
+        _fontResizePending = false;
+        return;
+      }
+
+      // Validate new dimensions are reasonable
+      if (newCols < 10 || newRows < 3 || newCols > 1000 || newRows > 1000)
+      {
+        Console.WriteLine($"TerminalController: Invalid terminal dimensions calculated: {newCols}x{newRows}, ignoring font-triggered resize");
+        _fontResizePending = false;
+        return;
+      }
+
+      // Log the resize operation
+      Console.WriteLine($"TerminalController: Processing pending font resize from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
+
+      // Resize the headless terminal emulator
+      _terminal.Resize(newCols, newRows);
+
+      // Resize the PTY process if running
+      if (_processManager.IsRunning)
+      {
+        try
+        {
+          _processManager.Resize(newCols, newRows);
+          Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
+        }
+        catch (Exception ex)
+        {
+          Console.WriteLine($"TerminalController: Failed to resize PTY process during font-triggered resize: {ex.Message}");
+          // Continue anyway - terminal emulator resize succeeded
+        }
+      }
+
+      Console.WriteLine($"TerminalController: Font-triggered terminal resize completed successfully");
+      _fontResizePending = false; // Clear the flag
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error during pending font-triggered terminal resize: {ex.Message}");
+      _fontResizePending = false; // Clear flag to avoid infinite retries
+
+#if DEBUG
+      Console.WriteLine($"TerminalController: Pending font-triggered resize error stack trace: {ex.StackTrace}");
+#endif
+    }
   }
 
   /// <summary>
@@ -2571,10 +2672,10 @@ public class TerminalController : ITerminalController
         // Draw two lines for double underline with proper spacing
         uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
         float doubleThickness = Math.Max(3.0f, thickness);
-        
+
         // First line (bottom) - same position as single underline
         drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
-        
+
         // Second line (top) - spaced 4 pixels above the first for better visibility
         var doubleStart = new float2(pos.X, underlineY - 4);
         var doubleEnd = new float2(pos.X + CurrentCharacterWidth, underlineY - 4);
@@ -2617,24 +2718,24 @@ public class TerminalController : ITerminalController
     float underlineY = pos.Y + CurrentLineHeight - 2;
     uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
     float curlyThickness = Math.Max(3.0f, thickness);
-    
+
     // Create a wavy line using multiple bezier curve segments with much higher amplitude
     float waveHeight = 4.0f; // Much bigger amplitude for very visible waves
     float segmentWidth = CurrentCharacterWidth / 2.0f; // 2 wave segments per character for smoother curves
-    
+
     for (int i = 0; i < 2; i++)
     {
       float startX = pos.X + (i * segmentWidth);
       float endX = pos.X + ((i + 1) * segmentWidth);
-      
+
       // Alternate wave direction for each segment to create continuous wave
       float controlOffset = (i % 2 == 0) ? -waveHeight : waveHeight;
-      
+
       var p1 = new float2(startX, underlineY);
       var p2 = new float2(startX + segmentWidth * 0.3f, underlineY + controlOffset);
       var p3 = new float2(startX + segmentWidth * 0.7f, underlineY - controlOffset);
       var p4 = new float2(endX, underlineY);
-      
+
       drawList.AddBezierCubic(p1, p2, p3, p4, color, curlyThickness);
     }
   }
@@ -2647,11 +2748,11 @@ public class TerminalController : ITerminalController
     float underlineY = pos.Y + CurrentLineHeight - 2;
     uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
     float dottedThickness = Math.Max(3.0f, thickness);
-    
+
     float dotSize = 3.0f; // Increased dot size for better visibility
     float spacing = 3.0f; // Increased spacing for clearer separation
     float totalStep = dotSize + spacing;
-    
+
     for (float x = pos.X; x < pos.X + CurrentCharacterWidth - dotSize; x += totalStep)
     {
       float dotEnd = Math.Min(x + dotSize, pos.X + CurrentCharacterWidth);
@@ -2669,11 +2770,11 @@ public class TerminalController : ITerminalController
     float underlineY = pos.Y + CurrentLineHeight - 2;
     uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
     float dashedThickness = Math.Max(3.0f, thickness);
-    
+
     float dashSize = 6.0f; // Increased dash length for better visibility
     float spacing = 4.0f; // Increased spacing for clearer separation
     float totalStep = dashSize + spacing;
-    
+
     for (float x = pos.X; x < pos.X + CurrentCharacterWidth - dashSize; x += totalStep)
     {
       float dashEnd = Math.Min(x + dashSize, pos.X + CurrentCharacterWidth);
@@ -2910,8 +3011,8 @@ public class TerminalController : ITerminalController
   /// <returns>Total height of header areas in pixels</returns>
   private static float CalculateHeaderHeight(int tabCount = 1, int settingsControlRows = 1)
   {
-    return LayoutConstants.MENU_BAR_HEIGHT + 
-           CalculateTabAreaHeight(tabCount) + 
+    return LayoutConstants.MENU_BAR_HEIGHT +
+           CalculateTabAreaHeight(tabCount) +
            CalculateSettingsAreaHeight(settingsControlRows);
   }
 
@@ -2922,8 +3023,8 @@ public class TerminalController : ITerminalController
   /// <returns>Minimum header height in pixels</returns>
   private static float CalculateMinHeaderHeight()
   {
-    return LayoutConstants.MENU_BAR_HEIGHT + 
-           LayoutConstants.MIN_TAB_AREA_HEIGHT + 
+    return LayoutConstants.MENU_BAR_HEIGHT +
+           LayoutConstants.MIN_TAB_AREA_HEIGHT +
            LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
   }
 
@@ -2934,8 +3035,8 @@ public class TerminalController : ITerminalController
   /// <returns>Maximum header height in pixels</returns>
   private static float CalculateMaxHeaderHeight()
   {
-    return LayoutConstants.MENU_BAR_HEIGHT + 
-           LayoutConstants.MAX_TAB_AREA_HEIGHT + 
+    return LayoutConstants.MENU_BAR_HEIGHT +
+           LayoutConstants.MAX_TAB_AREA_HEIGHT +
            LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
   }
 
@@ -2952,7 +3053,7 @@ public class TerminalController : ITerminalController
     float headerHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
     float availableWidth = Math.Max(0, windowSize.X - LayoutConstants.WINDOW_PADDING * 2);
     float availableHeight = Math.Max(0, windowSize.Y - headerHeight - LayoutConstants.WINDOW_PADDING * 2);
-    
+
     return new float2(availableWidth, availableHeight);
   }
 
@@ -2967,7 +3068,7 @@ public class TerminalController : ITerminalController
   private static bool ValidateWindowSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1)
   {
     // Check basic minimum dimensions
-    if (windowSize.X < LayoutConstants.MIN_WINDOW_WIDTH || 
+    if (windowSize.X < LayoutConstants.MIN_WINDOW_WIDTH ||
         windowSize.Y < LayoutConstants.MIN_WINDOW_HEIGHT)
     {
       return false;
@@ -2976,7 +3077,7 @@ public class TerminalController : ITerminalController
     // Check that window can accommodate current header configuration
     float currentHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
     float minRequiredHeight = currentHeaderHeight + LayoutConstants.WINDOW_PADDING * 2 + 50.0f; // 50px minimum for terminal content
-    
+
     return windowSize.Y >= minRequiredHeight;
   }
 
@@ -3008,10 +3109,10 @@ public class TerminalController : ITerminalController
   /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
   /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
   private static (int cols, int rows)? CalculateOptimalTerminalDimensions(
-    float2 windowSize, 
-    float charWidth, 
+    float2 windowSize,
+    float charWidth,
     float lineHeight,
-    int tabCount = 1, 
+    int tabCount = 1,
     int settingsControlRows = 1)
   {
     try
@@ -3026,7 +3127,7 @@ public class TerminalController : ITerminalController
       float minHeaderHeight = CalculateMinHeaderHeight();
       float estimatedAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
       float estimatedAvailableHeight = windowSize.Y - minHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
-      
+
       if (estimatedAvailableWidth <= 0 || estimatedAvailableHeight <= 0)
       {
         return null;
@@ -3039,7 +3140,7 @@ public class TerminalController : ITerminalController
       float actualHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
       float actualAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
       float actualAvailableHeight = windowSize.Y - actualHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
-      
+
       if (actualAvailableWidth <= 0 || actualAvailableHeight <= 0)
       {
         return null;
@@ -3077,54 +3178,6 @@ public class TerminalController : ITerminalController
   /// <summary>
   /// Updates the current terminal settings and applies changes.
   /// </summary>
-  /// <param name="newSettings">New settings to apply</param>
-  /// <exception cref="ArgumentNullException">Thrown when newSettings is null</exception>
-  /// <exception cref="ArgumentException">Thrown when newSettings contains invalid values</exception>
-  public void UpdateTerminalSettings(TerminalSettings newSettings)
-  {
-    if (newSettings == null)
-    {
-      throw new ArgumentNullException(nameof(newSettings));
-    }
-
-    // Validate settings before applying
-    newSettings.Validate();
-
-    // Store previous settings for comparison
-    var previousSettings = _currentTerminalSettings.Clone();
-
-    try
-    {
-      // Update settings
-      _currentTerminalSettings = newSettings.Clone();
-
-      // Apply font changes if font size or name changed
-      if (Math.Abs(previousSettings.FontSize - newSettings.FontSize) > 0.1f ||
-          previousSettings.FontName != newSettings.FontName)
-      {
-        var newFontConfig = new TerminalFontConfig
-        {
-          FontSize = newSettings.FontSize,
-          RegularFontName = newSettings.FontName,
-          BoldFontName = _fontConfig.BoldFontName,
-          ItalicFontName = _fontConfig.ItalicFontName,
-          BoldItalicFontName = _fontConfig.BoldItalicFontName,
-          AutoDetectContext = _fontConfig.AutoDetectContext
-        };
-        UpdateFontConfig(newFontConfig);
-      }
-
-      Console.WriteLine($"TerminalController: Terminal settings updated successfully");
-    }
-    catch (Exception ex)
-    {
-      // Restore previous settings on failure
-      _currentTerminalSettings = previousSettings;
-      Console.WriteLine($"TerminalController: Failed to update terminal settings: {ex.Message}");
-      throw;
-    }
-  }
-
   #endregion
 
   #region Menu Bar Rendering
@@ -3276,15 +3329,15 @@ public class TerminalController : ITerminalController
     {
       // Get available width for tab area
       float availableWidth = ImGui.GetContentRegionAvail().X;
-      
+
       // Calculate dimensions using fixed tab area height
       float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
       float spacing = LayoutConstants.ELEMENT_SPACING;
       float tabWidth = Math.Max(100.0f, availableWidth - addButtonWidth - spacing);
-      
+
       // Use fixed tab area height for consistent layout
       float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
-      
+
       // Create a child region for the tab area to maintain consistent height
       if (ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar))
       {
@@ -3294,7 +3347,7 @@ public class TerminalController : ITerminalController
           ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.2f, 0.3f, 0.5f, 1.0f)); // Active tab color
           ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.3f, 0.4f, 0.6f, 1.0f)); // Hover color
           ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.1f, 0.2f, 0.4f, 1.0f)); // Pressed color
-          
+
           try
           {
             // Display the terminal tab with title from settings
@@ -3309,14 +3362,14 @@ public class TerminalController : ITerminalController
           {
             ImGui.PopStyleColor(3); // Pop all three colors
           }
-          
+
           // Add button on the right
           ImGui.SameLine();
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
           {
             ShowNotImplementedMessage("Multi-terminal support will be added in a future phase");
           }
-          
+
           // Show tooltip on add button hover
           if (ImGui.IsItemHovered())
           {
@@ -3332,7 +3385,7 @@ public class TerminalController : ITerminalController
     catch (Exception ex)
     {
       Console.WriteLine($"TerminalController: Error rendering tab area: {ex.Message}");
-      
+
       // Fallback: render a simple text indicator if tab rendering fails
       ImGui.Text("Terminal 1");
       ImGui.SameLine();
@@ -3375,9 +3428,16 @@ public class TerminalController : ITerminalController
   {
     try
     {
-      var newSettings = _currentTerminalSettings.Clone();
-      newSettings.FontSize = 32.0f; // Default font size
-      UpdateTerminalSettings(newSettings);
+      var newFontConfig = new TerminalFontConfig
+      {
+        FontSize = 32.0f, // Default font size
+        RegularFontName = _fontConfig.RegularFontName,
+        BoldFontName = _fontConfig.BoldFontName,
+        ItalicFontName = _fontConfig.ItalicFontName,
+        BoldItalicFontName = _fontConfig.BoldItalicFontName,
+        AutoDetectContext = _fontConfig.AutoDetectContext
+      };
+      UpdateFontConfig(newFontConfig);
       Console.WriteLine("TerminalController: Font size reset to default");
     }
     catch (Exception ex)
@@ -3387,16 +3447,23 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Increases the font size by 2 points.
+  /// Increases the font size by 1.0f.
   /// </summary>
   private void IncreaseFontSize()
   {
     try
     {
-      var newSettings = _currentTerminalSettings.Clone();
-      newSettings.FontSize = Math.Min(LayoutConstants.MAX_FONT_SIZE, newSettings.FontSize + 1.0f);
-      UpdateTerminalSettings(newSettings);
-      Console.WriteLine($"TerminalController: Font size increased to {newSettings.FontSize}");
+      var newFontConfig = new TerminalFontConfig
+      {
+        FontSize = Math.Min(LayoutConstants.MAX_FONT_SIZE, _fontConfig.FontSize + 1.0f),
+        RegularFontName = _fontConfig.RegularFontName,
+        BoldFontName = _fontConfig.BoldFontName,
+        ItalicFontName = _fontConfig.ItalicFontName,
+        BoldItalicFontName = _fontConfig.BoldItalicFontName,
+        AutoDetectContext = _fontConfig.AutoDetectContext
+      };
+      UpdateFontConfig(newFontConfig);
+      Console.WriteLine($"TerminalController: Font size increased to {newFontConfig.FontSize}");
     }
     catch (Exception ex)
     {
@@ -3405,16 +3472,23 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Decreases the font size by 2 points.
+  /// Decreases the font size by 1.0f.
   /// </summary>
   private void DecreaseFontSize()
   {
     try
     {
-      var newSettings = _currentTerminalSettings.Clone();
-      newSettings.FontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, newSettings.FontSize - 1.0f);
-      UpdateTerminalSettings(newSettings);
-      Console.WriteLine($"TerminalController: Font size decreased to {newSettings.FontSize}");
+      var newFontConfig = new TerminalFontConfig
+      {
+        FontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, _fontConfig.FontSize - 1.0f),
+        RegularFontName = _fontConfig.RegularFontName,
+        BoldFontName = _fontConfig.BoldFontName,
+        ItalicFontName = _fontConfig.ItalicFontName,
+        BoldItalicFontName = _fontConfig.BoldItalicFontName,
+        AutoDetectContext = _fontConfig.AutoDetectContext
+      };
+      UpdateFontConfig(newFontConfig);
+      Console.WriteLine($"TerminalController: Font size decreased to {newFontConfig.FontSize}");
     }
     catch (Exception ex)
     {

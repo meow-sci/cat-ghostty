@@ -50,7 +50,7 @@ public static class DpiContextDetector
         TerminalRenderingConfig result = context switch
         {
             ExecutionContext.TestApp => TerminalRenderingConfig.CreateForTestApp(),
-            ExecutionContext.GameMod => TerminalRenderingConfig.CreateForGameMod(dpiScale),
+            ExecutionContext.GameMod => TerminalRenderingConfig.CreateForGameMod(),
             ExecutionContext.Unknown => CreateFallbackConfig(dpiScale),
             _ => TerminalRenderingConfig.CreateDefault()
         };
@@ -192,7 +192,7 @@ public static class DpiContextDetector
         // If DPI scaling is detected, assume we're in a GameMod-like context
         if (dpiScale > 1.1f)
         {
-            return TerminalRenderingConfig.CreateForGameMod(dpiScale);
+            return TerminalRenderingConfig.CreateForGameMod();
         }
 
         // Otherwise, use TestApp configuration

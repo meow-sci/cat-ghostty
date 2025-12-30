@@ -30,20 +30,9 @@ public class TerminalControllerConfigurationProperties
             {
                 FontSize = fontSize,
                 CharacterWidth = charWidth,
-                LineHeight = lineHeight,
-                DpiScalingFactor = dpiScale,
-                AutoDetectDpiScaling = autoDetect
+                LineHeight = lineHeight
             };
         }).ToArbitrary();
-    }
-
-    /// <summary>
-    ///     Generator for valid DPI scaling factors.
-    /// </summary>
-    public static Arbitrary<float> ValidDpiScalingFactors()
-    {
-        return Gen.Elements(1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.25f, 2.5f, 3.0f)
-            .ToArbitrary();
     }
 
     /// <summary>
@@ -68,7 +57,6 @@ public class TerminalControllerConfigurationProperties
                 bool fontSizeValid = config.FontSize > 0 && config.FontSize <= 72;
                 bool charWidthValid = config.CharacterWidth > 0 && config.CharacterWidth <= 50;
                 bool lineHeightValid = config.LineHeight > 0 && config.LineHeight <= 100;
-                bool dpiScaleValid = config.DpiScalingFactor > 0;
 
                 // Test that configuration can be serialized to string
                 string configString = config.ToString();
@@ -78,7 +66,7 @@ public class TerminalControllerConfigurationProperties
                                        configString.Contains("LineHeight");
 
                 return fontSizeValid && charWidthValid && lineHeightValid &&
-                       dpiScaleValid && stringNotEmpty && containsMetrics;
+                       stringNotEmpty && containsMetrics;
             }
             catch (ArgumentException)
             {
@@ -89,53 +77,6 @@ public class TerminalControllerConfigurationProperties
             catch
             {
                 // Other exceptions indicate a problem
-                return false;
-            }
-        });
-    }
-
-    /// <summary>
-    ///     Property: Configuration Consistency Across Factory Methods
-    ///     For any DPI scaling factor, factory method configurations should produce
-    ///     consistent and predictable metric values.
-    /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
-    public FsCheck.Property FactoryMethodConfigurations_ShouldProduceConsistentMetrics()
-    {
-        return Prop.ForAll(ValidDpiScalingFactors(), dpiScale =>
-        {
-            try
-            {
-                // Test TestApp configuration
-                var testAppConfig = TerminalRenderingConfig.CreateForTestApp();
-
-                // Test GameMod configuration
-                var gameModConfig = TerminalRenderingConfig.CreateForGameMod(dpiScale);
-
-                // Verify TestApp uses standard metrics
-                bool testAppStandard = Math.Abs(testAppConfig.FontSize - 32.0f) < 0.001f &&
-                                       Math.Abs(testAppConfig.CharacterWidth - 19.2f) < 0.001f &&
-                                       Math.Abs(testAppConfig.LineHeight - 36.0f) < 0.001f &&
-                                       Math.Abs(testAppConfig.DpiScalingFactor - 1.0f) < 0.001f;
-
-                // Verify GameMod uses compensated metrics
-                float expectedFontSize = 32.0f / dpiScale;
-                float expectedCharWidth = 19.2f / dpiScale;
-                float expectedLineHeight = 36.0f / dpiScale;
-
-                bool gameModCompensated = Math.Abs(gameModConfig.FontSize - expectedFontSize) < 0.001f &&
-                                          Math.Abs(gameModConfig.CharacterWidth - expectedCharWidth) < 0.001f &&
-                                          Math.Abs(gameModConfig.LineHeight - expectedLineHeight) < 0.001f &&
-                                          Math.Abs(gameModConfig.DpiScalingFactor - dpiScale) < 0.001f;
-
-                // Test that both configurations pass validation
-                testAppConfig.Validate();
-                gameModConfig.Validate();
-
-                return testAppStandard && gameModCompensated;
-            }
-            catch
-            {
                 return false;
             }
         });
@@ -166,9 +107,7 @@ public class TerminalControllerConfigurationProperties
             {
                 FontSize = fontSize,
                 CharacterWidth = charWidth,
-                LineHeight = lineHeight,
-                DpiScalingFactor = dpiScale,
-                AutoDetectDpiScaling = false
+                LineHeight = lineHeight
             };
         });
 
@@ -179,8 +118,7 @@ public class TerminalControllerConfigurationProperties
                 // Determine if configuration should be valid
                 bool shouldBeValid = config.FontSize > 0 && config.FontSize <= 129 &&
                                      config.CharacterWidth > 0 && config.CharacterWidth <= 100 &&
-                                     config.LineHeight > 0 && config.LineHeight <= 100 &&
-                                     config.DpiScalingFactor > 0;
+                                     config.LineHeight > 0 && config.LineHeight <= 100;
 
                 if (shouldBeValid)
                 {
@@ -233,23 +171,17 @@ public class TerminalControllerConfigurationProperties
                 TerminalRenderingConfig modified = original.WithModifications(
                     modifications.FontSize,
                     modifications.CharacterWidth,
-                    modifications.LineHeight,
-                    modifications.DpiScalingFactor);
+                    modifications.LineHeight);
 
                 // Verify modifications were applied
                 bool fontSizeChanged = Math.Abs(modified.FontSize - modifications.FontSize) < 0.001f;
                 bool charWidthChanged = Math.Abs(modified.CharacterWidth - modifications.CharacterWidth) < 0.001f;
                 bool lineHeightChanged = Math.Abs(modified.LineHeight - modifications.LineHeight) < 0.001f;
-                bool dpiScaleChanged = Math.Abs(modified.DpiScalingFactor - modifications.DpiScalingFactor) < 0.001f;
-
-                // Verify AutoDetectDpiScaling is preserved from original
-                bool autoDetectPreserved = modified.AutoDetectDpiScaling == original.AutoDetectDpiScaling;
 
                 // Verify modified configuration is valid
                 modified.Validate();
 
-                return fontSizeChanged && charWidthChanged && lineHeightChanged &&
-                       dpiScaleChanged && autoDetectPreserved;
+                return fontSizeChanged && charWidthChanged && lineHeightChanged;
             }
             catch (ArgumentException)
             {
@@ -331,55 +263,6 @@ public class TerminalControllerConfigurationProperties
             {
                 // Invalid configurations should be rejected
                 return true;
-            }
-            catch
-            {
-                return false;
-            }
-        });
-    }
-
-    /// <summary>
-    ///     Property: DPI Scaling Grid Consistency
-    ///     For any DPI scaling factor, GameMod configurations should maintain
-    ///     proportional grid alignment relative to TestApp configurations.
-    /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
-    public FsCheck.Property DpiScalingGridConsistency_ShouldMaintainProportions()
-    {
-        return Prop.ForAll(ValidDpiScalingFactors(), dpiScale =>
-        {
-            try
-            {
-                var testAppConfig = TerminalRenderingConfig.CreateForTestApp();
-                var gameModConfig = TerminalRenderingConfig.CreateForGameMod(dpiScale);
-
-                // Test same grid position in both configurations
-                const int testRow = 10;
-                const int testCol = 20;
-
-                // Calculate positions
-                float testAppX = testCol * testAppConfig.CharacterWidth;
-                float testAppY = testRow * testAppConfig.LineHeight;
-
-                float gameModX = testCol * gameModConfig.CharacterWidth;
-                float gameModY = testRow * gameModConfig.LineHeight;
-
-                // Verify proportional relationship
-                float expectedGameModX = testAppX / dpiScale;
-                float expectedGameModY = testAppY / dpiScale;
-
-                bool xProportional = Math.Abs(gameModX - expectedGameModX) < 0.001f;
-                bool yProportional = Math.Abs(gameModY - expectedGameModY) < 0.001f;
-
-                // Test that character rectangles maintain proportions
-                float testAppRectArea = testAppConfig.CharacterWidth * testAppConfig.LineHeight;
-                float gameModRectArea = gameModConfig.CharacterWidth * gameModConfig.LineHeight;
-                float expectedGameModArea = testAppRectArea / (dpiScale * dpiScale);
-
-                bool areaProportional = Math.Abs(gameModRectArea - expectedGameModArea) < 0.001f;
-
-                return xProportional && yProportional && areaProportional;
             }
             catch
             {
@@ -480,9 +363,7 @@ public class TerminalControllerConfigurationProperties
             {
                 FontSize = fontSize,
                 CharacterWidth = charWidth,
-                LineHeight = lineHeight,
-                DpiScalingFactor = dpiScale,
-                AutoDetectDpiScaling = false
+                LineHeight = lineHeight
             };
         });
 
@@ -493,8 +374,7 @@ public class TerminalControllerConfigurationProperties
                 // Determine if configuration should be valid for runtime updates
                 bool shouldBeValid = config.FontSize > 0 && config.FontSize <= 128 &&
                                      config.CharacterWidth > 0 && config.CharacterWidth <= 100 &&
-                                     config.LineHeight > 0 && config.LineHeight <= 100 &&
-                                     config.DpiScalingFactor > 0;
+                                     config.LineHeight > 0 && config.LineHeight <= 100;
 
                 if (shouldBeValid)
                 {

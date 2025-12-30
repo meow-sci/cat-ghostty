@@ -46,8 +46,6 @@ public class WindowDesignLayoutProperties
     {
         return Gen.Fresh(() =>
         {
-            var fontSize = ValidFontSizes().Generator.Sample(0, 1).First();
-            var fontName = Gen.Elements("HackNerdFontMono-Regular", "Consolas", "Courier New").Sample(0, 1).First();
             var title = Gen.Elements("Terminal 1", "Terminal 2", "Shell", "Command Prompt").Sample(0, 1).First();
             var showLineNumbers = Gen.Elements(true, false).Sample(0, 1).First();
             var wordWrap = Gen.Elements(true, false).Sample(0, 1).First();
@@ -55,8 +53,6 @@ public class WindowDesignLayoutProperties
 
             return new TerminalSettings
             {
-                FontSize = fontSize,
-                FontName = fontName,
                 Title = title,
                 ShowLineNumbers = showLineNumbers,
                 WordWrap = wordWrap,
@@ -154,8 +150,6 @@ public class WindowDesignLayoutProperties
         // Generate settings that may be invalid
         var settingsGen = Gen.Fresh(() =>
         {
-            var fontSize = Gen.Choose(-10, 200).Select(x => (float)x).Sample(0, 1).First();
-            var fontName = Gen.Elements("", null, "ValidFont", "HackNerdFontMono-Regular").Sample(0, 1).First();
             var title = Gen.Elements("", null, "Valid Title", "Terminal 1").Sample(0, 1).First();
             var showLineNumbers = Gen.Elements(true, false).Sample(0, 1).First();
             var wordWrap = Gen.Elements(true, false).Sample(0, 1).First();
@@ -163,8 +157,6 @@ public class WindowDesignLayoutProperties
 
             return new TerminalSettings
             {
-                FontSize = fontSize,
-                FontName = fontName ?? "",
                 Title = title ?? "",
                 ShowLineNumbers = showLineNumbers,
                 WordWrap = wordWrap,
@@ -177,10 +169,7 @@ public class WindowDesignLayoutProperties
             try
             {
                 // Determine if settings should be valid
-                bool shouldBeValid = settings.FontSize >= LayoutConstants.MIN_FONT_SIZE &&
-                                    settings.FontSize <= LayoutConstants.MAX_FONT_SIZE &&
-                                    !string.IsNullOrWhiteSpace(settings.FontName) &&
-                                    !string.IsNullOrWhiteSpace(settings.Title);
+                bool shouldBeValid = !string.IsNullOrWhiteSpace(settings.Title);
 
                 if (shouldBeValid)
                 {
@@ -235,9 +224,7 @@ public class WindowDesignLayoutProperties
                 var clonedSettings = originalSettings.Clone();
 
                 // Verify clone has same values
-                bool valuesMatch = Math.Abs(clonedSettings.FontSize - originalSettings.FontSize) < 0.001f &&
-                                  clonedSettings.FontName == originalSettings.FontName &&
-                                  clonedSettings.Title == originalSettings.Title &&
+                bool valuesMatch = clonedSettings.Title == originalSettings.Title &&
                                   clonedSettings.ShowLineNumbers == originalSettings.ShowLineNumbers &&
                                   clonedSettings.WordWrap == originalSettings.WordWrap &&
                                   clonedSettings.IsActive == originalSettings.IsActive;
@@ -246,18 +233,14 @@ public class WindowDesignLayoutProperties
                 bool independent = !ReferenceEquals(originalSettings, clonedSettings);
 
                 // Modify clone and verify original is unchanged
-                float originalFontSize = originalSettings.FontSize;
                 string originalTitle = originalSettings.Title;
                 
-                clonedSettings.FontSize = originalFontSize + 5.0f;
                 clonedSettings.Title = "Modified Title";
 
-                bool originalUnchanged = Math.Abs(originalSettings.FontSize - originalFontSize) < 0.001f &&
-                                        originalSettings.Title == originalTitle;
+                bool originalUnchanged = originalSettings.Title == originalTitle;
 
                 // Verify clone was actually modified
-                bool cloneModified = Math.Abs(clonedSettings.FontSize - (originalFontSize + 5.0f)) < 0.001f &&
-                                    clonedSettings.Title == "Modified Title";
+                bool cloneModified = clonedSettings.Title == "Modified Title";
 
                 return valuesMatch && independent && originalUnchanged && cloneModified;
             }

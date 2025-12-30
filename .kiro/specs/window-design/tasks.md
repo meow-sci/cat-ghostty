@@ -161,48 +161,48 @@ This implementation plan transforms the current basic ImGui terminal window layo
   - Ensure all property tests pass, ask the user if questions arise.
   - **Developer validation**: Manually verify complete window layout and functionality
 
-- [ ] 13. Consolidate font configuration objects
-  - [ ] 13.1 Remove font configuration from TerminalSettings class
+- [x] 13. Consolidate font configuration objects
+  - [x] 13.1 Remove font configuration from TerminalSettings class
     - Remove FontSize and FontName properties from TerminalSettings
     - Update TerminalSettings.Validate() to remove font-related validation
     - Update TerminalSettings.Clone() to remove font-related copying
     - _Requirements: 9.1, 9.2, 9.5_
 
-  - [ ] 13.2 Update font size adjustment methods to use TerminalFontConfig directly
+  - [x] 13.2 Update font size adjustment methods to use TerminalFontConfig directly
     - Modify ResetFontSize(), IncreaseFontSize(), DecreaseFontSize() methods
     - Remove UpdateTerminalSettings() calls and use UpdateFontConfig() directly
     - Eliminate TerminalSettings intermediate object for font changes
     - _Requirements: 9.3, 9.4_
 
-  - [ ] 13.3 Write property test for font configuration consolidation
+  - [x] 13.3 Write property test for font configuration consolidation
     - **Property 10: Only TerminalFontConfig stores font configuration**
     - **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
 
-- [ ] 14. Implement automatic terminal resize on font changes
-  - [ ] 14.1 Add terminal resize trigger to UpdateFontConfig method
+- [x] 14. Implement automatic terminal resize on font changes
+  - [x] 14.1 Add terminal resize trigger to UpdateFontConfig method
     - Calculate new terminal dimensions after font metrics change
     - Call terminal resize logic similar to HandleWindowResize
     - Ensure PTY process dimensions are updated
     - _Requirements: 10.1, 10.2, 10.4_
 
-  - [ ] 14.2 Create TriggerTerminalResize helper method
+  - [x] 14.2 Create TriggerTerminalResize helper method
     - Extract terminal resize logic from HandleWindowResize
     - Make it reusable for both window resize and font change scenarios
     - Maintain cursor position accuracy during resize
     - _Requirements: 10.3, 10.5_
 
-  - [ ] 14.3 Write property test for automatic terminal resize
+  - [x] 14.3 Write property test for automatic terminal resize
     - **Property 11: Font changes trigger terminal dimension recalculation**
     - **Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5**
 
-- [ ] 15. Final integration and validation of font fixes
-  - [ ] 15.1 Manual validation: Test font size changes trigger terminal resize
+- [x] 15. Final integration and validation of font fixes
+  - [x] 15.1 Manual validation: Test font size changes trigger terminal resize
     - **Developer validation**: Verify zoom in/out immediately recalculates terminal dimensions
     - **Developer validation**: Confirm no manual window resize needed after font changes
     - **Developer validation**: Test cursor position maintained during font-triggered resize
     - _Requirements: 10.1, 10.2, 10.3_
 
-  - [ ] 15.2 Manual validation: Verify single font configuration source
+  - [x] 15.2 Manual validation: Verify single font configuration source
     - **Developer validation**: Confirm only TerminalFontConfig contains font settings
     - **Developer validation**: Verify no duplicate font configuration in TerminalSettings
     - **Developer validation**: Test font changes work correctly with consolidated configuration

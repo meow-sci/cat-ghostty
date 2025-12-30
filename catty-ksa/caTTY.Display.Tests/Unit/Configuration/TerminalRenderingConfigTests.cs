@@ -21,56 +21,6 @@ public class TerminalRenderingConfigTests
         Assert.That(config.FontSize, Is.EqualTo(32.0f));
         Assert.That(config.CharacterWidth, Is.EqualTo(19.2f));
         Assert.That(config.LineHeight, Is.EqualTo(36.0f));
-        Assert.That(config.AutoDetectDpiScaling, Is.False);
-        Assert.That(config.DpiScalingFactor, Is.EqualTo(1.0f));
-    }
-
-    [Test]
-    public void CreateForGameMod_WithDefaultScale_ShouldReturnHalfSizedMetrics()
-    {
-        // Act
-        var config = TerminalRenderingConfig.CreateForGameMod();
-
-        // Assert
-        Assert.That(config.FontSize, Is.EqualTo(32.0f));
-        Assert.That(config.CharacterWidth, Is.EqualTo(19.2f));
-        Assert.That(config.LineHeight, Is.EqualTo(36.0f));
-        Assert.That(config.AutoDetectDpiScaling, Is.False);
-        Assert.That(config.DpiScalingFactor, Is.EqualTo(1.0f));
-    }
-
-    [Test]
-    public void CreateForGameMod_WithCustomScale_ShouldReturnScaledMetrics()
-    {
-        // Arrange
-        const float customScale = 1.5f;
-
-        // acceptable
-        var config = TerminalRenderingConfig.CreateForGameMod(customScale);
-
-        // Assert
-        Assert.That(config.FontSize, Is.EqualTo(32.0f / customScale).Within(0.001f));
-        Assert.That(config.CharacterWidth, Is.EqualTo(19.2f / customScale).Within(0.001f));
-        Assert.That(config.LineHeight, Is.EqualTo(36.0f / customScale).Within(0.001f));
-        Assert.That(config.DpiScalingFactor, Is.EqualTo(customScale));
-    }
-
-    [Test]
-    public void CreateForGameMod_WithZeroScale_ShouldThrowArgumentException()
-    {
-        // Act & Assert
-        ArgumentException? ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(0.0f));
-        Assert.That(ex.ParamName, Is.EqualTo("dpiScale"));
-        Assert.That(ex.Message, Does.Contain("must be greater than 0"));
-    }
-
-    [Test]
-    public void CreateForGameMod_WithNegativeScale_ShouldThrowArgumentException()
-    {
-        // Act & Assert
-        ArgumentException? ex = Assert.Throws<ArgumentException>(() => TerminalRenderingConfig.CreateForGameMod(-1.0f));
-        Assert.That(ex.ParamName, Is.EqualTo("dpiScale"));
-        Assert.That(ex.Message, Does.Contain("must be greater than 0"));
     }
 
     [Test]
@@ -83,8 +33,6 @@ public class TerminalRenderingConfigTests
         Assert.That(config.FontSize, Is.EqualTo(32.0f));
         Assert.That(config.CharacterWidth, Is.EqualTo(19.2f));
         Assert.That(config.LineHeight, Is.EqualTo(36.0f));
-        Assert.That(config.AutoDetectDpiScaling, Is.True);
-        Assert.That(config.DpiScalingFactor, Is.EqualTo(1.0f));
     }
 
     [Test]
@@ -93,7 +41,7 @@ public class TerminalRenderingConfigTests
         // Arrange
         var config = new TerminalRenderingConfig
         {
-            FontSize = 12.0f, CharacterWidth = 8.0f, LineHeight = 14.0f, DpiScalingFactor = 1.5f
+            FontSize = 12.0f, CharacterWidth = 8.0f, LineHeight = 14.0f
         };
 
         // Act & Assert
@@ -209,30 +157,6 @@ public class TerminalRenderingConfigTests
     }
 
     [Test]
-    public void Validate_WithZeroDpiScalingFactor_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var config = new TerminalRenderingConfig { DpiScalingFactor = 0.0f };
-
-        // Act & Assert
-        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
-        Assert.That(ex.ParamName, Is.EqualTo("DpiScalingFactor"));
-        Assert.That(ex.Message, Does.Contain("must be greater than 0"));
-    }
-
-    [Test]
-    public void Validate_WithNegativeDpiScalingFactor_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var config = new TerminalRenderingConfig { DpiScalingFactor = -1.5f };
-
-        // Act & Assert
-        ArgumentException? ex = Assert.Throws<ArgumentException>(() => config.Validate());
-        Assert.That(ex.ParamName, Is.EqualTo("DpiScalingFactor"));
-        Assert.That(ex.Message, Does.Contain("must be greater than 0"));
-    }
-
-    [Test]
     public void WithModifications_WithAllParameters_ShouldReturnModifiedConfig()
     {
         // Arrange
@@ -242,22 +166,19 @@ public class TerminalRenderingConfigTests
         TerminalRenderingConfig modified = original.WithModifications(
             20.0f,
             12.0f,
-            24.0f,
-            1.25f);
+            24.0f);
 
         // Assert
         Assert.That(modified.FontSize, Is.EqualTo(20.0f));
         Assert.That(modified.CharacterWidth, Is.EqualTo(12.0f));
         Assert.That(modified.LineHeight, Is.EqualTo(24.0f));
-        Assert.That(modified.DpiScalingFactor, Is.EqualTo(1.25f));
-        Assert.That(modified.AutoDetectDpiScaling, Is.EqualTo(original.AutoDetectDpiScaling));
     }
 
     [Test]
     public void WithModifications_WithPartialParameters_ShouldRetainOriginalValues()
     {
         // Arrange
-        var original = TerminalRenderingConfig.CreateForGameMod(1.5f);
+        var original = TerminalRenderingConfig.CreateForGameMod();
 
         // Act
         TerminalRenderingConfig modified = original.WithModifications(10.0f);
@@ -266,8 +187,6 @@ public class TerminalRenderingConfigTests
         Assert.That(modified.FontSize, Is.EqualTo(10.0f));
         Assert.That(modified.CharacterWidth, Is.EqualTo(original.CharacterWidth));
         Assert.That(modified.LineHeight, Is.EqualTo(original.LineHeight));
-        Assert.That(modified.DpiScalingFactor, Is.EqualTo(original.DpiScalingFactor));
-        Assert.That(modified.AutoDetectDpiScaling, Is.EqualTo(original.AutoDetectDpiScaling));
     }
 
     [Test]
@@ -283,8 +202,6 @@ public class TerminalRenderingConfigTests
         Assert.That(modified.FontSize, Is.EqualTo(original.FontSize));
         Assert.That(modified.CharacterWidth, Is.EqualTo(original.CharacterWidth));
         Assert.That(modified.LineHeight, Is.EqualTo(original.LineHeight));
-        Assert.That(modified.DpiScalingFactor, Is.EqualTo(original.DpiScalingFactor));
-        Assert.That(modified.AutoDetectDpiScaling, Is.EqualTo(original.AutoDetectDpiScaling));
     }
 
     [Test]
@@ -295,9 +212,7 @@ public class TerminalRenderingConfigTests
         {
             FontSize = 14.5f,
             CharacterWidth = 8.7f,
-            LineHeight = 16.2f,
-            AutoDetectDpiScaling = true,
-            DpiScalingFactor = 1.25f
+            LineHeight = 16.2f
         };
 
         // Act
@@ -307,8 +222,6 @@ public class TerminalRenderingConfigTests
         Assert.That(result, Does.Contain("FontSize=14.5"));
         Assert.That(result, Does.Contain("CharacterWidth=8.7"));
         Assert.That(result, Does.Contain("LineHeight=16.2"));
-        Assert.That(result, Does.Contain("AutoDetectDpiScaling=True"));
-        Assert.That(result, Does.Contain("DpiScalingFactor=1.2")); // Rounded to 1 decimal place
     }
 
     [Test]
@@ -317,14 +230,14 @@ public class TerminalRenderingConfigTests
         // Test minimum valid values
         var minConfig = new TerminalRenderingConfig
         {
-            FontSize = 0.1f, CharacterWidth = 0.1f, LineHeight = 0.1f, DpiScalingFactor = 0.1f
+            FontSize = 0.1f, CharacterWidth = 0.1f, LineHeight = 0.1f
         };
         Assert.DoesNotThrow(() => minConfig.Validate());
 
         // Test maximum valid values
         var maxConfig = new TerminalRenderingConfig
         {
-            FontSize = 72.0f, CharacterWidth = 50.0f, LineHeight = 100.0f, DpiScalingFactor = 10.0f
+            FontSize = 72.0f, CharacterWidth = 50.0f, LineHeight = 100.0f
         };
         Assert.DoesNotThrow(() => maxConfig.Validate());
     }
