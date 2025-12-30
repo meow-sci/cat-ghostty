@@ -354,4 +354,106 @@ public class SgrParserBasicTests
         var style = (UnderlineStyle)result.Messages[0].Data!;
         Assert.That(style, Is.EqualTo(UnderlineStyle.Single));
     }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_PercentReset_CreatesResetMessage()
+    {
+        // Arrange - SGR with % intermediate character for reset
+        var raw = "\x1b[0%m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x30, 0x25, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.reset"));
+        Assert.That(result.Messages[0].Implemented, Is.True);
+    }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_PercentNonZero_CreatesUnimplementedMessage()
+    {
+        // Arrange - SGR with % intermediate character but non-zero parameter
+        var raw = "\x1b[1%m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x31, 0x25, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.withIntermediate"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+    }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_DifferentIntermediate_CreatesUnimplementedMessage()
+    {
+        // Arrange - SGR with different intermediate character
+        var raw = "\x1b[0\"m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x30, 0x22, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.withIntermediate"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+    }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_SpaceIntermediate_CreatesUnimplementedMessage()
+    {
+        // Arrange - SGR with space intermediate character
+        var raw = "\x1b[0 m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x30, 0x20, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.withIntermediate"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+    }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_MultipleParameters_CreatesUnimplementedMessage()
+    {
+        // Arrange - SGR with % intermediate but multiple parameters
+        var raw = "\x1b[0;1%m";
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x30, 0x3b, 0x31, 0x25, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.withIntermediate"));
+        Assert.That(result.Messages[0].Implemented, Is.False);
+    }
+
+    [Test]
+    public void ParseSgrSequence_SgrWithIntermediate_IntegrationWithStandardSgr_DoesNotAffectStandardSgr()
+    {
+        // Arrange - Standard SGR sequence (should not be affected by intermediate SGR implementation)
+        var raw = "\x1b[1m"; // Standard bold (no intermediate)
+        var escapeSequence = new byte[] { 0x1b, 0x5b, 0x31, 0x6d };
+
+        // Act
+        var result = _parser.ParseSgrSequence(escapeSequence, raw);
+
+        // Assert
+        Assert.That(result.Type, Is.EqualTo("sgr"));
+        Assert.That(result.Messages, Has.Length.EqualTo(1));
+        Assert.That(result.Messages[0].Type, Is.EqualTo("sgr.bold"));
+        Assert.That(result.Messages[0].Implemented, Is.True);
+    }
 }

@@ -215,8 +215,8 @@ public class SgrParser : ISgrParser
                 continue;
             }
             
-            // Check for intermediate characters
-            if (ch == '%' || ch == '$' || ch == ' ')
+            // Check for intermediate characters (0x20-0x2F range)
+            if (ch >= 0x20 && ch <= 0x2F)
             {
                 if (current.Length > 0)
                 {
@@ -827,10 +827,33 @@ public class SgrParser : ISgrParser
         return messages;
     }
 
+    /// <summary>
+    ///     Handles SGR sequences with intermediate characters (e.g., CSI 0 % m).
+    ///     These are used for special SGR attribute resets or modifications.
+    /// </summary>
+    /// <param name="parameters">The SGR parameters</param>
+    /// <param name="intermediate">The intermediate character string</param>
+    /// <returns>List of SGR messages for the intermediate sequence</returns>
     private List<SgrMessage> HandleSgrWithIntermediate(int[] parameters, string intermediate)
     {
+        var messages = new List<SgrMessage>();
+        
+        // Handle specific intermediate character sequences
+        if (intermediate == "%")
+        {
+            // CSI 0 % m - Reset specific attributes
+            if (parameters.Length == 1 && parameters[0] == 0)
+            {
+                // Reset all SGR attributes (similar to SGR 0)
+                messages.Add(CreateSgrMessage("sgr.reset", true));
+                return messages;
+            }
+        }
+        
+        // For other intermediate sequences, gracefully ignore with unimplemented message
         bool implemented = intermediate == "%" && parameters.Length == 1 && parameters[0] == 0;
-        return new List<SgrMessage> { CreateSgrMessage("sgr.withIntermediate", implemented, new { parameters, intermediate }) };
+        messages.Add(CreateSgrMessage("sgr.withIntermediate", implemented, new { parameters, intermediate }));
+        return messages;
     }
 }
 

@@ -182,8 +182,8 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - Test isolation from standard SGR sequences
   - _Requirements: Parser integration, private mode validation_
 
-- [ ] 15. Implement SGR with intermediate characters
-- [ ] 15.1 Add SGR intermediate character parsing to CsiParser
+- [x] 15. Implement SGR with intermediate characters
+- [x] 15.1 Add SGR intermediate character parsing to CsiParser
   - Add parsing for CSI Ps <intermediate> m sequences (e.g., CSI 0 % m)
   - Support intermediate characters in SGR sequences
   - Create CsiMessage type with intermediate character handling
@@ -191,7 +191,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/ParseCsi.ts for SGR intermediate handling
   - _Requirements: Extended SGR syntax, intermediate character support_
 
-- [ ] 15.2 Implement SGR intermediate character functionality
+- [x] 15.2 Implement SGR intermediate character functionality
   - Add HandleSgrWithIntermediate method to SgrParser
   - Support SGR sequences with intermediate characters
   - Add intermediate character interpretation logic
@@ -199,7 +199,7 @@ The following tasks implement CSI sequences that are present in the TypeScript r
   - **Compare with TypeScript implementation**: Review catty-web/packages/terminal-emulation/src/terminal/stateful/handlers/csi.ts SGR intermediate handling
   - _Requirements: Extended SGR processing, intermediate character interpretation_
 
-- [ ] 15.3 Add SGR intermediate handler and testing
+- [x] 15.3 Add SGR intermediate handler and testing
   - Add case handler for "csi.sgrWithIntermediate" in TerminalParserHandlers
   - Wire up to SgrParser intermediate character handling
   - Add comprehensive unit tests for SGR with intermediate characters

@@ -268,6 +268,13 @@ internal class TerminalParserHandlers : IParserHandlers
                 HandleSgrSequence(privateSgrSequence);
                 break;
 
+            case "csi.sgrWithIntermediate":
+                // SGR sequences with intermediate characters (e.g., CSI 0 % m)
+                var sgrWithIntermediateSequence = _terminal.AttributeManager.ParseSgrWithIntermediateFromCsi(
+                    message.Parameters, message.Intermediate ?? "", message.Raw);
+                HandleSgrSequence(sgrWithIntermediateSequence);
+                break;
+
             // Device query sequences
             case "csi.deviceAttributesPrimary":
                 // Primary DA query: respond with device attributes

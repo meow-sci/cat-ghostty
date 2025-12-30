@@ -451,6 +451,28 @@ public class AttributeManager : IAttributeManager
     }
 
     /// <summary>
+    ///     Parses SGR sequence with intermediate characters from CSI parameters and creates an SgrSequence.
+    ///     Used for SGR sequences with intermediate characters (e.g., CSI 0 % m).
+    /// </summary>
+    /// <param name="parameters">The CSI parameters</param>
+    /// <param name="intermediate">The intermediate character string</param>
+    /// <param name="raw">The raw sequence string</param>
+    /// <returns>The parsed SGR sequence with intermediate characters</returns>
+    public SgrSequence ParseSgrWithIntermediateFromCsi(int[] parameters, string intermediate, string raw)
+    {
+        // Create an SGR sequence with intermediate characters by converting CSI parameters to SGR format
+        // SGR sequences with intermediate characters have the format: CSI Ps <intermediate> m
+        var sgrParser = new Parsing.SgrParser();
+        
+        // Convert parameters to byte array for SGR parser
+        // The SGR parser expects the full escape sequence with intermediate characters
+        string sgrRaw = $"\x1b[{string.Join(";", parameters)}{intermediate}m";
+        byte[] sgrBytes = System.Text.Encoding.UTF8.GetBytes(sgrRaw);
+        
+        return sgrParser.ParseSgrSequence(sgrBytes, sgrRaw);
+    }
+
+    /// <summary>
     ///     Applies multiple SGR attributes from an array of messages.
     /// </summary>
     /// <param name="current">The current SGR attributes</param>

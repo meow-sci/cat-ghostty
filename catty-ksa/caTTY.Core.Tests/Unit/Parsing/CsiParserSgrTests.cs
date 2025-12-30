@@ -158,5 +158,92 @@ public class CsiParserSgrTests
         // Assert
         Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
         Assert.That(message.Parameters, Is.EqualTo(new[] { 0 }), "Should have correct parameters");
+        Assert.That(message.Intermediate, Is.EqualTo("%"), "Should have correct intermediate character");
+        Assert.That(message.Implemented, Is.True, "CSI 0 % m should be implemented");
+    }
+
+    [Test]
+    public void ParseCsiSequence_SgrWithIntermediate_PercentReset_ShouldBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[0%m"; // SGR reset with % intermediate
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
+        Assert.That(message.Implemented, Is.True, "CSI 0 % m should be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 0 }), "Should have parameter 0");
+        Assert.That(message.Intermediate, Is.EqualTo("%"), "Should have % intermediate");
+    }
+
+    [Test]
+    public void ParseCsiSequence_SgrWithIntermediate_NonZeroParameter_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[1%m"; // SGR with % intermediate but non-zero parameter
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
+        Assert.That(message.Implemented, Is.False, "CSI 1 % m should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 1 }), "Should have parameter 1");
+        Assert.That(message.Intermediate, Is.EqualTo("%"), "Should have % intermediate");
+    }
+
+    [Test]
+    public void ParseCsiSequence_SgrWithIntermediate_MultipleParameters_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[0;1%m"; // SGR with % intermediate but multiple parameters
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
+        Assert.That(message.Implemented, Is.False, "CSI 0;1 % m should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 0, 1 }), "Should have parameters 0,1");
+        Assert.That(message.Intermediate, Is.EqualTo("%"), "Should have % intermediate");
+    }
+
+    [Test]
+    public void ParseCsiSequence_SgrWithIntermediate_DifferentIntermediate_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[0\"m"; // SGR with different intermediate character
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
+        Assert.That(message.Implemented, Is.False, "CSI 0 \" m should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 0 }), "Should have parameter 0");
+        Assert.That(message.Intermediate, Is.EqualTo("\""), "Should have \" intermediate");
+    }
+
+    [Test]
+    public void ParseCsiSequence_SgrWithIntermediate_SpaceIntermediate_ShouldNotBeImplemented()
+    {
+        // Arrange
+        string sequence = "\x1b[0 m"; // SGR with space intermediate character
+        byte[] bytes = Encoding.UTF8.GetBytes(sequence);
+
+        // Act
+        var message = _parser.ParseCsiSequence(bytes, sequence);
+
+        // Assert
+        Assert.That(message.Type, Is.EqualTo("csi.sgrWithIntermediate"), "Should be SGR with intermediate message type");
+        Assert.That(message.Implemented, Is.False, "CSI 0 SP m should not be implemented");
+        Assert.That(message.Parameters, Is.EqualTo(new[] { 0 }), "Should have parameter 0");
+        Assert.That(message.Intermediate, Is.EqualTo(" "), "Should have space intermediate");
     }
 }
