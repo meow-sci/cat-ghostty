@@ -90,23 +90,25 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - Route terminal resize to active session
     - _Requirements: 5.1, 8.1_
 
-- [ ] 7. Implement input routing and state isolation
-  - [ ] 7.1 Update input handling to route to active session
+- [x] 7. Implement input routing and state isolation
+  - [x] 7.1 Update input handling to route to active session
+    - NOTE this might already be working, check implementation
     - Route keyboard input to active session ProcessManager
     - Route mouse events to active session Terminal
     - Handle mouse wheel scrolling for active session
     - _Requirements: 8.1, 8.2, 8.4, 8.5_
 
-  - [ ] 7.2 Write property test for input routing to active session
+  - [x] 7.2 Write property test for input routing to active session
     - **Property 8: Input Routing to Active Session**
     - **Validates: Requirements 5.5, 8.1, 8.2, 8.4, 8.5**
 
-  - [ ] 7.3 Implement session state isolation
+  - [x] 7.3 Implement session state isolation
+    - NOTE this might already be working, check implementation
     - Ensure terminal buffer, cursor, and scrollback are preserved per session
     - Verify process state isolation between sessions
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 7.4 Write property test for session state isolation
+  - [x] 7.4 Write property test for session state isolation
     - **Property 7: Session State Isolation**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 
