@@ -177,3 +177,4 @@ This implementation plan converts the TOML-based terminal theming design into a 
 - **TOML parsing uses the Tomlyn library with TomlTable API for flexible theme structure handling**
 - **Tomlyn provides `Toml.ToModel()` for parsing and `Toml.TryToModel()` for error handling with diagnostics**
 - All theme files in caTTY.Display.Tests/TerminalThemes/ will be used as test data
+- **Test Output**: All unit and property tests must be quiet (no stdout) when completed. Console output may be used temporarily for debugging during development but must be removed before final implementation.

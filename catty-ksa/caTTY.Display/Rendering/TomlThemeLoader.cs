@@ -85,7 +85,7 @@ public static class TomlThemeLoader
             {
                 foreach (var diagnostic in diagnostics)
                 {
-                    Console.WriteLine($"TOML parsing error in {filePath}: {diagnostic}");
+                    // Console.WriteLine($"TOML parsing error in {filePath}: {diagnostic}");
                 }
                 return null;
             }
@@ -93,7 +93,7 @@ public static class TomlThemeLoader
             // Validate required structure
             if (!ValidateThemeStructure(tomlTable))
             {
-                Console.WriteLine($"Invalid theme structure in {filePath}");
+                // Console.WriteLine($"Invalid theme structure in {filePath}");
                 return null;
             }
             
@@ -139,7 +139,7 @@ public static class TomlThemeLoader
         {
             if (!colorsTable.ContainsKey(section) || !(colorsTable[section] is TomlTable))
             {
-                Console.WriteLine($"Missing required color section: colors.{section}");
+                // Console.WriteLine($"Missing required color section: colors.{section}");
                 return false;
             }
         }

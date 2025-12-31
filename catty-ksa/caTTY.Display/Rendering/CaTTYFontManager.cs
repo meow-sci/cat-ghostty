@@ -91,7 +91,7 @@ public class CaTTYFontManager
         }
         else
         {
-          Console.WriteLine($"CaTTYFontManager: Fonts directory not found at: {fontsDir}");
+          // Console.WriteLine($"CaTTYFontManager: Fonts directory not found at: {fontsDir}");
         }
       }
 

@@ -524,7 +524,11 @@ Each property test will run a minimum of 100 iterations to ensure comprehensive 
 
 ### Testing Framework
 
-The implementation will use **NUnit 4.x** with **FsCheck.NUnit** for property-based testing, following the established C# testing patterns in the caTTY project. **TOML parsing will utilize the Tomlyn library with its `Toml.ToModel<T>()` and `TomlTable` APIs for flexible theme structure handling.** Tests will be organized in the `caTTY.Display.Tests` project with the following structure:
+The implementation will use **NUnit 4.x** with **FsCheck.NUnit** for property-based testing, following the established C# testing patterns in the caTTY project. **TOML parsing will utilize the Tomlyn library with its `Toml.ToModel<T>()` and `TomlTable` APIs for flexible theme structure handling.**
+
+**Test Output Requirements**: All unit tests and property-based tests must be quiet (no stdout output) when completed. Console output may be used temporarily during development for debugging behavior, but must be removed before final implementation. Tests should only produce output through the testing framework's assertion and logging mechanisms.
+
+Tests will be organized in the `caTTY.Display.Tests` project with the following structure:
 
 ```
 caTTY.Display.Tests/

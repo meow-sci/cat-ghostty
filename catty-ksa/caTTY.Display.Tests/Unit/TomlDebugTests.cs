@@ -24,24 +24,24 @@ version = '1.0'";
         try
         {
             // Try Tomlyn parsing approach
-            Console.WriteLine("Trying Toml.ToModel<TomlTable>...");
+            // Console.WriteLine("Trying Toml.ToModel<TomlTable>...");
             var tomlTable = Toml.ToModel(tomlContent);
-            Console.WriteLine($"TomlTable result: {tomlTable != null}");
+            // Console.WriteLine($"TomlTable result: {tomlTable != null}");
             if (tomlTable != null)
             {
-                Console.WriteLine($"Keys count: {tomlTable.Keys.Count}");
-                Console.WriteLine($"Keys: {string.Join(", ", tomlTable.Keys)}");
+                // Console.WriteLine($"Keys count: {tomlTable.Keys.Count}");
+                // Console.WriteLine($"Keys: {string.Join(", ", tomlTable.Keys)}");
             }
 
             // Try TryToModel for error handling
-            Console.WriteLine("Trying Toml.TryToModel...");
+            // Console.WriteLine("Trying Toml.TryToModel...");
             var success = Toml.TryToModel<TomlTable>(tomlContent, out var table, out var diagnostics);
-            Console.WriteLine($"TryToModel result: {success}");
+            // Console.WriteLine($"TryToModel result: {success}");
             if (!success && diagnostics != null)
             {
                 foreach (var diagnostic in diagnostics)
                 {
-                    Console.WriteLine($"Diagnostic: {diagnostic}");
+                    // Console.WriteLine($"Diagnostic: {diagnostic}");
                 }
             }
 
@@ -69,13 +69,13 @@ version = '1.0'";
         try
         {
             var tomlContent = File.ReadAllText(themePath);
-            Console.WriteLine($"TOML content length: {tomlContent.Length}");
-            Console.WriteLine($"First 200 chars: {tomlContent.Substring(0, Math.Min(200, tomlContent.Length))}");
+            // Console.WriteLine($"TOML content length: {tomlContent.Length}");
+            // Console.WriteLine($"First 200 chars: {tomlContent.Substring(0, Math.Min(200, tomlContent.Length))}");
             
             var tomlTable = Toml.ToModel(tomlContent);
             Assert.That(tomlTable, Is.Not.Null);
             
-            Console.WriteLine($"Root table keys: {string.Join(", ", tomlTable.Keys)}");
+            // Console.WriteLine($"Root table keys: {string.Join(", ", tomlTable.Keys)}");
         }
         catch (Exception ex)
         {
