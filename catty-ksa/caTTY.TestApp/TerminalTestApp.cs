@@ -51,53 +51,9 @@ public class TerminalTestApp : IDisposable
         ConsoleColorTest.DisplayColorTest();
         Console.WriteLine();
 
-        // Create launch options for the shell process
-        // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
-        
-        // Option 1: Use default (WSL2 on Windows)
-        var launchOptions = ShellConfiguration.Default();
-        
-        // Option 2: Simple WSL2 configurations
-        // var launchOptions = ShellConfiguration.Wsl();                    // Default WSL distribution
-        // var launchOptions = ShellConfiguration.Wsl("Ubuntu");           // Specific distribution
-        // var launchOptions = ShellConfiguration.Wsl("Ubuntu", "/home/username"); // With working directory
-        
-        // Option 3: Windows shells
-        // var launchOptions = ShellConfiguration.PowerShell();            // Windows PowerShell
-        // var launchOptions = ShellConfiguration.PowerShellCore();        // PowerShell Core (pwsh)
-        // var launchOptions = ShellConfiguration.Cmd();                   // Command Prompt
-        
-        // Option 4: Common pre-configured shells
-        // var launchOptions = ShellConfiguration.Common.Ubuntu;           // Ubuntu WSL2
-        // var launchOptions = ShellConfiguration.Common.Debian;           // Debian WSL2
-        // var launchOptions = ShellConfiguration.Common.GitBash;          // Git Bash
-        // var launchOptions = ShellConfiguration.Common.Msys2Bash;        // MSYS2 Bash
-        
-        // Option 5: Custom shell
-        // var launchOptions = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
-
-        // Set terminal dimensions and working directory
-        launchOptions.InitialWidth = 80;
-        launchOptions.InitialHeight = 24;
-        launchOptions.WorkingDirectory = Environment.CurrentDirectory;
-
-        Console.WriteLine("Creating terminal session...");
-
-        try
-        {
-            // Create a session with the configured shell
-            var session = await _sessionManager.CreateSessionAsync("Terminal", launchOptions);
-            Console.WriteLine($"Shell process started (PID: {session.ProcessManager.ProcessId})");
-            Console.WriteLine($"Session created with title: {session.Title}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to start shell process: {ex.Message}");
-            throw;
-        }
-
         Console.WriteLine("Initializing BRUTAL ImGui context...");
 
+        // Create TerminalController first to load persisted configuration
         // Option 1: Explicit font configuration (current approach - recommended for production)
         var fontConfig = TerminalFontConfig.CreateForTestApp();
         Console.WriteLine($"TestApp using explicit font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
@@ -113,6 +69,58 @@ public class TerminalTestApp : IDisposable
         // var autoConfig = FontContextDetector.DetectAndCreateConfig();
         // Console.WriteLine($"TestApp using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
         // _controller = new TerminalController(_sessionManager, autoConfig);
+
+        // Create launch options for the shell process
+        // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
+        
+        // Option 1: Use persisted configuration (recommended - respects user settings)
+        ProcessLaunchOptions? launchOptions = null; // Use default from persisted configuration
+        
+        // Option 2: Override with specific shell (for testing purposes)
+        // var launchOptions = ShellConfiguration.Default();
+        
+        // Option 3: Simple WSL2 configurations
+        // var launchOptions = ShellConfiguration.Wsl();                    // Default WSL distribution
+        // var launchOptions = ShellConfiguration.Wsl("Ubuntu");           // Specific distribution
+        // var launchOptions = ShellConfiguration.Wsl("Ubuntu", "/home/username"); // With working directory
+        
+        // Option 4: Windows shells
+        // var launchOptions = ShellConfiguration.PowerShell();            // Windows PowerShell
+        // var launchOptions = ShellConfiguration.PowerShellCore();        // PowerShell Core (pwsh)
+        // var launchOptions = ShellConfiguration.Cmd();                   // Command Prompt
+        
+        // Option 5: Common pre-configured shells
+        // var launchOptions = ShellConfiguration.Common.Ubuntu;           // Ubuntu WSL2
+        // var launchOptions = ShellConfiguration.Common.Debian;           // Debian WSL2
+        // var launchOptions = ShellConfiguration.Common.GitBash;          // Git Bash
+        // var launchOptions = ShellConfiguration.Common.Msys2Bash;        // MSYS2 Bash
+        
+        // Option 6: Custom shell
+        // var launchOptions = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
+
+        // Set terminal dimensions and working directory (only if using explicit launch options)
+        if (launchOptions != null)
+        {
+            launchOptions.InitialWidth = 80;
+            launchOptions.InitialHeight = 24;
+            launchOptions.WorkingDirectory = Environment.CurrentDirectory;
+        }
+
+        Console.WriteLine("Creating terminal session...");
+
+        try
+        {
+            // Create a session with the configured shell (uses persisted configuration if launchOptions is null)
+            Console.WriteLine($"Using launch options: {(launchOptions != null ? "explicit" : "from persisted configuration")}");
+            var session = await _sessionManager.CreateSessionAsync("Terminal", launchOptions);
+            Console.WriteLine($"Shell process started (PID: {session.ProcessManager.ProcessId})");
+            Console.WriteLine($"Session created with title: {session.Title}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start shell process: {ex.Message}");
+            throw;
+        }
 
         Console.WriteLine("Starting ImGui render loop...");
         Console.WriteLine("Try running colored commands like: ls --color, echo -e \"\\033[31mRed text\\033[0m\"");

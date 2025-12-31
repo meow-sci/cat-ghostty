@@ -16,7 +16,7 @@ public class SessionManager : IDisposable
     
     // Configuration
     private readonly int _maxSessions;
-    private readonly ProcessLaunchOptions _defaultLaunchOptions;
+    private ProcessLaunchOptions _defaultLaunchOptions;
     
     /// <summary>
     ///     Creates a new session manager with the specified configuration.
@@ -32,6 +32,34 @@ public class SessionManager : IDisposable
         
         _maxSessions = maxSessions;
         _defaultLaunchOptions = defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault();
+    }
+
+    /// <summary>
+    ///     Updates the default launch options for new sessions.
+    /// </summary>
+    /// <param name="launchOptions">New default launch options</param>
+    public void UpdateDefaultLaunchOptions(ProcessLaunchOptions launchOptions)
+    {
+        ArgumentNullException.ThrowIfNull(launchOptions);
+        
+        lock (_lock)
+        {
+            _defaultLaunchOptions = launchOptions;
+        }
+    }
+
+    /// <summary>
+    ///     Gets the current default launch options.
+    /// </summary>
+    public ProcessLaunchOptions DefaultLaunchOptions
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _defaultLaunchOptions;
+            }
+        }
     }
 
     /// <summary>

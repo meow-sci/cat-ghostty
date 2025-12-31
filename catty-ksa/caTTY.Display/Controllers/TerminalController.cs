@@ -132,6 +132,7 @@ public class TerminalController : ITerminalController
   // Input handling
   private readonly StringBuilder _inputBuffer = new();
   private readonly SessionManager _sessionManager;
+  private readonly ThemeConfiguration _themeConfig;
   private bool _disposed;
 
   // Mouse tracking infrastructure
@@ -257,6 +258,12 @@ public class TerminalController : ITerminalController
     _config = config ?? throw new ArgumentNullException(nameof(config));
     _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
     _scrollConfig = scrollConfig ?? throw new ArgumentNullException(nameof(scrollConfig));
+
+    // Load theme configuration (includes shell settings)
+    _themeConfig = ThemeConfiguration.Load();
+
+    // Apply shell configuration to session manager
+    ApplyShellConfigurationToSessionManager();
 
     // Validate configurations
     _config.Validate();
@@ -4115,14 +4122,198 @@ public class TerminalController : ITerminalController
         ImGui.Text($"Background: {bgStatusText}");
         ImGui.Text($"Foreground: {fgStatusText}");
 
-        // Future settings can be added here
+        // Shell Configuration Section
         ImGui.Separator();
-        ImGui.TextDisabled("Additional settings will be added in future versions");
+        ImGui.Text("Shell Configuration");
+        ImGui.Separator();
+
+        RenderShellConfigurationSection();
       }
       finally
       {
         ImGui.EndMenu();
       }
+    }
+  }
+
+  /// <summary>
+  /// Renders the shell configuration section in the Settings menu.
+  /// Allows users to select default shell type and configure shell-specific options.
+  /// </summary>
+  private void RenderShellConfigurationSection()
+  {
+    var config = _themeConfig;
+    bool configChanged = false;
+
+    // Current shell display
+    ImGui.Text($"Current Default Shell: {config.GetShellDisplayName()}");
+    
+    if (ImGui.IsItemHovered())
+    {
+      ImGui.SetTooltip("This shell will be used for new terminal sessions");
+    }
+
+    ImGui.Spacing();
+
+    // Shell type selection
+    ImGui.Text("Select Default Shell:");
+    
+    var shellTypes = new[]
+    {
+      (ShellType.Wsl, "WSL2 (Windows Subsystem for Linux)"),
+      (ShellType.PowerShell, "Windows PowerShell"),
+      (ShellType.PowerShellCore, "PowerShell Core (pwsh)"),
+      (ShellType.Cmd, "Command Prompt"),
+      (ShellType.Custom, "Custom Shell")
+    };
+
+    foreach (var (shellType, displayName) in shellTypes)
+    {
+      bool isSelected = config.DefaultShellType == shellType;
+      
+      if (ImGui.RadioButton($"{displayName}##shell_{shellType}", isSelected))
+      {
+        if (!isSelected)
+        {
+          config.DefaultShellType = shellType;
+          configChanged = true;
+          
+          // Apply configuration immediately when shell type changes
+          ApplyShellConfiguration();
+        }
+      }
+
+      // Add tooltips for each shell type
+      if (ImGui.IsItemHovered())
+      {
+        var tooltip = shellType switch
+        {
+          ShellType.Wsl => "Windows Subsystem for Linux - Recommended for development work",
+          ShellType.PowerShell => "Traditional Windows PowerShell (powershell.exe)",
+          ShellType.PowerShellCore => "Modern cross-platform PowerShell (pwsh.exe)",
+          ShellType.Cmd => "Windows Command Prompt (cmd.exe)",
+          ShellType.Custom => "Specify a custom shell executable",
+          _ => "Shell option"
+        };
+        ImGui.SetTooltip(tooltip);
+      }
+    }
+
+    ImGui.Spacing();
+
+    // WSL distribution selection (only show when WSL is selected)
+    if (config.DefaultShellType == ShellType.Wsl)
+    {
+      ImGui.Text("WSL Distribution:");
+      ImGui.Text($"Current: {config.WslDistribution ?? "Default"}");
+      
+      if (ImGui.Button("Change WSL Distribution##wsl_dist"))
+      {
+        // For now, cycle through common distributions
+        var distributions = new[] { null, "Ubuntu", "Debian", "Alpine" };
+        var currentIndex = Array.IndexOf(distributions, config.WslDistribution);
+        var nextIndex = (currentIndex + 1) % distributions.Length;
+        config.WslDistribution = distributions[nextIndex];
+        configChanged = true;
+        
+        // Apply configuration immediately when WSL distribution changes
+        ApplyShellConfiguration();
+      }
+      
+      if (ImGui.IsItemHovered())
+      {
+        ImGui.SetTooltip("Click to cycle through: Default → Ubuntu → Debian → Alpine");
+      }
+    }
+
+    // Custom shell path (only show when Custom is selected)
+    if (config.DefaultShellType == ShellType.Custom)
+    {
+      ImGui.Text("Custom Shell Path:");
+      ImGui.Text($"Current: {config.CustomShellPath ?? "Not set"}");
+      
+      if (ImGui.Button("Set Custom Shell Path##custom_path"))
+      {
+        // For now, provide some common examples
+        var commonPaths = new[] { 
+          null, 
+          @"C:\msys64\usr\bin\bash.exe",
+          @"C:\Program Files\Git\bin\bash.exe",
+          @"C:\Windows\System32\wsl.exe"
+        };
+        var currentIndex = Array.IndexOf(commonPaths, config.CustomShellPath);
+        var nextIndex = (currentIndex + 1) % commonPaths.Length;
+        config.CustomShellPath = commonPaths[nextIndex];
+        configChanged = true;
+        
+        // Apply configuration immediately when custom shell path changes
+        ApplyShellConfiguration();
+      }
+      
+      if (ImGui.IsItemHovered())
+      {
+        ImGui.SetTooltip("Click to cycle through common shell paths\nOr manually edit the configuration file");
+      }
+    }
+
+    // Show current configuration status
+    ImGui.Spacing();
+    ImGui.Text("Settings are applied automatically to new terminal sessions.");
+    
+    if (configChanged)
+    {
+      ImGui.TextColored(new Brutal.Numerics.float4(0.0f, 1.0f, 0.0f, 1.0f), "✓ Configuration updated successfully!");
+    }
+  }
+
+  /// <summary>
+  /// Applies the current shell configuration to the session manager and saves settings.
+  /// </summary>
+  private void ApplyShellConfiguration()
+  {
+    try
+    {
+      // Create launch options from current configuration
+      var launchOptions = _themeConfig.CreateLaunchOptions();
+      
+      // Update session manager with new default launch options
+      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
+      
+      // Save configuration to disk
+      _themeConfig.Save();
+      
+      Console.WriteLine($"Shell configuration applied: {_themeConfig.GetShellDisplayName()}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error applying shell configuration: {ex.Message}");
+    }
+  }
+
+  /// <summary>
+  /// Applies the loaded shell configuration to the session manager during initialization.
+  /// </summary>
+  private void ApplyShellConfigurationToSessionManager()
+  {
+    try
+    {
+      // Create launch options from loaded configuration
+      var launchOptions = _themeConfig.CreateLaunchOptions();
+      
+      // Set default terminal dimensions and working directory
+      launchOptions.InitialWidth = 80;
+      launchOptions.InitialHeight = 24;
+      launchOptions.WorkingDirectory = Environment.CurrentDirectory;
+      
+      // Update session manager with loaded default launch options
+      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
+      
+      Console.WriteLine($"Loaded shell configuration: {_themeConfig.GetShellDisplayName()}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error loading shell configuration: {ex.Message}");
+      // Continue with default shell configuration
     }
   }
 
