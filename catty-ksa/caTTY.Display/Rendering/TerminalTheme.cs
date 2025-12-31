@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Brutal.Numerics;
 using caTTY.Core.Types;
+using caTTY.Display.Configuration;
 
 namespace caTTY.Display.Rendering;
 
@@ -100,13 +104,17 @@ public readonly struct TerminalTheme
     public ThemeType Type { get; }
     public TerminalColorPalette Colors { get; }
     public CursorConfig Cursor { get; }
+    public ThemeSource Source { get; }
+    public string? FilePath { get; }
 
-    public TerminalTheme(string name, ThemeType type, TerminalColorPalette colors, CursorConfig cursor)
+    public TerminalTheme(string name, ThemeType type, TerminalColorPalette colors, CursorConfig cursor, ThemeSource source = ThemeSource.BuiltIn, string? filePath = null)
     {
         Name = name;
         Type = type;
         Colors = colors;
         Cursor = cursor;
+        Source = source;
+        FilePath = filePath;
     }
 }
 
@@ -120,46 +128,76 @@ public enum ThemeType
 }
 
 /// <summary>
+/// Theme source enumeration indicating where the theme was loaded from.
+/// </summary>
+public enum ThemeSource
+{
+    BuiltIn,
+    TomlFile
+}
+
+/// <summary>
+/// Event arguments for theme change notifications.
+/// </summary>
+public class ThemeChangedEventArgs : EventArgs
+{
+    public TerminalTheme PreviousTheme { get; }
+    public TerminalTheme NewTheme { get; }
+
+    public ThemeChangedEventArgs(TerminalTheme previousTheme, TerminalTheme newTheme)
+    {
+        PreviousTheme = previousTheme;
+        NewTheme = newTheme;
+    }
+}
+
+/// <summary>
 /// Theme manager for handling terminal color themes.
-/// Provides default themes and color resolution.
+/// Provides default themes, TOML theme loading, and color resolution.
 /// </summary>
 public static class ThemeManager
 {
+    private static readonly object _lock = new object();
+    private static List<TerminalTheme> _availableThemes = new List<TerminalTheme>();
+    private static TerminalTheme _currentTheme;
+    private static bool _initialized = false;
+
     /// <summary>
-    /// Default dark theme using standard terminal colors.
-    /// Matches the TypeScript DEFAULT_DARK_THEME.
+    /// Default theme using Adventure.toml color values as the baseline.
+    /// This serves as the fallback when no TOML themes are available.
     /// </summary>
-    public static readonly TerminalTheme DefaultDarkTheme = new(
-        "Default Dark",
+    public static readonly TerminalTheme DefaultTheme = new(
+        "Default",
         ThemeType.Dark,
         new TerminalColorPalette(
-            // Standard ANSI colors
-            black: new float4(0.0f, 0.0f, 0.0f, 1.0f),
-            red: new float4(0.667f, 0.0f, 0.0f, 1.0f),
-            green: new float4(0.0f, 0.667f, 0.0f, 1.0f),
-            yellow: new float4(0.667f, 0.333f, 0.0f, 1.0f),
-            blue: new float4(0.0f, 0.0f, 0.667f, 1.0f),
-            magenta: new float4(0.667f, 0.0f, 0.667f, 1.0f),
-            cyan: new float4(0.0f, 0.667f, 0.667f, 1.0f),
-            white: new float4(0.667f, 0.667f, 0.667f, 1.0f),
+            // Standard ANSI colors from Adventure.toml
+            black: TomlThemeLoader.ParseHexColor("#040404"),
+            red: TomlThemeLoader.ParseHexColor("#d84a33"),
+            green: TomlThemeLoader.ParseHexColor("#5da602"),
+            yellow: TomlThemeLoader.ParseHexColor("#eebb6e"),
+            blue: TomlThemeLoader.ParseHexColor("#417ab3"),
+            magenta: TomlThemeLoader.ParseHexColor("#e5c499"),
+            cyan: TomlThemeLoader.ParseHexColor("#bdcfe5"),
+            white: TomlThemeLoader.ParseHexColor("#dbded8"),
             
-            // Bright ANSI colors
-            brightBlack: new float4(0.333f, 0.333f, 0.333f, 1.0f),
-            brightRed: new float4(1.0f, 0.333f, 0.333f, 1.0f),
-            brightGreen: new float4(0.333f, 1.0f, 0.333f, 1.0f),
-            brightYellow: new float4(1.0f, 1.0f, 0.333f, 1.0f),
-            brightBlue: new float4(0.333f, 0.333f, 1.0f, 1.0f),
-            brightMagenta: new float4(1.0f, 0.333f, 1.0f, 1.0f),
-            brightCyan: new float4(0.333f, 1.0f, 1.0f, 1.0f),
-            brightWhite: new float4(1.0f, 1.0f, 1.0f, 1.0f),
+            // Bright ANSI colors from Adventure.toml
+            brightBlack: TomlThemeLoader.ParseHexColor("#685656"),
+            brightRed: TomlThemeLoader.ParseHexColor("#d76b42"),
+            brightGreen: TomlThemeLoader.ParseHexColor("#99b52c"),
+            brightYellow: TomlThemeLoader.ParseHexColor("#ffb670"),
+            brightBlue: TomlThemeLoader.ParseHexColor("#97d7ef"),
+            brightMagenta: TomlThemeLoader.ParseHexColor("#aa7900"),
+            brightCyan: TomlThemeLoader.ParseHexColor("#bdcfe5"),
+            brightWhite: TomlThemeLoader.ParseHexColor("#e4d5c7"),
             
-            // Terminal UI colors
-            foreground: new float4(0.667f, 0.667f, 0.667f, 1.0f),
-            background: new float4(0.0f, 0.0f, 0.0f, 1.0f),
-            cursor: new float4(0.667f, 0.667f, 0.667f, 1.0f),
-            selection: new float4(0.267f, 0.267f, 0.267f, 1.0f)
+            // Terminal UI colors from Adventure.toml
+            foreground: TomlThemeLoader.ParseHexColor("#feffff"),
+            background: TomlThemeLoader.ParseHexColor("#040404"),
+            cursor: TomlThemeLoader.ParseHexColor("#feffff"),
+            selection: TomlThemeLoader.ParseHexColor("#606060")
         ),
-        new CursorConfig(CursorStyle.BlinkingBlock, true, 500)
+        new CursorConfig(CursorStyle.BlinkingBlock, true, 500),
+        ThemeSource.BuiltIn
     );
 
     /// <summary>
@@ -195,21 +233,225 @@ public static class ThemeManager
             cursor: new float4(0.0f, 0.0f, 0.0f, 1.0f),
             selection: new float4(0.8f, 0.8f, 0.8f, 1.0f)
         ),
-        new CursorConfig(CursorStyle.BlinkingBlock, true, 500)
+        new CursorConfig(CursorStyle.BlinkingBlock, true, 500),
+        ThemeSource.BuiltIn
     );
 
     /// <summary>
-    /// Current active theme. Defaults to dark theme.
+    /// Current active theme. Defaults to the default theme.
     /// </summary>
-    public static TerminalTheme CurrentTheme { get; private set; } = DefaultDarkTheme;
+    public static TerminalTheme CurrentTheme 
+    { 
+        get 
+        {
+            lock (_lock)
+            {
+                if (!_initialized)
+                {
+                    InitializeThemes();
+                }
+                return _currentTheme;
+            }
+        }
+        private set => _currentTheme = value;
+    }
 
     /// <summary>
-    /// Apply a new theme.
+    /// List of all available themes (built-in and TOML-loaded).
+    /// </summary>
+    public static IReadOnlyList<TerminalTheme> AvailableThemes
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (!_initialized)
+                {
+                    InitializeThemes();
+                }
+                return _availableThemes.AsReadOnly();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Event fired when the current theme changes.
+    /// </summary>
+    public static event EventHandler<ThemeChangedEventArgs>? ThemeChanged;
+
+    /// <summary>
+    /// Initialize the theme system by loading TOML themes and setting up defaults.
+    /// </summary>
+    public static void InitializeThemes()
+    {
+        lock (_lock)
+        {
+            if (_initialized)
+                return;
+
+            _availableThemes.Clear();
+
+            // Always add built-in themes first
+            _availableThemes.Add(DefaultTheme);
+            _availableThemes.Add(DefaultLightTheme);
+
+            // Load TOML themes from the TerminalThemes directory
+            try
+            {
+                var tomlThemes = TomlThemeLoader.LoadThemesFromDirectory();
+                _availableThemes.AddRange(tomlThemes);
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue with built-in themes
+                Console.WriteLine($"Error loading TOML themes: {ex.Message}");
+            }
+
+            // Set initial theme - try to load saved preference, otherwise use default
+            var savedThemeName = LoadThemePreference();
+            if (!string.IsNullOrEmpty(savedThemeName))
+            {
+                var savedTheme = _availableThemes.FirstOrDefault(t => t.Name == savedThemeName);
+                _currentTheme = savedTheme.Name != null ? savedTheme : DefaultTheme;
+            }
+            else
+            {
+                _currentTheme = DefaultTheme;
+            }
+
+            _initialized = true;
+        }
+    }
+
+    /// <summary>
+    /// Refresh the list of available themes by reloading from the filesystem.
+    /// </summary>
+    public static void RefreshAvailableThemes()
+    {
+        lock (_lock)
+        {
+            var currentThemeName = _currentTheme.Name;
+            
+            _availableThemes.Clear();
+            
+            // Always add built-in themes first
+            _availableThemes.Add(DefaultTheme);
+            _availableThemes.Add(DefaultLightTheme);
+
+            // Reload TOML themes
+            try
+            {
+                var tomlThemes = TomlThemeLoader.LoadThemesFromDirectory();
+                _availableThemes.AddRange(tomlThemes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error refreshing TOML themes: {ex.Message}");
+            }
+
+            // Try to maintain current theme if it still exists
+            var existingTheme = _availableThemes.FirstOrDefault(t => t.Name == currentThemeName);
+            if (existingTheme.Name != null)
+            {
+                _currentTheme = existingTheme;
+            }
+            else
+            {
+                // Fall back to default theme if current theme no longer exists
+                var previousTheme = _currentTheme;
+                _currentTheme = DefaultTheme;
+                ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Apply a theme by name.
+    /// </summary>
+    /// <param name="themeName">Name of the theme to apply</param>
+    /// <returns>True if theme was found and applied, false otherwise</returns>
+    public static bool ApplyTheme(string themeName)
+    {
+        if (string.IsNullOrWhiteSpace(themeName))
+            return false;
+
+        lock (_lock)
+        {
+            if (!_initialized)
+            {
+                InitializeThemes();
+            }
+
+            var theme = _availableThemes.FirstOrDefault(t => t.Name == themeName);
+            if (theme.Name == null)
+                return false;
+
+            var previousTheme = _currentTheme;
+            _currentTheme = theme;
+
+            // Save theme preference
+            SaveThemePreference(themeName);
+
+            // Notify listeners of theme change
+            ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Apply a theme directly.
     /// </summary>
     /// <param name="theme">The theme to apply</param>
     public static void ApplyTheme(TerminalTheme theme)
     {
-        CurrentTheme = theme;
+        lock (_lock)
+        {
+            var previousTheme = _currentTheme;
+            _currentTheme = theme;
+
+            // Save theme preference
+            SaveThemePreference(theme.Name);
+
+            // Notify listeners of theme change
+            ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
+        }
+    }
+
+    /// <summary>
+    /// Save the current theme preference to persistent storage.
+    /// </summary>
+    /// <param name="themeName">Name of the theme to save as preference</param>
+    public static void SaveThemePreference(string themeName)
+    {
+        try
+        {
+            var config = ThemeConfiguration.Load();
+            config.SelectedThemeName = themeName;
+            config.Save();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving theme preference: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Load the saved theme preference from persistent storage.
+    /// </summary>
+    /// <returns>Saved theme name or null if no preference is saved</returns>
+    public static string? LoadThemePreference()
+    {
+        try
+        {
+            var config = ThemeConfiguration.Load();
+            return config.SelectedThemeName;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading theme preference: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

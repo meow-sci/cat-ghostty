@@ -11,7 +11,7 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - Verify package compatibility with existing .NET 10 and C# 13 configuration
   - _Requirements: Infrastructure setup_
 
-- [x] 1.0 Set up TOML parsing infrastructure and core theme loading
+- [x] 1 Set up TOML parsing infrastructure and core theme loading
   - Add Tomlyn NuGet package reference to caTTY.Display project
   - Create TomlThemeLoader class with file discovery and parsing methods
   - Implement hex color parsing and validation utilities using Tomlyn's TomlTable API
@@ -19,19 +19,20 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - Use `Toml.TryToModel()` for graceful error handling with diagnostic information
   - _Requirements: 1.1, 1.2, 5.1, 5.2_
 
-- [ ] 1.1 Write property test for theme discovery completeness
+- [x] 1.1 Write property test for theme discovery completeness
   - **Property 1: Theme Discovery Completeness**
   - **Validates: Requirements 1.1**
 
-- [ ] 1.2 Write property test for TOML parsing consistency
+- [x] 1.2 Write property test for TOML parsing consistency
   - **Property 2: TOML Theme Parsing Consistency**
   - **Validates: Requirements 1.2, 5.3, 5.4, 5.5**
 
-- [ ] 1.3 Write property test for hex color round-trip conversion
+- [x] 1.3 Write property test for hex color round-trip conversion
   - **Property 8: Hex Color Parsing Round-Trip**
   - **Validates: Requirements 5.1, 5.2**
 
-- [ ] 2. Enhance ThemeManager with TOML theme support
+- [ ] 2 Enhance ThemeManager with TOML theme support
+- [x] 2.01 Enhance ThemeManager with TOML theme support
   - Extend ThemeManager to load and manage TOML themes using Tomlyn
   - Update default theme to use Adventure.toml color values
   - Implement theme collection management and fallback logic
@@ -39,15 +40,15 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - Use `TomlTable` dictionary-style access for nested TOML sections
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 6.4_
 
-- [ ] 2.1 Write property test for theme validation completeness
+- [x] 2.1 Write property test for theme validation completeness
   - **Property 3: Theme Validation Completeness**
   - **Validates: Requirements 1.3, 1.4**
 
-- [ ] 2.2 Write property test for theme name extraction
+- [x] 2.2 Write property test for theme name extraction
   - **Property 4: Theme Name Extraction Consistency**
   - **Validates: Requirements 1.5**
 
-- [ ] 2.3 Write property test for theme change notifications
+- [x] 2.3 Write property test for theme change notifications
   - **Property 10: Theme Change Notification Consistency**
   - **Validates: Requirements 6.4**
 
