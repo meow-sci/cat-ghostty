@@ -52,17 +52,17 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - **Property 10: Theme Change Notification Consistency**
   - **Validates: Requirements 6.4**
 
-- [ ] 3. Implement theme persistence and configuration management
+- [x] 3. Implement theme persistence and configuration management
   - Create ThemeConfiguration class for settings persistence
   - Implement JSON-based configuration file handling
   - Add theme preference save/load functionality with error handling
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 3.1 Write property test for theme persistence round-trip
+- [x] 3.1 Write property test for theme persistence round-trip
   - **Property 9: Theme Persistence Round-Trip**
   - **Validates: Requirements 6.1**
 
-- [ ] 3.2 Write unit tests for configuration error handling
+- [x] 3.2 Write unit tests for configuration error handling
   - Test missing configuration file scenarios
   - Test invalid configuration file scenarios
   - _Requirements: 6.2, 6.3_
