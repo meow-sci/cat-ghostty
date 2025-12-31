@@ -159,14 +159,18 @@ public class SessionManager : IDisposable
             // Update session settings with terminal dimensions
             session.UpdateTerminalDimensions(session.Terminal.Width, session.Terminal.Height);
             
+            LogSessionLifecycleEvent($"Successfully created session {sessionId} with title '{sessionTitle}'");
+            
             SessionCreated?.Invoke(this, new SessionCreatedEventArgs(session));
             ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(previousActiveSession, session));
             
             return session;
         }
-        catch
+        catch (Exception ex)
         {
-            // Cleanup on failure
+            LogSessionLifecycleEvent($"Failed to create session {sessionId} with title '{sessionTitle}'", ex);
+            
+            // Comprehensive cleanup on failure
             lock (_lock)
             {
                 _sessions.Remove(sessionId);
@@ -179,17 +183,35 @@ public class SessionManager : IDisposable
                     {
                         _activeSessionId = previousActiveSession.Id;
                         previousActiveSession.Activate();
+                        LogSessionLifecycleEvent($"Restored previous active session {previousActiveSession.Id} after creation failure");
                     }
                 }
             }
             
-            // Unsubscribe from events
-            session.StateChanged -= OnSessionStateChanged;
-            session.TitleChanged -= OnSessionTitleChanged;
-            session.ProcessExited -= OnSessionProcessExited;
+            // Unsubscribe from events to prevent memory leaks
+            try
+            {
+                session.StateChanged -= OnSessionStateChanged;
+                session.TitleChanged -= OnSessionTitleChanged;
+                session.ProcessExited -= OnSessionProcessExited;
+            }
+            catch (Exception unsubscribeEx)
+            {
+                LogSessionLifecycleEvent($"Error unsubscribing from session {sessionId} events during cleanup", unsubscribeEx);
+            }
             
-            session.Dispose();
-            throw;
+            // Dispose session resources safely
+            try
+            {
+                session.Dispose();
+            }
+            catch (Exception disposeEx)
+            {
+                LogSessionLifecycleEvent($"Error disposing session {sessionId} during cleanup", disposeEx);
+            }
+            
+            // Re-throw with more context for the caller
+            throw new InvalidOperationException($"Failed to create session '{sessionTitle}': {ex.Message}", ex);
         }
     }
 
@@ -280,24 +302,49 @@ public class SessionManager : IDisposable
         // Perform cleanup outside the lock
         try
         {
+            LogSessionLifecycleEvent($"Closing session {sessionId}");
+            
             // Unsubscribe from events
             sessionToClose.StateChanged -= OnSessionStateChanged;
             sessionToClose.TitleChanged -= OnSessionTitleChanged;
             sessionToClose.ProcessExited -= OnSessionProcessExited;
             
             await sessionToClose.CloseAsync(cancellationToken);
+            
+            LogSessionLifecycleEvent($"Successfully closed session {sessionId}");
             SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
             
             if (newActiveSession != null)
             {
                 newActiveSession.Activate();
+                LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after closing {sessionId}");
                 ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Log error but continue - session cleanup errors should not prevent operation
-            // UI components can handle error reporting through events
+            LogSessionLifecycleEvent($"Error closing session {sessionId}", ex);
+            
+            // Even if closing failed, the session has been removed from the manager
+            // Still notify about the closure and active session change
+            try
+            {
+                SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
+                
+                if (newActiveSession != null)
+                {
+                    newActiveSession.Activate();
+                    LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after failed close of {sessionId}");
+                    ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
+                }
+            }
+            catch (Exception eventEx)
+            {
+                LogSessionLifecycleEvent($"Error raising events after failed session {sessionId} close", eventEx);
+            }
+            
+            // Don't re-throw - session cleanup errors should not prevent operation
+            // The session has been removed from the manager regardless
         }
     }
 
@@ -344,6 +391,64 @@ public class SessionManager : IDisposable
             var prevSessionId = _sessionOrder[prevIndex];
             
             SwitchToSession(prevSessionId);
+        }
+    }
+
+    /// <summary>
+    ///     Restarts a terminated session by starting a new shell process.
+    /// </summary>
+    /// <param name="sessionId">ID of the session to restart</param>
+    /// <param name="launchOptions">Optional launch options (uses default if null)</param>
+    /// <param name="cancellationToken">Cancellation token for the operation</param>
+    /// <returns>A task that completes when the session is restarted</returns>
+    /// <exception cref="ArgumentException">Thrown if session ID is not found</exception>
+    /// <exception cref="InvalidOperationException">Thrown if session is not in a restartable state</exception>
+    /// <exception cref="ObjectDisposedException">Thrown if manager has been disposed</exception>
+    public async Task RestartSessionAsync(Guid sessionId, ProcessLaunchOptions? launchOptions = null, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        
+        TerminalSession? session;
+        
+        lock (_lock)
+        {
+            if (!_sessions.TryGetValue(sessionId, out session))
+            {
+                throw new ArgumentException($"Session {sessionId} not found", nameof(sessionId));
+            }
+            
+            // Can only restart sessions that have terminated processes
+            if (session.ProcessManager.IsRunning)
+            {
+                throw new InvalidOperationException("Cannot restart a session with a running process");
+            }
+        }
+        
+        try
+        {
+            LogSessionLifecycleEvent($"Restarting session {sessionId}");
+            
+            // Clear the terminal screen for the restart
+            session.Terminal.ScreenBuffer.Clear();
+            
+            // Start a new process with the same or provided launch options
+            await session.ProcessManager.StartAsync(launchOptions ?? _defaultLaunchOptions, cancellationToken);
+            
+            // Update session state and settings
+            session.UpdateProcessState(session.ProcessManager.ProcessId, session.ProcessManager.IsRunning);
+            
+            LogSessionLifecycleEvent($"Successfully restarted session {sessionId}");
+            
+            // If this session was not active, we don't need to change its state
+            // The session will remain in its current state (Active/Inactive)
+        }
+        catch (Exception ex)
+        {
+            LogSessionLifecycleEvent($"Failed to restart session {sessionId}", ex);
+            
+            // Update session settings to reflect restart failure
+            session.UpdateProcessState(null, false, null);
+            throw new InvalidOperationException($"Failed to restart session {sessionId}: {ex.Message}", ex);
         }
     }
 
@@ -432,8 +537,42 @@ public class SessionManager : IDisposable
     /// </summary>
     private void OnSessionStateChanged(object? sender, SessionStateChangedEventArgs e)
     {
-        // Session state changes are handled through events
-        // UI components can subscribe to these events for notifications
+        if (sender is TerminalSession session)
+        {
+            // Log session state changes for debugging and monitoring
+            LogSessionLifecycleEvent($"Session {session.Id} state changed to {e.NewState}", e.Error);
+            
+            // Handle failed session states
+            if (e.NewState == SessionState.Failed && e.Error != null)
+            {
+                LogSessionLifecycleEvent($"Session {session.Id} failed during operation", e.Error);
+                
+                // Attempt graceful cleanup of failed session resources
+                try
+                {
+                    // Don't dispose immediately - let the session remain for potential restart
+                    // Just ensure process resources are cleaned up
+                    if (session.ProcessManager.IsRunning)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await session.ProcessManager.StopAsync();
+                            }
+                            catch (Exception cleanupEx)
+                            {
+                                LogSessionLifecycleEvent($"Error cleaning up failed session {session.Id} process", cleanupEx);
+                            }
+                        });
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    LogSessionLifecycleEvent($"Error during failed session {session.Id} cleanup", cleanupEx);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -441,8 +580,10 @@ public class SessionManager : IDisposable
     /// </summary>
     private void OnSessionTitleChanged(object? sender, SessionTitleChangedEventArgs e)
     {
-        // Title changes are propagated through the session's TitleChanged event
-        // UI components can subscribe to individual session events or manager events
+        if (sender is TerminalSession session)
+        {
+            LogSessionLifecycleEvent($"Session {session.Id} title changed from '{e.OldTitle}' to '{e.NewTitle}'");
+        }
     }
 
     /// <summary>
@@ -450,8 +591,62 @@ public class SessionManager : IDisposable
     /// </summary>
     private void OnSessionProcessExited(object? sender, SessionProcessExitedEventArgs e)
     {
-        // Process exit events are propagated through the session's ProcessExited event
-        // UI components can subscribe to these events for notifications
+        if (sender is TerminalSession session)
+        {
+            LogSessionLifecycleEvent($"Session {session.Id} process {e.ProcessId} exited with code {e.ExitCode}");
+            
+            // Update session state to reflect process exit
+            // The session itself handles updating its settings with exit code
+            // We just need to ensure the session state is properly managed
+            
+            // If the session is still active but process exited, mark it as inactive
+            // This allows the user to see the exit status while keeping the session available
+            if (session.State == SessionState.Active)
+            {
+                // Don't change to inactive automatically - let user see the exit status
+                // The session will remain active but with a terminated process
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Logs session lifecycle events for debugging and monitoring.
+    ///     Uses quiet operation principles - only logs when explicitly enabled or for errors.
+    /// </summary>
+    /// <param name="message">The log message</param>
+    /// <param name="exception">Optional exception to log</param>
+    private void LogSessionLifecycleEvent(string message, Exception? exception = null)
+    {
+        // Follow quiet operation requirements - only log errors or when debug is enabled
+        // Normal session operations should produce no output
+        if (exception != null)
+        {
+            // Always log errors for debugging
+            Console.WriteLine($"SessionManager Error: {message}");
+            if (exception != null)
+            {
+                Console.WriteLine($"SessionManager Exception: {exception.Message}");
+            }
+        }
+        // For non-error events, only log if debug mode is enabled
+        // This could be controlled by a configuration setting in the future
+        else if (IsDebugLoggingEnabled())
+        {
+            Console.WriteLine($"SessionManager: {message}");
+        }
+    }
+
+    /// <summary>
+    ///     Determines if debug logging is enabled for session lifecycle events.
+    ///     Currently always returns false to maintain quiet operation.
+    ///     Can be enhanced with configuration in the future.
+    /// </summary>
+    /// <returns>True if debug logging should be enabled</returns>
+    private bool IsDebugLoggingEnabled()
+    {
+        // For now, maintain quiet operation by default
+        // This could be controlled by environment variables or configuration
+        return false;
     }
 
     /// <summary>
@@ -472,12 +667,19 @@ public class SessionManager : IDisposable
     {
         if (!_disposed)
         {
+            LogSessionLifecycleEvent("Disposing SessionManager");
+            
             lock (_lock)
             {
+                var sessionCount = _sessions.Count;
+                LogSessionLifecycleEvent($"Disposing {sessionCount} sessions");
+                
                 foreach (var session in _sessions.Values)
                 {
                     try
                     {
+                        LogSessionLifecycleEvent($"Disposing session {session.Id}");
+                        
                         // Unsubscribe from events
                         session.StateChanged -= OnSessionStateChanged;
                         session.TitleChanged -= OnSessionTitleChanged;
@@ -485,16 +687,18 @@ public class SessionManager : IDisposable
                         
                         session.Dispose();
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Log error but continue with disposal of other sessions
-                        // UI components can handle error reporting through events
+                        LogSessionLifecycleEvent($"Error disposing session {session.Id}", ex);
+                        // Continue with other sessions even if one fails
                     }
                 }
                 _sessions.Clear();
                 _sessionOrder.Clear();
                 _activeSessionId = null;
             }
+            
+            LogSessionLifecycleEvent("SessionManager disposed successfully");
             _disposed = true;
         }
     }

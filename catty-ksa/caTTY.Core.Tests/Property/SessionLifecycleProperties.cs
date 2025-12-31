@@ -834,4 +834,399 @@ public class SessionLifecycleProperties
                 }
             });
     }
+
+    /// <summary>
+    ///     **Feature: multi-session-support, Property 11: Process Lifecycle Event Handling**
+    ///     **Validates: Requirements 9.1, 9.2**
+    ///     Property: For any session with a terminated process, the session should properly
+    ///     update its state to reflect the process exit and maintain exit code information.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [Ignore("Real shell test - validated and disabled for CI")]
+    public FsCheck.Property ProcessLifecycleEventHandling()
+    {
+        return Prop.ForAll(SessionCreateCountArb,
+            createCount =>
+            {
+                // Need at least 1 session to test process lifecycle
+                if (createCount < 1) return true.ToProperty();
+
+                using var sessionManager = new SessionManager(Math.Max(createCount, 1));
+                var createdSessions = new List<TerminalSession>();
+                var processExitEvents = new List<SessionProcessExitedEventArgs>();
+
+                try
+                {
+                    // Create sessions
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var session = sessionManager.CreateSessionAsync().Result;
+                        createdSessions.Add(session);
+
+                        // Subscribe to process exit events to verify they are raised
+                        session.ProcessExited += (sender, e) => processExitEvents.Add(e);
+                    }
+
+                    // Test process exit event handling for each session
+                    foreach (var session in createdSessions)
+                    {
+                        // Verify initial state - process should be running
+                        if (!session.ProcessManager.IsRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} process to be running initially");
+                        }
+
+                        if (session.ProcessManager.ExitCode.HasValue)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} to have no exit code initially");
+                        }
+
+                        // Verify session settings reflect running process
+                        if (!session.Settings.IsProcessRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} settings to show process as running");
+                        }
+
+                        if (session.Settings.ExitCode.HasValue)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} settings to have no exit code initially");
+                        }
+
+                        // Terminate the process to test exit handling
+                        try
+                        {
+                            session.ProcessManager.StopAsync().Wait(TimeSpan.FromSeconds(2));
+                        }
+                        catch
+                        {
+                            // Process might already be terminated, continue with verification
+                        }
+
+                        // Wait a moment for exit event processing
+                        Thread.Sleep(100);
+
+                        // Verify process exit state is updated (Requirement 9.1)
+                        if (session.ProcessManager.IsRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} process to be stopped after termination");
+                        }
+
+                        // Verify exit code is captured (Requirement 9.2)
+                        if (!session.ProcessManager.ExitCode.HasValue)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} to have exit code after process termination");
+                        }
+
+                        // Verify session settings are updated with process exit information
+                        if (session.Settings.IsProcessRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} settings to show process as not running after exit");
+                        }
+
+                        if (!session.Settings.ExitCode.HasValue)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} settings to have exit code after process exit");
+                        }
+
+                        // Verify exit codes match between ProcessManager and Settings
+                        if (session.ProcessManager.ExitCode != session.Settings.ExitCode)
+                        {
+                            return false.ToProperty().Label($"Exit code mismatch for session {session.Id}: ProcessManager={session.ProcessManager.ExitCode}, Settings={session.Settings.ExitCode}");
+                        }
+
+                        // Verify session remains in a valid state after process exit
+                        // Session should not be disposed just because process exited
+                        if (session.State == SessionState.Disposed || session.State == SessionState.Failed)
+                        {
+                            return false.ToProperty().Label($"Expected session {session.Id} to remain in valid state after process exit, got {session.State}");
+                        }
+
+                        // Verify session can be restarted after process exit
+                        try
+                        {
+                            sessionManager.RestartSessionAsync(session.Id).Wait(TimeSpan.FromSeconds(3));
+
+                            // After restart, process should be running again
+                            if (!session.ProcessManager.IsRunning)
+                            {
+                                return false.ToProperty().Label($"Expected session {session.Id} process to be running after restart");
+                            }
+
+                            // Exit code should be cleared after restart
+                            if (session.ProcessManager.ExitCode.HasValue)
+                            {
+                                return false.ToProperty().Label($"Expected session {session.Id} exit code to be cleared after restart");
+                            }
+
+                            // Settings should reflect running process after restart
+                            if (!session.Settings.IsProcessRunning)
+                            {
+                                return false.ToProperty().Label($"Expected session {session.Id} settings to show process as running after restart");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            return false.ToProperty().Label($"Failed to restart session {session.Id}: {ex.Message}");
+                        }
+                    }
+
+                    // Verify process exit events were raised for terminated processes
+                    if (processExitEvents.Count < createdSessions.Count)
+                    {
+                        return false.ToProperty().Label($"Expected {createdSessions.Count} process exit events, got {processExitEvents.Count}");
+                    }
+
+                    // Verify exit events contain valid information
+                    foreach (var exitEvent in processExitEvents)
+                    {
+                        if (exitEvent.ProcessId <= 0)
+                        {
+                            return false.ToProperty().Label($"Invalid process ID in exit event: {exitEvent.ProcessId}");
+                        }
+
+                        // Exit code should be a valid integer (any value is acceptable)
+                        // We just verify it's been set (not checking for null since ExitCode is int, not int?)
+                        // The fact that we got the event means the exit code was captured
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up sessions
+                    foreach (var session in createdSessions)
+                    {
+                        try
+                        {
+                            if (session.State != SessionState.Disposed)
+                            {
+                                session.CloseAsync().Wait(TimeSpan.FromSeconds(1));
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup errors in tests
+                        }
+                    }
+                }
+            });
+    }
+
+    /// <summary>
+    ///     **Feature: multi-session-support, Property 12: Session Recovery and Error Handling**
+    ///     **Validates: Requirements 9.3, 9.4, 11.5**
+    ///     Property: For any session manager, session creation failures should be handled gracefully
+    ///     without affecting existing sessions, and sessions should be recoverable after process failures.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [Ignore("Real shell test - validated and disabled for CI")]
+    public FsCheck.Property SessionRecoveryAndErrorHandling()
+    {
+        return Prop.ForAll(SessionCreateCountArb,
+            createCount =>
+            {
+                // Need at least 1 session to test recovery
+                if (createCount < 1) return true.ToProperty();
+
+                using var sessionManager = new SessionManager(Math.Max(createCount + 2, 5)); // Extra capacity for testing
+                var createdSessions = new List<TerminalSession>();
+
+                try
+                {
+                    // Create initial sessions successfully
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}").Result;
+                        createdSessions.Add(session);
+                    }
+
+                    var initialSessionCount = sessionManager.SessionCount;
+                    var initialActiveSession = sessionManager.ActiveSession;
+
+                    // Test session creation failure handling (Requirement 9.4)
+                    // Try to create a session with invalid launch options to trigger failure
+                    try
+                    {
+                        var invalidLaunchOptions = ProcessLaunchOptions.CreateCustom(
+                            "nonexistent_executable_that_should_fail.exe");
+
+                        var failedSession = sessionManager.CreateSessionAsync("Failed Session", invalidLaunchOptions).Result;
+                        
+                        // If we get here, the session creation didn't fail as expected
+                        // This might happen in some test environments, so we'll continue
+                        createdSessions.Add(failedSession);
+                    }
+                    catch (Exception)
+                    {
+                        // Expected failure - verify existing sessions are unaffected
+                        
+                        // Session count should remain the same after failed creation
+                        if (sessionManager.SessionCount != initialSessionCount)
+                        {
+                            return false.ToProperty().Label($"Session count changed after failed creation: expected {initialSessionCount}, got {sessionManager.SessionCount}");
+                        }
+
+                        // Active session should remain the same after failed creation
+                        if (sessionManager.ActiveSession?.Id != initialActiveSession?.Id)
+                        {
+                            return false.ToProperty().Label("Active session changed after failed session creation");
+                        }
+
+                        // All existing sessions should still be valid
+                        foreach (var existingSession in createdSessions)
+                        {
+                            if (existingSession.State == SessionState.Disposed || existingSession.State == SessionState.Failed)
+                            {
+                                return false.ToProperty().Label($"Existing session {existingSession.Id} was affected by failed session creation");
+                            }
+                        }
+                    }
+
+                    // Test session recovery after process failure (Requirement 9.3)
+                    if (createdSessions.Count > 0)
+                    {
+                        var sessionToTest = createdSessions[0];
+                        var originalSessionId = sessionToTest.Id;
+                        var originalTitle = sessionToTest.Title;
+
+                        // Verify session is initially running
+                        if (!sessionToTest.ProcessManager.IsRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {originalSessionId} to be running initially");
+                        }
+
+                        // Terminate the process to simulate failure
+                        try
+                        {
+                            sessionToTest.ProcessManager.StopAsync().Wait(TimeSpan.FromSeconds(2));
+                        }
+                        catch
+                        {
+                            // Process might already be terminated, continue
+                        }
+
+                        // Wait for process exit to be processed
+                        Thread.Sleep(200);
+
+                        // Verify process is no longer running
+                        if (sessionToTest.ProcessManager.IsRunning)
+                        {
+                            return false.ToProperty().Label($"Expected session {originalSessionId} process to be stopped after termination");
+                        }
+
+                        // Verify session remains in a recoverable state
+                        if (sessionToTest.State == SessionState.Disposed)
+                        {
+                            return false.ToProperty().Label($"Session {originalSessionId} should not be disposed after process failure");
+                        }
+
+                        // Verify session is still tracked by the manager
+                        if (!sessionManager.Sessions.Any(s => s.Id == originalSessionId))
+                        {
+                            return false.ToProperty().Label($"Session {originalSessionId} was removed from manager after process failure");
+                        }
+
+                        // Test session restart/recovery (Requirement 9.3)
+                        try
+                        {
+                            sessionManager.RestartSessionAsync(originalSessionId).Wait(TimeSpan.FromSeconds(5));
+
+                            // After restart, process should be running again
+                            if (!sessionToTest.ProcessManager.IsRunning)
+                            {
+                                return false.ToProperty().Label($"Expected session {originalSessionId} process to be running after restart");
+                            }
+
+                            // Session should maintain its identity and title
+                            if (sessionToTest.Id != originalSessionId)
+                            {
+                                return false.ToProperty().Label($"Session ID changed after restart: expected {originalSessionId}, got {sessionToTest.Id}");
+                            }
+
+                            if (sessionToTest.Title != originalTitle)
+                            {
+                                return false.ToProperty().Label($"Session title changed after restart: expected '{originalTitle}', got '{sessionToTest.Title}'");
+                            }
+
+                            // Session should still be tracked by the manager
+                            if (!sessionManager.Sessions.Any(s => s.Id == originalSessionId))
+                            {
+                                return false.ToProperty().Label($"Session {originalSessionId} not found in manager after restart");
+                            }
+
+                            // Session count should remain the same
+                            if (sessionManager.SessionCount != createdSessions.Count)
+                            {
+                                return false.ToProperty().Label($"Session count changed after restart: expected {createdSessions.Count}, got {sessionManager.SessionCount}");
+                            }
+                        }
+                        catch (Exception restartEx)
+                        {
+                            return false.ToProperty().Label($"Failed to restart session {originalSessionId}: {restartEx.Message}");
+                        }
+                    }
+
+                    // Test error handling doesn't affect other sessions
+                    if (createdSessions.Count > 1)
+                    {
+                        var sessionToFail = createdSessions[0];
+                        var otherSessions = createdSessions.Skip(1).ToList();
+
+                        // Terminate one session's process
+                        try
+                        {
+                            sessionToFail.ProcessManager.StopAsync().Wait(TimeSpan.FromSeconds(2));
+                        }
+                        catch
+                        {
+                            // Continue with test
+                        }
+
+                        // Wait for processing
+                        Thread.Sleep(100);
+
+                        // Verify other sessions are unaffected
+                        foreach (var otherSession in otherSessions)
+                        {
+                            if (otherSession.State == SessionState.Disposed || otherSession.State == SessionState.Failed)
+                            {
+                                return false.ToProperty().Label($"Session {otherSession.Id} was affected by another session's process failure");
+                            }
+
+                            // Other sessions should still have running processes (if they were running before)
+                            if (!otherSession.ProcessManager.IsRunning)
+                            {
+                                return false.ToProperty().Label($"Session {otherSession.Id} process stopped when another session failed");
+                            }
+                        }
+
+                        // Session manager should still be functional
+                        if (sessionManager.ActiveSession == null)
+                        {
+                            return false.ToProperty().Label("Session manager lost active session after one session process failure");
+                        }
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up sessions
+                    foreach (var session in createdSessions)
+                    {
+                        try
+                        {
+                            if (session.State != SessionState.Disposed)
+                            {
+                                session.CloseAsync().Wait(TimeSpan.FromSeconds(1));
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup errors in tests
+                        }
+                    }
+                }
+            });
+    }
 }

@@ -149,25 +149,25 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - Disable navigation items when only one session exists
     - _Requirements: 12.5_
 
-- [ ] 11. Implement process lifecycle and error handling
-  - [ ] 11.1 Handle session process exit events
+- [x] 11. Implement process lifecycle and error handling
+  - [x] 11.1 Handle session process exit events
     - Update session state when process exits
     - Display exit codes in tab labels or settings area
     - Allow restarting terminated sessions
     - _Requirements: 9.1, 9.2, 9.3_
 
-  - [ ] 11.2 Write property test for process lifecycle event handling
+  - [x] 11.2 Write property test for process lifecycle event handling
     - Ensure property tests only have max 2 iterations as real terminals are slow
     - **Property 11: Process Lifecycle Event Handling**
     - **Validates: Requirements 9.1, 9.2**
 
-  - [ ] 11.3 Implement comprehensive error handling
+  - [x] 11.3 Implement comprehensive error handling
     - Handle session creation failures gracefully
     - Implement resource cleanup error handling
     - Add logging for session lifecycle events
     - _Requirements: 9.4, 9.5_
 
-  - [ ] 11.4 Write property test for session recovery and error handling
+  - [x] 11.4 Write property test for session recovery and error handling
     - Ensure property tests only have max 2 iterations as real terminals are slow
     - **Property 12: Session Recovery and Error Handling**
     - **Validates: Requirements 9.3, 9.4, 11.5**

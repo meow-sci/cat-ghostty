@@ -4131,9 +4131,11 @@ public class TerminalController : ITerminalController
       float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
 
       // Create a child region for the tab area to maintain consistent height
-      if (ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar))
+      bool childBegun = ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
+      
+      try
       {
-        try
+        if (childBegun)
         {
           // Add button on the left with fixed width
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
@@ -4211,6 +4213,26 @@ public class TerminalController : ITerminalController
               {
                 _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
               }
+              
+              // Add restart option for terminated sessions
+              if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
+              {
+                if (ImGui.MenuItem("Restart Session"))
+                {
+                  _ = Task.Run(async () => 
+                  {
+                    try
+                    {
+                      await _sessionManager.RestartSessionAsync(session.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                      Console.WriteLine($"TerminalController: Failed to restart session {session.Id}: {ex.Message}");
+                    }
+                  });
+                }
+              }
+              
               if (ImGui.MenuItem("Rename Tab"))
               {
                 // TODO: Implement tab renaming in future
@@ -4220,7 +4242,10 @@ public class TerminalController : ITerminalController
             }
           }
         }
-        finally
+      }
+      finally
+      {
+        if (childBegun)
         {
           ImGui.EndChild();
         }
