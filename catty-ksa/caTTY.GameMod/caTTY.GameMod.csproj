@@ -31,6 +31,7 @@
         <Copy SourceFiles="$(TargetDir)caTTY.Core.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Display.dll" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Display.pdb" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)Tomlyn.dll" DestinationFolder="$(DistDir)"/>
 
         <!-- Copy Fonts folder to the build dir-->
         <ItemGroup>

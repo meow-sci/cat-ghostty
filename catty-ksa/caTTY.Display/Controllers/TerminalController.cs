@@ -446,8 +446,8 @@ public class TerminalController : ITerminalController
 
     try
     {
-      // Create terminal window with menu bar
-      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar);
+      // Create terminal window with menu bar and transparent background
+      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoBackground);
 
       // Track focus state and detect changes
       bool currentFocus = ImGui.IsWindowFocused();
