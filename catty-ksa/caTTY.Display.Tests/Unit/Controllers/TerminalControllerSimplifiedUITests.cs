@@ -26,8 +26,12 @@ public class TerminalControllerSimplifiedUITests
         _terminal = new TerminalEmulator(80, 24);
         _processManager = new ProcessManager();
         
-        // Create controller with default configuration
-        _controller = new TerminalController(_terminal, _processManager);
+        // Create session manager and add a session
+        var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
+        
+        // Create controller with session manager
+        _controller = new TerminalController(sessionManager);
     }
 
     [TearDown]

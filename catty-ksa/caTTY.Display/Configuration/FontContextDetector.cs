@@ -62,10 +62,10 @@ public static class FontContextDetector
     /// <code>
     /// // Automatic detection (recommended for development)
     /// var fontConfig = FontContextDetector.DetectAndCreateConfig();
-    /// var controller = new TerminalController(terminal, processManager, fontConfig);
+    /// var controller = new TerminalController(sessionManager, fontConfig);
     /// 
     /// // Alternative: Use default constructor which calls this method automatically
-    /// var controller = new TerminalController(terminal, processManager);
+    /// var controller = new TerminalController(sessionManager);
     /// </code>
     /// </example>
     public static TerminalFontConfig DetectAndCreateConfig()

@@ -31,7 +31,9 @@ public class TerminalSession : IDisposable
         
         // Wire up events from terminal and process manager
         ProcessManager.ProcessExited += OnProcessExited;
+        ProcessManager.DataReceived += OnProcessDataReceived; // CRITICAL: Connect process output to terminal
         Terminal.TitleChanged += OnTerminalTitleChanged;
+        Terminal.ResponseEmitted += OnTerminalResponseEmitted; // Connect terminal responses to process input
     }
 
     /// <summary>
@@ -224,6 +226,29 @@ public class TerminalSession : IDisposable
     }
 
     /// <summary>
+    ///     Handles data received events from the ProcessManager.
+    ///     Forwards shell output to the terminal emulator for parsing and display.
+    /// </summary>
+    private void OnProcessDataReceived(object? sender, DataReceivedEventArgs e)
+    {
+        // Forward shell output to terminal emulator
+        Terminal.Write(e.Data.Span);
+    }
+
+    /// <summary>
+    ///     Handles response emitted events from the Terminal.
+    ///     Forwards terminal responses (like escape sequences) back to the shell process.
+    /// </summary>
+    private void OnTerminalResponseEmitted(object? sender, ResponseEmittedEventArgs e)
+    {
+        // Forward terminal responses to shell process
+        if (ProcessManager.IsRunning)
+        {
+            ProcessManager.Write(e.ResponseData.Span);
+        }
+    }
+
+    /// <summary>
     ///     Throws ObjectDisposedException if the session has been disposed.
     /// </summary>
     private void ThrowIfDisposed()
@@ -247,11 +272,13 @@ public class TerminalSession : IDisposable
             if (ProcessManager != null)
             {
                 ProcessManager.ProcessExited -= OnProcessExited;
+                ProcessManager.DataReceived -= OnProcessDataReceived;
             }
             
             if (Terminal != null)
             {
                 Terminal.TitleChanged -= OnTerminalTitleChanged;
+                Terminal.ResponseEmitted -= OnTerminalResponseEmitted;
             }
             
             // Dispose resources

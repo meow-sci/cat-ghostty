@@ -66,25 +66,25 @@ This implementation plan transforms the caTTY terminal from single-session to mu
 - [ ] 5. Checkpoint - Ensure core session management tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Integrate SessionManager with TerminalController
-  - [ ] 6.1 Modify TerminalController to use SessionManager
+- [x] 6. Integrate SessionManager with TerminalController
+  - [x] 6.1 Modify TerminalController to use SessionManager
     - Replace single terminal/process with SessionManager instance
     - Update constructor to initialize SessionManager
     - Wire up session manager events
     - _Requirements: 1.1, 1.5_
 
-  - [ ] 6.2 Update TerminalController.RenderTabArea method
+  - [x] 6.2 Update TerminalController.RenderTabArea method
     - Display tabs for all active sessions
     - Show active session with different styling
     - Handle tab click events for session switching
     - Add context menu for tab operations
     - _Requirements: 3.1, 3.2, 3.4_
 
-  - [ ] 6.3 Write property test for tab management consistency
+  - [x] 6.3 Write property test for tab management consistency
     - **Property 3: Tab Management Consistency**
     - **Validates: Requirements 3.1, 3.4**
 
-  - [ ] 6.4 Update TerminalController.RenderTerminalCanvas method
+  - [x] 6.4 Update TerminalController.RenderTerminalCanvas method
     - Render terminal content for active session only
     - Handle case when no sessions exist
     - Route terminal resize to active session

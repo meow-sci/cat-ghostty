@@ -16,26 +16,26 @@ public static class FontConfigurationDemo
     {
         Console.WriteLine("=== Font Configuration Demonstration ===\n");
 
-        // Create mock terminal and process manager for demonstration
-        using var terminal = new TerminalEmulator(80, 24);
-        using var processManager = new ProcessManager();
+        // Create session manager for demonstration
+        using var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
 
-        DemonstrateExplicitConfiguration(terminal, processManager);
+        DemonstrateExplicitConfiguration(sessionManager);
         Console.WriteLine();
         
-        DemonstrateAutomaticDetection(terminal, processManager);
+        DemonstrateAutomaticDetection(sessionManager);
         Console.WriteLine();
         
-        DemonstrateHybridConfiguration(terminal, processManager);
+        DemonstrateHybridConfiguration(sessionManager);
         Console.WriteLine();
         
-        DemonstrateRuntimeUpdates(terminal, processManager);
+        DemonstrateRuntimeUpdates(sessionManager);
     }
 
     /// <summary>
     /// Demonstrates explicit font configuration approach.
     /// </summary>
-    private static void DemonstrateExplicitConfiguration(ITerminalEmulator terminal, IProcessManager processManager)
+    private static void DemonstrateExplicitConfiguration(SessionManager sessionManager)
     {
         Console.WriteLine("1. EXPLICIT CONFIGURATION (Recommended for Production)");
         Console.WriteLine("   - Predictable behavior across environments");
@@ -47,21 +47,21 @@ public static class FontConfigurationDemo
         var testAppConfig = TerminalFontConfig.CreateForTestApp();
         Console.WriteLine($"   TestApp Config: {testAppConfig.RegularFontName}, Size: {testAppConfig.FontSize}");
         
-        using var testAppController = new Controllers.TerminalController(terminal, processManager, testAppConfig);
+        using var testAppController = new Controllers.TerminalController(sessionManager, testAppConfig);
         Console.WriteLine($"   TestApp Metrics: CharWidth={testAppController.CurrentCharacterWidth:F1}, LineHeight={testAppController.CurrentLineHeight:F1}");
 
         // GameMod explicit configuration
         var gameModConfig = TerminalFontConfig.CreateForGameMod();
         Console.WriteLine($"   GameMod Config: {gameModConfig.RegularFontName}, Size: {gameModConfig.FontSize}");
         
-        using var gameModController = new Controllers.TerminalController(terminal, processManager, gameModConfig);
+        using var gameModController = new Controllers.TerminalController(sessionManager, gameModConfig);
         Console.WriteLine($"   GameMod Metrics: CharWidth={gameModController.CurrentCharacterWidth:F1}, LineHeight={gameModController.CurrentLineHeight:F1}");
     }
 
     /// <summary>
     /// Demonstrates automatic detection approach.
     /// </summary>
-    private static void DemonstrateAutomaticDetection(ITerminalEmulator terminal, IProcessManager processManager)
+    private static void DemonstrateAutomaticDetection(SessionManager sessionManager)
     {
         Console.WriteLine("2. AUTOMATIC DETECTION (Convenient for Development)");
         Console.WriteLine("   - Context-aware font selection");
@@ -74,7 +74,7 @@ public static class FontConfigurationDemo
         Console.WriteLine($"   Detected Context: {detectedContext}");
 
         // Method 1: Default constructor (implicit automatic detection)
-        using var autoController1 = new Controllers.TerminalController(terminal, processManager);
+        using var autoController1 = new Controllers.TerminalController(sessionManager);
         Console.WriteLine($"   Auto Config (Implicit): {autoController1.CurrentRegularFontName}, Size: {autoController1.CurrentFontSize}");
         Console.WriteLine($"   Auto Metrics (Implicit): CharWidth={autoController1.CurrentCharacterWidth:F1}, LineHeight={autoController1.CurrentLineHeight:F1}");
 
@@ -82,14 +82,14 @@ public static class FontConfigurationDemo
         var autoConfig = FontContextDetector.DetectAndCreateConfig();
         Console.WriteLine($"   Auto Config (Explicit): {autoConfig.RegularFontName}, Size: {autoConfig.FontSize}");
         
-        using var autoController2 = new Controllers.TerminalController(terminal, processManager, autoConfig);
+        using var autoController2 = new Controllers.TerminalController(sessionManager, autoConfig);
         Console.WriteLine($"   Auto Metrics (Explicit): CharWidth={autoController2.CurrentCharacterWidth:F1}, LineHeight={autoController2.CurrentLineHeight:F1}");
     }
 
     /// <summary>
     /// Demonstrates hybrid configuration approach.
     /// </summary>
-    private static void DemonstrateHybridConfiguration(ITerminalEmulator terminal, IProcessManager processManager)
+    private static void DemonstrateHybridConfiguration(SessionManager sessionManager)
     {
         Console.WriteLine("3. HYBRID CONFIGURATION (Advanced Customization)");
         Console.WriteLine("   - Context-aware defaults with custom overrides");
@@ -105,7 +105,7 @@ public static class FontConfigurationDemo
         hybridConfig.FontSize = 18.0f; // Custom font size
         Console.WriteLine($"   Hybrid Config (Custom Size): {hybridConfig.RegularFontName}, Size: {hybridConfig.FontSize}");
 
-        using var hybridController = new Controllers.TerminalController(terminal, processManager, hybridConfig);
+        using var hybridController = new Controllers.TerminalController(sessionManager, hybridConfig);
         Console.WriteLine($"   Hybrid Metrics: CharWidth={hybridController.CurrentCharacterWidth:F1}, LineHeight={hybridController.CurrentLineHeight:F1}");
 
         // Alternative: Custom font family with auto-detected size
@@ -119,7 +119,7 @@ public static class FontConfigurationDemo
     /// <summary>
     /// Demonstrates runtime font configuration updates.
     /// </summary>
-    private static void DemonstrateRuntimeUpdates(ITerminalEmulator terminal, IProcessManager processManager)
+    private static void DemonstrateRuntimeUpdates(SessionManager sessionManager)
     {
         Console.WriteLine("4. RUNTIME CONFIGURATION UPDATES");
         Console.WriteLine("   - Dynamic font changes without restart");
@@ -128,7 +128,7 @@ public static class FontConfigurationDemo
         Console.WriteLine();
 
         // Start with automatic detection
-        using var controller = new Controllers.TerminalController(terminal, processManager);
+        using var controller = new Controllers.TerminalController(sessionManager);
         Console.WriteLine($"   Initial Config: {controller.CurrentRegularFontName}, Size: {controller.CurrentFontSize}");
         Console.WriteLine($"   Initial Metrics: CharWidth={controller.CurrentCharacterWidth:F1}, LineHeight={controller.CurrentLineHeight:F1}");
 
@@ -157,8 +157,8 @@ public static class FontConfigurationDemo
     {
         Console.WriteLine("=== Scenario-Based Configuration Selection ===\n");
 
-        using var terminal = new TerminalEmulator(80, 24);
-        using var processManager = new ProcessManager();
+        using var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
 
         var scenarios = new[]
         {
@@ -174,7 +174,7 @@ public static class FontConfigurationDemo
             
             try
             {
-                using var controller = FontConfigurationExamples.CreateForDeploymentScenario(terminal, processManager, scenario);
+                using var controller = FontConfigurationExamples.CreateForDeploymentScenario(sessionManager, scenario);
                 // Cast to concrete type to access debugging properties
                 if (controller is Controllers.TerminalController terminalController)
                 {
@@ -203,8 +203,8 @@ public static class FontConfigurationDemo
     {
         Console.WriteLine("=== Error Handling and Fallback Behavior ===\n");
 
-        using var terminal = new TerminalEmulator(80, 24);
-        using var processManager = new ProcessManager();
+        using var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
 
         // Test invalid font configuration
         Console.WriteLine("1. Invalid Font Configuration:");
@@ -225,7 +225,7 @@ public static class FontConfigurationDemo
 
         // Test fallback behavior
         Console.WriteLine("\n2. Fallback Behavior:");
-        using var fallbackController = FontConfigurationExamples.CreateWithDetectionFallback(terminal, processManager);
+        using var fallbackController = FontConfigurationExamples.CreateWithDetectionFallback(sessionManager);
         // Cast to concrete type to access debugging properties
         if (fallbackController is Controllers.TerminalController fallbackTerminalController)
         {

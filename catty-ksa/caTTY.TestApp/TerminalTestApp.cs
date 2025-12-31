@@ -103,20 +103,24 @@ public class TerminalTestApp : IDisposable
         Console.WriteLine("Initializing BRUTAL ImGui context...");
 
         // Option 1: Explicit font configuration (current approach - recommended for production)
+        // Create session manager and add a session
+        var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
+        
         var fontConfig = TerminalFontConfig.CreateForTestApp();
         Console.WriteLine($"TestApp using explicit font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
-        _controller = new TerminalController(_terminal, _processManager, fontConfig);
+        _controller = new TerminalController(sessionManager, fontConfig);
 
         // Option 2: Automatic detection (alternative approach - convenient for development)
         // Uncomment the following lines to use automatic detection instead:
         // Console.WriteLine("TestApp using automatic font detection");
-        // _controller = new TerminalController(_terminal, _processManager);
+        // _controller = new TerminalController(sessionManager);
 
         // Option 3: Explicit automatic detection (alternative approach - shows detection explicitly)
         // Uncomment the following lines to use explicit automatic detection:
         // var autoConfig = FontContextDetector.DetectAndCreateConfig();
         // Console.WriteLine($"TestApp using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
-        // _controller = new TerminalController(_terminal, _processManager, autoConfig);
+        // _controller = new TerminalController(sessionManager, autoConfig);
 
         Console.WriteLine("Starting ImGui render loop...");
         Console.WriteLine("Try running colored commands like: ls --color, echo -e \"\\033[31mRed text\\033[0m\"");

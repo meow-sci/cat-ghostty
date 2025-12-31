@@ -131,8 +131,7 @@ public class TerminalController : ITerminalController
 
   // Input handling
   private readonly StringBuilder _inputBuffer = new();
-  private readonly IProcessManager _processManager;
-  private readonly ITerminalEmulator _terminal;
+  private readonly SessionManager _sessionManager;
   private bool _disposed;
 
   // Mouse tracking infrastructure
@@ -195,10 +194,9 @@ public class TerminalController : ITerminalController
   ///     Creates a new terminal controller with default configuration.
   ///     This constructor maintains backward compatibility.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager)
-      : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
+  /// <param name="sessionManager">The session manager instance</param>
+  public TerminalController(SessionManager sessionManager)
+      : this(sessionManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
   {
   }
 
@@ -206,12 +204,10 @@ public class TerminalController : ITerminalController
   ///     Creates a new terminal controller with the specified rendering configuration.
   ///     Uses automatic font detection for font configuration and default scroll configuration.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
+  /// <param name="sessionManager">The session manager instance</param>
   /// <param name="config">The rendering configuration to use</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
-      TerminalRenderingConfig config)
-      : this(terminal, processManager, config, FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
+  public TerminalController(SessionManager sessionManager, TerminalRenderingConfig config)
+      : this(sessionManager, config, FontContextDetector.DetectAndCreateConfig(), MouseWheelScrollConfig.CreateDefault())
   {
   }
 
@@ -219,25 +215,21 @@ public class TerminalController : ITerminalController
   ///     Creates a new terminal controller with the specified font configuration.
   ///     Uses automatic DPI detection for rendering configuration and default scroll configuration.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
+  /// <param name="sessionManager">The session manager instance</param>
   /// <param name="fontConfig">The font configuration to use</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
-      TerminalFontConfig fontConfig)
-      : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), fontConfig, MouseWheelScrollConfig.CreateDefault())
+  public TerminalController(SessionManager sessionManager, TerminalFontConfig fontConfig)
+      : this(sessionManager, DpiContextDetector.DetectAndCreateConfig(), fontConfig, MouseWheelScrollConfig.CreateDefault())
   {
   }
 
   /// <summary>
   ///     Creates a new terminal controller with the specified configurations.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
+  /// <param name="sessionManager">The session manager instance</param>
   /// <param name="config">The rendering configuration to use</param>
   /// <param name="fontConfig">The font configuration to use</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
-      TerminalRenderingConfig config, TerminalFontConfig fontConfig)
-      : this(terminal, processManager, config, fontConfig, MouseWheelScrollConfig.CreateDefault())
+  public TerminalController(SessionManager sessionManager, TerminalRenderingConfig config, TerminalFontConfig fontConfig)
+      : this(sessionManager, config, fontConfig, MouseWheelScrollConfig.CreateDefault())
   {
   }
 
@@ -245,28 +237,23 @@ public class TerminalController : ITerminalController
   ///     Creates a new terminal controller with the specified scroll configuration.
   ///     Uses automatic detection for rendering and font configurations.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
+  /// <param name="sessionManager">The session manager instance</param>
   /// <param name="scrollConfig">The mouse wheel scroll configuration to use</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
-      MouseWheelScrollConfig scrollConfig)
-      : this(terminal, processManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), scrollConfig)
+  public TerminalController(SessionManager sessionManager, MouseWheelScrollConfig scrollConfig)
+      : this(sessionManager, DpiContextDetector.DetectAndCreateConfig(), FontContextDetector.DetectAndCreateConfig(), scrollConfig)
   {
   }
 
   /// <summary>
   ///     Creates a new terminal controller with the specified configurations.
   /// </summary>
-  /// <param name="terminal">The terminal emulator instance</param>
-  /// <param name="processManager">The process manager instance</param>
+  /// <param name="sessionManager">The session manager instance</param>
   /// <param name="config">The rendering configuration to use</param>
   /// <param name="fontConfig">The font configuration to use</param>
   /// <param name="scrollConfig">The mouse wheel scroll configuration to use</param>
-  public TerminalController(ITerminalEmulator terminal, IProcessManager processManager,
-      TerminalRenderingConfig config, TerminalFontConfig fontConfig, MouseWheelScrollConfig scrollConfig)
+  public TerminalController(SessionManager sessionManager, TerminalRenderingConfig config, TerminalFontConfig fontConfig, MouseWheelScrollConfig scrollConfig)
   {
-    _terminal = terminal ?? throw new ArgumentNullException(nameof(terminal));
-    _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
+    _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _config = config ?? throw new ArgumentNullException(nameof(config));
     _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
     _scrollConfig = scrollConfig ?? throw new ArgumentNullException(nameof(scrollConfig));
@@ -289,6 +276,11 @@ public class TerminalController : ITerminalController
     _mouseEventProcessor.ProcessingError += OnMouseProcessingError;
     _mouseInputHandler.InputError += OnMouseInputError;
 
+    // Wire up session manager events
+    _sessionManager.SessionCreated += OnSessionCreated;
+    _sessionManager.SessionClosed += OnSessionClosed;
+    _sessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+
     // Note: Font loading is deferred until first render call when ImGui context is ready
     // LoadFonts(); // Moved to EnsureFontsLoaded()
 
@@ -301,10 +293,6 @@ public class TerminalController : ITerminalController
     // Log configuration for debugging
     // LogConfiguration();
     // LogFontConfiguration();
-
-    // Subscribe to terminal events
-    _terminal.ScreenUpdated += OnScreenUpdated;
-    _terminal.ResponseEmitted += OnResponseEmitted;
 
     // Subscribe to theme change events
     ThemeManager.ThemeChanged += OnThemeChanged;
@@ -461,6 +449,9 @@ public class TerminalController : ITerminalController
       // Render menu bar (uses UI font) - preserved for accessibility
       RenderMenuBar();
 
+      // Render tab area for session management
+      RenderTabArea();
+
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
 
@@ -471,7 +462,7 @@ public class TerminalController : ITerminalController
       MaybePopFont(uiFontUsed);
       uiFontUsed = false; // Mark as popped
 
-      // Render simplified terminal canvas (no tab area or info display)
+      // Render terminal canvas
       RenderTerminalCanvas();
 
       // Push UI font again for focus indicators
@@ -513,10 +504,19 @@ public class TerminalController : ITerminalController
   {
     if (!_disposed)
     {
-      if (_terminal != null)
+      // Unsubscribe from session manager events
+      if (_sessionManager != null)
       {
-        _terminal.ScreenUpdated -= OnScreenUpdated;
-        _terminal.ResponseEmitted -= OnResponseEmitted;
+        _sessionManager.SessionCreated -= OnSessionCreated;
+        _sessionManager.SessionClosed -= OnSessionClosed;
+        _sessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        
+        // Unsubscribe from all session events
+        foreach (var session in _sessionManager.Sessions)
+        {
+          session.Terminal.ScreenUpdated -= OnScreenUpdated;
+          session.Terminal.ResponseEmitted -= OnResponseEmitted;
+        }
       }
 
       // Unsubscribe from theme change events
@@ -571,9 +571,10 @@ public class TerminalController : ITerminalController
       newFontConfig.Validate();
 
       // Store current cursor position for accuracy maintenance
-      ICursor cursor = _terminal.Cursor;
-      int currentCursorRow = cursor.Row;
-      int currentCursorCol = cursor.Col;
+      var activeSession = _sessionManager.ActiveSession;
+      ICursor? cursor = activeSession?.Terminal.Cursor;
+      int currentCursorRow = cursor?.Row ?? 0;
+      int currentCursorCol = cursor?.Col ?? 0;
 
       // Store previous metrics for comparison logging
       float previousCharWidth = CurrentCharacterWidth;
@@ -624,14 +625,14 @@ public class TerminalController : ITerminalController
       // Verify cursor position accuracy after font changes
       // The cursor position in terminal coordinates should remain the same,
       // but the pixel position will change based on new character metrics
-      ICursor updatedCursor = _terminal.Cursor;
-      bool cursorPositionMaintained = (updatedCursor.Row == currentCursorRow &&
-                                     updatedCursor.Col == currentCursorCol);
+      ICursor? updatedCursor = activeSession?.Terminal.Cursor;
+      bool cursorPositionMaintained = (updatedCursor?.Row == currentCursorRow &&
+                                     updatedCursor?.Col == currentCursorCol);
 
       if (!cursorPositionMaintained)
       {
         Console.WriteLine($"TerminalController: Warning - Cursor position changed during font update. " +
-                        $"Before: ({currentCursorRow}, {currentCursorCol}), After: ({updatedCursor.Row}, {updatedCursor.Col})");
+                        $"Before: ({currentCursorRow}, {currentCursorCol}), After: ({updatedCursor?.Row ?? -1}, {updatedCursor?.Col ?? -1})");
       }
 
       // Calculate new pixel position for cursor (for logging purposes)
@@ -1243,7 +1244,8 @@ public class TerminalController : ITerminalController
       var (newCols, newRows) = newDimensions.Value;
 
       // Check if terminal dimensions would actually change
-      if (newCols == _terminal.Width && newRows == _terminal.Height)
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession == null || (newCols == activeSession.Terminal.Width && newRows == activeSession.Terminal.Height))
       {
         _lastWindowSize = currentWindowSize;
         return; // No terminal dimension change needed
@@ -1258,17 +1260,17 @@ public class TerminalController : ITerminalController
 
       // Log the resize operation
       // Console.WriteLine($"TerminalController: Window resized from {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} to {currentWindowSize.X:F0}x{currentWindowSize.Y:F0}");
-      // Console.WriteLine($"TerminalController: Resizing terminal from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
+      // Console.WriteLine($"TerminalController: Resizing terminal from {activeSession.Terminal.Width}x{activeSession.Terminal.Height} to {newCols}x{newRows}");
 
       // Resize the headless terminal emulator (matches TypeScript StatefulTerminal behavior)
-      _terminal.Resize(newCols, newRows);
+      activeSession.Terminal.Resize(newCols, newRows);
 
       // Resize the PTY process (matches TypeScript BackendServer behavior)
-      if (_processManager.IsRunning)
+      if (activeSession.ProcessManager.IsRunning)
       {
         try
         {
-          _processManager.Resize(newCols, newRows);
+          activeSession.ProcessManager.Resize(newCols, newRows);
           // Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
         }
         catch (Exception ex)
@@ -1361,7 +1363,8 @@ public class TerminalController : ITerminalController
   /// <returns>Current terminal dimensions (width, height)</returns>
   public (int width, int height) GetTerminalDimensions()
   {
-    return (_terminal.Width, _terminal.Height);
+    var activeSession = _sessionManager.ActiveSession;
+    return activeSession != null ? (activeSession.Terminal.Width, activeSession.Terminal.Height) : (0, 0);
   }
 
   /// <summary>
@@ -1434,8 +1437,16 @@ public class TerminalController : ITerminalController
 
       var (newCols, newRows) = newDimensions.Value;
 
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession == null)
+      {
+        Console.WriteLine("TerminalController: Cannot process pending font resize - no active session");
+        _fontResizePending = false;
+        return;
+      }
+
       // Check if terminal dimensions would actually change
-      if (newCols == _terminal.Width && newRows == _terminal.Height)
+      if (newCols == activeSession.Terminal.Width && newRows == activeSession.Terminal.Height)
       {
         Console.WriteLine($"TerminalController: Terminal dimensions unchanged ({newCols}x{newRows}), no resize needed");
         _fontResizePending = false;
@@ -1451,17 +1462,17 @@ public class TerminalController : ITerminalController
       }
 
       // Log the resize operation
-      Console.WriteLine($"TerminalController: Processing pending font resize from {_terminal.Width}x{_terminal.Height} to {newCols}x{newRows}");
+      Console.WriteLine($"TerminalController: Processing pending font resize from {activeSession.Terminal.Width}x{activeSession.Terminal.Height} to {newCols}x{newRows}");
 
       // Resize the headless terminal emulator
-      _terminal.Resize(newCols, newRows);
+      activeSession.Terminal.Resize(newCols, newRows);
 
       // Resize the PTY process if running
-      if (_processManager.IsRunning)
+      if (activeSession.ProcessManager.IsRunning)
       {
         try
         {
-          _processManager.Resize(newCols, newRows);
+          activeSession.ProcessManager.Resize(newCols, newRows);
           Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
         }
         catch (Exception ex)
@@ -1496,8 +1507,12 @@ public class TerminalController : ITerminalController
       // Get theme defaults
       CursorStyle defaultStyle = ThemeManager.GetDefaultCursorStyle();
 
-      // Update terminal state using the new public API
-      _terminal.SetCursorStyle(defaultStyle);
+      // Update terminal state using the new public API for active session
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession != null)
+      {
+        activeSession.Terminal.SetCursorStyle(defaultStyle);
+      }
 
       // Reset cursor renderer blink state
       _cursorRenderer.ResetBlinkState();
@@ -1524,17 +1539,23 @@ public class TerminalController : ITerminalController
       throw new ArgumentException($"Invalid terminal dimensions: {cols}x{rows}. Must be between 1x1 and 1000x1000.");
     }
 
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null)
+    {
+      throw new InvalidOperationException("No active session to resize");
+    }
+
     try
     {
       // Console.WriteLine($"TerminalController: Manual terminal resize requested: {cols}x{rows}");
 
       // Resize the headless terminal emulator
-      _terminal.Resize(cols, rows);
+      activeSession.Terminal.Resize(cols, rows);
 
       // Resize the PTY process if running
-      if (_processManager.IsRunning)
+      if (activeSession.ProcessManager.IsRunning)
       {
-        _processManager.Resize(cols, rows);
+        activeSession.ProcessManager.Resize(cols, rows);
         // Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
       }
 
@@ -1552,6 +1573,14 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalContent()
   {
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null)
+    {
+      // No active session - show placeholder
+      ImGui.Text("No terminal sessions. Click + to create one.");
+      return;
+    }
+
     // Push terminal content font for this rendering section
     PushTerminalContentFont(out bool terminalFontUsed);
 
@@ -1561,8 +1590,8 @@ public class TerminalController : ITerminalController
       float2 windowPos = ImGui.GetCursorScreenPos();
 
       // Calculate terminal area
-      float terminalWidth = _terminal.Width * CurrentCharacterWidth;
-      float terminalHeight = _terminal.Height * CurrentLineHeight;
+      float terminalWidth = activeSession.Terminal.Width * CurrentCharacterWidth;
+      float terminalHeight = activeSession.Terminal.Height * CurrentLineHeight;
 
       // Cache terminal rect for input encoding (mouse wheel / mouse reporting)
       _lastTerminalOrigin = windowPos;
@@ -1585,30 +1614,30 @@ public class TerminalController : ITerminalController
       drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
-      var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
-      for (int i = 0; i < _terminal.Height; i++)
+      var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
+      for (int i = 0; i < activeSession.Terminal.Height; i++)
       {
-        var rowSpan = _terminal.ScreenBuffer.GetRow(i);
+        var rowSpan = activeSession.Terminal.ScreenBuffer.GetRow(i);
         var rowArray = new Cell[rowSpan.Length];
         rowSpan.CopyTo(rowArray);
         screenBuffer[i] = rowArray.AsMemory();
       }
 
       // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
-      var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
-      var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
+      var isAlternateScreenActive = ((TerminalEmulator)activeSession.Terminal).State.IsAlternateScreenActive;
+      var viewportRows = activeSession.Terminal.ScrollbackManager.GetViewportRows(
           screenBuffer,
           isAlternateScreenActive,
-          _terminal.Height
+          activeSession.Terminal.Height
       );
 
       // Render each cell from the viewport content
-      for (int row = 0; row < Math.Min(viewportRows.Count, _terminal.Height); row++)
+      for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
       {
         var rowMemory = viewportRows[row];
         var rowSpan = rowMemory.Span;
 
-        for (int col = 0; col < Math.Min(rowSpan.Length, _terminal.Width); col++)
+        for (int col = 0; col < Math.Min(rowSpan.Length, activeSession.Terminal.Width); col++)
         {
           Cell cell = rowSpan[col];
           RenderCell(drawList, terminalDrawPos, row, col, cell);
@@ -1708,12 +1737,15 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderCursor(ImDrawListPtr drawList, float2 windowPos)
   {
-    var terminalState = ((TerminalEmulator)_terminal).State;
-    ICursor cursor = _terminal.Cursor;
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null) return;
+
+    var terminalState = ((TerminalEmulator)activeSession.Terminal).State;
+    ICursor cursor = activeSession.Terminal.Cursor;
 
     // Ensure cursor position is within bounds
-    int cursorCol = Math.Max(0, Math.Min(cursor.Col, _terminal.Width - 1));
-    int cursorRow = Math.Max(0, Math.Min(cursor.Row, _terminal.Height - 1));
+    int cursorCol = Math.Max(0, Math.Min(cursor.Col, activeSession.Terminal.Width - 1));
+    int cursorRow = Math.Max(0, Math.Min(cursor.Row, activeSession.Terminal.Height - 1));
 
     float x = windowPos.X + (cursorCol * CurrentCharacterWidth);
     float y = windowPos.Y + (cursorRow * CurrentLineHeight);
@@ -1723,7 +1755,7 @@ public class TerminalController : ITerminalController
     float4 cursorColor = ThemeManager.GetCursorColor();
 
     // Check if terminal is at bottom (not scrolled back)
-    var scrollbackManager = _terminal.ScrollbackManager;
+    var scrollbackManager = activeSession.Terminal.ScrollbackManager;
     bool isAtBottom = scrollbackManager?.IsAtBottom ?? true;
 
     // Render cursor using the new cursor rendering system
@@ -1769,7 +1801,8 @@ public class TerminalController : ITerminalController
       }
 
       userProvidedInputThisFrame = true;
-      _terminal.ScrollbackManager?.OnUserInput();
+      var activeSession = _sessionManager.ActiveSession;
+      activeSession?.Terminal.ScrollbackManager?.OnUserInput();
 
       // Make cursor immediately visible when user provides input
       _cursorRenderer.ForceVisible();
@@ -1779,7 +1812,10 @@ public class TerminalController : ITerminalController
     HandleMouseWheelInput();
 
     // Get current terminal state for input encoding
-    var terminalState = ((TerminalEmulator)_terminal).State;
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null) return;
+
+    var terminalState = ((TerminalEmulator)activeSession.Terminal).State;
     bool applicationCursorKeys = terminalState.ApplicationCursorKeys;
 
     // Create modifier state from ImGui
@@ -1835,7 +1871,11 @@ public class TerminalController : ITerminalController
 
       // Update terminal size for mouse input handler
       var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
-      _mouseInputHandler.UpdateTerminalSize(terminalSize, _terminal.Width, _terminal.Height);
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession != null)
+      {
+        _mouseInputHandler.UpdateTerminalSize(terminalSize, activeSession.Terminal.Width, activeSession.Terminal.Height);
+      }
 
       // Process mouse input through the mouse input handler
       _mouseInputHandler.HandleMouseInput();
@@ -1865,7 +1905,11 @@ public class TerminalController : ITerminalController
 
       // Update terminal size for mouse input handler
       var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
-      _mouseInputHandler.UpdateTerminalSize(terminalSize, _terminal.Width, _terminal.Height);
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession != null)
+      {
+        _mouseInputHandler.UpdateTerminalSize(terminalSize, activeSession.Terminal.Width, activeSession.Terminal.Height);
+      }
 
       // Process mouse input through the mouse input handler
       _mouseInputHandler.HandleMouseInput();
@@ -1899,7 +1943,10 @@ public class TerminalController : ITerminalController
   {
     try
     {
-      var terminalState = ((TerminalEmulator)_terminal).State;
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession == null) return;
+
+      var terminalState = ((TerminalEmulator)activeSession.Terminal).State;
 
       // Convert terminal state mouse tracking bits to MouseTrackingMode
       MouseTrackingMode mode = MouseTrackingMode.Off;
@@ -2015,14 +2062,15 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void SelectAllVisibleContent()
   {
-    if (_terminal.Height == 0 || _terminal.Width == 0)
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null || activeSession.Terminal.Height == 0 || activeSession.Terminal.Width == 0)
     {
       return;
     }
 
     // Select from top-left to bottom-right of the visible area
     var startPos = new SelectionPosition(0, 0);
-    var endPos = new SelectionPosition(_terminal.Height - 1, _terminal.Width - 1);
+    var endPos = new SelectionPosition(activeSession.Terminal.Height - 1, activeSession.Terminal.Width - 1);
 
     _currentSelection = new TextSelection(startPos, endPos);
     _isSelecting = false;
@@ -2308,7 +2356,14 @@ public class TerminalController : ITerminalController
       // Clamp to maximum lines per operation - prevents excessive scrolling
       scrollLines = Math.Min(scrollLines, _scrollConfig.MaxLinesPerOperation);
 
-      var emulator = (TerminalEmulator)_terminal;
+      var activeSession = _sessionManager.ActiveSession;
+      if (activeSession == null)
+      {
+        _wheelAccumulator = 0.0f;
+        return;
+      }
+
+      var emulator = (TerminalEmulator)activeSession.Terminal;
       var state = emulator.State;
 
       // Match catty-web behavior:
@@ -2340,7 +2395,7 @@ public class TerminalController : ITerminalController
 
       if (state.IsAlternateScreenActive)
       {
-        string seq = EncodeAltScreenWheelAsKeys(scrollUp, scrollLines, _terminal.Height, state.ApplicationCursorKeys);
+        string seq = EncodeAltScreenWheelAsKeys(scrollUp, scrollLines, activeSession.Terminal.Height, state.ApplicationCursorKeys);
         if (!string.IsNullOrEmpty(seq))
         {
           SendToProcess(seq);
@@ -2352,7 +2407,7 @@ public class TerminalController : ITerminalController
       }
 
       // Store current viewport state for boundary condition handling and error recovery
-      var scrollbackManager = _terminal.ScrollbackManager;
+      var scrollbackManager = activeSession.Terminal.ScrollbackManager;
       if (scrollbackManager == null)
       {
         Console.WriteLine("TerminalController: ScrollbackManager is null, cannot process wheel scroll");
@@ -2455,8 +2510,11 @@ public class TerminalController : ITerminalController
     int col0 = (int)Math.Floor(relX / Math.Max(1e-6f, CurrentCharacterWidth));
     int row0 = (int)Math.Floor(relY / Math.Max(1e-6f, CurrentLineHeight));
 
-    col0 = Math.Max(0, Math.Min(_terminal.Width - 1, col0));
-    row0 = Math.Max(0, Math.Min(_terminal.Height - 1, row0));
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null) return (1, 1);
+
+    col0 = Math.Max(0, Math.Min(activeSession.Terminal.Width - 1, col0));
+    row0 = Math.Max(0, Math.Min(activeSession.Terminal.Height - 1, row0));
 
     return (col0 + 1, row0 + 1);
   }
@@ -2481,8 +2539,11 @@ public class TerminalController : ITerminalController
     int col = (int)Math.Floor(relX / Math.Max(1e-6f, CurrentCharacterWidth));
     int row = (int)Math.Floor(relY / Math.Max(1e-6f, CurrentLineHeight));
 
-    col = Math.Max(0, Math.Min(_terminal.Width - 1, col));
-    row = Math.Max(0, Math.Min(_terminal.Height - 1, row));
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null) return null;
+
+    col = Math.Max(0, Math.Min(activeSession.Terminal.Width - 1, col));
+    row = Math.Max(0, Math.Min(activeSession.Terminal.Height - 1, row));
 
     return new SelectionPosition(row, col);
   }
@@ -2579,30 +2640,36 @@ public class TerminalController : ITerminalController
       return false;
     }
 
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession == null)
+    {
+      return false;
+    }
+
     try
     {
       // Get viewport content from ScrollbackManager
-      var screenBuffer = new ReadOnlyMemory<Cell>[_terminal.Height];
-      for (int i = 0; i < _terminal.Height; i++)
+      var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
+      for (int i = 0; i < activeSession.Terminal.Height; i++)
       {
-        var rowSpan = _terminal.ScreenBuffer.GetRow(i);
+        var rowSpan = activeSession.Terminal.ScreenBuffer.GetRow(i);
         var rowArray = new Cell[rowSpan.Length];
         rowSpan.CopyTo(rowArray);
         screenBuffer[i] = rowArray.AsMemory();
       }
 
-      var isAlternateScreenActive = ((TerminalEmulator)_terminal).State.IsAlternateScreenActive;
-      var viewportRows = _terminal.ScrollbackManager.GetViewportRows(
+      var isAlternateScreenActive = ((TerminalEmulator)activeSession.Terminal).State.IsAlternateScreenActive;
+      var viewportRows = activeSession.Terminal.ScrollbackManager.GetViewportRows(
           screenBuffer,
           isAlternateScreenActive,
-          _terminal.Height
+          activeSession.Terminal.Height
       );
 
       // Extract text from selection
       string selectedText = TextExtractor.ExtractText(
           _currentSelection,
           viewportRows,
-          _terminal.Width,
+          activeSession.Terminal.Width,
           normalizeLineEndings: true,
           trimTrailingSpaces: true
       );
@@ -2681,12 +2748,13 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void SendToProcess(string text)
   {
-    if (_processManager.IsRunning)
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession?.ProcessManager.IsRunning == true)
     {
       try
       {
         // Send directly to process manager (primary data path)
-        _processManager.Write(text);
+        activeSession.ProcessManager.Write(text);
 
         // Also raise the DataInput event for external subscribers (monitoring/logging)
         byte[] bytes = Encoding.UTF8.GetBytes(text);
@@ -2999,12 +3067,13 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnResponseEmitted(object? sender, ResponseEmittedEventArgs e)
   {
-    // Send terminal responses back to the process
-    if (_processManager.IsRunning)
+    // Find the session that emitted this response
+    var emittingSession = _sessionManager.Sessions.FirstOrDefault(s => s.Terminal == sender);
+    if (emittingSession?.ProcessManager.IsRunning == true)
     {
       try
       {
-        _processManager.Write(e.ResponseData.Span);
+        emittingSession.ProcessManager.Write(e.ResponseData.Span);
       }
       catch (Exception ex)
       {
@@ -3066,10 +3135,11 @@ public class TerminalController : ITerminalController
 
       if (escapeSequence != null)
       {
-        // Send directly to process manager (primary data path)
-        if (_processManager.IsRunning)
+        // Send directly to active session's process manager (primary data path)
+        var activeSession = _sessionManager.ActiveSession;
+        if (activeSession?.ProcessManager.IsRunning == true)
         {
-          _processManager.Write(escapeSequence);
+          activeSession.ProcessManager.Write(escapeSequence);
         }
 
         // Also raise the DataInput event for external subscribers (monitoring/logging)
@@ -3127,7 +3197,54 @@ public class TerminalController : ITerminalController
   /// </summary>
   public void OnTerminalReset()
   {
-    ResetCursorToThemeDefaults();
+    var activeSession = _sessionManager.ActiveSession;
+    if (activeSession != null)
+    {
+      ResetCursorToThemeDefaults();
+    }
+  }
+
+  /// <summary>
+  ///     Handles session creation events from the SessionManager.
+  /// </summary>
+  private void OnSessionCreated(object? sender, SessionCreatedEventArgs e)
+  {
+    // Wire up events for the new session
+    var session = e.Session;
+    session.Terminal.ScreenUpdated += OnScreenUpdated;
+    session.Terminal.ResponseEmitted += OnResponseEmitted;
+    
+    Console.WriteLine($"TerminalController: Session created - {session.Title} ({session.Id})");
+  }
+
+  /// <summary>
+  ///     Handles session closure events from the SessionManager.
+  /// </summary>
+  private void OnSessionClosed(object? sender, SessionClosedEventArgs e)
+  {
+    // Unwire events for the closed session
+    var session = e.Session;
+    session.Terminal.ScreenUpdated -= OnScreenUpdated;
+    session.Terminal.ResponseEmitted -= OnResponseEmitted;
+    
+    Console.WriteLine($"TerminalController: Session closed - {session.Title} ({session.Id})");
+  }
+
+  /// <summary>
+  ///     Handles active session change events from the SessionManager.
+  /// </summary>
+  private void OnActiveSessionChanged(object? sender, ActiveSessionChangedEventArgs e)
+  {
+    Console.WriteLine($"TerminalController: Active session changed from {e.PreviousSession?.Title} to {e.NewSession?.Title}");
+    
+    // Clear any existing selection when switching sessions
+    if (!_currentSelection.IsEmpty)
+    {
+      ClearSelection();
+    }
+    
+    // Reset cursor blink state for new active session
+    _cursorRenderer.ResetBlinkState();
   }
 
   #region Layout Helper Methods
@@ -3370,16 +3487,21 @@ public class TerminalController : ITerminalController
     {
       try
       {
-        // New Terminal - disabled for single terminal phase
-        if (ImGui.MenuItem("New Terminal", "Ctrl+Shift+T", false, false))
+        // New Terminal - now enabled for multi-session support
+        if (ImGui.MenuItem("New Terminal", "Ctrl+Shift+T"))
         {
-          ShowNotImplementedMessage("Multi-terminal support");
+          _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
         }
 
-        // Close Terminal - disabled for single terminal phase
-        if (ImGui.MenuItem("Close Terminal", "Ctrl+Shift+W", false, false))
+        // Close Terminal - enabled when more than one session exists
+        bool canCloseTerminal = _sessionManager.SessionCount > 1;
+        if (ImGui.MenuItem("Close Terminal", "Ctrl+Shift+W", false, canCloseTerminal))
         {
-          ShowNotImplementedMessage("Multi-terminal support");
+          var activeSession = _sessionManager.ActiveSession;
+          if (activeSession != null)
+          {
+            _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(activeSession.Id));
+          }
         }
 
         ImGui.Separator();
@@ -3801,21 +3923,25 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Renders the tab area with single tab and add button.
-  /// Displays the current terminal instance tab and a "+" button for future multi-terminal support.
+  /// Renders the tab area with tabs for all active sessions.
+  /// Displays tabs for each session and shows the active session with different styling.
   /// Uses proper spacing and sizing calculations to maintain consistent layout.
   /// </summary>
   private void RenderTabArea()
   {
     try
     {
+      var sessions = _sessionManager.Sessions;
+      var activeSession = _sessionManager.ActiveSession;
+
       // Get available width for tab area
       float availableWidth = ImGui.GetContentRegionAvail().X;
 
-      // Calculate dimensions using fixed tab area height
+      // Calculate dimensions
       float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
       float spacing = LayoutConstants.ELEMENT_SPACING;
-      float tabWidth = Math.Max(100.0f, availableWidth - addButtonWidth - spacing);
+      float totalTabWidth = availableWidth - addButtonWidth - spacing;
+      float tabWidth = sessions.Count > 0 ? totalTabWidth / sessions.Count : totalTabWidth;
 
       // Use fixed tab area height for consistent layout
       float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
@@ -3825,37 +3951,81 @@ public class TerminalController : ITerminalController
       {
         try
         {
-          // Single tab representing current terminal instance
-          ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.2f, 0.3f, 0.5f, 1.0f)); // Active tab color
-          ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.3f, 0.4f, 0.6f, 1.0f)); // Hover color
-          ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.1f, 0.2f, 0.4f, 1.0f)); // Pressed color
+          // Render session tabs
+          for (int i = 0; i < sessions.Count; i++)
+          {
+            var session = sessions[i];
+            bool isActive = session == activeSession;
 
-          try
-          {
-            // Display the terminal tab with title from settings
-            string tabLabel = $"{_currentTerminalSettings.Title}##tab_0";
-            if (ImGui.Button(tabLabel, new float2(tabWidth, tabHeight - 5.0f)))
+            if (i > 0) ImGui.SameLine();
+
+            // Style active tab differently
+            if (isActive)
             {
-              // Tab is already active (single terminal), no action needed
-              // Future: Switch to this terminal when multi-terminal is implemented
+              ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.2f, 0.3f, 0.5f, 1.0f)); // Active tab color
+              ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.3f, 0.4f, 0.6f, 1.0f)); // Hover color
+              ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.1f, 0.2f, 0.4f, 1.0f)); // Pressed color
             }
-          }
-          finally
-          {
-            ImGui.PopStyleColor(3); // Pop all three colors
+            else
+            {
+              ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.1f, 0.1f, 0.1f, 1.0f)); // Inactive tab color
+              ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.2f, 0.2f, 0.2f, 1.0f)); // Hover color
+              ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.15f, 0.15f, 0.15f, 1.0f)); // Pressed color
+            }
+
+            try
+            {
+              string tabLabel = $"{session.Title}##tab_{session.Id}";
+              
+              // Show process exit code if process has exited
+              if (session.ProcessManager.ExitCode.HasValue)
+              {
+                tabLabel += $" (Exit: {session.ProcessManager.ExitCode})";
+              }
+
+              if (ImGui.Button(tabLabel, new float2(tabWidth, tabHeight - 5.0f)))
+              {
+                // Switch to this session
+                _sessionManager.SwitchToSession(session.Id);
+              }
+            }
+            finally
+            {
+              ImGui.PopStyleColor(3); // Pop all three colors
+            }
+
+            // Context menu for tab
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+            {
+              ImGui.OpenPopup($"tab_context_{session.Id}");
+            }
+
+            if (ImGui.BeginPopup($"tab_context_{session.Id}"))
+            {
+              if (ImGui.MenuItem("Close Tab") && sessions.Count > 1)
+              {
+                _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
+              }
+              if (ImGui.MenuItem("Rename Tab"))
+              {
+                // TODO: Implement tab renaming in future
+                ShowNotImplementedMessage("Tab renaming");
+              }
+              ImGui.EndPopup();
+            }
           }
 
           // Add button on the right
-          ImGui.SameLine();
+          if (sessions.Count > 0) ImGui.SameLine();
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
           {
-            ShowNotImplementedMessage("Multi-terminal support will be added in a future phase");
+            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
           }
 
           // Show tooltip on add button hover
           if (ImGui.IsItemHovered())
           {
-            ImGui.SetTooltip("Add new terminal (Coming soon)");
+            ImGui.SetTooltip("Add new terminal session");
           }
         }
         finally
@@ -3869,9 +4039,12 @@ public class TerminalController : ITerminalController
       Console.WriteLine($"TerminalController: Error rendering tab area: {ex.Message}");
 
       // Fallback: render a simple text indicator if tab rendering fails
-      ImGui.Text("Terminal 1");
+      ImGui.Text("No sessions");
       ImGui.SameLine();
-      ImGui.Text("[+]");
+      if (ImGui.Button("+##fallback_add"))
+      {
+        _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
+      }
     }
   }
 

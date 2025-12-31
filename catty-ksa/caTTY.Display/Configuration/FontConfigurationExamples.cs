@@ -14,14 +14,13 @@ public static class FontConfigurationExamples
     /// Use this approach when you need predictable, consistent font behavior.
     /// </summary>
     public static ITerminalController CreateTestAppWithExplicitConfig(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // Create explicit font configuration optimized for TestApp development
         var fontConfig = TerminalFontConfig.CreateForTestApp();
         
         // This ensures consistent font behavior regardless of execution context
-        return new TerminalController(terminal, processManager, fontConfig);
+        return new TerminalController(sessionManager, fontConfig);
     }
 
     /// <summary>
@@ -29,14 +28,13 @@ public static class FontConfigurationExamples
     /// Use this approach when deploying to game mod context with specific requirements.
     /// </summary>
     public static ITerminalController CreateGameModWithExplicitConfig(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // Create explicit font configuration optimized for GameMod integration
         var fontConfig = TerminalFontConfig.CreateForGameMod();
         
         // This ensures game-appropriate fonts and sizing
-        return new TerminalController(terminal, processManager, fontConfig);
+        return new TerminalController(sessionManager, fontConfig);
     }
 
     /// <summary>
@@ -45,12 +43,11 @@ public static class FontConfigurationExamples
     /// based on the execution context (TestApp vs GameMod).
     /// </summary>
     public static ITerminalController CreateWithAutomaticDetection(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // The default constructor automatically detects context and applies appropriate font configuration
         // This is equivalent to: FontContextDetector.DetectAndCreateConfig()
-        return new TerminalController(terminal, processManager);
+        return new TerminalController(sessionManager);
     }
 
     /// <summary>
@@ -59,8 +56,7 @@ public static class FontConfigurationExamples
     /// or when you need to inspect the detected configuration before using it.
     /// </summary>
     public static ITerminalController CreateWithExplicitAutomaticDetection(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // Explicitly request automatic detection and configuration creation
         var fontConfig = FontContextDetector.DetectAndCreateConfig();
@@ -68,7 +64,7 @@ public static class FontConfigurationExamples
         // You can inspect or log the detected configuration here if needed
         Console.WriteLine($"Detected context configuration: {fontConfig.RegularFontName}, Size: {fontConfig.FontSize}");
         
-        return new TerminalController(terminal, processManager, fontConfig);
+        return new TerminalController(sessionManager, fontConfig);
     }
 
     /// <summary>
@@ -76,8 +72,7 @@ public static class FontConfigurationExamples
     /// Use this approach when you need specific fonts or settings not covered by the defaults.
     /// </summary>
     public static ITerminalController CreateWithCustomConfig(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // Create completely custom font configuration
         var fontConfig = new TerminalFontConfig
@@ -90,7 +85,7 @@ public static class FontConfigurationExamples
             AutoDetectContext = false // Disable automatic detection since we're explicit
         };
         
-        return new TerminalController(terminal, processManager, fontConfig);
+        return new TerminalController(sessionManager, fontConfig);
     }
 
     /// <summary>
@@ -98,8 +93,7 @@ public static class FontConfigurationExamples
     /// Use this approach when you want context-aware defaults with specific customizations.
     /// </summary>
     public static ITerminalController CreateWithHybridConfig(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         // Start with automatic detection to get context-appropriate defaults
         var fontConfig = FontContextDetector.DetectAndCreateConfig();
@@ -110,7 +104,7 @@ public static class FontConfigurationExamples
         // You could also override font family while keeping context-appropriate size:
         // fontConfig.RegularFontName = "MyPreferredFont-Regular";
         
-        return new TerminalController(terminal, processManager, fontConfig);
+        return new TerminalController(sessionManager, fontConfig);
     }
 
     /// <summary>
@@ -142,8 +136,7 @@ public static class FontConfigurationExamples
     /// Demonstrates how to handle cases where automatic detection might not work as expected.
     /// </summary>
     public static ITerminalController CreateWithDetectionFallback(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager)
+        SessionManager sessionManager)
     {
         try
         {
@@ -154,13 +147,13 @@ public static class FontConfigurationExamples
             if (IsConfigurationAcceptable(detectedConfig))
             {
                 Console.WriteLine($"Using detected configuration: {detectedConfig.RegularFontName}");
-                return new TerminalController(terminal, processManager, detectedConfig);
+                return new TerminalController(sessionManager, detectedConfig);
             }
             else
             {
                 Console.WriteLine("Detected configuration not acceptable, falling back to explicit TestApp config");
                 var fallbackConfig = TerminalFontConfig.CreateForTestApp();
-                return new TerminalController(terminal, processManager, fallbackConfig);
+                return new TerminalController(sessionManager, fallbackConfig);
             }
         }
         catch (Exception ex)
@@ -169,7 +162,7 @@ public static class FontConfigurationExamples
             
             // Use safe default configuration if detection fails
             var safeConfig = TerminalFontConfig.CreateForTestApp();
-            return new TerminalController(terminal, processManager, safeConfig);
+            return new TerminalController(sessionManager, safeConfig);
         }
     }
 
@@ -190,27 +183,26 @@ public static class FontConfigurationExamples
     /// Shows how to choose configuration based on deployment context.
     /// </summary>
     public static ITerminalController CreateForDeploymentScenario(
-        ITerminalEmulator terminal, 
-        IProcessManager processManager,
+        SessionManager sessionManager,
         DeploymentScenario scenario)
     {
         return scenario switch
         {
             DeploymentScenario.Development => 
                 // Use automatic detection for development convenience
-                new TerminalController(terminal, processManager),
+                new TerminalController(sessionManager),
                 
             DeploymentScenario.TestAppProduction => 
                 // Use explicit TestApp configuration for production consistency
-                new TerminalController(terminal, processManager, TerminalFontConfig.CreateForTestApp()),
+                new TerminalController(sessionManager, TerminalFontConfig.CreateForTestApp()),
                 
             DeploymentScenario.GameModProduction => 
                 // Use explicit GameMod configuration for production consistency
-                new TerminalController(terminal, processManager, TerminalFontConfig.CreateForGameMod()),
+                new TerminalController(sessionManager, TerminalFontConfig.CreateForGameMod()),
                 
             DeploymentScenario.CustomIntegration => 
                 // Use hybrid approach for custom integrations
-                CreateWithHybridConfig(terminal, processManager),
+                CreateWithHybridConfig(sessionManager),
                 
             _ => throw new ArgumentException($"Unknown deployment scenario: {scenario}")
         };

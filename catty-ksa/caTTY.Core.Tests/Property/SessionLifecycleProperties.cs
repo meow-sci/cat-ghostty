@@ -693,4 +693,145 @@ public class SessionLifecycleProperties
                 }
             });
     }
+
+    /// <summary>
+    ///     **Feature: multi-session-support, Property 3: Tab Management Consistency**
+    ///     **Validates: Requirements 3.1, 3.4**
+    ///     Property: For any session manager, the tab order should remain consistent with session
+    ///     creation order, and tab switching should properly update the active session display.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
+    public FsCheck.Property TabManagementConsistency()
+    {
+        return Prop.ForAll(SessionCreateCountArb,
+            createCount =>
+            {
+                // Need at least 2 sessions to test tab management
+                if (createCount < 2) return true.ToProperty();
+
+                using var sessionManager = new SessionManager(createCount);
+                var createdSessions = new List<TerminalSession>();
+
+                try
+                {
+                    // Create multiple sessions and track creation order
+                    var expectedTabOrder = new List<Guid>();
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var session = sessionManager.CreateSessionAsync($"Tab {i + 1}").Result;
+                        createdSessions.Add(session);
+                        expectedTabOrder.Add(session.Id);
+                    }
+
+                    // Verify tab order matches creation order (Requirement 3.1)
+                    var actualTabOrder = sessionManager.Sessions.Select(s => s.Id).ToList();
+                    if (!expectedTabOrder.SequenceEqual(actualTabOrder))
+                    {
+                        return false.ToProperty().Label($"Tab order mismatch. Expected: [{string.Join(", ", expectedTabOrder)}], Got: [{string.Join(", ", actualTabOrder)}]");
+                    }
+
+                    // Verify session titles are unique and follow expected pattern
+                    var sessionTitles = sessionManager.Sessions.Select(s => s.Title).ToList();
+                    if (sessionTitles.Count != sessionTitles.Distinct().Count())
+                    {
+                        return false.ToProperty().Label("Found duplicate session titles in tab management");
+                    }
+
+                    // Test tab switching updates active session properly (Requirement 3.4)
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var targetSession = createdSessions[i];
+                        sessionManager.SwitchToSession(targetSession.Id);
+
+                        // Active session should match the switched tab
+                        if (sessionManager.ActiveSession?.Id != targetSession.Id)
+                        {
+                            return false.ToProperty().Label($"Tab switch failed: expected session {targetSession.Id} to be active");
+                        }
+
+                        // Active session should have correct state
+                        if (targetSession.State != SessionState.Active)
+                        {
+                            return false.ToProperty().Label($"Active tab session {targetSession.Id} should have Active state, got {targetSession.State}");
+                        }
+
+                        // All other sessions should be inactive
+                        var inactiveSessions = sessionManager.Sessions.Where(s => s.Id != targetSession.Id).ToList();
+                        foreach (var inactiveSession in inactiveSessions)
+                        {
+                            if (inactiveSession.State != SessionState.Inactive)
+                            {
+                                return false.ToProperty().Label($"Non-active tab session {inactiveSession.Id} should have Inactive state, got {inactiveSession.State}");
+                            }
+                        }
+
+                        // Tab order should remain unchanged after switching
+                        var tabOrderAfterSwitch = sessionManager.Sessions.Select(s => s.Id).ToList();
+                        if (!expectedTabOrder.SequenceEqual(tabOrderAfterSwitch))
+                        {
+                            return false.ToProperty().Label($"Tab order changed after switching. Expected: [{string.Join(", ", expectedTabOrder)}], Got: [{string.Join(", ", tabOrderAfterSwitch)}]");
+                        }
+                    }
+
+                    // Test next/previous tab navigation maintains consistency
+                    var startingActiveSession = sessionManager.ActiveSession;
+                    if (startingActiveSession == null)
+                    {
+                        return false.ToProperty().Label("Expected an active session for navigation testing");
+                    }
+
+                    // Test next session navigation
+                    sessionManager.SwitchToNextSession();
+                    var nextSession = sessionManager.ActiveSession;
+                    if (nextSession == null)
+                    {
+                        return false.ToProperty().Label("Expected an active session after SwitchToNextSession");
+                    }
+
+                    // Should be the next session in tab order
+                    var startingIndex = expectedTabOrder.IndexOf(startingActiveSession.Id);
+                    var expectedNextIndex = (startingIndex + 1) % expectedTabOrder.Count;
+                    var expectedNextSessionId = expectedTabOrder[expectedNextIndex];
+                    
+                    if (nextSession.Id != expectedNextSessionId)
+                    {
+                        return false.ToProperty().Label($"Next session navigation failed: expected {expectedNextSessionId}, got {nextSession.Id}");
+                    }
+
+                    // Test previous session navigation
+                    sessionManager.SwitchToPreviousSession();
+                    var prevSession = sessionManager.ActiveSession;
+                    if (prevSession == null)
+                    {
+                        return false.ToProperty().Label("Expected an active session after SwitchToPreviousSession");
+                    }
+
+                    // Should be back to the starting session
+                    if (prevSession.Id != startingActiveSession.Id)
+                    {
+                        return false.ToProperty().Label($"Previous session navigation failed: expected {startingActiveSession.Id}, got {prevSession.Id}");
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up sessions
+                    foreach (var session in createdSessions)
+                    {
+                        try
+                        {
+                            if (session.State != SessionState.Disposed)
+                            {
+                                session.CloseAsync().Wait(TimeSpan.FromSeconds(1));
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup errors in tests
+                        }
+                    }
+                }
+            });
+    }
 }

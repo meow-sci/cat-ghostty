@@ -21,7 +21,12 @@ public class TerminalControllerInputCaptureTests
     {
         _terminal = new TerminalEmulator(80, 24);
         _processManager = new ProcessManager();
-        _controller = new TerminalController(_terminal, _processManager);
+        
+        // Create session manager and add a session
+        var sessionManager = new SessionManager();
+        var session = sessionManager.CreateSessionAsync().Result;
+        
+        _controller = new TerminalController(sessionManager);
     }
 
     [TearDown]
