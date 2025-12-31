@@ -13,24 +13,17 @@ namespace caTTY.TestApp;
 /// </summary>
 public class TerminalTestApp : IDisposable
 {
-    private readonly ProcessManager _processManager;
-    private readonly TerminalEmulator _terminal;
+    private readonly SessionManager _sessionManager;
     private ITerminalController? _controller;
     private bool _disposed;
 
     /// <summary>
-    ///     Creates a new terminal test application with default terminal dimensions.
+    ///     Creates a new terminal test application with session management.
     /// </summary>
     public TerminalTestApp()
     {
-        // Create terminal with standard 80x24 dimensions
-        _terminal = new TerminalEmulator(80, 24);
-        _processManager = new ProcessManager();
-
-        // Wire up events
-        _processManager.DataReceived += OnProcessDataReceived;
-        _processManager.ProcessExited += OnProcessExited;
-        _processManager.ProcessError += OnProcessError;
+        // Create session manager for multi-session support
+        _sessionManager = new SessionManager();
     }
 
     /// <summary>
@@ -41,8 +34,7 @@ public class TerminalTestApp : IDisposable
         if (!_disposed)
         {
             _controller?.Dispose();
-            _processManager?.Dispose();
-            _terminal?.Dispose();
+            _sessionManager?.Dispose();
             _disposed = true;
         }
     }
@@ -59,7 +51,7 @@ public class TerminalTestApp : IDisposable
         ConsoleColorTest.DisplayColorTest();
         Console.WriteLine();
 
-        // Start a shell process
+        // Create launch options for the shell process
         // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
         
         // Option 1: Use default (WSL2 on Windows)
@@ -84,15 +76,19 @@ public class TerminalTestApp : IDisposable
         // Option 5: Custom shell
         // var launchOptions = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
 
-        // Set terminal dimensions
-        launchOptions.InitialWidth = _terminal.Width;
-        launchOptions.InitialHeight = _terminal.Height;
+        // Set terminal dimensions and working directory
+        launchOptions.InitialWidth = 80;
+        launchOptions.InitialHeight = 24;
         launchOptions.WorkingDirectory = Environment.CurrentDirectory;
+
+        Console.WriteLine("Creating terminal session...");
 
         try
         {
-            await _processManager.StartAsync(launchOptions);
-            Console.WriteLine($"Shell process started (PID: {_processManager.ProcessId})");
+            // Create a session with the configured shell
+            var session = await _sessionManager.CreateSessionAsync("Terminal", launchOptions);
+            Console.WriteLine($"Shell process started (PID: {session.ProcessManager.ProcessId})");
+            Console.WriteLine($"Session created with title: {session.Title}");
         }
         catch (Exception ex)
         {
@@ -103,27 +99,24 @@ public class TerminalTestApp : IDisposable
         Console.WriteLine("Initializing BRUTAL ImGui context...");
 
         // Option 1: Explicit font configuration (current approach - recommended for production)
-        // Create session manager and add a session
-        var sessionManager = new SessionManager();
-        var session = sessionManager.CreateSessionAsync().Result;
-        
         var fontConfig = TerminalFontConfig.CreateForTestApp();
         Console.WriteLine($"TestApp using explicit font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
-        _controller = new TerminalController(sessionManager, fontConfig);
+        _controller = new TerminalController(_sessionManager, fontConfig);
 
         // Option 2: Automatic detection (alternative approach - convenient for development)
         // Uncomment the following lines to use automatic detection instead:
         // Console.WriteLine("TestApp using automatic font detection");
-        // _controller = new TerminalController(sessionManager);
+        // _controller = new TerminalController(_sessionManager);
 
         // Option 3: Explicit automatic detection (alternative approach - shows detection explicitly)
         // Uncomment the following lines to use explicit automatic detection:
         // var autoConfig = FontContextDetector.DetectAndCreateConfig();
         // Console.WriteLine($"TestApp using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
-        // _controller = new TerminalController(sessionManager, autoConfig);
+        // _controller = new TerminalController(_sessionManager, autoConfig);
 
         Console.WriteLine("Starting ImGui render loop...");
         Console.WriteLine("Try running colored commands like: ls --color, echo -e \"\\033[31mRed text\\033[0m\"");
+        Console.WriteLine("Try running htop or other applications that change the terminal title!");
         Console.WriteLine();
 
         // Run the ImGui application loop with update and render
@@ -135,30 +128,5 @@ public class TerminalTestApp : IDisposable
             // Render the terminal
             _controller.Render();
         });
-    }
-
-    /// <summary>
-    ///     Handles data received from the shell process.
-    /// </summary>
-    private void OnProcessDataReceived(object? sender, DataReceivedEventArgs e)
-    {
-        // Forward shell output to terminal emulator
-        _terminal.Write(e.Data.Span);
-    }
-
-    /// <summary>
-    ///     Handles shell process exit.
-    /// </summary>
-    private void OnProcessExited(object? sender, ProcessExitedEventArgs e)
-    {
-        Console.WriteLine($"Shell process exited with code {e.ExitCode}");
-    }
-
-    /// <summary>
-    ///     Handles shell process errors.
-    /// </summary>
-    private void OnProcessError(object? sender, ProcessErrorEventArgs e)
-    {
-        Console.WriteLine($"Shell process error: {e.Message}");
     }
 }

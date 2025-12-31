@@ -281,6 +281,12 @@ public class TerminalController : ITerminalController
     _sessionManager.SessionClosed += OnSessionClosed;
     _sessionManager.ActiveSessionChanged += OnActiveSessionChanged;
 
+    // Wire up title change events for any existing sessions
+    foreach (var session in _sessionManager.Sessions)
+    {
+      session.TitleChanged += OnSessionTitleChanged;
+    }
+
     // Note: Font loading is deferred until first render call when ImGui context is ready
     // LoadFonts(); // Moved to EnsureFontsLoaded()
 
@@ -516,6 +522,7 @@ public class TerminalController : ITerminalController
         {
           session.Terminal.ScreenUpdated -= OnScreenUpdated;
           session.Terminal.ResponseEmitted -= OnResponseEmitted;
+          session.TitleChanged -= OnSessionTitleChanged;
         }
       }
 
@@ -3311,6 +3318,7 @@ public class TerminalController : ITerminalController
     var session = e.Session;
     session.Terminal.ScreenUpdated += OnScreenUpdated;
     session.Terminal.ResponseEmitted += OnResponseEmitted;
+    session.TitleChanged += OnSessionTitleChanged;
     
     Console.WriteLine($"TerminalController: Session created - {session.Title} ({session.Id})");
   }
@@ -3324,6 +3332,7 @@ public class TerminalController : ITerminalController
     var session = e.Session;
     session.Terminal.ScreenUpdated -= OnScreenUpdated;
     session.Terminal.ResponseEmitted -= OnResponseEmitted;
+    session.TitleChanged -= OnSessionTitleChanged;
     
     Console.WriteLine($"TerminalController: Session closed - {session.Title} ({session.Id})");
   }
@@ -3343,6 +3352,17 @@ public class TerminalController : ITerminalController
     
     // Reset cursor blink state for new active session
     _cursorRenderer.ResetBlinkState();
+  }
+
+  /// <summary>
+  ///     Handles session title change events from individual sessions.
+  ///     This ensures the UI updates when applications like htop change the terminal title.
+  /// </summary>
+  private void OnSessionTitleChanged(object? sender, SessionTitleChangedEventArgs e)
+  {
+    // Note: No explicit UI refresh needed here since ImGui re-renders every frame
+    // The tab labels will automatically show the updated session titles on next render
+    Console.WriteLine($"TerminalController: Session title changed from '{e.OldTitle}' to '{e.NewTitle}'");
   }
 
   #region Layout Helper Methods
