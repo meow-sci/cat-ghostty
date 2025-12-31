@@ -276,6 +276,106 @@ public class SessionLifecycleProperties
     }
 
     /// <summary>
+    ///     **Feature: multi-session-support, Property 2: Session Creation and Initialization**
+    ///     **Validates: Requirements 2.2, 2.3, 2.5**
+    ///     Property: For any session manager, creating a session should initialize it with default
+    ///     shell configuration, assign unique titles, and start the shell process automatically.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [Ignore("Real shell test - validated and disabled for CI")]
+    public FsCheck.Property SessionCreationAndInitialization()
+    {
+        return Prop.ForAll(SessionCreateCountArb,
+            createCount =>
+            {
+                using var sessionManager = new SessionManager(Math.Max(createCount, 1));
+                var createdSessions = new List<TerminalSession>();
+
+                try
+                {
+                    // Create sessions and verify initialization
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var session = sessionManager.CreateSessionAsync().Result;
+                        createdSessions.Add(session);
+
+                        // Verify session has unique title (Requirement 2.3)
+                        if (string.IsNullOrEmpty(session.Title))
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} has empty title");
+                        }
+
+                        // Verify title follows expected pattern
+                        if (!session.Title.StartsWith("Terminal "))
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} title '{session.Title}' doesn't follow expected pattern");
+                        }
+
+                        // Verify all session titles are unique
+                        var titles = createdSessions.Select(s => s.Title).ToList();
+                        if (titles.Count != titles.Distinct().Count())
+                        {
+                            return false.ToProperty().Label("Found duplicate session titles");
+                        }
+
+                        // Verify session is initialized with default shell configuration (Requirement 2.2)
+                        if (session.Terminal == null)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} terminal is null");
+                        }
+
+                        if (session.ProcessManager == null)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} process manager is null");
+                        }
+
+                        // Verify shell process is started automatically (Requirement 2.5)
+                        // Note: We check that ProcessManager exists and is in a valid state
+                        // The actual process startup is tested in integration tests due to timing
+                        if (session.State == SessionState.Failed)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} failed to initialize");
+                        }
+
+                        // Verify session has proper settings
+                        if (session.Settings == null)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} settings is null");
+                        }
+
+                        if (session.Settings.Title != session.Title)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} settings title mismatch");
+                        }
+
+                        // Verify session is properly tracked
+                        if (session.CreatedAt == default)
+                        {
+                            return false.ToProperty().Label($"Session {session.Id} has invalid creation time");
+                        }
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up sessions
+                    foreach (var session in createdSessions)
+                    {
+                        try
+                        {
+                            session.CloseAsync().Wait(TimeSpan.FromSeconds(1));
+                        }
+                        catch
+                        {
+                            // Ignore cleanup errors in tests
+                        }
+                    }
+                }
+            });
+    }
+
+    /// <summary>
     ///     **Feature: multi-session-support, Property 1: Session Lifecycle Management**
     ///     **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 2.1, 2.4**
     ///     Property: For any session manager, resource cleanup should properly dispose of

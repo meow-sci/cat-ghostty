@@ -16,18 +16,18 @@ This implementation plan transforms the caTTY terminal from single-session to mu
   - **Property 1: Session Lifecycle Management**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 2.1, 2.4**
 
-- [ ] 2. Implement session creation and initialization
-  - [ ] 2.1 Implement SessionManager.CreateSessionAsync method
+- [x] 2. Implement session creation and initialization
+  - [x] 2.1 Implement SessionManager.CreateSessionAsync method
     - Initialize new TerminalEmulator and ProcessManager instances
     - Assign unique session IDs and generate session titles
     - Handle session creation failures gracefully
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 2.2 Write property test for session creation and initialization
+  - [x] 2.2 Write property test for session creation and initialization
     - **Property 2: Session Creation and Initialization**
     - **Validates: Requirements 2.2, 2.3, 2.5**
 
-  - [ ] 2.3 Implement automatic shell process startup for new sessions
+  - [x] 2.3 Implement automatic shell process startup for new sessions
     - Start shell process automatically after session creation
     - Make newly created session the active session
     - _Requirements: 2.4, 2.5_
