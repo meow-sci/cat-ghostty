@@ -586,4 +586,111 @@ public class SessionLifecycleProperties
                 }
             });
     }
+
+    /// <summary>
+    ///     **Feature: multi-session-support, Property 6: Last Session Protection**
+    ///     **Validates: Requirements 4.4, 4.5**
+    ///     Property: For any session manager with only one session, attempting to close that
+    ///     session should throw InvalidOperationException and preserve the session.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
+    public FsCheck.Property LastSessionProtection()
+    {
+        return Prop.ForAll(SessionTitleArb,
+            sessionTitle =>
+            {
+                using var sessionManager = new SessionManager(1);
+                TerminalSession? createdSession = null;
+
+                try
+                {
+                    // Create a single session
+                    createdSession = sessionManager.CreateSessionAsync(sessionTitle).Result;
+
+                    // Verify we have exactly one session
+                    if (sessionManager.SessionCount != 1)
+                    {
+                        return false.ToProperty().Label($"Expected 1 session, got {sessionManager.SessionCount}");
+                    }
+
+                    // Verify the session is active
+                    if (sessionManager.ActiveSession?.Id != createdSession.Id)
+                    {
+                        return false.ToProperty().Label("Expected the single session to be active");
+                    }
+
+                    // Attempt to close the last session should throw InvalidOperationException (Requirement 4.4)
+                    bool exceptionThrown = false;
+                    string? exceptionMessage = null;
+                    
+                    try
+                    {
+                        sessionManager.CloseSessionAsync(createdSession.Id).Wait(TimeSpan.FromSeconds(2));
+                    }
+                    catch (AggregateException ae) when (ae.InnerException is InvalidOperationException)
+                    {
+                        exceptionThrown = true;
+                        exceptionMessage = ae.InnerException.Message;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        exceptionThrown = true;
+                        exceptionMessage = ex.Message;
+                    }
+
+                    if (!exceptionThrown)
+                    {
+                        return false.ToProperty().Label("Expected InvalidOperationException when closing last session");
+                    }
+
+                    // Verify exception message indicates last session protection (Requirement 4.4)
+                    if (string.IsNullOrEmpty(exceptionMessage) || !exceptionMessage.Contains("last remaining session"))
+                    {
+                        return false.ToProperty().Label($"Expected exception message about last session, got: {exceptionMessage}");
+                    }
+
+                    // Verify session is still present and active (Requirement 4.5)
+                    if (sessionManager.SessionCount != 1)
+                    {
+                        return false.ToProperty().Label($"Expected session to be preserved after failed close, got count: {sessionManager.SessionCount}");
+                    }
+
+                    if (sessionManager.ActiveSession?.Id != createdSession.Id)
+                    {
+                        return false.ToProperty().Label("Expected the session to remain active after failed close");
+                    }
+
+                    if (createdSession.State == SessionState.Disposed || createdSession.State == SessionState.Terminating)
+                    {
+                        return false.ToProperty().Label($"Expected session to remain in valid state after failed close, got: {createdSession.State}");
+                    }
+
+                    // Verify session is still functional by checking its properties
+                    if (string.IsNullOrEmpty(createdSession.Title))
+                    {
+                        return false.ToProperty().Label("Expected session title to be preserved after failed close");
+                    }
+
+                    if (createdSession.Terminal == null || createdSession.ProcessManager == null)
+                    {
+                        return false.ToProperty().Label("Expected session resources to be preserved after failed close");
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up - force dispose the session manager to clean up resources
+                    // This bypasses the last session protection for cleanup purposes
+                    try
+                    {
+                        sessionManager.Dispose();
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors in tests
+                    }
+                }
+            });
+    }
 }

@@ -48,18 +48,18 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - Handle tab order management
     - _Requirements: 12.3_
 
-- [ ] 4. Implement session closure and cleanup
-  - [ ] 4.1 Implement SessionManager.CloseSessionAsync method
+- [x] 4. Implement session closure and cleanup
+  - [x] 4.1 Implement SessionManager.CloseSessionAsync method
     - Terminate shell processes and dispose resources
     - Handle last session protection logic
     - Update active session when closing current session
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 4.2 Write property test for resource cleanup on session closure
+  - [x] 4.2 Write property test for resource cleanup on session closure
     - **Property 5: Resource Cleanup on Session Closure**
     - **Validates: Requirements 1.4, 4.1, 4.2, 10.1, 10.2**
 
-  - [ ] 4.3 Write property test for last session protection
+  - [x] 4.3 Write property test for last session protection
     - **Property 6: Last Session Protection**
     - **Validates: Requirements 4.4, 4.5**
 
