@@ -3565,6 +3565,7 @@ public class TerminalController : ITerminalController
       {
         RenderFileMenu();
         RenderEditMenu();
+        RenderSessionsMenu();
         RenderFontMenu();
         RenderThemeMenu();
         RenderSettingsMenu();
@@ -3586,14 +3587,14 @@ public class TerminalController : ITerminalController
       try
       {
         // New Terminal - now enabled for multi-session support
-        if (ImGui.MenuItem("New Terminal", "Ctrl+Shift+T"))
+        if (ImGui.MenuItem("New Terminal"))
         {
           _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
         }
 
         // Close Terminal - enabled when more than one session exists
         bool canCloseTerminal = _sessionManager.SessionCount > 1;
-        if (ImGui.MenuItem("Close Terminal", "Ctrl+Shift+W", false, canCloseTerminal))
+        if (ImGui.MenuItem("Close Terminal", "", false, canCloseTerminal))
         {
           var activeSession = _sessionManager.ActiveSession;
           if (activeSession != null)
@@ -3604,8 +3605,23 @@ public class TerminalController : ITerminalController
 
         ImGui.Separator();
 
+        // Next Terminal - enabled when more than one session exists
+        bool canNavigateSessions = _sessionManager.SessionCount > 1;
+        if (ImGui.MenuItem("Next Terminal", "", false, canNavigateSessions))
+        {
+          _sessionManager.SwitchToNextSession();
+        }
+
+        // Previous Terminal - enabled when more than one session exists
+        if (ImGui.MenuItem("Previous Terminal", "", false, canNavigateSessions))
+        {
+          _sessionManager.SwitchToPreviousSession();
+        }
+
+        ImGui.Separator();
+
         // Exit - closes the terminal window
-        if (ImGui.MenuItem("Exit", "Alt+F4"))
+        if (ImGui.MenuItem("Exit"))
         {
           _isVisible = false;
         }
@@ -3628,21 +3644,91 @@ public class TerminalController : ITerminalController
       {
         // Copy - enabled only when selection exists
         bool hasSelection = !_currentSelection.IsEmpty;
-        if (ImGui.MenuItem("Copy", "Ctrl+C", false, hasSelection))
+        if (ImGui.MenuItem("Copy", "", false, hasSelection))
         {
           CopySelectionToClipboard();
         }
 
         // Paste - always enabled
-        if (ImGui.MenuItem("Paste", "Ctrl+V"))
+        if (ImGui.MenuItem("Paste"))
         {
           PasteFromClipboard();
         }
 
         // Select All - always enabled
-        if (ImGui.MenuItem("Select All", "Ctrl+A"))
+        if (ImGui.MenuItem("Select All"))
         {
           SelectAllText();
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Renders the Sessions menu with a list of all terminal sessions.
+  /// Shows a checkmark for the currently active session and allows clicking to switch sessions.
+  /// </summary>
+  private void RenderSessionsMenu()
+  {
+    if (ImGui.BeginMenu("Sessions"))
+    {
+      try
+      {
+        var sessions = _sessionManager.Sessions;
+        var activeSession = _sessionManager.ActiveSession;
+
+        if (sessions.Count == 0)
+        {
+          ImGui.Text("No sessions available");
+        }
+        else
+        {
+          foreach (var session in sessions)
+          {
+            bool isActive = session == activeSession;
+            string sessionLabel = session.Title;
+            
+            // Add process exit code to label if process has exited
+            if (session.ProcessManager.ExitCode.HasValue)
+            {
+              sessionLabel += $" (Exit: {session.ProcessManager.ExitCode})";
+            }
+
+            // Create unique ImGui ID using session GUID to avoid conflicts
+            string menuItemId = $"{sessionLabel}##session_menu_item_{session.Id}";
+
+            if (ImGui.MenuItem(menuItemId, "", isActive))
+            {
+              if (!isActive)
+              {
+                _sessionManager.SwitchToSession(session.Id);
+              }
+            }
+
+            // Show tooltip with session information
+            if (ImGui.IsItemHovered())
+            {
+              var tooltip = $"Session: {session.Title}\nCreated: {session.CreatedAt:HH:mm:ss}";
+              if (session.LastActiveAt.HasValue)
+              {
+                tooltip += $"\nLast Active: {session.LastActiveAt.Value:HH:mm:ss}";
+              }
+              tooltip += $"\nState: {session.State}";
+              if (session.ProcessManager.IsRunning)
+              {
+                tooltip += "\nProcess: Running";
+              }
+              else if (session.ProcessManager.ExitCode.HasValue)
+              {
+                tooltip += $"\nProcess: Exited ({session.ProcessManager.ExitCode})";
+              }
+              ImGui.SetTooltip(tooltip);
+            }
+          }
         }
       }
       finally

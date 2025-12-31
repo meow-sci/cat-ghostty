@@ -136,27 +136,18 @@ This implementation plan transforms the caTTY terminal from single-session to mu
 - [ ] 9. Checkpoint - Ensure session integration tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Implement menu integration and keyboard shortcuts
-  - [ ] 10.1 Add session management menu items
+- [x] 10. Implement menu integration and keyboard shortcuts
+  - [x] 10.1 Add session management menu items
     - Add "New Terminal" menu item to File menu
     - Add "Close Terminal" menu item to File menu
     - Add "Next Terminal" and "Previous Terminal" menu items
+    - Add "Sessions" menu which contains a entry for each terminal and a checkmark for the current one, allow clicking to switch sessions (use same backing code as the tabs do)
     - _Requirements: 12.1, 12.2, 12.3_
 
-  - [ ] 10.2 Implement keyboard shortcuts for session management
-    - Implement Ctrl+Shift+T for new terminal
-    - Implement Ctrl+Shift+W for close terminal
-    - Implement Ctrl+Tab for next terminal navigation
-    - _Requirements: 12.4_
-
-  - [ ] 10.3 Implement dynamic menu state management
+  - [x] 10.2 Implement dynamic menu state management
     - Disable "Close Terminal" when only one session exists
     - Disable navigation items when only one session exists
     - _Requirements: 12.5_
-
-  - [ ] 10.4 Write property test for menu state consistency
-    - **Property 15: Menu State Consistency**
-    - **Validates: Requirements 12.5**
 
 - [ ] 11. Implement process lifecycle and error handling
   - [ ] 11.1 Handle session process exit events
@@ -166,6 +157,7 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - _Requirements: 9.1, 9.2, 9.3_
 
   - [ ] 11.2 Write property test for process lifecycle event handling
+    - Ensure property tests only have max 2 iterations as real terminals are slow
     - **Property 11: Process Lifecycle Event Handling**
     - **Validates: Requirements 9.1, 9.2**
 
@@ -176,6 +168,7 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - _Requirements: 9.4, 9.5_
 
   - [ ] 11.4 Write property test for session recovery and error handling
+    - Ensure property tests only have max 2 iterations as real terminals are slow
     - **Property 12: Session Recovery and Error Handling**
     - **Validates: Requirements 9.3, 9.4, 11.5**
 
