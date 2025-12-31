@@ -70,17 +70,17 @@ This implementation plan converts the TOML-based terminal theming design into a 
 - [ ] 4. Checkpoint - Ensure core theme system functionality
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Add theme menu to TerminalController UI
+- [x] 5. Add theme menu to TerminalController UI
   - Implement RenderThemeMenu method in TerminalController
   - Integrate theme selection with existing menu system
   - Add theme application logic with immediate UI updates
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 5.1 Write property test for theme menu content completeness
+- [x] 5.1 Write property test for theme menu content completeness
   - **Property 6: Theme Menu Content Completeness**
   - **Validates: Requirements 4.2, 4.5**
 
-- [ ] 5.2 Write property test for theme application completeness
+- [x] 5.2 Write property test for theme application completeness
   - **Property 7: Theme Application Completeness**
   - **Validates: Requirements 4.3, 4.4**
 

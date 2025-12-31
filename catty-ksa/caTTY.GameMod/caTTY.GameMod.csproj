@@ -38,6 +38,13 @@
         </ItemGroup>
         <MakeDir Directories="$(DistDir)TerminalFonts"/>
         <Copy SourceFiles="@(FontFiles)" DestinationFolder="$(DistDir)TerminalFonts\%(RecursiveDir)"/>
+
+        <!-- Copy Themes folder to the build dir-->
+        <ItemGroup>
+            <ThemeFiles Include="$(TargetDir)TerminalThemes\**\*"/>
+        </ItemGroup>
+        <MakeDir Directories="$(DistDir)TerminalThemes"/>
+        <Copy SourceFiles="@(ThemeFiles)" DestinationFolder="$(DistDir)TerminalThemes\%(RecursiveDir)"/>
     </Target>
 
     <ItemGroup>
@@ -50,6 +57,9 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="TerminalFonts\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="TerminalThemes\**\*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>

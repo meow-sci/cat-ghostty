@@ -34,6 +34,7 @@ public static class TomlThemeLoader
     /// <returns>List of successfully loaded themes</returns>
     public static List<TerminalTheme> LoadThemesFromDirectory(string themesDirectory)
     {
+        Console.WriteLine($"Loading themes from directory: {themesDirectory}");
         var themes = new List<TerminalTheme>();
 
         if (!Directory.Exists(themesDirectory))
@@ -45,8 +46,10 @@ public static class TomlThemeLoader
         {
             var tomlFiles = Directory.GetFiles(themesDirectory, "*.toml", SearchOption.TopDirectoryOnly);
             
+            
             foreach (var filePath in tomlFiles)
             {
+                Console.WriteLine($"Loading theme from file: {filePath}");
                 var theme = LoadThemeFromFile(filePath);
                 if (theme.HasValue)
                 {
@@ -78,6 +81,7 @@ public static class TomlThemeLoader
                 return null;
             }
 
+  Console.WriteLine($"TOML parsing {filePath}");
             var tomlContent = File.ReadAllText(filePath);
             
             // Use TryToModel for graceful error handling with Tomlyn

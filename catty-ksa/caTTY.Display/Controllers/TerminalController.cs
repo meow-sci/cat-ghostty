@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using Brutal.ImGuiApi;
@@ -304,6 +306,9 @@ public class TerminalController : ITerminalController
     _terminal.ScreenUpdated += OnScreenUpdated;
     _terminal.ResponseEmitted += OnResponseEmitted;
 
+    // Subscribe to theme change events
+    ThemeManager.ThemeChanged += OnThemeChanged;
+
     // Initialize cursor style to theme default
     ResetCursorToThemeDefaults();
 
@@ -528,6 +533,9 @@ public class TerminalController : ITerminalController
         _terminal.ScreenUpdated -= OnScreenUpdated;
         _terminal.ResponseEmitted -= OnResponseEmitted;
       }
+
+      // Unsubscribe from theme change events
+      ThemeManager.ThemeChanged -= OnThemeChanged;
 
       _disposed = true;
     }
@@ -3013,6 +3021,33 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
+  ///     Handles theme change events from the ThemeManager.
+  ///     Updates cursor style and other theme-dependent settings when theme changes.
+  /// </summary>
+  private void OnThemeChanged(object? sender, ThemeChangedEventArgs e)
+  {
+    try
+    {
+      Console.WriteLine($"TerminalController: Theme changed from '{e.PreviousTheme.Name}' to '{e.NewTheme.Name}'");
+      
+      // Reset cursor style to match new theme defaults
+      ResetCursorToThemeDefaults();
+      
+      // Force cursor to be visible immediately after theme change
+      _cursorRenderer.ForceVisible();
+      
+      // Reset cursor blink state to ensure proper timing with new theme
+      _cursorRenderer.ResetBlinkState();
+      
+      Console.WriteLine($"TerminalController: Theme change handling completed for '{e.NewTheme.Name}'");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error handling theme change: {ex.Message}");
+    }
+  }
+
+  /// <summary>
   ///     Handles mouse events that should be sent to the application as escape sequences.
   /// </summary>
   private void OnMouseEventGenerated(object? sender, MouseEventArgs e)
@@ -3323,6 +3358,7 @@ public class TerminalController : ITerminalController
         RenderFileMenu();
         RenderEditMenu();
         RenderFontMenu();
+        RenderThemeMenu();
       }
       finally
       {
@@ -3470,6 +3506,157 @@ public class TerminalController : ITerminalController
     {
       Console.WriteLine($"TerminalController: Failed to select font family {displayName}: {ex.Message}");
       // Keep current font on error - no changes to _currentFontFamily or _fontConfig
+    }
+  }
+
+  /// <summary>
+  /// Renders the Theme menu with theme selection options.
+  /// Displays all available themes including built-in and TOML-loaded themes.
+  /// </summary>
+  private void RenderThemeMenu()
+  {
+    if (ImGui.BeginMenu("Theme"))
+    {
+      try
+      {
+        // Initialize theme system if not already done
+        ThemeManager.InitializeThemes();
+        
+        var availableThemes = ThemeManager.AvailableThemes;
+        var currentTheme = ThemeManager.CurrentTheme;
+
+        // Group themes by source: built-in first, then TOML
+        var builtInThemes = availableThemes.Where(t => t.Source == ThemeSource.BuiltIn)
+                                          .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                                          .ToList();
+        var tomlThemes = availableThemes.Where(t => t.Source == ThemeSource.TomlFile)
+                                       .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                                       .ToList();
+
+        // Render built-in themes
+        if (builtInThemes.Count > 0)
+        {
+          ImGui.Text("Built-in Themes:");
+          ImGui.Separator();
+          
+          foreach (var theme in builtInThemes)
+          {
+            bool isSelected = theme.Name == currentTheme.Name;
+            
+            if (ImGui.MenuItem(theme.Name, "", isSelected))
+            {
+              ApplySelectedTheme(theme);
+            }
+            
+            // Show tooltip with theme information
+            if (ImGui.IsItemHovered())
+            {
+              ImGui.SetTooltip($"Theme: {theme.Name}\nType: {theme.Type}\nSource: Built-in");
+            }
+          }
+        }
+
+        // Add separator between built-in and TOML themes if both exist
+        if (builtInThemes.Count > 0 && tomlThemes.Count > 0)
+        {
+          ImGui.Separator();
+        }
+
+        // Render TOML themes
+        if (tomlThemes.Count > 0)
+        {
+          ImGui.Text("TOML Themes:");
+          ImGui.Separator();
+          
+          foreach (var theme in tomlThemes)
+          {
+            bool isSelected = theme.Name == currentTheme.Name;
+            
+            if (ImGui.MenuItem(theme.Name, "", isSelected))
+            {
+              ApplySelectedTheme(theme);
+            }
+            
+            // Show tooltip with theme information
+            if (ImGui.IsItemHovered())
+            {
+              var tooltip = $"Theme: {theme.Name}\nType: {theme.Type}\nSource: TOML File";
+              if (!string.IsNullOrEmpty(theme.FilePath))
+              {
+                tooltip += $"\nFile: {Path.GetFileName(theme.FilePath)}";
+              }
+              ImGui.SetTooltip(tooltip);
+            }
+          }
+        }
+
+        // Show message if no themes available
+        if (availableThemes.Count == 0)
+        {
+          ImGui.Text("No themes available");
+        }
+
+        // Add refresh option
+        if (tomlThemes.Count > 0 || availableThemes.Count == 0)
+        {
+          ImGui.Separator();
+          if (ImGui.MenuItem("Refresh Themes"))
+          {
+            RefreshThemes();
+          }
+          
+          if (ImGui.IsItemHovered())
+          {
+            ImGui.SetTooltip("Reload themes from TerminalThemes directory");
+          }
+        }
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Applies the selected theme and handles any errors.
+  /// </summary>
+  /// <param name="theme">The theme to apply</param>
+  private void ApplySelectedTheme(TerminalTheme theme)
+  {
+    try
+    {
+      Console.WriteLine($"TerminalController: Applying theme: {theme.Name}");
+      
+      // Apply the theme through ThemeManager
+      ThemeManager.ApplyTheme(theme);
+      
+      Console.WriteLine($"TerminalController: Successfully applied theme: {theme.Name}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Failed to apply theme {theme.Name}: {ex.Message}");
+      // Theme system should handle fallback to default theme
+    }
+  }
+
+  /// <summary>
+  /// Refreshes the available themes by reloading from the filesystem.
+  /// </summary>
+  private void RefreshThemes()
+  {
+    try
+    {
+      Console.WriteLine("TerminalController: Refreshing themes...");
+      
+      // Refresh themes through ThemeManager
+      ThemeManager.RefreshAvailableThemes();
+      
+      Console.WriteLine($"TerminalController: Themes refreshed. Available themes: {ThemeManager.AvailableThemes.Count}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Failed to refresh themes: {ex.Message}");
     }
   }
 

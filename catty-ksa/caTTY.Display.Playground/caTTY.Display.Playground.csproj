@@ -104,6 +104,10 @@
         <None Include="TerminalFonts/**/*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <!-- Terminal fonts -->
+        <None Include="TerminalThemes/**/*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

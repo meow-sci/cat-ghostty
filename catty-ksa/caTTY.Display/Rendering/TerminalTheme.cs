@@ -30,7 +30,7 @@ public readonly struct TerminalColorPalette
     public float4 BrightMagenta { get; }
     public float4 BrightCyan { get; }
     public float4 BrightWhite { get; }
-    
+
     // Terminal UI colors
     public float4 Foreground { get; }
     public float4 Background { get; }
@@ -179,7 +179,7 @@ public static class ThemeManager
             magenta: TomlThemeLoader.ParseHexColor("#e5c499"),
             cyan: TomlThemeLoader.ParseHexColor("#bdcfe5"),
             white: TomlThemeLoader.ParseHexColor("#dbded8"),
-            
+
             // Bright ANSI colors from Adventure.toml
             brightBlack: TomlThemeLoader.ParseHexColor("#685656"),
             brightRed: TomlThemeLoader.ParseHexColor("#d76b42"),
@@ -189,7 +189,7 @@ public static class ThemeManager
             brightMagenta: TomlThemeLoader.ParseHexColor("#aa7900"),
             brightCyan: TomlThemeLoader.ParseHexColor("#bdcfe5"),
             brightWhite: TomlThemeLoader.ParseHexColor("#e4d5c7"),
-            
+
             // Terminal UI colors from Adventure.toml
             foreground: TomlThemeLoader.ParseHexColor("#feffff"),
             background: TomlThemeLoader.ParseHexColor("#040404"),
@@ -216,7 +216,7 @@ public static class ThemeManager
             magenta: new float4(0.8f, 0.0f, 0.8f, 1.0f),
             cyan: new float4(0.0f, 0.6f, 0.6f, 1.0f),
             white: new float4(0.8f, 0.8f, 0.8f, 1.0f),
-            
+
             // Bright ANSI colors
             brightBlack: new float4(0.4f, 0.4f, 0.4f, 1.0f),
             brightRed: new float4(1.0f, 0.2f, 0.2f, 1.0f),
@@ -226,7 +226,7 @@ public static class ThemeManager
             brightMagenta: new float4(1.0f, 0.2f, 1.0f, 1.0f),
             brightCyan: new float4(0.2f, 0.8f, 0.8f, 1.0f),
             brightWhite: new float4(1.0f, 1.0f, 1.0f, 1.0f),
-            
+
             // Terminal UI colors (inverted for light theme)
             foreground: new float4(0.0f, 0.0f, 0.0f, 1.0f),
             background: new float4(1.0f, 1.0f, 1.0f, 1.0f),
@@ -240,9 +240,9 @@ public static class ThemeManager
     /// <summary>
     /// Current active theme. Defaults to the default theme.
     /// </summary>
-    public static TerminalTheme CurrentTheme 
-    { 
-        get 
+    public static TerminalTheme CurrentTheme
+    {
+        get
         {
             lock (_lock)
             {
@@ -299,6 +299,7 @@ public static class ThemeManager
             try
             {
                 var tomlThemes = TomlThemeLoader.LoadThemesFromDirectory();
+                Console.WriteLine($"THEMES LOADED: {tomlThemes.ToArray()}");
                 _availableThemes.AddRange(tomlThemes);
             }
             catch (Exception ex)
@@ -331,9 +332,9 @@ public static class ThemeManager
         lock (_lock)
         {
             var currentThemeName = _currentTheme.Name;
-            
+
             _availableThemes.Clear();
-            
+
             // Always add built-in themes first
             _availableThemes.Add(DefaultTheme);
             _availableThemes.Add(DefaultLightTheme);
@@ -462,7 +463,7 @@ public static class ThemeManager
     public static float4 ResolveThemeColor(int colorCode)
     {
         var palette = CurrentTheme.Colors;
-        
+
         return colorCode switch
         {
             0 => palette.Black,
