@@ -417,8 +417,8 @@ public class TerminalController : ITerminalController
   public event EventHandler<DataInputEventArgs>? DataInput;
 
   /// <summary>
-  ///     Renders the terminal window using ImGui with simplified UI layout.
-  ///     Removes tab bar and info display to maximize terminal canvas space.
+  ///     Renders the terminal window using ImGui with multi-session UI layout.
+  ///     Includes menu bar and tab area for session management.
   /// </summary>
   public void Render()
   {
@@ -1308,15 +1308,16 @@ public class TerminalController : ITerminalController
   {
     try
     {
-      // Calculate UI overhead for simplified UI layout
-      // Simplified UI only includes menu bar (no tab area or terminal info display)
+      // Calculate UI overhead for multi-session UI layout
+      // Multi-session UI includes menu bar and tab area
       float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
+      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
       float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // Top and bottom padding
 
-      float totalUIOverheadHeight = menuBarHeight + windowPadding;
+      float totalUIOverheadHeight = menuBarHeight + tabAreaHeight + windowPadding;
 
-      // Debug logging for simplified UI overhead calculation
-      // Console.WriteLine($"TerminalController: Simplified UI Overhead - Menu: {menuBarHeight}, Padding: {windowPadding}, Total: {totalUIOverheadHeight}");
+      // Debug logging for multi-session UI overhead calculation
+      // Console.WriteLine($"TerminalController: Multi-session UI Overhead - Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Padding: {windowPadding}, Total: {totalUIOverheadHeight}");
 
       float horizontalPadding = LayoutConstants.WINDOW_PADDING * 2; // Left and right padding
 
@@ -3937,7 +3938,7 @@ public class TerminalController : ITerminalController
       // Get available width for tab area
       float availableWidth = ImGui.GetContentRegionAvail().X;
 
-      // Calculate dimensions
+      // Calculate dimensions - put add button on left with fixed width
       float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
       float spacing = LayoutConstants.ELEMENT_SPACING;
       float totalTabWidth = availableWidth - addButtonWidth - spacing;
@@ -3951,6 +3952,24 @@ public class TerminalController : ITerminalController
       {
         try
         {
+          // Add button on the left with fixed width
+          if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
+          {
+            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
+            
+            // Focus the terminal window when add button is clicked
+            ForceFocus();
+          }
+
+          // Show tooltip on add button hover
+          if (ImGui.IsItemHovered())
+          {
+            ImGui.SetTooltip("Add new terminal session");
+          }
+
+          // Add spacing after the add button
+          if (sessions.Count > 0) ImGui.SameLine();
+
           // Render session tabs
           for (int i = 0; i < sessions.Count; i++)
           {
@@ -3987,6 +4006,9 @@ public class TerminalController : ITerminalController
               {
                 // Switch to this session
                 _sessionManager.SwitchToSession(session.Id);
+                
+                // Focus the terminal window when tab is clicked
+                ForceFocus();
               }
             }
             finally
@@ -4014,19 +4036,6 @@ public class TerminalController : ITerminalController
               ImGui.EndPopup();
             }
           }
-
-          // Add button on the right
-          if (sessions.Count > 0) ImGui.SameLine();
-          if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
-          {
-            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-          }
-
-          // Show tooltip on add button hover
-          if (ImGui.IsItemHovered())
-          {
-            ImGui.SetTooltip("Add new terminal session");
-          }
         }
         finally
         {
@@ -4049,8 +4058,8 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Renders the terminal canvas for simplified UI layout.
-  /// This method provides a clean terminal-only display without tab bars or info displays.
+  /// Renders the terminal canvas for multi-session UI layout.
+  /// This method provides terminal display within the session management framework.
   /// </summary>
   private void RenderTerminalCanvas()
   {
