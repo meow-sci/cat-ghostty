@@ -81,6 +81,10 @@
             <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Samboy063.Tomlet" Condition="Exists('$(KSAFolder)/Tomlet.dll')">
+            <HintPath>$(KSAFolder)/Tomlet.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
     </ItemGroup>
 
     <ItemGroup>

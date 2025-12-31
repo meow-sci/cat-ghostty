@@ -2,6 +2,7 @@ using System.Reflection;
 using Brutal.ImGuiApi;
 using KSA;
 using caTTY.Display.Configuration;
+using Tomlet;
 
 namespace caTTY.Display.Rendering;
 
