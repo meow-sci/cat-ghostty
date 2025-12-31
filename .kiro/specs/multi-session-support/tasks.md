@@ -241,3 +241,10 @@ This implementation plan transforms the caTTY terminal from single-session to mu
 - **Test Silence**: All tests must run quietly with `QuietOnSuccess = true` for property tests
 - **Error Handling**: Use event notifications instead of console logging for error reporting
 - **Debug Output**: Only produce output when explicitly enabled through configuration or debug modes
+
+### Real Shell Test Guidelines
+- **Limited Iterations**: Tests that launch real shells must use `MaxTest = 2` for property tests
+- **Validation Process**: Run test to confirm it works, then mark with `[Ignore]` attribute
+- **Ignore Format**: Use `[Ignore("Real shell test - validated and disabled for CI")]`
+- **Mock Alternatives**: Create equivalent tests using mocked ProcessManager for regular test runs
+- **CI Compatibility**: Real shell tests should not run in continuous integration to avoid environment dependencies

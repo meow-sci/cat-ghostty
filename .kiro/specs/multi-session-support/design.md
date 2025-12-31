@@ -999,6 +999,14 @@ All tests must operate silently to avoid cluttering test output:
 - **Integration Tests**: Mock or suppress any components that produce console output
 - **Error Testing**: When testing error conditions, capture and verify error messages without printing them
 
+### Real Shell Test Limitations
+Tests that launch actual shell processes have special requirements:
+- **Maximum Iterations**: Property tests that create real shells must use `MaxTest = 2` to minimize resource usage
+- **Validation Only**: After confirming the test works correctly, mark it with `[Ignore]` attribute
+- **Ignore Reason**: Use `[Ignore("Real shell test - validated and disabled for CI")]` with descriptive reason
+- **Mock Alternatives**: Prefer mocked ProcessManager implementations for regular test runs
+- **CI Compatibility**: Real shell tests should not run in continuous integration environments
+
 ### Error Reporting Strategy
 When errors do occur, use appropriate channels:
 - **Development**: Use structured logging with configurable levels (Debug, Info, Warning, Error)
@@ -1043,7 +1051,15 @@ Property-based tests will verify universal properties across many inputs:
 - **Persistence property**: Test save/restore cycles with random session configurations
 - **Menu consistency property**: Test menu states with various session configurations
 
-Each property test will run a minimum of 100 iterations to ensure comprehensive coverage through randomization. Tests will be tagged with the format: **Feature: multi-session-support, Property N: [property description]** to link back to design properties.
+Each property test will run a minimum of 100 iterations to ensure comprehensive coverage through randomization, except for tests that launch real shells which are limited to 2 iterations and then marked `[Ignore]`. Tests will be tagged with the format: **Feature: multi-session-support, Property N: [property description]** to link back to design properties.
+
+### Real Shell Test Management
+Tests that interact with actual shell processes require special handling:
+- **Development Phase**: Run with `MaxTest = 2` to validate functionality
+- **Validation Phase**: Confirm test passes and validates the intended behavior
+- **Maintenance Phase**: Mark with `[Ignore("Real shell test - validated and disabled for CI")]`
+- **Mock Implementation**: Create equivalent tests using mocked ProcessManager for regular CI runs
+- **Documentation**: Document what the ignored test validates and when it should be re-enabled
 
 ### Integration Tests
 - Test complete session lifecycle from creation through closure
