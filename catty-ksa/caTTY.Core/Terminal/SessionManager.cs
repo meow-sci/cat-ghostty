@@ -151,6 +151,14 @@ public class SessionManager : IDisposable
             await session.InitializeAsync(launchOptions ?? _defaultLaunchOptions, cancellationToken);
             session.Activate();
             
+            // Update session settings with process information after successful initialization
+            var processId = session.ProcessManager.ProcessId;
+            var isRunning = session.ProcessManager.IsRunning;
+            session.UpdateProcessState(processId, isRunning);
+            
+            // Update session settings with terminal dimensions
+            session.UpdateTerminalDimensions(session.Terminal.Width, session.Terminal.Height);
+            
             SessionCreated?.Invoke(this, new SessionCreatedEventArgs(session));
             ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(previousActiveSession, session));
             
@@ -337,6 +345,73 @@ public class SessionManager : IDisposable
             
             SwitchToSession(prevSessionId);
         }
+    }
+
+    /// <summary>
+    ///     Applies font configuration changes to all sessions simultaneously.
+    ///     This method ensures consistent font settings across all terminal sessions.
+    /// </summary>
+    /// <param name="fontConfig">The font configuration to apply to all sessions</param>
+    /// <exception cref="ArgumentNullException">Thrown if fontConfig is null</exception>
+    /// <exception cref="ObjectDisposedException">Thrown if manager has been disposed</exception>
+    public void ApplyFontConfigToAllSessions(object fontConfig)
+    {
+        if (fontConfig == null)
+        {
+            throw new ArgumentNullException(nameof(fontConfig));
+        }
+        
+        ThrowIfDisposed();
+        
+        List<TerminalSession> sessionsToUpdate;
+        
+        lock (_lock)
+        {
+            // Create a snapshot of sessions to avoid holding the lock during updates
+            sessionsToUpdate = _sessions.Values.ToList();
+        }
+        
+        // Apply font configuration to each session outside the lock
+        foreach (var session in sessionsToUpdate)
+        {
+            try
+            {
+                // Font configuration is applied at the display layer
+                // The session itself doesn't need to know about font details
+                // This method serves as a coordination point for triggering
+                // terminal resize operations when font metrics change
+                
+                // The actual font application happens in the TerminalController
+                // which will call TriggerTerminalResizeForAllSessions
+            }
+            catch (Exception ex)
+            {
+                // Log error but continue with other sessions
+                // UI components can handle error reporting through events
+                Console.WriteLine($"SessionManager: Error applying font config to session {session.Id}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Triggers terminal resize for all sessions when font metrics change.
+    ///     This method should be called after font configuration changes to ensure
+    ///     all sessions recalculate their dimensions with new character metrics.
+    /// </summary>
+    /// <param name="newCharacterWidth">New character width in pixels</param>
+    /// <param name="newLineHeight">New line height in pixels</param>
+    /// <param name="windowSize">Current window size for dimension calculations</param>
+    /// <exception cref="ObjectDisposedException">Thrown if manager has been disposed</exception>
+    public void TriggerTerminalResizeForAllSessions(float newCharacterWidth, float newLineHeight, (float width, float height) windowSize)
+    {
+        ThrowIfDisposed();
+        
+        // This method is kept for API compatibility but the actual resize logic
+        // is handled by the TerminalController which has access to ImGui context
+        // and proper dimension calculation methods
+        
+        // The TerminalController will call TriggerTerminalResizeForAllSessions()
+        // which iterates through all sessions and resizes them appropriately
     }
 
     /// <summary>

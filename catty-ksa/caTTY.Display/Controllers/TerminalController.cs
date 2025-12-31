@@ -615,11 +615,16 @@ public class TerminalController : ITerminalController
       // Trigger terminal resize if font size, font family, or character metrics changed
       if (fontSizeChanged || fontFamilyChanged || characterMetricsChanged)
       {
-        Console.WriteLine($"TerminalController: Font configuration changed, triggering terminal resize");
+        Console.WriteLine($"TerminalController: Font configuration changed, triggering terminal resize for all sessions");
         Console.WriteLine($"  Font size changed: {fontSizeChanged}");
         Console.WriteLine($"  Font family changed: {fontFamilyChanged}");
         Console.WriteLine($"  Character metrics changed: {characterMetricsChanged}");
-        TriggerTerminalResize();
+        
+        // Apply font configuration to all sessions
+        _sessionManager.ApplyFontConfigToAllSessions(_fontConfig);
+        
+        // Trigger terminal resize for all sessions with new character metrics
+        TriggerTerminalResizeForAllSessions();
       }
 
       // Verify cursor position accuracy after font changes
@@ -1493,6 +1498,98 @@ public class TerminalController : ITerminalController
 
 #if DEBUG
       Console.WriteLine($"TerminalController: Pending font-triggered resize error stack trace: {ex.StackTrace}");
+#endif
+    }
+  }
+
+  /// <summary>
+  ///     Triggers terminal resize for all sessions when font configuration changes.
+  ///     This method ensures all sessions recalculate their dimensions with new character metrics.
+  /// </summary>
+  private void TriggerTerminalResizeForAllSessions()
+  {
+    try
+    {
+      // Get current window size for dimension calculations
+      float2 currentWindowSize = ImGui.GetWindowSize();
+      
+      // Skip if window size is not initialized or invalid
+      if (!_windowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
+      {
+        Console.WriteLine("TerminalController: Cannot trigger resize for all sessions - window size not initialized or invalid");
+        return;
+      }
+
+      var sessions = _sessionManager.Sessions;
+      Console.WriteLine($"TerminalController: Triggering font-based resize for {sessions.Count} sessions");
+
+      foreach (var session in sessions)
+      {
+        try
+        {
+          // Calculate new terminal dimensions with updated character metrics
+          var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+          if (!newDimensions.HasValue)
+          {
+            Console.WriteLine($"TerminalController: Cannot resize session {session.Id} - invalid dimensions calculated");
+            continue;
+          }
+
+          var (newCols, newRows) = newDimensions.Value;
+
+          // Check if terminal dimensions would actually change
+          if (newCols == session.Terminal.Width && newRows == session.Terminal.Height)
+          {
+            Console.WriteLine($"TerminalController: Session {session.Id} dimensions unchanged ({newCols}x{newRows}), no resize needed");
+            continue;
+          }
+
+          // Validate new dimensions are reasonable
+          if (newCols < 10 || newRows < 3 || newCols > 1000 || newRows > 1000)
+          {
+            Console.WriteLine($"TerminalController: Invalid terminal dimensions calculated for session {session.Id}: {newCols}x{newRows}, skipping resize");
+            continue;
+          }
+
+          // Log the resize operation
+          Console.WriteLine($"TerminalController: Resizing session {session.Id} from {session.Terminal.Width}x{session.Terminal.Height} to {newCols}x{newRows}");
+
+          // Resize the headless terminal emulator
+          session.Terminal.Resize(newCols, newRows);
+
+          // Update session settings with new dimensions
+          session.UpdateTerminalDimensions(newCols, newRows);
+
+          // Resize the PTY process if running
+          if (session.ProcessManager.IsRunning)
+          {
+            try
+            {
+              session.ProcessManager.Resize(newCols, newRows);
+              Console.WriteLine($"TerminalController: PTY process for session {session.Id} resized to {newCols}x{newRows}");
+            }
+            catch (Exception ex)
+            {
+              Console.WriteLine($"TerminalController: Failed to resize PTY process for session {session.Id}: {ex.Message}");
+              // Continue anyway - terminal emulator resize succeeded
+            }
+          }
+        }
+        catch (Exception ex)
+        {
+          Console.WriteLine($"TerminalController: Error resizing session {session.Id}: {ex.Message}");
+          // Continue with other sessions
+        }
+      }
+
+      Console.WriteLine($"TerminalController: Font-triggered resize completed for all sessions");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error during font-triggered resize for all sessions: {ex.Message}");
+
+#if DEBUG
+      Console.WriteLine($"TerminalController: Font-triggered resize for all sessions error stack trace: {ex.StackTrace}");
 #endif
     }
   }

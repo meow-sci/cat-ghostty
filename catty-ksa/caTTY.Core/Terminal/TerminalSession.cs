@@ -145,7 +145,7 @@ public class TerminalSession : IDisposable
         {
             ChangeState(SessionState.Active);
             LastActiveAt = DateTime.UtcNow;
-            Settings.IsActive = true;
+            Settings.MarkAsActive();
         }
     }
 
@@ -160,7 +160,7 @@ public class TerminalSession : IDisposable
         if (State == SessionState.Active)
         {
             ChangeState(SessionState.Inactive);
-            Settings.IsActive = false;
+            Settings.MarkAsInactive();
         }
     }
 
@@ -213,6 +213,9 @@ public class TerminalSession : IDisposable
     /// </summary>
     private void OnProcessExited(object? sender, ProcessExitedEventArgs e)
     {
+        // Update session settings with process exit information
+        Settings.UpdateProcessState(e.ProcessId, false, e.ExitCode);
+        
         ProcessExited?.Invoke(this, new SessionProcessExitedEventArgs(e.ExitCode, e.ProcessId));
     }
 
@@ -246,6 +249,41 @@ public class TerminalSession : IDisposable
         {
             ProcessManager.Write(e.ResponseData.Span);
         }
+    }
+
+    /// <summary>
+    ///     Updates the session settings when terminal dimensions change.
+    ///     This should be called when the terminal is resized.
+    /// </summary>
+    /// <param name="columns">New number of columns</param>
+    /// <param name="rows">New number of rows</param>
+    public void UpdateTerminalDimensions(int columns, int rows)
+    {
+        ThrowIfDisposed();
+        
+        try
+        {
+            Settings.UpdateDimensions(columns, rows);
+        }
+        catch (ArgumentException ex)
+        {
+            // Log error but don't throw - this is called during resize operations
+            Console.WriteLine($"TerminalSession: Invalid dimensions for session {Id}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     Updates the session settings when process state changes.
+    ///     This should be called when the process starts or stops.
+    /// </summary>
+    /// <param name="processId">Process ID of the running process</param>
+    /// <param name="isRunning">Whether the process is currently running</param>
+    /// <param name="exitCode">Exit code if the process has exited</param>
+    public void UpdateProcessState(int? processId, bool isRunning, int? exitCode = null)
+    {
+        ThrowIfDisposed();
+        
+        Settings.UpdateProcessState(processId, isRunning, exitCode);
     }
 
     /// <summary>

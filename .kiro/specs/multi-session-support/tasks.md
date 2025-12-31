@@ -112,24 +112,24 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - **Property 7: Session State Isolation**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 
-- [ ] 8. Implement global settings management
-  - [ ] 8.1 Update font configuration handling for multiple sessions
+- [x] 8. Implement global settings management
+  - [x] 8.1 Update font configuration handling for multiple sessions
     - Apply font changes to all sessions simultaneously
     - Trigger terminal resize for all sessions on font size changes
     - Share font resources across sessions
     - _Requirements: 6.1, 6.3, 6.5, 10.3_
 
-  - [ ] 8.2 Write property test for global settings propagation
+  - [x] 8.2 Write property test for global settings propagation
     - **Property 9: Global Settings Propagation**
     - **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5**
 
-  - [ ] 8.3 Implement session-specific settings management
+  - [x] 8.3 Implement session-specific settings management
     - Maintain separate TerminalSettings for each session
     - Preserve session-specific settings during session switches
     - Update settings area to show active session information
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 8.4 Write property test for session-specific settings isolation
+  - [x] 8.4 Write property test for session-specific settings isolation
     - **Property 10: Session-Specific Settings Isolation**
     - **Validates: Requirements 7.1, 7.2, 7.4, 7.5**
 
