@@ -983,6 +983,36 @@ After analyzing all acceptance criteria, several properties can be consolidated:
 - If mouse coordinate conversion fails, fall back to approximate positioning
 - Ensure input events never reach disposed or failed sessions
 
+## Quiet Operation Guidelines
+
+### Happy Path Silence
+The session management system follows a "quiet by default" philosophy for normal operations:
+- **No Console Output**: Session creation, switching, and closure should produce no stdout/stderr output during normal operation
+- **Event-Driven Notifications**: Status changes are communicated through events, not console logging
+- **Silent Resource Management**: Font loading, memory allocation, and cleanup operations should be silent when successful
+- **Minimal Logging**: Only log errors, warnings, or debug information when explicitly enabled
+
+### Test Environment Silence
+All tests must operate silently to avoid cluttering test output:
+- **Property Tests**: Use `QuietOnSuccess = true` to suppress successful test output
+- **Unit Tests**: Avoid console output in test methods and setup/teardown
+- **Integration Tests**: Mock or suppress any components that produce console output
+- **Error Testing**: When testing error conditions, capture and verify error messages without printing them
+
+### Error Reporting Strategy
+When errors do occur, use appropriate channels:
+- **Development**: Use structured logging with configurable levels (Debug, Info, Warning, Error)
+- **Production**: Route errors through event system for UI display or external logging
+- **Testing**: Capture errors in test assertions rather than printing to console
+- **Debugging**: Provide optional verbose modes that can be enabled when needed
+
+### Implementation Guidelines
+- Replace `Console.WriteLine` with event notifications or structured logging
+- Use `// Log error but continue` comments to document where logging would occur
+- Implement `ILogger` interfaces for components that need diagnostic output
+- Provide configuration options to enable verbose output when debugging
+- Ensure all background operations (process management, resource cleanup) are silent by default
+
 ## Testing Strategy
 
 ### Unit Tests

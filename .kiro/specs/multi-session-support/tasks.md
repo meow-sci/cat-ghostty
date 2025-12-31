@@ -235,3 +235,9 @@ This implementation plan transforms the caTTY terminal from single-session to mu
 - Implementation maintains backward compatibility with existing single-session usage
 - Global settings (fonts, themes) remain shared while session state is isolated
 - Resource management prevents memory leaks and handles cleanup properly
+
+### Quiet Operation Requirements
+- **Happy Path Silence**: Normal session operations (create, switch, close) must produce no stdout/stderr output
+- **Test Silence**: All tests must run quietly with `QuietOnSuccess = true` for property tests
+- **Error Handling**: Use event notifications instead of console logging for error reporting
+- **Debug Output**: Only produce output when explicitly enabled through configuration or debug modes
