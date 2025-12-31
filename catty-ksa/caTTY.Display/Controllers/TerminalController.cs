@@ -309,6 +309,9 @@ public class TerminalController : ITerminalController
     // Subscribe to theme change events
     ThemeManager.ThemeChanged += OnThemeChanged;
 
+    // Initialize opacity manager
+    OpacityManager.Initialize();
+
     // Initialize cursor style to theme default
     ResetCursorToThemeDefaults();
 
@@ -1596,6 +1599,7 @@ public class TerminalController : ITerminalController
 
       // Draw terminal background using theme
       float4 terminalBg = ThemeManager.GetDefaultBackground();
+      terminalBg = OpacityManager.ApplyOpacity(terminalBg);
       uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
       var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
       drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
@@ -1668,6 +1672,10 @@ public class TerminalController : ITerminalController
     // Apply SGR attributes to colors
     var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
+    // Apply global opacity to colors
+    fgColor = OpacityManager.ApplyOpacity(fgColor);
+    bgColor = OpacityManager.ApplyOpacity(bgColor);
+
     // Apply selection highlighting
     if (isSelected)
     {
@@ -1675,8 +1683,9 @@ public class TerminalController : ITerminalController
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
-      bgColor = selectionBg;
-      fgColor = selectionFg;
+      // Apply opacity to selection colors
+      bgColor = OpacityManager.ApplyOpacity(selectionBg);
+      fgColor = OpacityManager.ApplyOpacity(selectionFg);
     }
 
     // Always draw background
@@ -2716,6 +2725,7 @@ public class TerminalController : ITerminalController
   private void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor)
   {
     float4 underlineColor = StyleManager.GetUnderlineColor(attributes, foregroundColor);
+    underlineColor = OpacityManager.ApplyOpacity(underlineColor);
     float thickness = StyleManager.GetUnderlineThickness(attributes.UnderlineStyle);
 
     float underlineY = pos.Y + CurrentLineHeight - 2;
@@ -2766,6 +2776,9 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor)
   {
+    // Apply opacity to strikethrough color
+    foregroundColor = OpacityManager.ApplyOpacity(foregroundColor);
+    
     float strikeY = pos.Y + (CurrentLineHeight / 2);
     var strikeStart = new float2(pos.X, strikeY);
     var strikeEnd = new float2(pos.X + CurrentCharacterWidth, strikeY);
@@ -3359,6 +3372,7 @@ public class TerminalController : ITerminalController
         RenderEditMenu();
         RenderFontMenu();
         RenderThemeMenu();
+        RenderSettingsMenu();
       }
       finally
       {
@@ -3668,6 +3682,83 @@ public class TerminalController : ITerminalController
   {
     Console.WriteLine($"TerminalController: {feature} not implemented in this phase");
     // Future: Could show ImGui popup
+  }
+
+  /// <summary>
+  /// Renders the Settings menu with opacity control and other display settings.
+  /// Provides a slider for global opacity adjustment with immediate visual feedback.
+  /// </summary>
+  private void RenderSettingsMenu()
+  {
+    if (ImGui.BeginMenu("Settings"))
+    {
+      try
+      {
+        // Initialize opacity manager if not already done
+        OpacityManager.Initialize();
+
+        // Global Opacity Section
+        ImGui.Text("Display Settings");
+        ImGui.Separator();
+
+        // Get current opacity as percentage for the slider
+        int currentOpacityPercent = OpacityManager.GetOpacityPercentage();
+        int newOpacityPercent = currentOpacityPercent;
+
+        // Opacity slider (0-100%)
+        ImGui.Text("Global Opacity:");
+        ImGui.SameLine();
+        if (ImGui.SliderInt("##OpacitySlider", ref newOpacityPercent, 0, 100, $"{newOpacityPercent}%%"))
+        {
+          // Apply opacity change immediately
+          if (OpacityManager.SetOpacityFromPercentage(newOpacityPercent))
+          {
+            // Console.WriteLine($"TerminalController: Opacity set to {newOpacityPercent}%");
+          }
+          else
+          {
+            Console.WriteLine($"TerminalController: Failed to set opacity to {newOpacityPercent}%");
+          }
+        }
+
+        // Show tooltip with opacity information
+        if (ImGui.IsItemHovered())
+        {
+          var currentOpacity = OpacityManager.CurrentOpacity;
+          ImGui.SetTooltip($"Current opacity: {currentOpacity:F2} ({currentOpacityPercent}%)\nAdjust terminal transparency\nRange: 0% (transparent) to 100% (opaque)");
+        }
+
+        // Reset to default button
+        ImGui.SameLine();
+        if (ImGui.Button("Reset##OpacityReset"))
+        {
+          if (OpacityManager.ResetOpacity())
+          {
+            // Console.WriteLine("TerminalController: Opacity reset to default");
+          }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          // ImGui.SetTooltip("Reset opacity to 100% (fully opaque)");
+        }
+
+        // Show current opacity status
+        ImGui.Separator();
+        var opacity = OpacityManager.CurrentOpacity;
+        var isDefault = OpacityManager.IsDefaultOpacity();
+        var statusText = isDefault ? "Default (100%)" : $"{opacity:F2} ({currentOpacityPercent}%)";
+        ImGui.Text($"Current: {statusText}");
+
+        // Future settings can be added here
+        ImGui.Separator();
+        ImGui.TextDisabled("Additional settings will be added in future versions");
+      }
+      finally
+      {
+        ImGui.EndMenu();
+      }
+    }
   }
 
   /// <summary>

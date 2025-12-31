@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using caTTY.Display.Configuration;
 using caTTY.Display.Rendering;
 using FsCheck;
@@ -15,6 +16,42 @@ namespace caTTY.Display.Tests.Property;
 [Category("Property")]
 public class ThemePersistenceProperties
 {
+    private string _tempConfigDirectory = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        // Create a unique temporary directory for each test run
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        _tempConfigDirectory = Path.Combine(Path.GetTempPath(), $"caTTY_ThemeTests_{uniqueId}");
+        Directory.CreateDirectory(_tempConfigDirectory);
+
+        // Override the application data path for testing
+        Environment.SetEnvironmentVariable("APPDATA", _tempConfigDirectory);
+        
+        // Add a small delay to prevent file access conflicts
+        Thread.Sleep(10);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        // Clean up temporary directory
+        if (Directory.Exists(_tempConfigDirectory))
+        {
+            try
+            {
+                Directory.Delete(_tempConfigDirectory, true);
+            }
+            catch (Exception)
+            {
+                // Ignore cleanup errors in tests
+            }
+        }
+
+        // Restore original APPDATA
+        Environment.SetEnvironmentVariable("APPDATA", null);
+    }
     /// <summary>
     /// Generator for valid theme names.
     /// </summary>

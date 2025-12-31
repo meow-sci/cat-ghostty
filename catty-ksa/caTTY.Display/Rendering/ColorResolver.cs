@@ -10,35 +10,7 @@ namespace caTTY.Display.Rendering;
 /// </summary>
 public static class ColorResolver
 {
-    /// <summary>
-    /// Standard 16 ANSI color values mapped to float4 colors.
-    /// These match the TypeScript implementation's color variables.
-    /// </summary>
-    private static readonly float4[] StandardColors = 
-    [
-        new(0.0f, 0.0f, 0.0f, 1.0f),       // 0: Black
-        new(0.667f, 0.0f, 0.0f, 1.0f),    // 1: Red
-        new(0.0f, 0.667f, 0.0f, 1.0f),    // 2: Green
-        new(0.667f, 0.667f, 0.0f, 1.0f),  // 3: Yellow
-        new(0.0f, 0.0f, 0.667f, 1.0f),    // 4: Blue
-        new(0.667f, 0.0f, 0.667f, 1.0f),  // 5: Magenta
-        new(0.0f, 0.667f, 0.667f, 1.0f),  // 6: Cyan
-        new(0.667f, 0.667f, 0.667f, 1.0f), // 7: White
-        new(0.333f, 0.333f, 0.333f, 1.0f), // 8: Bright Black
-        new(1.0f, 0.333f, 0.333f, 1.0f),   // 9: Bright Red
-        new(0.333f, 1.0f, 0.333f, 1.0f),   // 10: Bright Green
-        new(1.0f, 1.0f, 0.333f, 1.0f),     // 11: Bright Yellow
-        new(0.333f, 0.333f, 1.0f, 1.0f),   // 12: Bright Blue
-        new(1.0f, 0.333f, 1.0f, 1.0f),     // 13: Bright Magenta
-        new(0.333f, 1.0f, 1.0f, 1.0f),     // 14: Bright Cyan
-        new(1.0f, 1.0f, 1.0f, 1.0f)        // 15: Bright White
-    ];
-
-    /// <summary>
-    /// Default terminal colors.
-    /// </summary>
-    public static readonly float4 DefaultForeground = new(0.8f, 0.8f, 0.8f, 1.0f);
-    public static readonly float4 DefaultBackground = new(0.0f, 0.0f, 0.0f, 1.0f);
+    // Note: Hardcoded colors removed - now using ThemeManager for dynamic theme support
 
     /// <summary>
     /// Resolve SGR color type to ImGui float4 color value.
@@ -50,7 +22,7 @@ public static class ColorResolver
     {
         if (!color.HasValue)
         {
-            return isBackground ? DefaultBackground : DefaultForeground;
+            return isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
         }
 
         return color.Value.Type switch
@@ -58,46 +30,46 @@ public static class ColorResolver
             ColorType.Named => ResolveNamedColor(color.Value.NamedColor),
             ColorType.Indexed => ResolveIndexedColor(color.Value.Index),
             ColorType.Rgb => ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue),
-            _ => isBackground ? DefaultBackground : DefaultForeground
+            _ => isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground()
         };
     }
 
     /// <summary>
-    /// Resolve named ANSI color to float4 color.
+    /// Resolve named ANSI color to float4 color using current theme.
     /// </summary>
     private static float4 ResolveNamedColor(NamedColor namedColor)
     {
         return namedColor switch
         {
-            NamedColor.Black => StandardColors[0],
-            NamedColor.Red => StandardColors[1],
-            NamedColor.Green => StandardColors[2],
-            NamedColor.Yellow => StandardColors[3],
-            NamedColor.Blue => StandardColors[4],
-            NamedColor.Magenta => StandardColors[5],
-            NamedColor.Cyan => StandardColors[6],
-            NamedColor.White => StandardColors[7],
-            NamedColor.BrightBlack => StandardColors[8],
-            NamedColor.BrightRed => StandardColors[9],
-            NamedColor.BrightGreen => StandardColors[10],
-            NamedColor.BrightYellow => StandardColors[11],
-            NamedColor.BrightBlue => StandardColors[12],
-            NamedColor.BrightMagenta => StandardColors[13],
-            NamedColor.BrightCyan => StandardColors[14],
-            NamedColor.BrightWhite => StandardColors[15],
-            _ => DefaultForeground
+            NamedColor.Black => ThemeManager.ResolveThemeColor(0),
+            NamedColor.Red => ThemeManager.ResolveThemeColor(1),
+            NamedColor.Green => ThemeManager.ResolveThemeColor(2),
+            NamedColor.Yellow => ThemeManager.ResolveThemeColor(3),
+            NamedColor.Blue => ThemeManager.ResolveThemeColor(4),
+            NamedColor.Magenta => ThemeManager.ResolveThemeColor(5),
+            NamedColor.Cyan => ThemeManager.ResolveThemeColor(6),
+            NamedColor.White => ThemeManager.ResolveThemeColor(7),
+            NamedColor.BrightBlack => ThemeManager.ResolveThemeColor(8),
+            NamedColor.BrightRed => ThemeManager.ResolveThemeColor(9),
+            NamedColor.BrightGreen => ThemeManager.ResolveThemeColor(10),
+            NamedColor.BrightYellow => ThemeManager.ResolveThemeColor(11),
+            NamedColor.BrightBlue => ThemeManager.ResolveThemeColor(12),
+            NamedColor.BrightMagenta => ThemeManager.ResolveThemeColor(13),
+            NamedColor.BrightCyan => ThemeManager.ResolveThemeColor(14),
+            NamedColor.BrightWhite => ThemeManager.ResolveThemeColor(15),
+            _ => ThemeManager.GetDefaultForeground()
         };
     }
 
     /// <summary>
-    /// Resolve indexed color (256-color palette) to float4 color.
+    /// Resolve indexed color (256-color palette) to float4 color using current theme for ANSI colors.
     /// </summary>
     private static float4 ResolveIndexedColor(byte index)
     {
-        // Standard 16 colors (0-15)
+        // Standard 16 colors (0-15) - use theme colors
         if (index <= 15)
         {
-            return StandardColors[index];
+            return ThemeManager.ResolveThemeColor(index);
         }
 
         // 216 color cube (16-231)
@@ -113,7 +85,7 @@ public static class ColorResolver
         }
 
         // Invalid index, return default
-        return DefaultForeground;
+        return ThemeManager.GetDefaultForeground();
     }
 
     /// <summary>

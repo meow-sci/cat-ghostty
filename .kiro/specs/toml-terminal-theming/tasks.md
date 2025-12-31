@@ -84,23 +84,23 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - **Property 7: Theme Application Completeness**
   - **Validates: Requirements 4.3, 4.4**
 
-- [ ] 6. Implement global opacity management system
+- [x] 6. Implement global opacity management system
   - Create OpacityManager class with opacity control and persistence
   - Add opacity change event system
   - Implement opacity validation and bounds checking
   - _Requirements: 7.1, 7.4_
 
-- [ ] 6.1 Write property test for opacity persistence round-trip
+- [x] 6.1 Write property test for opacity persistence round-trip
   - **Property 12: Opacity Persistence Round-Trip**
   - **Validates: Requirements 7.4**
 
-- [ ] 7. Add Settings menu with opacity control to TerminalController
+- [x] 7. Add Settings menu with opacity control to TerminalController
   - Implement RenderSettingsMenu method with opacity slider
   - Integrate opacity changes with terminal rendering pipeline
   - Apply opacity to all terminal canvas rendering operations
   - _Requirements: 7.1, 7.2, 7.3, 7.5_
 
-- [ ] 7.1 Write property test for opacity application completeness
+- [x] 7.1 Write property test for opacity application completeness
   - **Property 11: Opacity Application Completeness**
   - **Validates: Requirements 7.2, 7.3, 7.5**
 
