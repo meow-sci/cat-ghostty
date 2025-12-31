@@ -25,14 +25,14 @@ public class FontSelectionUIProperties
         var validFamilies = new[]
         {
             "Jet Brains Mono",
-            "Space Mono", 
+            "Space Mono",
             "Hack",
             "Pro Font",
             "Proggy Clean",
             "Shure Tech Mono",
             "Departure Mono"
         };
-        
+
         return Gen.Elements(validFamilies).ToArbitrary();
     }
 
@@ -52,7 +52,7 @@ public class FontSelectionUIProperties
             "Comic Sans MS",
             "Unknown Font Family"
         };
-        
+
         return Gen.Elements(invalidFamilies).ToArbitrary();
     }
 
@@ -67,13 +67,13 @@ public class FontSelectionUIProperties
 
     /// <summary>
     /// Property 3: Font Selection UI State Consistency
-    /// For any font selection through the UI menu, the system should immediately update 
-    /// the terminal font configuration, re-render with the new font, maintain cursor 
+    /// For any font selection through the UI menu, the system should immediately update
+    /// the terminal font configuration, re-render with the new font, maintain cursor
     /// accuracy, and update the menu to show the newly selected font as active.
     /// Feature: font-selection-ui, Property 3: Font Selection UI State Consistency
     /// Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 6.1, 6.2, 6.3, 6.4, 6.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontSelectionUIStateConsistency_ShouldMaintainConsistentState()
     {
         return Prop.ForAll(ValidFontFamilyNames(), ValidFontSizes(), (selectedFontFamily, fontSize) =>
@@ -191,7 +191,7 @@ public class FontSelectionUIProperties
     /// For any invalid font family selection, the system should handle errors gracefully
     /// without crashing and maintain the current font configuration.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontSelectionErrorHandling_ShouldHandleInvalidSelectionsGracefully()
     {
         return Prop.ForAll(InvalidFontFamilyNames(), ValidFontSizes(), (invalidFontFamily, fontSize) =>
@@ -222,13 +222,13 @@ public class FontSelectionUIProperties
 
                 // Test that GetCurrentFontFamily returns null for invalid font configurations
                 var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(config!);
-                
+
                 // For invalid font families, we expect either null or a valid fallback family
                 if (detectedFamily != null)
                 {
                     var availableFamilies = CaTTYFontManager.GetAvailableFontFamilies();
                     bool detectedFamilyValid = availableFamilies.Contains(detectedFamily);
-                    
+
                     if (!detectedFamilyValid)
                     {
                         return false.ToProperty().Label($"Detected family '{detectedFamily}' for invalid input '{invalidFontFamily}' is not in registry");
@@ -252,7 +252,7 @@ public class FontSelectionUIProperties
     /// For any sequence of valid font selections, the system should maintain consistent
     /// state and the last selected font should be detectable.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property FontSelectionStatePersistence_ShouldMaintainLastSelection()
     {
         return Prop.ForAll(Gen.ListOf(ValidFontFamilyNames().Generator).Select(list => list.Take(5).ToList()).Where(list => list.Count > 0).ToArbitrary(),
@@ -271,7 +271,7 @@ public class FontSelectionUIProperties
                 {
                     // Generate configuration for this font family
                     var config = CaTTYFontManager.CreateFontConfigForFamily(fontFamily, fontSize);
-                    
+
                     if (config == null)
                     {
                         return false.ToProperty().Label($"Font configuration generation failed for '{fontFamily}' in sequence");
@@ -334,7 +334,7 @@ public class FontSelectionUIProperties
     /// For any font family in the registry, it should be available for selection
     /// and selecting it should result in a consistent state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontSelectionMenuStateConsistency_ShouldProvideConsistentMenuOptions()
     {
         return Prop.ForAll(ValidFontSizes(), fontSize =>
@@ -346,7 +346,7 @@ public class FontSelectionUIProperties
 
                 // Test that all available font families can be selected
                 var availableFamilies = CaTTYFontManager.GetAvailableFontFamilies();
-                
+
                 if (availableFamilies.Count == 0)
                 {
                     return false.ToProperty().Label("No font families available in registry");
@@ -356,7 +356,7 @@ public class FontSelectionUIProperties
                 {
                     // Test that each font family can generate a valid configuration
                     var config = CaTTYFontManager.CreateFontConfigForFamily(fontFamily, fontSize);
-                    
+
                     if (config == null)
                     {
                         return false.ToProperty().Label($"Font configuration generation failed for available family '{fontFamily}'");
@@ -374,7 +374,7 @@ public class FontSelectionUIProperties
 
                     // Test that the font family can be detected from its configuration
                     var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(config);
-                    
+
                     if (detectedFamily != fontFamily)
                     {
                         return false.ToProperty().Label($"Font family detection failed for available family '{fontFamily}': expected '{fontFamily}', got '{detectedFamily}'");
@@ -382,7 +382,7 @@ public class FontSelectionUIProperties
 
                     // Test that the font family has a valid definition
                     var definition = CaTTYFontManager.GetFontFamilyDefinition(fontFamily);
-                    
+
                     if (definition == null)
                     {
                         return false.ToProperty().Label($"Font family definition not found for available family '{fontFamily}'");
@@ -390,7 +390,7 @@ public class FontSelectionUIProperties
 
                     // Test that the definition is consistent with the generated configuration
                     string expectedRegular = $"{definition.FontBaseName}-Regular";
-                    
+
                     if (config.RegularFontName != expectedRegular)
                     {
                         return false.ToProperty().Label($"Configuration inconsistent with definition for '{fontFamily}': expected '{expectedRegular}', got '{config.RegularFontName}'");

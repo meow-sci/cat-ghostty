@@ -47,7 +47,7 @@ public class LineCharacterOperationProperties
     ///     Property: For any line insertion operation, content should be shifted correctly and blank lines inserted.
     ///     Line insertion should preserve existing content by shifting it down within the scroll region.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property LineInsertionShiftsContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb, TestCharArb,
@@ -83,7 +83,7 @@ public class LineCharacterOperationProperties
     ///     Property: For any line deletion operation, content should be shifted correctly and lines removed.
     ///     Line deletion should preserve existing content by shifting it up within the scroll region.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property LineDeletionShiftsContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb, TestCharArb,
@@ -119,7 +119,7 @@ public class LineCharacterOperationProperties
     ///     Property: For any character insertion operation, content should be shifted correctly and blank characters inserted.
     ///     Character insertion should preserve existing content by shifting it right within the current line.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CharacterInsertionShiftsContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb, TestCharArb,
@@ -157,7 +157,7 @@ public class LineCharacterOperationProperties
     ///     Property: For any character deletion operation, content should be shifted correctly and characters removed.
     ///     Character deletion should preserve existing content by shifting it left within the current line.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CharacterDeletionShiftsContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb, TestCharArb,
@@ -195,7 +195,7 @@ public class LineCharacterOperationProperties
     ///     Property: Line and character operations should preserve SGR attributes.
     ///     When content is shifted during operations, attributes should be preserved with the content.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OperationsPreserveSgrAttributes()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb,
@@ -230,7 +230,7 @@ public class LineCharacterOperationProperties
     ///     Property: Line and character operations should respect scroll region boundaries.
     ///     Operations should only affect content within the defined scroll region.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OperationsRespectScrollRegion()
     {
         return Prop.ForAll(TerminalDimensionsArb, OperationCountArb, TestCharArb,
@@ -270,7 +270,7 @@ public class LineCharacterOperationProperties
     ///     Property: Operations should handle edge cases correctly.
     ///     Operations at terminal boundaries should work without errors.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OperationsHandleEdgeCases()
     {
         return Prop.ForAll(TerminalDimensionsArb, TestCharArb,
@@ -289,13 +289,13 @@ public class LineCharacterOperationProperties
                 (operation: $"\x1b[{height};1H\x1b[1L", description: "Insert line at bottom"),
                 (operation: $"\x1b[1;1H\x1b[1M", description: "Delete line at top"),
                 (operation: $"\x1b[{height};1H\x1b[1M", description: "Delete line at bottom"),
-                
+
                 // Character operations at line boundaries
                 (operation: $"\x1b[5;1H\x1b[1@", description: "Insert char at line start"),
                 (operation: $"\x1b[5;{width}H\x1b[1@", description: "Insert char at line end"),
                 (operation: $"\x1b[5;1H\x1b[1P", description: "Delete char at line start"),
                 (operation: $"\x1b[5;{width}H\x1b[1P", description: "Delete char at line end"),
-                
+
                 // Large operation counts
                 (operation: $"\x1b[5;5H\x1b[{height}L", description: "Insert many lines"),
                 (operation: $"\x1b[5;5H\x1b[{width}@", description: "Insert many chars")
@@ -334,7 +334,7 @@ public class LineCharacterOperationProperties
     ///     Property: Multiple consecutive operations should work correctly.
     ///     Performing multiple line/character operations should maintain terminal integrity.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MultipleOperationsWork()
     {
         return Prop.ForAll(TerminalDimensionsArb, TestCharArb,
@@ -363,7 +363,7 @@ public class LineCharacterOperationProperties
                 try
                 {
                     terminal.Write(operation);
-                    
+
                     // Verify terminal remains functional after each operation
                     bool functional = VerifyTerminalFunctionality(terminal, width, height);
                     if (!functional)
@@ -389,7 +389,7 @@ public class LineCharacterOperationProperties
     private static void FillTerminalWithPattern(TerminalEmulator terminal, char baseChar, int width, int height)
     {
         terminal.Write("\x1b[1;1H"); // Move to top-left
-        
+
         for (int row = 0; row < height; row++)
         {
             // Create a pattern with the base character and row number
@@ -399,7 +399,7 @@ public class LineCharacterOperationProperties
                 var colChar = (char)(rowChar + (col % 10));
                 terminal.Write(colChar.ToString());
             }
-            
+
             if (row < height - 1) // Don't move down on last row to avoid scrolling
             {
                 terminal.Write("\r\n");
@@ -413,7 +413,7 @@ public class LineCharacterOperationProperties
     private static Cell[,] CaptureTerminalContent(TerminalEmulator terminal, int width, int height)
     {
         var content = new Cell[height, width];
-        
+
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
@@ -421,14 +421,14 @@ public class LineCharacterOperationProperties
                 content[row, col] = terminal.ScreenBuffer.GetCell(row, col);
             }
         }
-        
+
         return content;
     }
 
     /// <summary>
     ///     Helper method to verify line insertion behavior.
     /// </summary>
-    private static bool VerifyLineInsertion(TerminalEmulator terminal, Cell[,] contentBefore, 
+    private static bool VerifyLineInsertion(TerminalEmulator terminal, Cell[,] contentBefore,
         int insertRow, int insertCount, int width, int height)
     {
         // After line insertion:
@@ -456,7 +456,7 @@ public class LineCharacterOperationProperties
         {
             int row = insertRow + i;
             if (row >= height) break;
-            
+
             for (int col = 0; col < width; col++)
             {
                 var cell = terminal.ScreenBuffer.GetCell(row, col);
@@ -501,7 +501,7 @@ public class LineCharacterOperationProperties
         {
             int sourceRow = row + deleteCount;
             if (sourceRow >= height) break;
-            
+
             for (int col = 0; col < width; col++)
             {
                 var currentCell = terminal.ScreenBuffer.GetCell(row, col);
@@ -544,7 +544,7 @@ public class LineCharacterOperationProperties
         {
             int col = insertCol + i;
             if (col >= width) break;
-            
+
             var cell = terminal.ScreenBuffer.GetCell(row, col);
             if (cell.Character != ' ')
             {
@@ -583,7 +583,7 @@ public class LineCharacterOperationProperties
         {
             int sourceCol = col + deleteCount;
             if (sourceCol >= width) break;
-            
+
             var currentCell = terminal.ScreenBuffer.GetCell(row, col);
             var expectedCell = contentBefore[row, sourceCol];
             if (currentCell.Character != expectedCell.Character)
@@ -606,10 +606,10 @@ public class LineCharacterOperationProperties
         {
             int originalCol = col - insertCount;
             if (originalCol < 0 || originalCol >= width) continue;
-            
+
             var currentCell = terminal.ScreenBuffer.GetCell(row, col);
             var originalCell = contentBefore[row, originalCol];
-            
+
             // If the character was preserved, attributes should be too
             if (currentCell.Character == originalCell.Character && currentCell.Character != ' ')
             {
@@ -674,7 +674,7 @@ public class LineCharacterOperationProperties
 
             // Test that we can read from the terminal
             var cell = terminal.ScreenBuffer.GetCell(0, 0);
-            
+
             // Test cursor is within bounds
             bool cursorValid = terminal.Cursor.Row >= 0 && terminal.Cursor.Row < height &&
                                terminal.Cursor.Col >= 0 && terminal.Cursor.Col < width;

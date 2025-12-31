@@ -38,7 +38,7 @@ public class ControlCharacterProperties
     ///     Property: For any sequence containing control characters, the terminal should
     ///     process them without crashing and maintain cursor position integrity.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ControlCharacterProcessingMaintainsCursorIntegrity()
     {
         return Prop.ForAll(MixedSequenceArb, sequence =>
@@ -64,7 +64,7 @@ public class ControlCharacterProperties
     ///     Property: For any sequence containing bell characters, the number of bell events
     ///     should equal the number of bell characters in the sequence.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property BellEventCountMatchesBellCharacterCount()
     {
         return Prop.ForAll(MixedSequenceArb, sequence =>
@@ -91,7 +91,7 @@ public class ControlCharacterProperties
     ///     Property: For any sequence of characters followed by backspaces, the cursor
     ///     should never move to negative coordinates.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property BackspaceNeverMovesToNegativeCoordinates()
     {
         Arbitrary<(int TextLength, int BackspaceCount)>? testCaseArb = Arb.From(
@@ -128,7 +128,7 @@ public class ControlCharacterProperties
     ///     Property: For any number of tab characters, the cursor should always land
     ///     on valid tab stop positions (multiples of 8) or at the right edge.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property TabCharactersLandOnValidTabStops()
     {
         return Prop.ForAll(Arb.From(Gen.Choose(1, 15)), tabCount =>
@@ -153,7 +153,7 @@ public class ControlCharacterProperties
     ///     Property: For any sequence of control characters, the terminal state should
     ///     remain consistent and the terminal should be ready for subsequent operations.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ControlCharactersMaintainStateIntegrity()
     {
         return Prop.ForAll(MixedSequenceArb, sequence =>
@@ -192,7 +192,7 @@ public class ControlCharacterProperties
     /// Property: For any sequence containing CR and LF characters, the cursor
     /// movement should be consistent with terminal line discipline.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CarriageReturnLineFeedConsistency()
     {
         var operationsArb = Arb.From(

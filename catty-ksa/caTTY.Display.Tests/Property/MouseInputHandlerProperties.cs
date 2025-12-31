@@ -37,7 +37,7 @@ public class MouseInputHandlerProperties
     {
         var xGen = Gen.Choose(1, 200);
         var yGen = Gen.Choose(1, 100);
-        
+
         return Gen.Zip(xGen, yGen)
             .Select(tuple => (tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -70,7 +70,7 @@ public class MouseInputHandlerProperties
     {
         var widthGen = Gen.Choose(10, 200);
         var heightGen = Gen.Choose(5, 100);
-        
+
         return Gen.Zip(widthGen, heightGen)
             .Select(tuple => (tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -78,15 +78,15 @@ public class MouseInputHandlerProperties
 
     /// <summary>
     /// Property 10: Mouse Button Detection
-    /// For any mouse button press event, the terminal should correctly identify the button 
+    /// For any mouse button press event, the terminal should correctly identify the button
     /// (left=0, middle=1, right=2) and coordinates.
     /// Feature: mouse-input-support, Property 10: Mouse Button Detection
     /// Validates: Requirements R4.1, R4.2, R4.3
-    /// 
+    ///
     /// NOTE: This test validates the button value mappings and coordinate handling logic.
     /// The actual ImGui input detection requires a real ImGui context and is tested via integration tests.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseButtonDetection_ShouldCorrectlyIdentifyButtonAndCoordinates()
     {
         return Prop.ForAll(
@@ -145,15 +145,15 @@ public class MouseInputHandlerProperties
 
     /// <summary>
     /// Property 17: Mouse Capture During Drag
-    /// For any mouse drag operation, the terminal should capture mouse input to receive 
+    /// For any mouse drag operation, the terminal should capture mouse input to receive
     /// events outside terminal bounds and release capture on button release.
     /// Feature: mouse-input-support, Property 17: Mouse Capture During Drag
     /// Validates: Requirements R8.2, R8.3
-    /// 
+    ///
     /// NOTE: This test validates the capture state logic and drag detection.
     /// The actual ImGui mouse capture requires a real ImGui context and is tested via integration tests.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseCaptureDuringDrag_ShouldCaptureAndRelease()
     {
         return Prop.ForAll(
@@ -180,7 +180,7 @@ public class MouseInputHandlerProperties
 
                     // Simulate button press
                     stateManager.SetButtonPressed(button, startX1, startY1);
-                    bool buttonPressedCorrectly = stateManager.HasButtonPressed && 
+                    bool buttonPressedCorrectly = stateManager.HasButtonPressed &&
                                                  stateManager.PressedButton == button;
 
                     // Test drag detection logic
@@ -196,7 +196,7 @@ public class MouseInputHandlerProperties
 
                     // Test button release
                     stateManager.SetButtonReleased(button);
-                    bool buttonReleasedCorrectly = !stateManager.HasButtonPressed && 
+                    bool buttonReleasedCorrectly = !stateManager.HasButtonPressed &&
                                                   !stateManager.IsDragging;
 
                     // Test coordinate bounds validation
@@ -208,7 +208,7 @@ public class MouseInputHandlerProperties
                     // Test state consistency
                     bool stateConsistent = stateManager.IsConsistent();
 
-                    return initiallyNotPressed && buttonPressedCorrectly && draggingStateCorrect && 
+                    return initiallyNotPressed && buttonPressedCorrectly && draggingStateCorrect &&
                            buttonReleasedCorrectly && coordinatesValid && stateConsistent;
                 }
                 catch
@@ -251,14 +251,14 @@ public class MouseInputHandlerProperties
         {
             var oldPosition = _lastPosition;
             _lastPosition = (x1, y1);
-            
-            if (_pressedButton.HasValue && oldPosition.HasValue && 
+
+            if (_pressedButton.HasValue && oldPosition.HasValue &&
                 (oldPosition.Value.X1 != x1 || oldPosition.Value.Y1 != y1))
             {
                 _isDragging = true;
                 return true;
             }
-            
+
             return false;
         }
 

@@ -32,7 +32,7 @@ public class ScreenClearingProperties
     ///     Property: For any erase display sequence, the correct portions of the screen should be cleared according to
     ///     parameters.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property EraseDisplayClearsCorrectPortions()
     {
         return Prop.ForAll(EraseDisplayModeArb, mode =>
@@ -94,7 +94,7 @@ public class ScreenClearingProperties
     ///     Property: For any erase line sequence, the correct portions of the current line should be cleared according to
     ///     parameters.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property EraseLineClearsCorrectPortions()
     {
         return Prop.ForAll(EraseLineModeArb, mode =>
@@ -156,7 +156,7 @@ public class ScreenClearingProperties
     ///     Property: Screen clearing operations should preserve terminal state integrity.
     ///     After any clearing operation, the terminal should remain in a valid state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScreenClearingPreservesStateIntegrity()
     {
         return Prop.ForAll(EraseDisplayModeArb, mode =>
@@ -200,7 +200,7 @@ public class ScreenClearingProperties
     ///     Property: Screen clearing operations should be deterministic.
     ///     Applying the same clearing operation should always produce the same result.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScreenClearingIsDeterministic()
     {
         return Prop.ForAll(EraseDisplayModeArb, mode =>
@@ -250,7 +250,7 @@ public class ScreenClearingProperties
     /// <summary>
     ///     Property: Line clearing operations should only affect the current line.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property LineClearingOnlyAffectsCurrentLine()
     {
         return Prop.ForAll(EraseLineModeArb, mode =>

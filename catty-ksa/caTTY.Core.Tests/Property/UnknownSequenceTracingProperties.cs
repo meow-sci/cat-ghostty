@@ -66,18 +66,18 @@ public class UnknownSequenceTracingProperties
     private List<TraceRecord> GetTraces()
     {
         TerminalTracer.Flush(); // Ensure all buffered entries are written
-        
+
         var traces = new List<TraceRecord>();
         var connectionString = $"Data Source={_testDatabasePath}";
-        
+
         try
         {
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
-            
+
             var command = connection.CreateCommand();
             command.CommandText = "SELECT type, escape_seq, printable, direction, row, col FROM trace ORDER BY time";
-            
+
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -95,7 +95,7 @@ public class UnknownSequenceTracingProperties
         {
             // Return empty list if database read fails
         }
-        
+
         return traces;
     }
 
@@ -162,10 +162,10 @@ public class UnknownSequenceTracingProperties
     /// <summary>
     ///     **Feature: terminal-tracing-integration, Property 20: Unknown CSI sequence tracing**
     ///     **Validates: Requirements 1.1, 5.1**
-    ///     Property: For any unknown CSI sequence processed by the parser, the sequence should 
+    ///     Property: For any unknown CSI sequence processed by the parser, the sequence should
     ///     appear in the trace database with correct command and direction information.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnknownCsiSequencesAreTraced()
     {
         return Prop.ForAll(UnknownCsiSequenceArb, unknownCsi =>
@@ -177,8 +177,8 @@ public class UnknownSequenceTracingProperties
 
                 // Assert - Verify sequence was traced
                 var traces = GetTraces();
-                bool hasExpectedTrace = traces.Any(trace => 
-                    trace.Type == "CSI" && 
+                bool hasExpectedTrace = traces.Any(trace =>
+                    trace.Type == "CSI" &&
                     trace.Direction == "output" &&
                     trace.EscapeSequence != null &&
                     trace.EscapeSequence.Contains("\\x1b["));
@@ -195,10 +195,10 @@ public class UnknownSequenceTracingProperties
     /// <summary>
     ///     **Feature: terminal-tracing-integration, Property 21: Unknown OSC sequence tracing**
     ///     **Validates: Requirements 1.2, 5.2**
-    ///     Property: For any unknown OSC sequence processed by the parser, the sequence should 
+    ///     Property: For any unknown OSC sequence processed by the parser, the sequence should
     ///     appear in the trace database with correct command and direction information.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnknownOscSequencesAreTraced()
     {
         return Prop.ForAll(UnknownOscSequenceArb, unknownOsc =>
@@ -210,8 +210,8 @@ public class UnknownSequenceTracingProperties
 
                 // Assert - Verify sequence was traced
                 var traces = GetTraces();
-                bool hasExpectedTrace = traces.Any(trace => 
-                    trace.Type == "OSC" && 
+                bool hasExpectedTrace = traces.Any(trace =>
+                    trace.Type == "OSC" &&
                     trace.Direction == "output" &&
                     trace.EscapeSequence != null &&
                     trace.EscapeSequence.Contains("\\x1b]"));
@@ -228,10 +228,10 @@ public class UnknownSequenceTracingProperties
     /// <summary>
     ///     **Feature: terminal-tracing-integration, Property 22: Unknown ESC sequence tracing**
     ///     **Validates: Requirements 1.3, 5.4**
-    ///     Property: For any unknown ESC sequence processed by the parser, the sequence should 
+    ///     Property: For any unknown ESC sequence processed by the parser, the sequence should
     ///     appear in the trace database with correct sequence and direction information.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnknownEscSequencesAreTraced()
     {
         return Prop.ForAll(UnknownEscSequenceArb, unknownEsc =>
@@ -243,8 +243,8 @@ public class UnknownSequenceTracingProperties
 
                 // Assert - Verify sequence was traced
                 var traces = GetTraces();
-                bool hasExpectedTrace = traces.Any(trace => 
-                    trace.Type == "ESC" && 
+                bool hasExpectedTrace = traces.Any(trace =>
+                    trace.Type == "ESC" &&
                     trace.Direction == "output" &&
                     trace.EscapeSequence != null &&
                     trace.EscapeSequence.Contains("\\x1b"));
@@ -261,10 +261,10 @@ public class UnknownSequenceTracingProperties
     /// <summary>
     ///     **Feature: terminal-tracing-integration, Property 23: Unknown DCS sequence tracing**
     ///     **Validates: Requirements 1.4, 5.5**
-    ///     Property: For any unknown DCS sequence processed by the parser, the sequence should 
+    ///     Property: For any unknown DCS sequence processed by the parser, the sequence should
     ///     appear in the trace database with correct command and direction information.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnknownDcsSequencesAreTraced()
     {
         return Prop.ForAll(UnknownDcsSequenceArb, unknownDcs =>
@@ -276,8 +276,8 @@ public class UnknownSequenceTracingProperties
 
                 // Assert - Verify sequence was traced
                 var traces = GetTraces();
-                bool hasExpectedTrace = traces.Any(trace => 
-                    trace.Type == "DCS" && 
+                bool hasExpectedTrace = traces.Any(trace =>
+                    trace.Type == "DCS" &&
                     trace.Direction == "output" &&
                     trace.EscapeSequence != null &&
                     trace.EscapeSequence.Contains("\\x1bP"));
@@ -297,7 +297,7 @@ public class UnknownSequenceTracingProperties
     ///     Property: For any combination of unknown sequences, all should be traced correctly
     ///     without interfering with each other.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property MixedUnknownSequencesAreAllTraced()
     {
         return Prop.ForAll(UnknownCsiSequenceArb, UnknownOscSequenceArb, UnknownEscSequenceArb,
@@ -312,7 +312,7 @@ public class UnknownSequenceTracingProperties
 
                 // Assert - Verify all sequences were traced
                 var traces = GetTraces();
-                
+
                 bool hasCsiTrace = traces.Any(trace => trace.Type == "CSI" && trace.Direction == "output");
                 bool hasOscTrace = traces.Any(trace => trace.Type == "OSC" && trace.Direction == "output");
                 bool hasEscTrace = traces.Any(trace => trace.Type == "ESC" && trace.Direction == "output");

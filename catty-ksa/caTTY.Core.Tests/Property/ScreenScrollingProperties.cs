@@ -39,14 +39,14 @@ public class ScreenScrollingProperties
     ///     **Validates: Requirements 11.8, 11.9**
     ///     Property: For any scroll up operation (CSI S), content should move up correctly and scrolled lines should be added to scrollback.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollUpMovesContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, ScrollLinesArb, TestCharArb,
             (dimensions, scrollLines, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test character pattern
@@ -83,7 +83,7 @@ public class ScreenScrollingProperties
 
             // Normal case: scrollLines < height
             bool contentMovedCorrectly = true;
-            
+
             // Check that content moved up by scrollLines positions
             for (int row = 0; row < height - scrollLines; row++)
             {
@@ -91,7 +91,7 @@ public class ScreenScrollingProperties
                 {
                     var currentCell = terminal.ScreenBuffer.GetCell(row, col);
                     var expectedCell = initialContent[row + scrollLines, col];
-                    
+
                     if (currentCell.Character != expectedCell.Character)
                     {
                         contentMovedCorrectly = false;
@@ -127,14 +127,14 @@ public class ScreenScrollingProperties
     /// <summary>
     ///     Property: For any scroll down operation (CSI T), content should move down correctly and top lines should be cleared.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollDownMovesContentCorrectly()
     {
         return Prop.ForAll(TerminalDimensionsArb, ScrollLinesArb, TestCharArb,
             (dimensions, scrollLines, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test character pattern
@@ -168,7 +168,7 @@ public class ScreenScrollingProperties
 
             // Normal case: scrollLines < height
             bool contentMovedCorrectly = true;
-            
+
             // Check that content moved down by scrollLines positions
             for (int row = scrollLines; row < height; row++)
             {
@@ -176,7 +176,7 @@ public class ScreenScrollingProperties
                 {
                     var currentCell = terminal.ScreenBuffer.GetCell(row, col);
                     var expectedCell = initialContent[row - scrollLines, col];
-                    
+
                     if (currentCell.Character != expectedCell.Character)
                     {
                         contentMovedCorrectly = false;
@@ -210,14 +210,14 @@ public class ScreenScrollingProperties
     ///     Property: Scrolling operations should preserve terminal state integrity.
     ///     After any scrolling operation, the terminal should remain in a valid state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollingPreservesStateIntegrity()
     {
         return Prop.ForAll(TerminalDimensionsArb, ScrollLinesArb,
             (dimensions, scrollLines) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Position cursor at a known location
@@ -249,14 +249,14 @@ public class ScreenScrollingProperties
     ///     Property: Scrolling operations should be deterministic.
     ///     Applying the same scrolling operation should always produce the same result.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollingIsDeterministic()
     {
         return Prop.ForAll(TerminalDimensionsArb, ScrollLinesArb, TestCharArb,
             (dimensions, scrollLines, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             // Create two identical terminals
             using var terminal1 = new TerminalEmulator(width, height, 10, NullLogger.Instance);
             using var terminal2 = new TerminalEmulator(width, height, 10, NullLogger.Instance);
@@ -294,14 +294,14 @@ public class ScreenScrollingProperties
     /// <summary>
     ///     Property: Scroll operations with zero lines should have no effect.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ZeroLineScrollingHasNoEffect()
     {
         return Prop.ForAll(TerminalDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test pattern
@@ -339,14 +339,14 @@ public class ScreenScrollingProperties
     /// <summary>
     ///     Property: Scrolling in alternate screen mode should not affect scrollback.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property AlternateScreenScrollingDoesNotAffectScrollback()
     {
         return Prop.ForAll(TerminalDimensionsArb, ScrollLinesArb, TestCharArb,
             (dimensions, scrollLines, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Activate alternate screen mode
@@ -368,14 +368,14 @@ public class ScreenScrollingProperties
     /// <summary>
     ///     Property: Excessive scrolling should clear the screen appropriately.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ExcessiveScrollingClearsScreen()
     {
         return Prop.ForAll(TerminalDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test pattern
@@ -409,13 +409,13 @@ public class ScreenScrollingProperties
     private static void FillScreenWithPattern(TerminalEmulator terminal, char baseChar, int width, int height)
     {
         terminal.Write("\x1b[1;1H"); // Move to top-left
-        
+
         for (int row = 0; row < height; row++)
         {
             // Create a pattern with the base character and row number
             var rowChar = (char)(baseChar + (row % 26));
             terminal.Write(new string(rowChar, width));
-            
+
             if (row < height - 1) // Don't move down on last row
             {
                 terminal.Write("\r\n");
@@ -429,7 +429,7 @@ public class ScreenScrollingProperties
     private static Cell[,] CaptureScreenContent(TerminalEmulator terminal, int width, int height)
     {
         var content = new Cell[height, width];
-        
+
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
@@ -437,7 +437,7 @@ public class ScreenScrollingProperties
                 content[row, col] = terminal.ScreenBuffer.GetCell(row, col);
             }
         }
-        
+
         return content;
     }
 }

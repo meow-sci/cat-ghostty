@@ -68,7 +68,7 @@ public class WindowDesignLayoutProperties
     ///     Feature: window-design, Property 1: Layout constants are within reasonable ranges
     ///     Validates: Requirements 7.2, 7.3
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property LayoutConstants_ShouldBeWithinReasonableRanges()
     {
         return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>
@@ -76,37 +76,37 @@ public class WindowDesignLayoutProperties
             try
             {
                 // Test that all layout constants are positive and reasonable
-                bool menuBarHeightValid = LayoutConstants.MENU_BAR_HEIGHT > 0 && 
+                bool menuBarHeightValid = LayoutConstants.MENU_BAR_HEIGHT > 0 &&
                                          LayoutConstants.MENU_BAR_HEIGHT <= 50.0f;
-                
-                bool tabAreaHeightValid = LayoutConstants.MIN_TAB_AREA_HEIGHT > 0 && 
+
+                bool tabAreaHeightValid = LayoutConstants.MIN_TAB_AREA_HEIGHT > 0 &&
                                          LayoutConstants.MIN_TAB_AREA_HEIGHT <= LayoutConstants.MAX_TAB_AREA_HEIGHT &&
                                          LayoutConstants.MAX_TAB_AREA_HEIGHT <= 100.0f;
-                
-                bool settingsAreaHeightValid = LayoutConstants.MIN_SETTINGS_AREA_HEIGHT > 0 && 
+
+                bool settingsAreaHeightValid = LayoutConstants.MIN_SETTINGS_AREA_HEIGHT > 0 &&
                                               LayoutConstants.MIN_SETTINGS_AREA_HEIGHT <= LayoutConstants.MAX_SETTINGS_AREA_HEIGHT &&
                                               LayoutConstants.MAX_SETTINGS_AREA_HEIGHT <= 120.0f;
-                
-                bool addButtonWidthValid = LayoutConstants.ADD_BUTTON_WIDTH > 0 && 
+
+                bool addButtonWidthValid = LayoutConstants.ADD_BUTTON_WIDTH > 0 &&
                                           LayoutConstants.ADD_BUTTON_WIDTH <= 100.0f;
-                
-                bool elementSpacingValid = LayoutConstants.ELEMENT_SPACING >= 0 && 
+
+                bool elementSpacingValid = LayoutConstants.ELEMENT_SPACING >= 0 &&
                                           LayoutConstants.ELEMENT_SPACING <= 20.0f;
-                
-                bool windowPaddingValid = LayoutConstants.WINDOW_PADDING >= 0 && 
+
+                bool windowPaddingValid = LayoutConstants.WINDOW_PADDING >= 0 &&
                                          LayoutConstants.WINDOW_PADDING <= 50.0f;
 
                 // Test minimum window dimensions are reasonable
-                bool minWindowWidthValid = LayoutConstants.MIN_WINDOW_WIDTH >= 200.0f && 
+                bool minWindowWidthValid = LayoutConstants.MIN_WINDOW_WIDTH >= 200.0f &&
                                           LayoutConstants.MIN_WINDOW_WIDTH <= 800.0f;
-                
-                bool minWindowHeightValid = LayoutConstants.MIN_WINDOW_HEIGHT >= 100.0f && 
+
+                bool minWindowHeightValid = LayoutConstants.MIN_WINDOW_HEIGHT >= 100.0f &&
                                            LayoutConstants.MIN_WINDOW_HEIGHT <= 400.0f;
 
                 // Test font size bounds are reasonable
-                bool fontSizeBoundsValid = LayoutConstants.MIN_FONT_SIZE >= 6.0f && 
+                bool fontSizeBoundsValid = LayoutConstants.MIN_FONT_SIZE >= 6.0f &&
                                           LayoutConstants.MIN_FONT_SIZE <= 12.0f &&
-                                          LayoutConstants.MAX_FONT_SIZE >= 48.0f && 
+                                          LayoutConstants.MAX_FONT_SIZE >= 48.0f &&
                                           LayoutConstants.MAX_FONT_SIZE <= 144.0f &&
                                           LayoutConstants.MIN_FONT_SIZE < LayoutConstants.MAX_FONT_SIZE;
 
@@ -116,8 +116,8 @@ public class WindowDesignLayoutProperties
                                             LayoutConstants.ADD_BUTTON_WIDTH <= LayoutConstants.MAX_TAB_AREA_HEIGHT + 10.0f;
 
                 // Test that header areas don't consume too much space (using maximum possible header height)
-                float maxHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT + 
-                                       LayoutConstants.MAX_TAB_AREA_HEIGHT + 
+                float maxHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT +
+                                       LayoutConstants.MAX_TAB_AREA_HEIGHT +
                                        LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
                 bool headerHeightReasonable = maxHeaderHeight <= LayoutConstants.MIN_WINDOW_HEIGHT * 0.9f; // Increased tolerance
 
@@ -144,7 +144,7 @@ public class WindowDesignLayoutProperties
     ///     For any terminal settings, validation should enforce reasonable bounds
     ///     and reject invalid configurations with appropriate exceptions.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property TerminalSettings_ShouldValidateCorrectly()
     {
         // Generate settings that may be invalid
@@ -211,7 +211,7 @@ public class WindowDesignLayoutProperties
     ///     For any valid terminal settings, cloning should produce an identical
     ///     but independent copy that can be modified without affecting the original.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property TerminalSettings_CloneShouldBeIndependent()
     {
         return Prop.ForAll(ValidTerminalSettings(), originalSettings =>
@@ -234,7 +234,7 @@ public class WindowDesignLayoutProperties
 
                 // Modify clone and verify original is unchanged
                 string originalTitle = originalSettings.Title;
-                
+
                 clonedSettings.Title = "Modified Title";
 
                 bool originalUnchanged = originalSettings.Title == originalTitle;
@@ -261,7 +261,7 @@ public class WindowDesignLayoutProperties
     ///     For any valid window dimensions, layout helper methods should produce
     ///     consistent and mathematically correct calculations with constrained variable heights.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property LayoutHelperMethods_ShouldProduceConsistentCalculations()
     {
         return Prop.ForAll(ValidWindowDimensions(), windowSize =>
@@ -288,11 +288,11 @@ public class WindowDesignLayoutProperties
                     {
                         // Calculate expected values manually using constrained sizing
                         float tabHeight = Math.Min(LayoutConstants.MAX_TAB_AREA_HEIGHT,
-                            LayoutConstants.MIN_TAB_AREA_HEIGHT + 
+                            LayoutConstants.MIN_TAB_AREA_HEIGHT +
                             Math.Max(0, (config.TabCount - 1) * LayoutConstants.TAB_HEIGHT_PER_EXTRA_TAB));
 
                         float settingsHeight = Math.Min(LayoutConstants.MAX_SETTINGS_AREA_HEIGHT,
-                            LayoutConstants.MIN_SETTINGS_AREA_HEIGHT + 
+                            LayoutConstants.MIN_SETTINGS_AREA_HEIGHT +
                             Math.Max(0, (config.SettingsRows - 1) * LayoutConstants.SETTINGS_HEIGHT_PER_CONTROL_ROW));
 
                         float expectedHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT + tabHeight + settingsHeight;
@@ -331,7 +331,7 @@ public class WindowDesignLayoutProperties
                                                      settingsHeight >= LayoutConstants.MIN_SETTINGS_AREA_HEIGHT &&
                                                      settingsHeight <= LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
 
-                        if (!canvasSizeValid || !canvasPositionValid || !layoutFitsInWindow || 
+                        if (!canvasSizeValid || !canvasPositionValid || !layoutFitsInWindow ||
                             !headerProportionReasonable || !constrainedSizingWorks)
                         {
                             return false;
@@ -356,7 +356,7 @@ public class WindowDesignLayoutProperties
     ///     Layout constants should maintain proper mathematical relationships
     ///     and be internally consistent for proper layout calculations with constrained variable sizing.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property LayoutConstants_ShouldMaintainMathematicalConsistency()
     {
         return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>
@@ -364,20 +364,20 @@ public class WindowDesignLayoutProperties
             try
             {
                 // Test that minimum window size can accommodate all header areas at minimum size
-                float minHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT + 
-                                       LayoutConstants.MIN_TAB_AREA_HEIGHT + 
+                float minHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT +
+                                       LayoutConstants.MIN_TAB_AREA_HEIGHT +
                                        LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
-                
+
                 float totalVerticalPadding = LayoutConstants.WINDOW_PADDING * 2;
                 float minRequiredHeight = minHeaderHeight + totalVerticalPadding + 50.0f; // 50px minimum for content
 
                 bool minHeightSufficient = LayoutConstants.MIN_WINDOW_HEIGHT >= minRequiredHeight;
 
                 // Test that minimum window size can accommodate maximum header areas
-                float maxHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT + 
-                                       LayoutConstants.MAX_TAB_AREA_HEIGHT + 
+                float maxHeaderHeight = LayoutConstants.MENU_BAR_HEIGHT +
+                                       LayoutConstants.MAX_TAB_AREA_HEIGHT +
                                        LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
-                
+
                 float maxRequiredHeight = maxHeaderHeight + totalVerticalPadding + 50.0f; // 50px minimum for content
                 bool maxHeaderFitsReasonably = maxRequiredHeight <= LayoutConstants.MIN_WINDOW_HEIGHT * 2.0f; // Should fit in reasonable window
 
@@ -402,7 +402,7 @@ public class WindowDesignLayoutProperties
                 bool addButtonProportional = LayoutConstants.ADD_BUTTON_WIDTH <= LayoutConstants.MAX_TAB_AREA_HEIGHT * 1.5f;
 
                 // Test constrained sizing parameters are reasonable
-                bool constrainedSizingConsistent = 
+                bool constrainedSizingConsistent =
                     LayoutConstants.MIN_TAB_AREA_HEIGHT <= LayoutConstants.MAX_TAB_AREA_HEIGHT &&
                     LayoutConstants.MIN_SETTINGS_AREA_HEIGHT <= LayoutConstants.MAX_SETTINGS_AREA_HEIGHT &&
                     LayoutConstants.TAB_HEIGHT_PER_EXTRA_TAB >= 0 &&
@@ -410,12 +410,12 @@ public class WindowDesignLayoutProperties
                     LayoutConstants.SETTINGS_HEIGHT_PER_CONTROL_ROW <= LayoutConstants.MAX_SETTINGS_AREA_HEIGHT - LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
 
                 // Test that constrained ranges are reasonable
-                bool constrainedRangesReasonable = 
+                bool constrainedRangesReasonable =
                     (LayoutConstants.MAX_TAB_AREA_HEIGHT - LayoutConstants.MIN_TAB_AREA_HEIGHT) <= 50.0f && // Max 50px growth
                     (LayoutConstants.MAX_SETTINGS_AREA_HEIGHT - LayoutConstants.MIN_SETTINGS_AREA_HEIGHT) <= 60.0f; // Max 60px growth
 
-                return minHeightSufficient && maxHeaderFitsReasonably && minWidthSufficient && 
-                       spacingProportional && paddingReasonable && fontBoundsConsistent && 
+                return minHeightSufficient && maxHeaderFitsReasonably && minWidthSufficient &&
+                       spacingProportional && paddingReasonable && fontBoundsConsistent &&
                        addButtonProportional && constrainedSizingConsistent && constrainedRangesReasonable;
             }
             catch
@@ -432,7 +432,7 @@ public class WindowDesignLayoutProperties
     ///     Feature: window-design, Property 2: Menu bar spans full width and appears at top
     ///     Validates: Requirements 1.4, 1.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MenuBar_ShouldSpanFullWidthAndAppearAtTop()
     {
         return Prop.ForAll(ValidWindowDimensions(), windowSize =>
@@ -441,57 +441,57 @@ public class WindowDesignLayoutProperties
             {
                 // Test that menu bar positioning logic is correct
                 float2 windowPos = new float2(100, 100); // Arbitrary window position
-                
+
                 // Menu bar should be at the very top of the content area
                 float expectedMenuBarY = windowPos.Y;
                 float expectedMenuBarX = windowPos.X;
-                
+
                 // Menu bar should span the full width of the window content area
                 float expectedMenuBarWidth = windowSize.X;
                 float expectedMenuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;
-                
+
                 // Test that menu bar dimensions are valid
-                bool menuBarDimensionsValid = expectedMenuBarWidth > 0 && 
+                bool menuBarDimensionsValid = expectedMenuBarWidth > 0 &&
                                              expectedMenuBarHeight > 0 &&
                                              expectedMenuBarHeight == LayoutConstants.MENU_BAR_HEIGHT;
-                
+
                 // Test that menu bar position is at the top
                 bool menuBarAtTop = expectedMenuBarY == windowPos.Y &&
                                    expectedMenuBarX == windowPos.X;
-                
+
                 // Test that menu bar spans full width
                 bool menuBarSpansFullWidth = expectedMenuBarWidth == windowSize.X;
-                
+
                 // Test that menu bar height is consistent with layout constants
                 bool menuBarHeightConsistent = expectedMenuBarHeight == LayoutConstants.MENU_BAR_HEIGHT;
-                
+
                 // Test that subsequent elements are positioned below the menu bar
                 float nextElementY = expectedMenuBarY + expectedMenuBarHeight;
                 bool subsequentElementsPositionedCorrectly = nextElementY > expectedMenuBarY;
-                
+
                 // Test that menu bar doesn't exceed window bounds
                 bool menuBarWithinBounds = expectedMenuBarX >= windowPos.X &&
                                           expectedMenuBarY >= windowPos.Y &&
                                           (expectedMenuBarX + expectedMenuBarWidth) <= (windowPos.X + windowSize.X) &&
                                           (expectedMenuBarY + expectedMenuBarHeight) <= (windowPos.Y + windowSize.Y);
-                
+
                 // Test that menu bar takes priority in vertical layout order
                 float tabAreaY = nextElementY;
                 float settingsAreaY = tabAreaY + LayoutConstants.MIN_TAB_AREA_HEIGHT;
                 float terminalCanvasY = settingsAreaY + LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
-                
+
                 bool verticalOrderCorrect = expectedMenuBarY < tabAreaY &&
                                            tabAreaY < settingsAreaY &&
                                            settingsAreaY < terminalCanvasY;
-                
+
                 // Test that menu bar leaves sufficient space for other elements
                 float remainingHeight = windowSize.Y - expectedMenuBarHeight;
-                bool sufficientSpaceRemaining = remainingHeight >= (LayoutConstants.MIN_TAB_AREA_HEIGHT + 
-                                                                   LayoutConstants.MIN_SETTINGS_AREA_HEIGHT + 
+                bool sufficientSpaceRemaining = remainingHeight >= (LayoutConstants.MIN_TAB_AREA_HEIGHT +
+                                                                   LayoutConstants.MIN_SETTINGS_AREA_HEIGHT +
                                                                    50.0f); // 50px minimum for terminal content
-                
-                return menuBarDimensionsValid && menuBarAtTop && menuBarSpansFullWidth && 
-                       menuBarHeightConsistent && subsequentElementsPositionedCorrectly && 
+
+                return menuBarDimensionsValid && menuBarAtTop && menuBarSpansFullWidth &&
+                       menuBarHeightConsistent && subsequentElementsPositionedCorrectly &&
                        menuBarWithinBounds && verticalOrderCorrect && sufficientSpaceRemaining;
             }
             catch
@@ -508,7 +508,7 @@ public class WindowDesignLayoutProperties
     ///     Feature: window-design, Property 3: Tab area maintains consistent height and full width
     ///     Validates: Requirements 2.1, 2.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property TabArea_ShouldMaintainConsistentHeightAndFullWidth()
     {
         return Prop.ForAll(ValidWindowDimensions(), windowSize =>
@@ -517,79 +517,79 @@ public class WindowDesignLayoutProperties
             {
                 // Test tab area positioning and dimensions
                 float2 windowPos = new float2(100, 100); // Arbitrary window position
-                
+
                 // Tab area should be positioned below the menu bar
                 float expectedTabAreaY = windowPos.Y + LayoutConstants.MENU_BAR_HEIGHT;
                 float expectedTabAreaX = windowPos.X;
-                
+
                 // Tab area should span the full width of the window content area
                 float expectedTabAreaWidth = windowSize.X;
-                
+
                 // Tab area height should use the fixed height for single terminal
                 float expectedTabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;
-                
+
                 // Test that tab area dimensions are valid
-                bool tabAreaDimensionsValid = expectedTabAreaWidth > 0 && 
+                bool tabAreaDimensionsValid = expectedTabAreaWidth > 0 &&
                                              expectedTabAreaHeight > 0 &&
                                              expectedTabAreaHeight >= LayoutConstants.MIN_TAB_AREA_HEIGHT &&
                                              expectedTabAreaHeight <= LayoutConstants.MAX_TAB_AREA_HEIGHT;
-                
+
                 // Test that tab area is positioned correctly below menu bar
                 bool tabAreaPositionedCorrectly = expectedTabAreaY == (windowPos.Y + LayoutConstants.MENU_BAR_HEIGHT) &&
                                                  expectedTabAreaX == windowPos.X;
-                
+
                 // Test that tab area spans full width
                 bool tabAreaSpansFullWidth = expectedTabAreaWidth == windowSize.X;
-                
+
                 // Test that tab area height is consistent for single terminal
                 bool tabAreaHeightConsistent = expectedTabAreaHeight >= LayoutConstants.MIN_TAB_AREA_HEIGHT;
-                
+
                 // Test tab content layout calculations
                 float availableWidth = expectedTabAreaWidth;
                 float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
                 float spacing = LayoutConstants.ELEMENT_SPACING;
                 float tabWidth = Math.Max(100.0f, availableWidth - addButtonWidth - spacing);
-                
+
                 // Test that tab and add button fit within available width
                 bool tabContentFitsWidth = (tabWidth + addButtonWidth + spacing) <= availableWidth &&
                                           tabWidth >= 100.0f && // Minimum tab width
                                           addButtonWidth == LayoutConstants.ADD_BUTTON_WIDTH;
-                
+
                 // Test that tab area doesn't exceed window bounds
                 bool tabAreaWithinBounds = expectedTabAreaX >= windowPos.X &&
                                           expectedTabAreaY >= windowPos.Y &&
                                           (expectedTabAreaX + expectedTabAreaWidth) <= (windowPos.X + windowSize.X) &&
                                           (expectedTabAreaY + expectedTabAreaHeight) <= (windowPos.Y + windowSize.Y);
-                
+
                 // Test that subsequent elements are positioned below the tab area
                 float nextElementY = expectedTabAreaY + expectedTabAreaHeight;
                 bool subsequentElementsPositionedCorrectly = nextElementY > expectedTabAreaY;
-                
+
                 // Test vertical layout order (tab area between menu bar and settings area)
                 float menuBarBottom = windowPos.Y + LayoutConstants.MENU_BAR_HEIGHT;
                 float settingsAreaY = nextElementY;
-                
+
                 bool verticalOrderCorrect = expectedTabAreaY == menuBarBottom &&
                                            settingsAreaY == nextElementY &&
                                            expectedTabAreaY > windowPos.Y &&
                                            settingsAreaY > expectedTabAreaY;
-                
+
                 // Test that tab area leaves sufficient space for other elements
                 float remainingHeight = windowSize.Y - LayoutConstants.MENU_BAR_HEIGHT - expectedTabAreaHeight;
-                bool sufficientSpaceRemaining = remainingHeight >= (LayoutConstants.MIN_SETTINGS_AREA_HEIGHT + 
+                bool sufficientSpaceRemaining = remainingHeight >= (LayoutConstants.MIN_SETTINGS_AREA_HEIGHT +
                                                                    50.0f); // 50px minimum for terminal content
-                
+
                 // Test that single tab configuration uses fixed height correctly
                 bool singleTabHeightCorrect = expectedTabAreaHeight == LayoutConstants.TAB_AREA_HEIGHT;
-                
+
                 // Test that add button positioning is correct
                 float addButtonX = expectedTabAreaX + tabWidth + spacing;
                 bool addButtonPositionedCorrectly = addButtonX >= expectedTabAreaX &&
                                                    (addButtonX + addButtonWidth) <= (expectedTabAreaX + expectedTabAreaWidth);
-                
-                return tabAreaDimensionsValid && tabAreaPositionedCorrectly && tabAreaSpansFullWidth && 
-                       tabAreaHeightConsistent && tabContentFitsWidth && tabAreaWithinBounds && 
-                       subsequentElementsPositionedCorrectly && verticalOrderCorrect && 
+
+                return tabAreaDimensionsValid && tabAreaPositionedCorrectly && tabAreaSpansFullWidth &&
+                       tabAreaHeightConsistent && tabContentFitsWidth && tabAreaWithinBounds &&
+                       subsequentElementsPositionedCorrectly && verticalOrderCorrect &&
                        sufficientSpaceRemaining && singleTabHeightCorrect && addButtonPositionedCorrectly;
             }
             catch

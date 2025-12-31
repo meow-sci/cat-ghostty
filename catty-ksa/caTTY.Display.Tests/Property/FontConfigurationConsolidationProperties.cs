@@ -33,13 +33,13 @@ public class FontConfigurationConsolidationProperties
         var fontNames = new[]
         {
             "HackNerdFontMono-Regular",
-            "HackNerdFontMono-Bold", 
+            "HackNerdFontMono-Bold",
             "HackNerdFontMono-Italic",
             "HackNerdFontMono-BoldItalic",
             "Consolas",
             "Courier New"
         };
-        
+
         return Gen.Elements(fontNames).ToArbitrary();
     }
 
@@ -47,7 +47,7 @@ public class FontConfigurationConsolidationProperties
     /// Property: Font configuration changes should only affect TerminalFontConfig, not TerminalSettings.
     /// **Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5**
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationConsolidation_OnlyAffectsTerminalFontConfig()
     {
         return Prop.ForAll(ValidFontSizes(), ValidFontNames(), (newFontSize, newFontName) =>
@@ -104,7 +104,7 @@ public class FontConfigurationConsolidationProperties
     /// Property: TerminalSettings validation should not include font-related validation.
     /// **Validates: Requirements 9.1, 9.2, 9.5**
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property TerminalSettingsValidation_DoesNotIncludeFontValidation()
     {
         var settingsGen = Gen.Fresh(() =>
@@ -122,17 +122,17 @@ public class FontConfigurationConsolidationProperties
                 IsActive = isActive
             };
         });
-        
+
         return Prop.ForAll(settingsGen.ToArbitrary(), settings =>
         {
             // Act & Assert - Validation should only check non-font properties
             try
             {
                 settings.Validate();
-                
+
                 // If validation passes, title should be valid
                 bool titleValid = !string.IsNullOrWhiteSpace(settings.Title);
-                
+
                 // Clone should work without font properties
                 var cloned = settings.Clone();
                 bool cloneValid = cloned.Title == settings.Title &&

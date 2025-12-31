@@ -87,7 +87,7 @@ public class FontStyleSelectionProperties
     /// Feature: font-configuration, Property 6: Font Style Selection Consistency
     /// Validates: Requirements 1.3, character rendering consistency
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontStyleSelection_ShouldSelectAppropriateFont()
     {
         return Prop.ForAll(SgrAttributesWithFontStyles(), ValidFontConfigurations(), (attributes, fontConfig) =>
@@ -147,7 +147,7 @@ public class FontStyleSelectionProperties
                     styleDistinction = styleDistinction && (regularFont != boldItalicFont);
                 }
 
-                return fontSelectionDeterministic && fontSelectionCorrect && 
+                return fontSelectionDeterministic && fontSelectionCorrect &&
                        consistentSelection && styleDistinction;
             }
             catch (ArgumentException)
@@ -168,7 +168,7 @@ public class FontStyleSelectionProperties
     /// the system should consistently fall back to the regular font while maintaining
     /// the same selection logic.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontStyleFallback_ShouldMaintainConsistency()
     {
         return Prop.ForAll(SgrAttributesWithFontStyles(), (attributes) =>
@@ -228,7 +228,7 @@ public class FontStyleSelectionProperties
     /// Font selection should depend only on Bold and Italic attributes and should not
     /// be affected by other SGR attributes like colors, underline, blink, etc.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontSelection_ShouldBeIndependentOfOtherAttributes()
     {
         return Prop.ForAll(ValidFontConfigurations(), (fontConfig) =>
@@ -240,23 +240,23 @@ public class FontStyleSelectionProperties
                 // Create attributes with same bold/italic but different other attributes
                 var baseAttributes = new SgrAttributes(bold: true, italic: false);
                 var attributesWithColor = new SgrAttributes(
-                    bold: true, 
-                    italic: false, 
+                    bold: true,
+                    italic: false,
                     foregroundColor: new Color(NamedColor.Red)
                 );
                 var attributesWithUnderline = new SgrAttributes(
-                    bold: true, 
-                    italic: false, 
+                    bold: true,
+                    italic: false,
                     underline: true
                 );
                 var attributesWithBlink = new SgrAttributes(
-                    bold: true, 
-                    italic: false, 
+                    bold: true,
+                    italic: false,
                     blink: true
                 );
                 var attributesWithInverse = new SgrAttributes(
-                    bold: true, 
-                    italic: false, 
+                    bold: true,
+                    italic: false,
                     inverse: true
                 );
 
@@ -308,7 +308,7 @@ public class FontStyleSelectionProperties
     /// Font selection should handle edge cases correctly, including null attributes,
     /// default attributes, and extreme attribute combinations.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property FontSelection_ShouldHandleBoundaryConditions()
     {
         return Prop.ForAll(ValidFontConfigurations(), (fontConfig) =>
@@ -370,7 +370,7 @@ public class FontStyleSelectionProperties
     /// Font selection should be fast and consistent, with no performance degradation
     /// across repeated calls with the same or different attributes.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property FontSelection_ShouldMaintainPerformanceConsistency()
     {
         return Prop.ForAll(ValidFontConfigurations(), SgrAttributesWithFontStyles(), (fontConfig, attributes) =>

@@ -68,10 +68,10 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 6: Focus-based event filtering
     ///     Validates: Requirements 1.3
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FocusBasedEventFiltering_ShouldOnlyProcessWhenFocused()
     {
-        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(), FocusStates(), 
+        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(), FocusStates(),
             (wheelDelta, scrollConfig, hasFocus) =>
         {
             try
@@ -155,7 +155,7 @@ public class MouseWheelScrollingProperties
     ///     For any wheel delta below the minimum threshold, the event should be ignored
     ///     to prevent micro-movements from causing unwanted scrolling.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property WheelDeltaThresholdFiltering_ShouldIgnoreMicroMovements()
     {
         return Prop.ForAll(ValidScrollConfigs(), (scrollConfig) =>
@@ -215,7 +215,7 @@ public class MouseWheelScrollingProperties
     ///     For any wheel delta value, the system should correctly identify and handle
     ///     invalid values (NaN, infinity) by ignoring them.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property WheelDeltaValidation_ShouldHandleInvalidValues()
     {
         return Prop.ForAll(ValidScrollConfigs(), (scrollConfig) =>
@@ -235,7 +235,7 @@ public class MouseWheelScrollingProperties
                 {
                     // Invalid deltas should be detected by IsFinite check
                     bool isValid = float.IsFinite(invalidDelta);
-                    
+
                     // Invalid deltas should never be considered valid
                     if (isValid)
                     {
@@ -249,7 +249,7 @@ public class MouseWheelScrollingProperties
                 foreach (float validDelta in validDeltas)
                 {
                     bool isValid = float.IsFinite(validDelta);
-                    
+
                     // Valid deltas should be detected as valid
                     if (!isValid)
                     {
@@ -278,7 +278,7 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 5: Wheel delta accumulation and line calculation
     ///     Validates: Requirements 5.1, 5.2
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property WheelDeltaAccumulationAndLineCalculation_ShouldAccumulateCorrectly()
     {
         return Prop.ForAll(ValidScrollConfigs(), (scrollConfig) =>
@@ -289,38 +289,38 @@ public class MouseWheelScrollingProperties
 
                 // Test accumulation with various fractional wheel deltas
                 float[] testDeltas = { 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, 1.1f, 1.5f, 2.3f, -0.4f, -0.8f, -1.2f };
-                
+
                 float accumulator = 0.0f;
-                
+
                 foreach (float wheelDelta in testDeltas)
                 {
                     float previousAccumulator = accumulator;
-                    
+
                     // Simulate the accumulation algorithm
                     accumulator += wheelDelta * scrollConfig.LinesPerStep;
-                    
+
                     // Apply overflow protection (same as implementation)
                     if (Math.Abs(accumulator) > 100.0f)
                     {
                         accumulator = Math.Sign(accumulator) * 10.0f;
                     }
-                    
+
                     // Extract integer scroll lines (same as implementation)
                     int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
-                    
+
                     // Verify scroll lines are non-negative
                     if (scrollLines < 0)
                     {
                         return false;
                     }
-                    
+
                     // Verify scroll lines don't exceed maximum
                     int clampedScrollLines = Math.Min(scrollLines, scrollConfig.MaxLinesPerOperation);
                     if (clampedScrollLines > scrollConfig.MaxLinesPerOperation)
                     {
                         return false;
                     }
-                    
+
                     // Test direction detection (only when accumulator is significant)
                     if (Math.Abs(accumulator) > 0.001f)
                     {
@@ -331,14 +331,14 @@ public class MouseWheelScrollingProperties
                             return false;
                         }
                     }
-                    
+
                     // Simulate accumulator update after consuming scroll lines (only if we have lines to scroll)
                     if (clampedScrollLines > 0)
                     {
                         bool scrollUp = accumulator > 0;
                         float consumedDelta = clampedScrollLines * (scrollUp ? 1 : -1);
                         accumulator -= consumedDelta;
-                        
+
                         // Verify accumulator remains finite and reasonable
                         if (!float.IsFinite(accumulator) || Math.Abs(accumulator) > 100.0f)
                         {
@@ -346,30 +346,30 @@ public class MouseWheelScrollingProperties
                         }
                     }
                 }
-                
+
                 // Test that small fractional values accumulate correctly
                 float testAccumulator = 0.0f;
                 for (int i = 0; i < 10; i++)
                 {
                     testAccumulator += 0.1f * scrollConfig.LinesPerStep;
                 }
-                
+
                 // After 10 iterations of 0.1, we should have accumulated 1.0 * LinesPerStep
                 float expectedAccumulation = 1.0f * scrollConfig.LinesPerStep;
-                
+
                 // Allow for floating point precision errors
                 if (Math.Abs(testAccumulator - expectedAccumulation) > 0.01f)
                 {
                     return false;
                 }
-                
+
                 // Verify that this produces a reasonable number of scroll lines
                 int finalScrollLines = (int)Math.Floor(Math.Abs(testAccumulator));
                 if (finalScrollLines < 0)
                 {
                     return false;
                 }
-                
+
                 // Test overflow protection works correctly
                 float overflowAccumulator = 0.0f;
                 overflowAccumulator += 200.0f; // Force overflow
@@ -377,13 +377,13 @@ public class MouseWheelScrollingProperties
                 {
                     overflowAccumulator = Math.Sign(overflowAccumulator) * 10.0f;
                 }
-                
+
                 // Verify overflow protection worked
                 if (Math.Abs(overflowAccumulator) > 100.0f)
                 {
                     return false;
                 }
-                
+
                 return true;
             }
             catch (ArgumentException)
@@ -405,10 +405,10 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 1: Mouse wheel event processing and ScrollbackManager integration
     ///     Validates: Requirements 1.1, 1.2, 2.1, 2.2
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseWheelEventProcessingAndScrollbackManagerIntegration_ShouldCallCorrectMethods()
     {
-        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(), 
+        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(),
             (wheelDelta, scrollConfig) =>
         {
             try
@@ -431,28 +431,28 @@ public class MouseWheelScrollingProperties
                 // Simulate the wheel processing algorithm
                 float accumulator = 0.0f;
                 accumulator += wheelDelta * scrollConfig.LinesPerStep;
-                
+
                 // Apply overflow protection
                 if (Math.Abs(accumulator) > 100.0f)
                 {
                     accumulator = Math.Sign(accumulator) * 10.0f;
                 }
-                
+
                 // Extract integer scroll lines
                 int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
                 if (scrollLines == 0)
                 {
                     return true; // No scrolling should occur
                 }
-                
+
                 // Determine scroll direction (positive wheel delta = scroll up)
                 bool scrollUp = accumulator > 0;
-                
+
                 // Clamp to maximum lines per operation
                 int clampedScrollLines = Math.Min(scrollLines, scrollConfig.MaxLinesPerOperation);
-                
+
                 // Verify that the calculated values are consistent with requirements
-                
+
                 // Requirement 1.1: Mouse wheel scrolled up should scroll viewport up
                 // Requirement 1.2: Mouse wheel scrolled down should scroll viewport down
                 if (wheelDelta > 0 && !scrollUp)
@@ -463,50 +463,50 @@ public class MouseWheelScrollingProperties
                 {
                     return false; // Negative wheel delta should result in scroll down
                 }
-                
+
                 // Requirement 2.1: Scroll up should call ScrollbackManager.ScrollUp() with appropriate line count
                 // Requirement 2.2: Scroll down should call ScrollbackManager.ScrollDown() with appropriate line count
-                
+
                 // Verify line count calculation is based on configured sensitivity
                 float expectedAccumulation = Math.Abs(wheelDelta * scrollConfig.LinesPerStep);
                 int expectedScrollLines = (int)Math.Floor(expectedAccumulation);
                 expectedScrollLines = Math.Min(expectedScrollLines, scrollConfig.MaxLinesPerOperation);
-                
+
                 if (clampedScrollLines != expectedScrollLines)
                 {
                     return false; // Line count should match expected calculation
                 }
-                
+
                 // Verify line count is within reasonable bounds
                 if (clampedScrollLines < 0 || clampedScrollLines > scrollConfig.MaxLinesPerOperation)
                 {
                     return false; // Line count should be within configured bounds
                 }
-                
+
                 // Verify that the scroll direction matches the wheel delta direction
                 bool expectedScrollUp = wheelDelta > 0;
                 if (scrollUp != expectedScrollUp)
                 {
                     return false; // Direction should match wheel delta sign
                 }
-                
+
                 // Test that accumulator update logic is correct
                 float consumedDelta = clampedScrollLines * (scrollUp ? 1 : -1);
                 float updatedAccumulator = accumulator - consumedDelta;
-                
+
                 // Verify accumulator remains finite and reasonable after update
                 if (!float.IsFinite(updatedAccumulator))
                 {
                     return false; // Accumulator should remain finite
                 }
-                
+
                 // Verify that the consumed delta calculation is correct
                 float expectedConsumedDelta = clampedScrollLines * (expectedScrollUp ? 1 : -1);
                 if (Math.Abs(consumedDelta - expectedConsumedDelta) > 0.001f)
                 {
                     return false; // Consumed delta should match expected calculation
                 }
-                
+
                 return true;
             }
             catch (ArgumentException)
@@ -529,10 +529,10 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 3: Auto-scroll state management with wheel scrolling
     ///     Validates: Requirements 3.1, 3.2
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property AutoScrollStateManagementWithWheelScrolling_ShouldManageStateCorrectly()
     {
-        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(), 
+        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(),
             (wheelDelta, scrollConfig) =>
         {
             try
@@ -557,25 +557,25 @@ public class MouseWheelScrollingProperties
 
                 // Test scenario 1: Starting at bottom (auto-scroll enabled), scroll up
                 int initialViewportOffset = 0; // At bottom
-                
+
                 // Simulate wheel processing
                 float accumulator = 0.0f;
                 accumulator += wheelDelta * scrollConfig.LinesPerStep;
-                
+
                 if (Math.Abs(accumulator) > 100.0f)
                 {
                     accumulator = Math.Sign(accumulator) * 10.0f;
                 }
-                
+
                 int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
                 if (scrollLines == 0)
                 {
                     return true; // No scrolling, auto-scroll state should remain unchanged
                 }
-                
+
                 bool scrollUp = accumulator > 0;
                 int clampedScrollLines = Math.Min(scrollLines, scrollConfig.MaxLinesPerOperation);
-                
+
                 // Simulate viewport offset change
                 int newViewportOffset;
                 if (scrollUp)
@@ -588,10 +588,10 @@ public class MouseWheelScrollingProperties
                     // Scrolling down should decrease viewport offset
                     newViewportOffset = Math.Max(0, initialViewportOffset - clampedScrollLines);
                 }
-                
+
                 // Test auto-scroll state logic (matches ScrollbackManager.SetViewportOffset)
                 bool newAutoScrollEnabled = (newViewportOffset == 0);
-                
+
                 // Requirement 3.1: When user scrolls up from bottom, auto-scroll should be disabled
                 if (scrollUp && initialViewportOffset == 0 && newViewportOffset > 0)
                 {
@@ -600,7 +600,7 @@ public class MouseWheelScrollingProperties
                         return false; // Auto-scroll should be disabled when scrolling up from bottom
                     }
                 }
-                
+
                 // Requirement 3.2: When user scrolls back to bottom, auto-scroll should be re-enabled
                 if (!scrollUp && newViewportOffset == 0)
                 {
@@ -609,42 +609,42 @@ public class MouseWheelScrollingProperties
                         return false; // Auto-scroll should be re-enabled when returning to bottom
                     }
                 }
-                
+
                 // Test scenario 2: Starting away from bottom (auto-scroll disabled), scroll to bottom
                 int startOffsetAwayFromBottom = 5;
-                
+
                 // Simulate scrolling down to bottom
                 int offsetAfterScrollDown = Math.Max(0, startOffsetAwayFromBottom - clampedScrollLines);
                 bool autoScrollAfterScrollDown = (offsetAfterScrollDown == 0);
-                
+
                 if (offsetAfterScrollDown == 0 && !autoScrollAfterScrollDown)
                 {
                     return false; // Auto-scroll should be enabled when reaching bottom
                 }
-                
+
                 // Test scenario 3: Auto-scroll state consistency
                 // Auto-scroll should always be enabled when at bottom, disabled when away from bottom
                 for (int testOffset = 0; testOffset <= 10; testOffset++)
                 {
                     bool expectedAutoScroll = (testOffset == 0);
-                    
+
                     // This simulates the ScrollbackManager.SetViewportOffset logic
                     bool actualAutoScroll = (testOffset == 0);
-                    
+
                     if (expectedAutoScroll != actualAutoScroll)
                     {
                         return false; // Auto-scroll state should be consistent with viewport position
                     }
                 }
-                
+
                 // Test scenario 4: New content behavior simulation
                 // When auto-scroll is enabled, new content should keep viewport at bottom
                 // When auto-scroll is disabled, new content should keep the visible content stable
                 // (ViewportOffset is measured from bottom, so it must increase as rows are appended)
-                
+
                 bool testAutoScrollEnabled = true;
                 int testViewportOffset = 0;
-                
+
                 // Simulate OnNewContentAdded behavior
                 if (testAutoScrollEnabled)
                 {
@@ -655,10 +655,10 @@ public class MouseWheelScrollingProperties
                         return false; // Viewport should remain at bottom when auto-scroll is enabled
                     }
                 }
-                
+
                 testAutoScrollEnabled = false;
                 testViewportOffset = 3; // Away from bottom
-                
+
                 if (!testAutoScrollEnabled)
                 {
                     // Auto-scroll disabled: offset increases by appended rows to keep content stable
@@ -668,39 +668,39 @@ public class MouseWheelScrollingProperties
                         return false; // Viewport offset should increase when auto-scroll is disabled
                     }
                 }
-                
+
                 // Test that auto-scroll state transitions are correct
                 // Bottom -> Up: enabled -> disabled
                 // Up -> Bottom: disabled -> enabled
                 // Up -> Up: disabled -> disabled
                 // Bottom -> Bottom: enabled -> enabled
-                
+
                 int[] testOffsets = { 0, 1, 2, 0, 3, 0, 5, 1, 0 };
                 bool previousAutoScroll = true; // Start enabled (at bottom)
-                
+
                 for (int i = 1; i < testOffsets.Length; i++)
                 {
                     int currentOffset = testOffsets[i];
                     bool currentAutoScroll = (currentOffset == 0);
-                    
+
                     int previousOffset = testOffsets[i - 1];
                     bool expectedPreviousAutoScroll = (previousOffset == 0);
-                    
+
                     // Verify previous state was correct
                     if (previousAutoScroll != expectedPreviousAutoScroll)
                     {
                         return false; // Previous auto-scroll state should match offset
                     }
-                    
+
                     // Verify current state is correct
                     if (currentAutoScroll != (currentOffset == 0))
                     {
                         return false; // Current auto-scroll state should match offset
                     }
-                    
+
                     previousAutoScroll = currentAutoScroll;
                 }
-                
+
                 return true;
             }
             catch (ArgumentException)
@@ -723,7 +723,7 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 4: Configuration validation and sensitivity behavior
     ///     Validates: Requirements 4.1, 4.2, 4.3, 4.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ConfigurationValidationAndSensitivityBehavior_ShouldScrollExactLines()
     {
         return Prop.ForAll(ValidWheelDeltas(), (wheelDelta) =>
@@ -744,7 +744,7 @@ public class MouseWheelScrollingProperties
 
                 // Test specific sensitivity values as per requirements
                 int[] testSensitivities = { 1, 3, 5 }; // Focus on key requirements
-                
+
                 foreach (int sensitivity in testSensitivities)
                 {
                     // Create configuration with specific sensitivity
@@ -755,70 +755,70 @@ public class MouseWheelScrollingProperties
                         MinimumWheelDelta = 0.1f,
                         MaxLinesPerOperation = 50 // High enough to not interfere with testing
                     };
-                    
+
                     // Requirement 4.1: System should provide configurable lines-per-scroll setting
                     config.Validate(); // Should not throw for valid sensitivity values
-                    
+
                     // Simulate wheel processing with this configuration
                     float accumulator = 0.0f;
                     accumulator += wheelDelta * config.LinesPerStep;
-                    
+
                     // Apply overflow protection
                     if (Math.Abs(accumulator) > 100.0f)
                     {
                         accumulator = Math.Sign(accumulator) * 10.0f;
                     }
-                    
+
                     // Extract integer scroll lines
                     int scrollLines = (int)Math.Floor(Math.Abs(accumulator));
                     if (scrollLines == 0)
                     {
                         continue; // No scrolling should occur
                     }
-                    
+
                     // Clamp to maximum lines per operation
                     int clampedScrollLines = Math.Min(scrollLines, config.MaxLinesPerOperation);
-                    
+
                     // Test general sensitivity behavior: lines should be proportional to sensitivity
                     float expectedAccumulation = Math.Abs(wheelDelta) * sensitivity;
                     int expectedLines = (int)Math.Floor(expectedAccumulation);
                     expectedLines = Math.Min(expectedLines, config.MaxLinesPerOperation);
-                    
+
                     // Verify that the calculated lines match the expected sensitivity behavior
                     if (clampedScrollLines != expectedLines)
                     {
                         return false; // Lines should be proportional to sensitivity setting
                     }
-                    
+
                     // Requirement 4.2: When sensitivity is 1, each wheel step should scroll exactly 1 line
                     if (sensitivity == 1 && Math.Abs(wheelDelta) >= 1.0f)
                     {
                         int expectedForSensitivity1 = (int)Math.Floor(Math.Abs(wheelDelta));
                         expectedForSensitivity1 = Math.Min(expectedForSensitivity1, config.MaxLinesPerOperation);
-                        
+
                         if (clampedScrollLines != expectedForSensitivity1)
                         {
                             return false; // Should scroll exactly |wheelDelta| lines when sensitivity is 1
                         }
                     }
-                    
+
                     // Requirement 4.3: When sensitivity is 3, each wheel step should scroll exactly 3 lines
                     if (sensitivity == 3 && Math.Abs(wheelDelta) >= 1.0f)
                     {
                         int expectedForSensitivity3 = (int)Math.Floor(Math.Abs(wheelDelta) * 3);
                         expectedForSensitivity3 = Math.Min(expectedForSensitivity3, config.MaxLinesPerOperation);
-                        
+
                         if (clampedScrollLines != expectedForSensitivity3)
                         {
                             return false; // Should scroll exactly |wheelDelta| * 3 lines when sensitivity is 3
                         }
                     }
                 }
-                
+
                 // Requirement 4.4: System should clamp scroll sensitivity to reasonable range (1-10 lines per step)
                 // Test invalid sensitivity values
                 int[] invalidSensitivities = { 0, -1, 11, 15 };
-                
+
                 foreach (int invalidSensitivity in invalidSensitivities)
                 {
                     var invalidConfig = new MouseWheelScrollConfig
@@ -828,7 +828,7 @@ public class MouseWheelScrollingProperties
                         MinimumWheelDelta = 0.1f,
                         MaxLinesPerOperation = 10
                     };
-                    
+
                     bool threwException = false;
                     try
                     {
@@ -838,16 +838,16 @@ public class MouseWheelScrollingProperties
                     {
                         threwException = true;
                     }
-                    
+
                     if (!threwException)
                     {
                         return false; // Invalid sensitivity values should be rejected
                     }
                 }
-                
+
                 // Test boundary sensitivity values (should be valid)
                 int[] boundarySensitivities = { 1, 10 };
-                
+
                 foreach (int boundarySensitivity in boundarySensitivities)
                 {
                     var boundaryConfig = new MouseWheelScrollConfig
@@ -857,7 +857,7 @@ public class MouseWheelScrollingProperties
                         MinimumWheelDelta = 0.1f,
                         MaxLinesPerOperation = 50
                     };
-                    
+
                     try
                     {
                         boundaryConfig.Validate(); // Should not throw for boundary values
@@ -867,18 +867,18 @@ public class MouseWheelScrollingProperties
                         return false; // Boundary sensitivity values should be valid
                     }
                 }
-                
+
                 // Test that configuration factory methods produce valid configurations
                 try
                 {
                     var testAppConfig = MouseWheelScrollConfig.CreateForTestApp();
                     var gameModConfig = MouseWheelScrollConfig.CreateForGameMod();
                     var defaultConfig = MouseWheelScrollConfig.CreateDefault();
-                    
+
                     testAppConfig.Validate();
                     gameModConfig.Validate();
                     defaultConfig.Validate();
-                    
+
                     // Verify that factory configurations have reasonable sensitivity values
                     if (testAppConfig.LinesPerStep < 1 || testAppConfig.LinesPerStep > 10 ||
                         gameModConfig.LinesPerStep < 1 || gameModConfig.LinesPerStep > 10 ||
@@ -891,7 +891,7 @@ public class MouseWheelScrollingProperties
                 {
                     return false; // Factory methods should produce valid configurations
                 }
-                
+
                 return true;
             }
             catch (ArgumentException)
@@ -914,10 +914,10 @@ public class MouseWheelScrollingProperties
     ///     Feature: mouse-wheel-scrolling, Property 2: Boundary condition handling at scroll limits
     ///     Validates: Requirements 2.3, 2.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property BoundaryConditionHandlingAtScrollLimits_ShouldHandleGracefully()
     {
-        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(), 
+        return Prop.ForAll(ValidWheelDeltas(), ValidScrollConfigs(),
             (wheelDelta, scrollConfig) =>
         {
             try
@@ -939,27 +939,27 @@ public class MouseWheelScrollingProperties
 
                 // Simulate boundary conditions by testing the accumulator behavior
                 // when scrolling would exceed limits
-                
+
                 // Test scenario: Already at top, trying to scroll up more
                 // In this case, the accumulator should be cleared to prevent stuck state
                 float accumulatorAtTop = 0.0f;
                 accumulatorAtTop += wheelDelta * scrollConfig.LinesPerStep;
-                
+
                 if (Math.Abs(accumulatorAtTop) > 100.0f)
                 {
                     accumulatorAtTop = Math.Sign(accumulatorAtTop) * 10.0f;
                 }
-                
+
                 int scrollLinesAtTop = (int)Math.Floor(Math.Abs(accumulatorAtTop));
                 if (scrollLinesAtTop > 0)
                 {
                     bool scrollUp = accumulatorAtTop > 0;
                     int clampedScrollLines = Math.Min(scrollLinesAtTop, scrollConfig.MaxLinesPerOperation);
-                    
+
                     // Simulate boundary condition: no actual scrolling occurred
                     // In this case, accumulator should be cleared (as per implementation)
                     bool actuallyScrolled = false; // Simulate being at boundary
-                    
+
                     if (!actuallyScrolled)
                     {
                         // Accumulator should be cleared when at boundary
@@ -971,32 +971,32 @@ public class MouseWheelScrollingProperties
                         float consumedDelta = clampedScrollLines * (scrollUp ? 1 : -1);
                         accumulatorAtTop -= consumedDelta;
                     }
-                    
+
                     // Verify accumulator state is valid after boundary handling
                     if (!float.IsFinite(accumulatorAtTop))
                     {
                         return false; // Accumulator should remain finite
                     }
                 }
-                
+
                 // Test scenario: Already at bottom, trying to scroll down more
                 float accumulatorAtBottom = 0.0f;
                 accumulatorAtBottom += (-Math.Abs(wheelDelta)) * scrollConfig.LinesPerStep; // Force downward scroll
-                
+
                 if (Math.Abs(accumulatorAtBottom) > 100.0f)
                 {
                     accumulatorAtBottom = Math.Sign(accumulatorAtBottom) * 10.0f;
                 }
-                
+
                 int scrollLinesAtBottom = (int)Math.Floor(Math.Abs(accumulatorAtBottom));
                 if (scrollLinesAtBottom > 0)
                 {
                     bool scrollUp = accumulatorAtBottom > 0;
                     int clampedScrollLines = Math.Min(scrollLinesAtBottom, scrollConfig.MaxLinesPerOperation);
-                    
+
                     // Simulate boundary condition: no actual scrolling occurred
                     bool actuallyScrolled = false; // Simulate being at boundary
-                    
+
                     if (!actuallyScrolled)
                     {
                         // Accumulator should be cleared when at boundary
@@ -1008,18 +1008,18 @@ public class MouseWheelScrollingProperties
                         float consumedDelta = clampedScrollLines * (scrollUp ? 1 : -1);
                         accumulatorAtBottom -= consumedDelta;
                     }
-                    
+
                     // Verify accumulator state is valid after boundary handling
                     if (!float.IsFinite(accumulatorAtBottom))
                     {
                         return false; // Accumulator should remain finite
                     }
                 }
-                
+
                 // Test that boundary condition handling doesn't cause infinite loops
                 // by verifying that accumulator clearing prevents stuck states
                 float testAccumulator = 50.0f; // Large accumulator value
-                
+
                 // Simulate multiple boundary hits
                 for (int i = 0; i < 10; i++)
                 {
@@ -1028,29 +1028,29 @@ public class MouseWheelScrollingProperties
                     {
                         // Simulate boundary condition (no scrolling occurred)
                         testAccumulator = 0.0f; // Clear accumulator as per boundary handling
-                        
+
                         // Verify accumulator was properly cleared
                         if (Math.Abs(testAccumulator) > 0.001f)
                         {
                             return false; // Accumulator should be cleared at boundary
                         }
                     }
-                    
+
                     // Add more delta to test repeated boundary hits
                     testAccumulator += 1.0f * scrollConfig.LinesPerStep;
                 }
-                
+
                 // Test error recovery: accumulator should remain in valid state
                 // even after multiple boundary conditions
                 if (!float.IsFinite(testAccumulator) || Math.Abs(testAccumulator) > 1000.0f)
                 {
                     return false; // Accumulator should remain reasonable
                 }
-                
+
                 // Requirement 2.3: Scrolled to top, additional scroll up events should be ignored gracefully
                 // Requirement 2.4: Scrolled to bottom, additional scroll down events should be ignored gracefully
                 // These are verified by ensuring the accumulator clearing logic works correctly
-                
+
                 return true;
             }
             catch (ArgumentException)

@@ -32,7 +32,7 @@ public class CsiSequenceTracingProperties
     {
         TerminalTracer.Enabled = false;
         TerminalTracer.Reset();
-        
+
         // Clean up test database
         if (File.Exists(_testDbPath))
         {
@@ -77,7 +77,7 @@ public class CsiSequenceTracingProperties
     ///     **Validates: Requirements 1.1, 5.1**
     ///     Property: For any valid CSI sequence processed by the parser, the sequence should appear in the trace database with correct command, parameters, and direction information.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CsiSequenceTracingCompleteness()
     {
         return Prop.ForAll(CsiCommandArb, CsiParametersArb, CsiPrefixArb,
@@ -85,7 +85,7 @@ public class CsiSequenceTracingProperties
         {
             // Arrange
             var parser = new CsiParser();
-            
+
             // Build CSI sequence
             var sequenceBuilder = new StringBuilder("\x1b[");
             if (prefix.HasValue)
@@ -93,7 +93,7 @@ public class CsiSequenceTracingProperties
             if (!string.IsNullOrEmpty(parameters))
                 sequenceBuilder.Append(parameters);
             sequenceBuilder.Append(command);
-            
+
             string sequence = sequenceBuilder.ToString();
             byte[] sequenceBytes = Encoding.UTF8.GetBytes(sequence);
 
@@ -108,21 +108,21 @@ public class CsiSequenceTracingProperties
 
             // Assert: Verify the sequence was traced
             var traces = GetTracesFromDatabase();
-            
-            bool sequenceTraced = traces.Any(trace => 
-                trace.EscapeSequence != null && 
+
+            bool sequenceTraced = traces.Any(trace =>
+                trace.EscapeSequence != null &&
                 trace.EscapeSequence.Contains($"\\x1b[") &&
                 trace.EscapeSequence.Contains(command.ToString()) &&
                 trace.Direction == "output");
 
             // Additional verification: if parameters were provided, they should be in the trace
-            bool parametersTraced = string.IsNullOrEmpty(parameters) || 
-                traces.Any(trace => trace.EscapeSequence != null && 
+            bool parametersTraced = string.IsNullOrEmpty(parameters) ||
+                traces.Any(trace => trace.EscapeSequence != null &&
                            trace.EscapeSequence.Contains(parameters));
 
             // Additional verification: if prefix was provided, it should be in the trace
-            bool prefixTraced = !prefix.HasValue || 
-                traces.Any(trace => trace.EscapeSequence != null && 
+            bool prefixTraced = !prefix.HasValue ||
+                traces.Any(trace => trace.EscapeSequence != null &&
                            trace.EscapeSequence.Contains(prefix.Value.ToString()));
 
             return sequenceTraced && parametersTraced && prefixTraced;
@@ -133,7 +133,7 @@ public class CsiSequenceTracingProperties
     ///     Property: CSI sequence tracing should be consistent across multiple calls.
     ///     Parsing the same CSI sequence multiple times should produce consistent trace entries.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CsiSequenceTracingConsistency()
     {
         return Prop.ForAll(CsiCommandArb, CsiParametersArb,
@@ -141,12 +141,12 @@ public class CsiSequenceTracingProperties
         {
             // Arrange
             var parser = new CsiParser();
-            
+
             var sequenceBuilder = new StringBuilder("\x1b[");
             if (!string.IsNullOrEmpty(parameters))
                 sequenceBuilder.Append(parameters);
             sequenceBuilder.Append(command);
-            
+
             string sequence = sequenceBuilder.ToString();
             byte[] sequenceBytes = Encoding.UTF8.GetBytes(sequence);
 
@@ -163,11 +163,11 @@ public class CsiSequenceTracingProperties
 
             // Assert: Should have exactly 3 trace entries with identical content
             var traces = GetTracesFromDatabase();
-            var csiTraces = traces.Where(t => t.EscapeSequence != null && 
+            var csiTraces = traces.Where(t => t.EscapeSequence != null &&
                                             t.EscapeSequence.Contains("\\x1b[")).ToList();
 
             bool correctCount = csiTraces.Count == 3;
-            bool allIdentical = csiTraces.All(trace => 
+            bool allIdentical = csiTraces.All(trace =>
                 trace.EscapeSequence == csiTraces.First().EscapeSequence &&
                 trace.Direction == csiTraces.First().Direction);
 
@@ -179,14 +179,14 @@ public class CsiSequenceTracingProperties
     ///     Property: CSI sequence tracing should handle edge cases correctly.
     ///     Empty parameters, missing parameters, and malformed sequences should still be traced.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CsiSequenceTracingHandlesEdgeCases()
     {
         return Prop.ForAll(CsiCommandArb, (command) =>
         {
             // Arrange
             var parser = new CsiParser();
-            
+
             // Test various edge cases
             var edgeCases = new[]
             {
@@ -203,22 +203,22 @@ public class CsiSequenceTracingProperties
             {
                 // Clear traces for this test
                 ClearTraceDatabase();
-                
+
                 byte[] sequenceBytes = Encoding.UTF8.GetBytes(sequence);
-                
+
                 // Act: Parse the sequence
                 parser.ParseCsiSequence(sequenceBytes, sequence);
-                
+
                 // Flush buffered traces to database
                 TerminalTracer.Flush();
-                
+
                 // Assert: Should be traced
                 var traces = GetTracesFromDatabase();
-                bool sequenceTraced = traces.Any(trace => 
-                    trace.EscapeSequence != null && 
+                bool sequenceTraced = traces.Any(trace =>
+                    trace.EscapeSequence != null &&
                     trace.EscapeSequence.Contains("\\x1b[") &&
                     trace.EscapeSequence.Contains(command.ToString()));
-                
+
                 if (!sequenceTraced)
                 {
                     allEdgeCasesTraced = false;
@@ -234,7 +234,7 @@ public class CsiSequenceTracingProperties
     ///     Property: CSI sequence tracing should preserve direction information.
     ///     All CSI sequences should be traced with "output" direction as specified in requirements.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CsiSequenceTracingPreservesDirection()
     {
         return Prop.ForAll(CsiCommandArb, CsiParametersArb,
@@ -242,12 +242,12 @@ public class CsiSequenceTracingProperties
         {
             // Arrange
             var parser = new CsiParser();
-            
+
             var sequenceBuilder = new StringBuilder("\x1b[");
             if (!string.IsNullOrEmpty(parameters))
                 sequenceBuilder.Append(parameters);
             sequenceBuilder.Append(command);
-            
+
             string sequence = sequenceBuilder.ToString();
             byte[] sequenceBytes = Encoding.UTF8.GetBytes(sequence);
 
@@ -262,7 +262,7 @@ public class CsiSequenceTracingProperties
 
             // Assert: All traces should have "output" direction
             var traces = GetTracesFromDatabase();
-            var csiTraces = traces.Where(t => t.EscapeSequence != null && 
+            var csiTraces = traces.Where(t => t.EscapeSequence != null &&
                                             t.EscapeSequence.Contains("\\x1b[")).ToList();
 
             bool allOutputDirection = csiTraces.All(trace => trace.Direction == "output");
@@ -297,14 +297,14 @@ public class CsiSequenceTracingProperties
     private List<TraceEntry> GetTracesFromDatabase()
     {
         var traces = new List<TraceEntry>();
-        
+
         try
         {
             using var connection = new SqliteConnection($"Data Source={_testDbPath}");
             connection.Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT escape_seq, printable, direction FROM trace ORDER BY time";
-            
+
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -320,7 +320,7 @@ public class CsiSequenceTracingProperties
         {
             // Return empty list on failure
         }
-        
+
         return traces;
     }
 

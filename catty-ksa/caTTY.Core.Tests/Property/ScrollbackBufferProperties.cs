@@ -33,14 +33,14 @@ public class ScrollbackBufferProperties
     ///     Property: For any scrollback buffer, adding lines should preserve content and manage capacity correctly.
     ///     When buffer is not full, all lines should be stored. When buffer exceeds capacity, oldest lines should be removed.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferManagesCapacityCorrectly()
     {
-        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb, 
+        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (maxLines, columns) = dimensions;
-            
+
             using var scrollback = new ScrollbackManager(maxLines, columns);
 
             // Create test line with the generated character
@@ -48,7 +48,7 @@ public class ScrollbackBufferProperties
 
             // Add line and verify capacity management
             scrollback.AddLine(testLine);
-            
+
             bool correctLines = scrollback.CurrentLines == 1;
             bool correctMaxLines = scrollback.MaxLines == maxLines;
             bool correctContent = scrollback.GetLine(0).Length == columns;
@@ -61,7 +61,7 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer should maintain FIFO (First In, First Out) ordering.
     ///     The oldest lines should be removed first when capacity is exceeded.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferMaintainsFifoOrdering()
     {
         return Prop.ForAll<int, int>((maxLines, columns) =>
@@ -85,7 +85,7 @@ public class ScrollbackBufferProperties
 
             // Verify only the last maxLines are stored
             bool correctCount = scrollback.CurrentLines == maxLines;
-            
+
             // Verify the last line contains the expected character
             var lastStoredLine = scrollback.GetLine(scrollback.CurrentLines - 1);
             bool correctLastChar = lastStoredLine[0].Character == lastChar;
@@ -98,7 +98,7 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer should handle edge cases correctly.
     ///     Empty lines should be handled properly.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferHandlesEdgeCases()
     {
         return Prop.ForAll<int, int>((maxLines, columns) =>
@@ -110,7 +110,7 @@ public class ScrollbackBufferProperties
 
             // Test empty line
             scrollback.AddLine(ReadOnlySpan<Cell>.Empty);
-            
+
             bool correctCount = scrollback.CurrentLines == 1;
             var emptyLine = scrollback.GetLine(0);
             bool correctLength = emptyLine.Length == columns;
@@ -124,7 +124,7 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer viewport management should work correctly.
     ///     Viewport offset should be clamped to valid range and IsAtBottom should be accurate.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferViewportManagementWorks()
     {
         return Prop.ForAll<int, int>((maxLines, columns) =>
@@ -153,7 +153,7 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer should handle zero capacity correctly.
     ///     When maxLines is 0, no lines should be stored.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferHandlesZeroCapacity()
     {
         return Prop.ForAll(TestCharArb, testChar =>
@@ -178,14 +178,14 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer clear operation should reset all state.
     ///     After clearing, buffer should be empty and at bottom.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferClearResetsState()
     {
-        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb, 
+        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (maxLines, columns) = dimensions;
-            
+
             using var scrollback = new ScrollbackManager(maxLines, columns);
 
             // Add a line
@@ -215,20 +215,20 @@ public class ScrollbackBufferProperties
     ///     Property: Scrollback buffer should preserve line content integrity.
     ///     Retrieved lines should exactly match what was added (with proper padding/truncation).
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollbackBufferPreservesLineIntegrity()
     {
         return Prop.ForAll(TestCharArb, testChar =>
         {
             var maxLines = 10; // Fixed for simplicity
             var columns = 20; // Fixed for simplicity
-            
+
             using var scrollback = new ScrollbackManager(maxLines, columns);
 
             // Create test line with specific pattern
             var line = new Cell[columns];
             var halfPoint = columns / 2;
-            
+
             for (int j = 0; j < halfPoint; j++)
             {
                 line[j] = new Cell(testChar);
@@ -237,7 +237,7 @@ public class ScrollbackBufferProperties
             {
                 line[j] = Cell.Space;
             }
-            
+
             scrollback.AddLine(line);
 
             // Verify line is preserved correctly
@@ -258,15 +258,15 @@ public class ScrollbackBufferProperties
     ///     When user scrolls up, auto-scroll should be disabled. When user returns to bottom, auto-scroll should be re-enabled.
     ///     New content should not yank viewport while user is reviewing history.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ViewportAndAutoScrollBehaviorWorks()
     {
-        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb, 
+        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (maxLines, columns) = dimensions;
             if (maxLines < 3) return true; // Need at least 3 lines for meaningful test
-            
+
             using var scrollback = new ScrollbackManager(maxLines, columns);
 
             // Initially should be at bottom with auto-scroll enabled
@@ -321,14 +321,14 @@ public class ScrollbackBufferProperties
     ///     Property: Viewport offset clamping should work correctly.
     ///     Setting viewport offset beyond valid range should clamp to valid bounds.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ViewportOffsetClampingWorks()
     {
-        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb, 
+        return Prop.ForAll(ScrollbackDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (maxLines, columns) = dimensions;
-            
+
             using var scrollback = new ScrollbackManager(maxLines, columns);
 
             // Add some lines
@@ -360,7 +360,7 @@ public class ScrollbackBufferProperties
     ///     Property: Scroll operations should update viewport offset correctly.
     ///     ScrollUp/ScrollDown should move viewport by correct amounts and respect bounds.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScrollOperationsUpdateViewportCorrectly()
     {
         return Prop.ForAll<int, int>((maxLines, columns) =>
@@ -400,7 +400,7 @@ public class ScrollbackBufferProperties
             bool scrollToBottomWorked = scrollback.ViewportOffset == 0;
             bool autoScrollEnabledAtBottom = scrollback.AutoScrollEnabled;
 
-            return scrollUpWorked && scrollDownWorked && 
+            return scrollUpWorked && scrollDownWorked &&
                    scrollToTopWorked && autoScrollDisabledAtTop &&
                    scrollToBottomWorked && autoScrollEnabledAtBottom;
         });
@@ -410,7 +410,7 @@ public class ScrollbackBufferProperties
     ///     Property: GetViewportRows should provide correct content based on viewport offset.
     ///     Should combine scrollback and screen buffer content appropriately.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property GetViewportRowsReturnsCorrectContent()
     {
         return Prop.ForAll<int, int>((maxLines, columns) =>
@@ -438,25 +438,25 @@ public class ScrollbackBufferProperties
             // Test viewport at bottom (should show scrollback + screen)
             scrollback.ScrollToBottom();
             var viewportRows = scrollback.GetViewportRows(screenBuffer, false, 5);
-            
+
             bool correctRowCount = viewportRows.Count == 5;
-            
+
             // Determine what the first scrollback character should be
             // If maxLines >= 3, we have all lines A, B, C, so first is A
             // If maxLines == 2, we have lines B, C (A was overwritten), so first is B
             char expectedFirstChar = maxLines >= 3 ? 'A' : 'B';
-            bool hasScrollbackContent = viewportRows.Count > 0 && 
+            bool hasScrollbackContent = viewportRows.Count > 0 &&
                                       viewportRows[0].Span.Length > 0 &&
                                       viewportRows[0].Span[0].Character == expectedFirstChar;
 
             // Test in alternate screen mode (should only show screen buffer)
             var alternateViewportRows = scrollback.GetViewportRows(screenBuffer, true, 2);
             bool alternateCorrectCount = alternateViewportRows.Count == 2;
-            bool alternateShowsScreen = alternateViewportRows.Count > 0 && 
+            bool alternateShowsScreen = alternateViewportRows.Count > 0 &&
                                       alternateViewportRows[0].Span.Length > 0 &&
                                       alternateViewportRows[0].Span[0].Character == 'X';
 
-            return correctRowCount && hasScrollbackContent && 
+            return correctRowCount && hasScrollbackContent &&
                    alternateCorrectCount && alternateShowsScreen;
         });
     }

@@ -49,7 +49,7 @@ public class MouseTrackingProperties
     ///     Property: For any array of mouse tracking modes, the manager should use the
     ///     highest numbered mode (1003 > 1002 > 1000 > 0).
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseTrackingModeResolutionUsesHighestMode()
     {
         return Prop.ForAll(MouseTrackingModeArrayArb, modes =>
@@ -85,7 +85,7 @@ public class MouseTrackingProperties
     ///     **Validates: Requirements R1.5**
     ///     Property: When a single mode is provided, that mode should be selected.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SingleModeSelectionIsCorrect()
     {
         return Prop.ForAll(MouseTrackingModeArb, mode =>
@@ -108,7 +108,7 @@ public class MouseTrackingProperties
     ///     report events to the application only when the event type is supported by the current
     ///     tracking mode (click events in mode 1000+, drag events in mode 1002+, motion events in mode 1003 only).
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseTrackingModeEventReportingIsCorrect()
     {
         return Prop.ForAll(MouseTrackingModeArb, MouseEventTypeArb, Arb.Default.Bool(),
@@ -165,7 +165,7 @@ public class MouseTrackingProperties
     ///     **Validates: Requirements R1.1**
     ///     Property: In click mode (1000), only press, release, and wheel events should be reported.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ClickModeEventFilteringIsCorrect()
     {
         return Prop.ForAll(MouseEventTypeArb, Arb.Default.Bool(), (eventType, hasButtonPressed) =>
@@ -188,7 +188,7 @@ public class MouseTrackingProperties
     ///     **Validates: Requirements R1.2**
     ///     Property: In button mode (1002), press, release, wheel, and drag events should be reported.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ButtonModeEventFilteringIsCorrect()
     {
         return Prop.ForAll(MouseEventTypeArb, Arb.Default.Bool(), (eventType, hasButtonPressed) =>
@@ -219,7 +219,7 @@ public class MouseTrackingProperties
     ///     **Validates: Requirements R1.3**
     ///     Property: In any mode (1003), all mouse events should be reported.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property AnyModeEventFilteringIsCorrect()
     {
         return Prop.ForAll(MouseEventTypeArb, Arb.Default.Bool(), (eventType, hasButtonPressed) =>
@@ -232,7 +232,7 @@ public class MouseTrackingProperties
             bool shouldReport = manager.ShouldReportEvent(eventType, hasButtonPressed);
 
             // Assert - Any mode reports all events
-            bool expectedResult = eventType is MouseEventType.Press or MouseEventType.Release 
+            bool expectedResult = eventType is MouseEventType.Press or MouseEventType.Release
                                   or MouseEventType.Motion or MouseEventType.Wheel;
             return shouldReport == expectedResult;
         });
@@ -243,7 +243,7 @@ public class MouseTrackingProperties
     ///     **Validates: Requirements R1.1, R1.2, R1.3**
     ///     Property: When mouse tracking is off, no events should be reported to the application.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OffModeEventFilteringIsCorrect()
     {
         return Prop.ForAll(MouseEventTypeArb, Arb.Default.Bool(), (eventType, hasButtonPressed) =>

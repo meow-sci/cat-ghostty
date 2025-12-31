@@ -25,17 +25,17 @@ public class CursorVisibilityProperties
     ///     **Validates: Requirements 8.5**
     ///     Property: For any sequence of cursor visibility toggles, querying the cursor state should return the visibility value from the most recent toggle.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorVisibilityTracking()
     {
         return Prop.ForAll(CursorVisibilitySequenceArb, visibilitySequence =>
         {
             // Arrange
             var terminal = new TerminalEmulator(80, 24);
-            
+
             // Track the expected final visibility state
             bool expectedVisibility = true; // Default cursor visibility is true
-            
+
             // Act: Apply each visibility toggle in sequence
             foreach (bool visible in visibilitySequence)
             {
@@ -43,16 +43,16 @@ public class CursorVisibilityProperties
                 terminal.Write(sequence);
                 expectedVisibility = visible; // Track the most recent toggle
             }
-            
+
             // Assert: Cursor visibility should match the most recent toggle
             bool actualVisibility = terminal.Cursor.Visible;
-            
+
             // Additional verification: terminal should still be functional
             terminal.Write("Test");
             bool terminalFunctional = terminal.Cursor.Col > 0; // Cursor should have moved after writing
-            
+
             terminal.Dispose();
-            
+
             return actualVisibility == expectedVisibility && terminalFunctional;
         });
     }
@@ -61,7 +61,7 @@ public class CursorVisibilityProperties
     ///     Property: Cursor visibility state is preserved across cursor movements.
     ///     Moving the cursor should not affect its visibility state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorVisibilityPreservedAcrossMovements()
     {
         return Prop.ForAll(
@@ -71,23 +71,23 @@ public class CursorVisibilityProperties
             {
                 // Arrange
                 var terminal = new TerminalEmulator(80, 24);
-                
+
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";
                 terminal.Write(visibilitySequence);
-                
+
                 // Verify initial state
                 bool visibilityBeforeMovement = terminal.Cursor.Visible;
-                
+
                 // Act: Apply cursor movement
                 terminal.Write(movementSequence);
-                
+
                 // Assert: Visibility should be preserved
                 bool visibilityAfterMovement = terminal.Cursor.Visible;
-                
+
                 terminal.Dispose();
-                
-                return visibilityBeforeMovement == initialVisibility && 
+
+                return visibilityBeforeMovement == initialVisibility &&
                        visibilityAfterMovement == initialVisibility &&
                        visibilityBeforeMovement == visibilityAfterMovement;
             });
@@ -97,7 +97,7 @@ public class CursorVisibilityProperties
     ///     Property: Cursor visibility state is preserved across character writing.
     ///     Writing characters should not affect cursor visibility state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorVisibilityPreservedAcrossCharacterWriting()
     {
         return Prop.ForAll(
@@ -107,23 +107,23 @@ public class CursorVisibilityProperties
             {
                 // Arrange
                 var terminal = new TerminalEmulator(80, 24);
-                
+
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";
                 terminal.Write(visibilitySequence);
-                
+
                 // Verify initial state
                 bool visibilityBeforeWriting = terminal.Cursor.Visible;
-                
+
                 // Act: Write characters
                 terminal.Write(textToWrite);
-                
+
                 // Assert: Visibility should be preserved
                 bool visibilityAfterWriting = terminal.Cursor.Visible;
-                
+
                 terminal.Dispose();
-                
-                return visibilityBeforeWriting == initialVisibility && 
+
+                return visibilityBeforeWriting == initialVisibility &&
                        visibilityAfterWriting == initialVisibility &&
                        visibilityBeforeWriting == visibilityAfterWriting;
             });
@@ -133,7 +133,7 @@ public class CursorVisibilityProperties
     ///     Property: Cursor visibility toggles are deterministic.
     ///     Applying the same sequence of visibility toggles should always produce the same result.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorVisibilityTogglesDeterministic()
     {
         return Prop.ForAll(CursorVisibilitySequenceArb, visibilitySequence =>
@@ -141,7 +141,7 @@ public class CursorVisibilityProperties
             // Arrange: Create two identical terminals
             var terminal1 = new TerminalEmulator(80, 24);
             var terminal2 = new TerminalEmulator(80, 24);
-            
+
             // Act: Apply the same sequence to both terminals
             foreach (bool visible in visibilitySequence)
             {
@@ -149,14 +149,14 @@ public class CursorVisibilityProperties
                 terminal1.Write(sequence);
                 terminal2.Write(sequence);
             }
-            
+
             // Assert: Both terminals should have the same cursor visibility
             bool visibility1 = terminal1.Cursor.Visible;
             bool visibility2 = terminal2.Cursor.Visible;
-            
+
             terminal1.Dispose();
             terminal2.Dispose();
-            
+
             return visibility1 == visibility2;
         });
     }
@@ -165,7 +165,7 @@ public class CursorVisibilityProperties
     ///     Property: Cursor visibility state is preserved across terminal resize.
     ///     Resizing the terminal should not affect cursor visibility state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorVisibilityPreservedAcrossResize()
     {
         return Prop.ForAll(
@@ -176,23 +176,23 @@ public class CursorVisibilityProperties
             {
                 // Arrange
                 var terminal = new TerminalEmulator(80, 24);
-                
+
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";
                 terminal.Write(visibilitySequence);
-                
+
                 // Verify initial state
                 bool visibilityBeforeResize = terminal.Cursor.Visible;
-                
+
                 // Act: Resize terminal
                 terminal.Resize(newWidth, newHeight);
-                
+
                 // Assert: Visibility should be preserved
                 bool visibilityAfterResize = terminal.Cursor.Visible;
-                
+
                 terminal.Dispose();
-                
-                return visibilityBeforeResize == initialVisibility && 
+
+                return visibilityBeforeResize == initialVisibility &&
                        visibilityAfterResize == initialVisibility &&
                        visibilityBeforeResize == visibilityAfterResize;
             });

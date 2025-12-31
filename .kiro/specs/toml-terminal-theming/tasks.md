@@ -6,10 +6,17 @@ This implementation plan converts the TOML-based terminal theming design into a 
 
 ## Tasks
 
-- [ ] 1. Set up TOML parsing infrastructure and core theme loading
-  - Use existing Samboy063.Tomlet library reference from KSA assemblies
+- [ ] 0. Add Tomlyn NuGet package dependency
+  - Add Tomlyn package reference to caTTY.Display.csproj
+  - Verify package compatibility with existing .NET 10 and C# 13 configuration
+  - _Requirements: Infrastructure setup_
+
+- [x] 1.0 Set up TOML parsing infrastructure and core theme loading
+  - Add Tomlyn NuGet package reference to caTTY.Display project
   - Create TomlThemeLoader class with file discovery and parsing methods
-  - Implement hex color parsing and validation utilities
+  - Implement hex color parsing and validation utilities using Tomlyn's TomlTable API
+  - Use `Toml.ToModel()` for parsing TOML content to `TomlTable` objects
+  - Use `Toml.TryToModel()` for graceful error handling with diagnostic information
   - _Requirements: 1.1, 1.2, 5.1, 5.2_
 
 - [ ] 1.1 Write property test for theme discovery completeness
@@ -25,10 +32,11 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - **Validates: Requirements 5.1, 5.2**
 
 - [ ] 2. Enhance ThemeManager with TOML theme support
-  - Extend ThemeManager to load and manage TOML themes
+  - Extend ThemeManager to load and manage TOML themes using Tomlyn
   - Update default theme to use Adventure.toml color values
   - Implement theme collection management and fallback logic
   - Add theme change event notification system
+  - Use `TomlTable` dictionary-style access for nested TOML sections
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 6.4_
 
 - [ ] 2.1 Write property test for theme validation completeness
@@ -166,5 +174,6 @@ This implementation plan converts the TOML-based terminal theming design into a 
 - Unit tests validate specific examples and edge cases
 - Integration tests verify end-to-end functionality
 - The implementation follows the existing caTTY.Display architecture patterns
-- **TOML parsing uses the existing Samboy063.Tomlet library reference from KSA assemblies**
+- **TOML parsing uses the Tomlyn library with TomlTable API for flexible theme structure handling**
+- **Tomlyn provides `Toml.ToModel()` for parsing and `Toml.TryToModel()` for error handling with diagnostics**
 - All theme files in caTTY.Display.Tests/TerminalThemes/ will be used as test data

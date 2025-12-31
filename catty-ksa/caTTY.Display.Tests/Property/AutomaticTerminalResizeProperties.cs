@@ -24,7 +24,7 @@ public class AutomaticTerminalResizeProperties
     {
         return (from initial in Gen.Choose(12, 48).Select(i => (float)i)
                 from delta in Gen.Choose(-10, 10).Where(d => d != 0).Select(d => (float)d)
-                let changed = Math.Max(LayoutConstants.MIN_FONT_SIZE, 
+                let changed = Math.Max(LayoutConstants.MIN_FONT_SIZE,
                                      Math.Min(LayoutConstants.MAX_FONT_SIZE, initial + delta))
                 where Math.Abs(changed - initial) > 0.1f // Ensure meaningful change
                 select (initial, changed))
@@ -35,7 +35,7 @@ public class AutomaticTerminalResizeProperties
     /// Property: Font size changes should trigger terminal dimension recalculation.
     /// **Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5**
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontSizeChange_TriggersTerminalResize()
     {
         return Prop.ForAll(ValidFontSizeChanges(), (fontSizes) =>
@@ -70,10 +70,10 @@ public class AutomaticTerminalResizeProperties
                 // Character metrics should be recalculated
                 var initialMetrics = initialFontConfig.CalculateCharacterMetrics();
                 var newMetrics = newFontConfig.CalculateCharacterMetrics();
-                
-                bool characterMetricsUpdated = initialMetrics.Width > 0 && 
+
+                bool characterMetricsUpdated = initialMetrics.Width > 0 &&
                                              initialMetrics.Height > 0 &&
-                                             newMetrics.Width > 0 && 
+                                             newMetrics.Width > 0 &&
                                              newMetrics.Height > 0;
 
                 // If font size changed, metrics should change proportionally
@@ -82,10 +82,10 @@ public class AutomaticTerminalResizeProperties
                     float expectedRatio = fontSizes.changed / fontSizes.initial;
                     float actualWidthRatio = newMetrics.Width / initialMetrics.Width;
                     float actualHeightRatio = newMetrics.Height / initialMetrics.Height;
-                    
+
                     bool proportionalChange = Math.Abs(actualWidthRatio - expectedRatio) < 0.1f &&
                                              Math.Abs(actualHeightRatio - expectedRatio) < 0.1f;
-                    
+
                     characterMetricsUpdated = characterMetricsUpdated && proportionalChange;
                 }
 
@@ -103,7 +103,7 @@ public class AutomaticTerminalResizeProperties
     /// Property: Font configuration updates should be atomic (all-or-nothing).
     /// **Validates: Requirements 10.4, 10.5**
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationUpdate_IsAtomic()
     {
         return Prop.ForAll(ValidFontSizeChanges(), (fontSizes) =>
@@ -148,7 +148,7 @@ public class AutomaticTerminalResizeProperties
                                              !string.IsNullOrWhiteSpace(newFontConfig.BoldFontName) &&
                                              !string.IsNullOrWhiteSpace(newFontConfig.ItalicFontName) &&
                                              !string.IsNullOrWhiteSpace(newFontConfig.BoldItalicFontName);
-                    
+
                     return fontSizeUpdated && fontNamesConsistent;
                 }
                 else

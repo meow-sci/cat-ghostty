@@ -43,7 +43,7 @@ public class TerminalControllerConfigurationProperties
     ///     Feature: dpi-scaling-fix, Property 2: Configuration Acceptance and Application
     ///     Validates: Requirements 2.1, 2.2, 2.3, 2.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ConfigurationAcceptanceAndApplication_ShouldUseConfiguredMetrics()
     {
         return Prop.ForAll(ValidConfigurations(), config =>
@@ -87,7 +87,7 @@ public class TerminalControllerConfigurationProperties
     ///     Invalid configurations should be rejected with appropriate exceptions,
     ///     while valid configurations should be accepted.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ConfigurationValidation_ShouldEnforceValidBounds()
     {
         // Generate configurations that may be invalid
@@ -160,7 +160,7 @@ public class TerminalControllerConfigurationProperties
     ///     For any configuration and valid modifications, the WithModifications method
     ///     should produce a new configuration with the specified changes applied.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ConfigurationModifications_ShouldApplyChangesCorrectly()
     {
         return Prop.ForAll(ValidConfigurations(), ValidConfigurations(), (original, modifications) =>
@@ -203,7 +203,7 @@ public class TerminalControllerConfigurationProperties
     ///     Feature: dpi-scaling-fix, Property 6: Character Grid Alignment Consistency
     ///     Validates: Requirements 3.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CharacterGridAlignment_ShouldMaintainConsistentPositioning()
     {
         return Prop.ForAll(ValidConfigurations(), config =>
@@ -279,7 +279,7 @@ public class TerminalControllerConfigurationProperties
     ///     Feature: dpi-scaling-fix, Property 4: Runtime Configuration Updates
     ///     Validates: Requirements 5.1, 5.2, 5.3, 5.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property RuntimeConfigurationUpdates_ShouldApplyImmediately()
     {
         return Prop.ForAll(ValidConfigurations(), ValidConfigurations(), (originalConfig, newConfig) =>
@@ -348,7 +348,7 @@ public class TerminalControllerConfigurationProperties
     ///     For any configuration update, invalid configurations should be rejected
     ///     while valid configurations should be accepted for runtime updates.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property RuntimeUpdateValidation_ShouldEnforceValidation()
     {
         // Generate configurations that may be invalid for runtime updates

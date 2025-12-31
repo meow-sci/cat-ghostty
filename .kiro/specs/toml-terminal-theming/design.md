@@ -34,21 +34,176 @@ public static class TomlThemeLoader
 {
     public static List<TerminalTheme> LoadThemesFromDirectory(string themesDirectory);
     public static TerminalTheme? LoadThemeFromFile(string filePath);
-    private static TerminalColorPalette ParseColorPalette(TomlDocument tomlDocument);
+    private static TerminalColorPalette ParseColorPalette(TomlTable tomlTable);
     private static float4 ParseHexColor(string hexColor);
     private static string GetThemeDisplayName(string filePath);
+    private static bool ValidateThemeStructure(TomlTable tomlTable);
 }
 ```
 
 **Responsibilities:**
 - Discover TOML files in the TerminalThemes directory
-- Parse TOML structure using Samboy063.Tomlet library and validate required sections
+- Parse TOML structure using Tomlyn library and validate required sections
 - Convert hex color values to float4 format
 - Handle parsing errors gracefully
 - Extract theme display names from filenames
 
 **TOML Library Integration:**
-Uses the existing Samboy063.Tomlet library reference from KSA assemblies. The library provides TOML parsing capabilities through its API for reading TOML documents and accessing nested values.
+Uses the Tomlyn library for TOML parsing. The library provides comprehensive TOML parsing capabilities through its `Toml.ToModel<T>()` API for mapping to custom models and `Toml.Parse()` for syntax tree access. The implementation will use the custom model approach with `TomlTable` for flexible theme structure handling.
+
+**Tomlyn Usage Pattern:**
+```csharp
+// Load TOML file and parse to TomlTable
+var tomlContent = File.ReadAllText(filePath);
+var tomlTable = Toml.ToModel(tomlContent);
+
+// Access nested sections using dictionary-style access
+var colorsTable = (TomlTable)tomlTable["colors"];
+var normalColors = (TomlTable)colorsTable["normal"];
+var redColor = (string)normalColors["red"]; // "#d84a33"
+
+// Convert hex color to float4
+var colorValue = ParseHexColor(redColor);
+```
+
+**Error Handling with Tomlyn:**
+```csharp
+// Use TryToModel for graceful error handling
+var result = Toml.TryToModel(tomlContent, out var tomlTable, out var diagnostics);
+if (!result)
+{
+    foreach (var diagnostic in diagnostics)
+    {
+        Logger.LogError($"TOML parsing error: {diagnostic}");
+    }
+    return null;
+}
+```
+
+### TomlThemeLoader Implementation Details
+
+**File Loading and Parsing:**
+```csharp
+public static TerminalTheme? LoadThemeFromFile(string filePath)
+{
+    try
+    {
+        var tomlContent = File.ReadAllText(filePath);
+        
+        // Use TryToModel for graceful error handling
+        var success = Toml.TryToModel(tomlContent, out var tomlTable, out var diagnostics);
+        if (!success)
+        {
+            foreach (var diagnostic in diagnostics)
+            {
+                Logger.LogError($"TOML parsing error in {filePath}: {diagnostic}");
+            }
+            return null;
+        }
+        
+        // Validate required structure
+        if (!ValidateThemeStructure(tomlTable))
+        {
+            Logger.LogError($"Invalid theme structure in {filePath}");
+            return null;
+        }
+        
+        // Parse color palette
+        var colorPalette = ParseColorPalette(tomlTable);
+        var themeName = GetThemeDisplayName(filePath);
+        
+        return new TerminalTheme(
+            name: themeName,
+            type: ThemeType.Dark, // Could be determined from theme content
+            colors: colorPalette,
+            cursor: ParseCursorConfig(tomlTable),
+            source: ThemeSource.TomlFile,
+            filePath: filePath
+        );
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError($"Failed to load theme from {filePath}: {ex.Message}");
+        return null;
+    }
+}
+
+private static bool ValidateThemeStructure(TomlTable tomlTable)
+{
+    var requiredSections = new[] { "colors" };
+    var requiredColorSections = new[] { "normal", "bright", "primary", "cursor", "selection" };
+    
+    // Check for colors section
+    if (!tomlTable.ContainsKey("colors") || !(tomlTable["colors"] is TomlTable colorsTable))
+    {
+        return false;
+    }
+    
+    // Check for required color subsections
+    foreach (var section in requiredColorSections)
+    {
+        if (!colorsTable.ContainsKey(section) || !(colorsTable[section] is TomlTable))
+        {
+            Logger.LogWarning($"Missing required color section: colors.{section}");
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+private static TerminalColorPalette ParseColorPalette(TomlTable tomlTable)
+{
+    var colorsTable = (TomlTable)tomlTable["colors"];
+    
+    // Parse normal colors
+    var normalTable = (TomlTable)colorsTable["normal"];
+    var normalColors = new float4[8];
+    var colorNames = new[] { "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white" };
+    
+    for (int i = 0; i < colorNames.Length; i++)
+    {
+        var colorHex = (string)normalTable[colorNames[i]];
+        normalColors[i] = ParseHexColor(colorHex);
+    }
+    
+    // Parse bright colors
+    var brightTable = (TomlTable)colorsTable["bright"];
+    var brightColors = new float4[8];
+    
+    for (int i = 0; i < colorNames.Length; i++)
+    {
+        var colorHex = (string)brightTable[colorNames[i]];
+        brightColors[i] = ParseHexColor(colorHex);
+    }
+    
+    // Parse primary colors
+    var primaryTable = (TomlTable)colorsTable["primary"];
+    var background = ParseHexColor((string)primaryTable["background"]);
+    var foreground = ParseHexColor((string)primaryTable["foreground"]);
+    
+    // Parse cursor colors
+    var cursorTable = (TomlTable)colorsTable["cursor"];
+    var cursorColor = ParseHexColor((string)cursorTable["cursor"]);
+    var cursorText = ParseHexColor((string)cursorTable["text"]);
+    
+    // Parse selection colors
+    var selectionTable = (TomlTable)colorsTable["selection"];
+    var selectionBackground = ParseHexColor((string)selectionTable["background"]);
+    var selectionText = ParseHexColor((string)selectionTable["text"]);
+    
+    return new TerminalColorPalette(
+        normal: normalColors,
+        bright: brightColors,
+        background: background,
+        foreground: foreground,
+        cursor: cursorColor,
+        cursorText: cursorText,
+        selectionBackground: selectionBackground,
+        selectionText: selectionText
+    );
+}
+```
 
 ### Enhanced ThemeManager
 
@@ -297,7 +452,20 @@ After analyzing all acceptance criteria, several properties can be consolidated 
 
 ### TOML File Processing Errors
 
-**Invalid TOML Syntax**: When TOML files contain syntax errors, the system will log the specific error and filename, then continue processing other theme files. The invalid file will be skipped and not appear in the theme menu.
+**Invalid TOML Syntax**: When TOML files contain syntax errors, Tomlyn's `TryToModel()` method will return diagnostic information. The system will log the specific error details from the diagnostics and filename, then continue processing other theme files. The invalid file will be skipped and not appear in the theme menu.
+
+**Tomlyn Diagnostic Handling:**
+```csharp
+var success = Toml.TryToModel(tomlContent, out var tomlTable, out var diagnostics);
+if (!success)
+{
+    foreach (var diagnostic in diagnostics)
+    {
+        Logger.LogError($"TOML parsing error in {filePath}: Line {diagnostic.Span.Start.Line}, Column {diagnostic.Span.Start.Column}: {diagnostic.Message}");
+    }
+    return null;
+}
+```
 
 **Missing Required Sections**: Theme files missing any of the required color sections (colors.normal, colors.bright, colors.primary, colors.cursor, colors.selection) will be rejected during validation. The system will log which sections are missing and skip the file.
 
@@ -356,7 +524,7 @@ Each property test will run a minimum of 100 iterations to ensure comprehensive 
 
 ### Testing Framework
 
-The implementation will use **NUnit 4.x** with **FsCheck.NUnit** for property-based testing, following the established C# testing patterns in the caTTY project. **TOML parsing will utilize the existing Samboy063.Tomlet library reference from KSA assemblies.** Tests will be organized in the `caTTY.Display.Tests` project with the following structure:
+The implementation will use **NUnit 4.x** with **FsCheck.NUnit** for property-based testing, following the established C# testing patterns in the caTTY project. **TOML parsing will utilize the Tomlyn library with its `Toml.ToModel<T>()` and `TomlTable` APIs for flexible theme structure handling.** Tests will be organized in the `caTTY.Display.Tests` project with the following structure:
 
 ```
 caTTY.Display.Tests/

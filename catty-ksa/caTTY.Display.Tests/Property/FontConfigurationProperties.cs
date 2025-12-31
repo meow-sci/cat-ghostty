@@ -21,7 +21,7 @@ public class FontConfigurationProperties
         var fontNames = new[]
         {
             "HackNerdFontMono-Regular",
-            "HackNerdFontMono-Bold", 
+            "HackNerdFontMono-Bold",
             "HackNerdFontMono-Italic",
             "HackNerdFontMono-BoldItalic",
             "Arial",
@@ -31,7 +31,7 @@ public class FontConfigurationProperties
             "Liberation Mono",
             "Source Code Pro"
         };
-        
+
         return Gen.Elements(fontNames).ToArbitrary();
     }
 
@@ -73,13 +73,13 @@ public class FontConfigurationProperties
 
     /// <summary>
     ///     Property 1: Font Configuration Acceptance and Application
-    ///     For any valid TerminalFontConfig provided to the TerminalController, the system should 
-    ///     load the specified fonts and use them consistently for character rendering, with 
+    ///     For any valid TerminalFontConfig provided to the TerminalController, the system should
+    ///     load the specified fonts and use them consistently for character rendering, with
     ///     appropriate fallbacks when fonts are unavailable.
     ///     Feature: font-configuration, Property 1: Font Configuration Acceptance and Application
     ///     Validates: Requirements 1.1, 1.2, 1.3, 1.4, 2.1, 2.2
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationAcceptanceAndApplication_ShouldAcceptValidConfigurations()
     {
         return Prop.ForAll(ValidFontConfigurations(), fontConfig =>
@@ -92,7 +92,7 @@ public class FontConfigurationProperties
                 // Test that font configuration values are within expected bounds
                 bool fontSizeValid = fontConfig.FontSize > 0 && fontConfig.FontSize <= 72;
                 bool regularFontValid = !string.IsNullOrWhiteSpace(fontConfig.RegularFontName);
-                
+
                 // After validation, fallback fonts should be set if null
                 bool boldFontSet = !string.IsNullOrWhiteSpace(fontConfig.BoldFontName);
                 bool italicFontSet = !string.IsNullOrWhiteSpace(fontConfig.ItalicFontName);
@@ -101,35 +101,35 @@ public class FontConfigurationProperties
                 // Test that factory methods produce valid configurations
                 var testAppConfig = TerminalFontConfig.CreateForTestApp();
                 var gameModConfig = TerminalFontConfig.CreateForGameMod();
-                
+
                 testAppConfig.Validate();
                 gameModConfig.Validate();
-                
-                bool testAppValid = testAppConfig.FontSize == 32.0f && 
+
+                bool testAppValid = testAppConfig.FontSize == 32.0f &&
                                    !testAppConfig.AutoDetectContext &&
                                    testAppConfig.RegularFontName == "HackNerdFontMono-Regular";
-                                   
-                bool gameModValid = gameModConfig.FontSize == 32.0f && 
+
+                bool gameModValid = gameModConfig.FontSize == 32.0f &&
                                    !gameModConfig.AutoDetectContext &&
                                    gameModConfig.RegularFontName == "HackNerdFontMono-Regular";
 
                 // Test that font configuration can be used for font selection logic
                 bool fontSelectionConsistent = true;
-                
+
                 // Simulate font style selection logic
                 var regularSelected = fontConfig.RegularFontName;
                 var boldSelected = fontConfig.BoldFontName;
                 var italicSelected = fontConfig.ItalicFontName;
                 var boldItalicSelected = fontConfig.BoldItalicFontName;
-                
+
                 // All font selections should be valid strings
                 fontSelectionConsistent = !string.IsNullOrWhiteSpace(regularSelected) &&
                                          !string.IsNullOrWhiteSpace(boldSelected) &&
                                          !string.IsNullOrWhiteSpace(italicSelected) &&
                                          !string.IsNullOrWhiteSpace(boldItalicSelected);
 
-                return fontSizeValid && regularFontValid && boldFontSet && 
-                       italicFontSet && boldItalicFontSet && testAppValid && 
+                return fontSizeValid && regularFontValid && boldFontSet &&
+                       italicFontSet && boldItalicFontSet && testAppValid &&
                        gameModValid && fontSelectionConsistent;
             }
             catch (ArgumentException)
@@ -151,7 +151,7 @@ public class FontConfigurationProperties
     ///     Invalid font configurations should be rejected with appropriate exceptions,
     ///     while valid configurations should be accepted.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationValidation_ShouldEnforceValidBounds()
     {
         // Generate font configurations that may be invalid
@@ -165,7 +165,7 @@ public class FontConfigurationProperties
             {
                 RegularFontName = regularFont ?? "",
                 BoldFontName = "HackNerdFontMono-Bold",
-                ItalicFontName = "HackNerdFontMono-Italic", 
+                ItalicFontName = "HackNerdFontMono-Italic",
                 BoldItalicFontName = "HackNerdFontMono-BoldItalic",
                 FontSize = fontSize,
                 AutoDetectContext = autoDetect
@@ -184,12 +184,12 @@ public class FontConfigurationProperties
                 {
                     // Valid configuration should pass validation
                     config.Validate();
-                    
+
                     // After validation, fallback fonts should be properly set
                     bool fallbacksSet = !string.IsNullOrWhiteSpace(config.BoldFontName) &&
                                        !string.IsNullOrWhiteSpace(config.ItalicFontName) &&
                                        !string.IsNullOrWhiteSpace(config.BoldItalicFontName);
-                    
+
                     return fallbacksSet;
                 }
 
@@ -226,7 +226,7 @@ public class FontConfigurationProperties
     ///     Factory methods should produce consistent and predictable font configurations
     ///     for different execution contexts.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationFactoryMethods_ShouldProduceConsistentConfigurations()
     {
         return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>
@@ -235,8 +235,8 @@ public class FontConfigurationProperties
             {
                 // Test TestApp configuration
                 var testAppConfig = TerminalFontConfig.CreateForTestApp();
-                
-                // Test GameMod configuration  
+
+                // Test GameMod configuration
                 var gameModConfig = TerminalFontConfig.CreateForGameMod();
 
                 // Verify TestApp uses development-friendly defaults
@@ -261,7 +261,7 @@ public class FontConfigurationProperties
 
                 // Test that configurations are different where expected
                 bool fontSizeDifferent = Math.Abs(testAppConfig.FontSize - gameModConfig.FontSize) < 0.001f;
-                
+
                 // Test that font names are consistent between contexts
                 bool fontNamesConsistent = testAppConfig.RegularFontName == gameModConfig.RegularFontName &&
                                           testAppConfig.BoldFontName == gameModConfig.BoldFontName &&
@@ -282,7 +282,7 @@ public class FontConfigurationProperties
     ///     For any font configuration and SGR attributes, font selection should be
     ///     consistent and deterministic based on bold/italic combinations.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontStyleSelection_ShouldBeConsistentAndDeterministic()
     {
         return Prop.ForAll(ValidFontConfigurations(), fontConfig =>
@@ -334,7 +334,7 @@ public class FontConfigurationProperties
                 // Test that different attribute combinations produce different results when possible
                 bool regularDifferentFromBold = fontConfig.RegularFontName != fontConfig.BoldFontName ||
                                                fontConfig.RegularFontName == fontConfig.BoldFontName; // Fallback case is OK
-                
+
                 return deterministic && regularDifferentFromBold;
             }
             catch (ArgumentException)
@@ -354,7 +354,7 @@ public class FontConfigurationProperties
     ///     When font names are null or empty, the configuration should fall back
     ///     to the regular font name after validation.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationFallback_ShouldUseRegularFontAsDefault()
     {
         return Prop.ForAll(ValidFontNames(), ValidFontSizes(), (regularFont, fontSize) =>
@@ -429,7 +429,7 @@ public class FontConfigurationProperties
     ///     consistent and reasonable values based on font size and scaling factors.
     ///     Validates: Requirements 2.3, character positioning accuracy
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CharacterMetricsCalculation_ShouldProduceConsistentValues()
     {
         return Prop.ForAll(ValidFontConfigurations(), fontConfig =>
@@ -460,24 +460,24 @@ public class FontConfigurationProperties
                 var scaledMetrics15x = fontConfig.CalculateScaledCharacterMetrics(1.5f);
 
                 // Verify scaling relationships
-                bool scalingConsistent = 
+                bool scalingConsistent =
                     Math.Abs(scaledMetrics1x.Width - metrics.Width) < 0.001f &&
                     Math.Abs(scaledMetrics2x.Width - metrics.Width * 2.0f) < 0.001f &&
                     Math.Abs(scaledMetrics15x.Width - metrics.Width * 1.5f) < 0.001f;
 
                 // Test that scaled metrics maintain proportions
-                bool proportionsPreserved = 
+                bool proportionsPreserved =
                     Math.Abs(scaledMetrics2x.Height / scaledMetrics2x.Width - metrics.Height / metrics.Width) < 0.01f;
 
                 // Test edge cases for DPI scaling
                 var scaledMetricsZero = fontConfig.CalculateScaledCharacterMetrics(0.0f);
                 var scaledMetricsNegative = fontConfig.CalculateScaledCharacterMetrics(-1.0f);
-                
+
                 bool edgeCasesHandled = scaledMetricsZero.Width == 0 && scaledMetricsZero.Height == 0 &&
                                        scaledMetricsNegative.Width <= 0 && scaledMetricsNegative.Height <= 0;
 
-                return widthReasonable && heightReasonable && baselineReasonable && 
-                       fontSizeMatches && fontNameMatches && consistent && 
+                return widthReasonable && heightReasonable && baselineReasonable &&
+                       fontSizeMatches && fontNameMatches && consistent &&
                        scalingConsistent && proportionsPreserved && edgeCasesHandled;
             }
             catch (ArgumentException)
@@ -500,7 +500,7 @@ public class FontConfigurationProperties
     ///     Feature: font-configuration, Property 4: Runtime Font Configuration Updates
     ///     Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property RuntimeFontConfigurationUpdates_ShouldApplyImmediately()
     {
         return Prop.ForAll(ValidFontConfigurations(), ValidFontConfigurations(), (originalConfig, newConfig) =>
@@ -542,7 +542,7 @@ public class FontConfigurationProperties
                     // Font size changes should affect character metrics proportionally
                     float sizeRatio = newConfig.FontSize / originalConfig.FontSize;
                     bool sizeRatioReasonable = sizeRatio > 0.1f && sizeRatio < 10.0f; // Reasonable bounds
-                    
+
                     if (!sizeRatioReasonable)
                     {
                         return false;
@@ -606,10 +606,10 @@ public class FontConfigurationProperties
                     float expectedRatio = newConfig.FontSize / originalConfig.FontSize;
                     float actualXRatio = newCursorX / originalCursorX;
                     float actualYRatio = newCursorY / originalCursorY;
-                    
+
                     bool proportionalChange = Math.Abs(actualXRatio - expectedRatio) < 0.1f &&
                                              Math.Abs(actualYRatio - expectedRatio) < 0.1f;
-                    
+
                     cursorPositionAccurate = cursorPositionAccurate && proportionalChange;
                 }
 

@@ -52,21 +52,21 @@ public class MouseEscapeSequenceProperties
     ///     Property: For any mouse event requiring escape sequence generation, the terminal should
     ///     use SGR format when SGR encoding is enabled and standard X10/X11 format otherwise.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEncodingFormatSelectionIsCorrect()
     {
         return Prop.ForAll(MouseButtonArb, TerminalCoordinateArb, MouseKeyModifiersArb,
             (button, x1, modifiers) =>
         {
             var y1 = x1 + 1; // Simple derived coordinate
-            
+
             // Test both encoding formats
             var sgrSequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, true);
             var x10Sequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, false);
 
             // Assert - SGR format: ESC[<...M
             bool sgrIsCorrect = sgrSequence.StartsWith("\x1b[<") && sgrSequence.EndsWith("M");
-            
+
             // Assert - X10 format: ESC[M + 3 bytes
             bool x10IsCorrect = x10Sequence.StartsWith("\x1b[M") && x10Sequence.Length == 6;
 
@@ -80,7 +80,7 @@ public class MouseEscapeSequenceProperties
     ///     Property: For any mouse coordinates above 223, SGR encoding should handle them correctly
     ///     while standard encoding should clamp them to X10/X11 limitations.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseCoordinateEncodingRangeIsCorrect()
     {
         return Prop.ForAll(MouseButtonArb, MouseKeyModifiersArb,
@@ -89,7 +89,7 @@ public class MouseEscapeSequenceProperties
             // Use coordinates that will test the boundary (above 223)
             var x1 = 500; // Above X10 limit
             var y1 = 600; // Above X10 limit
-            
+
             // Act - Generate sequences with both encoding formats
             var sgrSequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, true);
             var x10Sequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, false);
@@ -116,14 +116,14 @@ public class MouseEscapeSequenceProperties
     ///     Property: For any mouse event with modifier keys held, the generated escape sequence should
     ///     correctly encode all active modifiers (shift, alt, ctrl) in the appropriate format.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEventModifierEncodingIsCorrect()
     {
         return Prop.ForAll(MouseButtonArb, TerminalCoordinateArb, MouseKeyModifiersArb,
             (button, x1, modifiers) =>
         {
             var y1 = x1 + 1;
-            
+
             // Act - Generate escape sequence with modifiers
             var sgrSequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, true);
             var x10Sequence = EscapeSequenceGenerator.GenerateMousePress(button, x1, y1, modifiers, false);

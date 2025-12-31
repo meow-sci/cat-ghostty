@@ -401,7 +401,7 @@ public class TerminalController : ITerminalController
       var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(_fontConfig);
       _currentFontFamily = detectedFamily ?? "Hack"; // Default fallback
       
-      Console.WriteLine($"TerminalController: Initialized current font family: {_currentFontFamily}");
+      // Console.WriteLine($"TerminalController: Initialized current font family: {_currentFontFamily}");
     }
     catch (Exception ex)
     {

@@ -2,7 +2,6 @@ using System.Reflection;
 using Brutal.ImGuiApi;
 using KSA;
 using caTTY.Display.Configuration;
-using Tomlet;
 
 namespace caTTY.Display.Rendering;
 
@@ -135,7 +134,7 @@ public class CaTTYFontManager
     RegisterFontFamily("Departure Mono", "DepartureMonoNerdFont", 
       hasRegular: true, hasBold: false, hasItalic: false, hasBoldItalic: false);
 
-    Console.WriteLine($"CaTTYFontManager: Font registry initialized with {_fontRegistry.Count} font families");
+    // Console.WriteLine($"CaTTYFontManager: Font registry initialized with {_fontRegistry.Count} font families");
     _registryInitialized = true;
   }
 
@@ -162,7 +161,7 @@ public class CaTTYFontManager
     };
 
     _fontRegistry[displayName] = definition;
-    Console.WriteLine($"CaTTYFontManager: Registered font family: {displayName} -> {fontBaseName}");
+    // Console.WriteLine($"CaTTYFontManager: Registered font family: {displayName} -> {fontBaseName}");
   }
 
   /// <summary>
@@ -194,16 +193,16 @@ public class CaTTYFontManager
   /// <returns>A TerminalFontConfig configured for the specified font family, or default configuration if font family not found.</returns>
   public static TerminalFontConfig CreateFontConfigForFamily(string displayName, float fontSize = 32.0f)
   {
-    Console.WriteLine($"CaTTYFontManager: Creating font configuration for family: {displayName}, size: {fontSize}");
+    // Console.WriteLine($"CaTTYFontManager: Creating font configuration for family: {displayName}, size: {fontSize}");
 
     var definition = GetFontFamilyDefinition(displayName);
     if (definition == null)
     {
-      Console.WriteLine($"CaTTYFontManager: Unknown font family '{displayName}', using default configuration");
+      // Console.WriteLine($"CaTTYFontManager: Unknown font family '{displayName}', using default configuration");
       return TerminalFontConfig.CreateForTestApp();
     }
 
-    Console.WriteLine($"CaTTYFontManager: Found font family definition: {definition}");
+    // Console.WriteLine($"CaTTYFontManager: Found font family definition: {definition}");
 
     // Create font configuration with variant fallback logic
     var regularFontName = $"{definition.FontBaseName}-Regular";
@@ -211,7 +210,7 @@ public class CaTTYFontManager
     var italicFontName = definition.HasItalic ? $"{definition.FontBaseName}-Italic" : regularFontName;
     var boldItalicFontName = definition.HasBoldItalic ? $"{definition.FontBaseName}-BoldItalic" : regularFontName;
 
-    Console.WriteLine($"CaTTYFontManager: Font configuration - Regular: {regularFontName}, Bold: {boldFontName}, Italic: {italicFontName}, BoldItalic: {boldItalicFontName}");
+    // Console.WriteLine($"CaTTYFontManager: Font configuration - Regular: {regularFontName}, Bold: {boldFontName}, Italic: {italicFontName}, BoldItalic: {boldItalicFontName}");
 
     var config = new TerminalFontConfig
     {
@@ -223,7 +222,7 @@ public class CaTTYFontManager
       AutoDetectContext = false
     };
 
-    Console.WriteLine($"CaTTYFontManager: Successfully created font configuration for '{displayName}'");
+    // Console.WriteLine($"CaTTYFontManager: Successfully created font configuration for '{displayName}'");
     return config;
   }
 
@@ -237,11 +236,11 @@ public class CaTTYFontManager
   {
     if (currentConfig == null)
     {
-      Console.WriteLine("CaTTYFontManager: GetCurrentFontFamily called with null config");
+      // Console.WriteLine("CaTTYFontManager: GetCurrentFontFamily called with null config");
       return null;
     }
 
-    Console.WriteLine($"CaTTYFontManager: Detecting font family for RegularFontName: {currentConfig.RegularFontName}");
+    // Console.WriteLine($"CaTTYFontManager: Detecting font family for RegularFontName: {currentConfig.RegularFontName}");
 
     // Find which font family matches the current configuration
     foreach (var kvp in _fontRegistry)
@@ -251,12 +250,12 @@ public class CaTTYFontManager
 
       if (currentConfig.RegularFontName == expectedRegular)
       {
-        Console.WriteLine($"CaTTYFontManager: Detected font family: {kvp.Key} (matched {expectedRegular})");
+        // Console.WriteLine($"CaTTYFontManager: Detected font family: {kvp.Key} (matched {expectedRegular})");
         return kvp.Key; // Return display name
       }
     }
 
-    Console.WriteLine($"CaTTYFontManager: No matching font family found for RegularFontName: {currentConfig.RegularFontName}");
+    // Console.WriteLine($"CaTTYFontManager: No matching font family found for RegularFontName: {currentConfig.RegularFontName}");
     return null; // Current config doesn't match any registered family
   }
 }

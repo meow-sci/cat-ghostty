@@ -66,7 +66,7 @@ public class MouseEventProperties
     ///     Property: For any valid mouse event parameters, creating a MouseEvent should
     ///     preserve all input values and maintain structural integrity.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEventPreservesInputValues()
     {
         return Prop.ForAll(MouseEventTypeArb, MouseButtonArb, TerminalCoordinateArb,
@@ -86,7 +86,7 @@ public class MouseEventProperties
                 bool modifiersMatch = mouseEvent.Modifiers == modifiers;
                 bool timestampMatches = mouseEvent.Timestamp == timestamp;
 
-                return typeMatches && buttonMatches && coordinatesMatch && 
+                return typeMatches && buttonMatches && coordinatesMatch &&
                        modifiersMatch && timestampMatches;
             });
     }
@@ -97,7 +97,7 @@ public class MouseEventProperties
     ///     Property: For any mouse event, creating two identical events should be equal,
     ///     and different events should not be equal.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEventEqualityIsConsistent()
     {
         return Prop.ForAll(MouseEventTypeArb, MouseButtonArb, TerminalCoordinateArb,
@@ -122,7 +122,7 @@ public class MouseEventProperties
                 bool differentEventsNotEqualOperator = event1 != differentEvent;
                 bool hashCodesMatch = event1.GetHashCode() == event2.GetHashCode();
 
-                return identicalEventsEqual && identicalEventsEqualOperator && 
+                return identicalEventsEqual && identicalEventsEqualOperator &&
                        differentEventsNotEqual && differentEventsNotEqualOperator && hashCodesMatch;
             });
     }
@@ -133,7 +133,7 @@ public class MouseEventProperties
     ///     Property: For any mouse button value, the button should be correctly identified
     ///     and match expected xterm protocol values.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseButtonIdentificationIsCorrect()
     {
         return Prop.ForAll(MouseButtonArb, button =>
@@ -164,7 +164,7 @@ public class MouseEventProperties
     ///     Property: For any valid 1-based coordinates, the mouse event should preserve
     ///     the coordinate values exactly as provided.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseCoordinatesArePreserved()
     {
         return Prop.ForAll(TerminalCoordinateArb, TerminalCoordinateArb, (x1, y1) =>
@@ -186,7 +186,7 @@ public class MouseEventProperties
     ///     Property: For any modifier key combination, the modifiers should be preserved
     ///     and match expected xterm protocol bit values.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseModifierEncodingIsCorrect()
     {
         return Prop.ForAll(MouseKeyModifiersArb, modifiers =>
@@ -196,13 +196,13 @@ public class MouseEventProperties
 
             // Assert - Modifiers are preserved and have correct bit values
             bool modifiersPreserved = mouseEvent.Modifiers == modifiers;
-            
+
             // Check individual modifier bit values match xterm protocol
-            bool shiftBitCorrect = (modifiers & MouseKeyModifiers.Shift) == 0 || 
+            bool shiftBitCorrect = (modifiers & MouseKeyModifiers.Shift) == 0 ||
                                    ((int)modifiers & 4) == 4;
-            bool altBitCorrect = (modifiers & MouseKeyModifiers.Alt) == 0 || 
+            bool altBitCorrect = (modifiers & MouseKeyModifiers.Alt) == 0 ||
                                  ((int)modifiers & 8) == 8;
-            bool ctrlBitCorrect = (modifiers & MouseKeyModifiers.Ctrl) == 0 || 
+            bool ctrlBitCorrect = (modifiers & MouseKeyModifiers.Ctrl) == 0 ||
                                   ((int)modifiers & 16) == 16;
 
             return modifiersPreserved && shiftBitCorrect && altBitCorrect && ctrlBitCorrect;
@@ -215,14 +215,14 @@ public class MouseEventProperties
     ///     Property: For any mouse event, the timestamp should be preserved when provided,
     ///     or set to current time when not provided.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEventTimestampHandlingIsCorrect()
     {
         return Prop.ForAll(TimestampArb, providedTimestamp =>
         {
             // Act - Create event with explicit timestamp
             var eventWithTimestamp = new MouseEvent(
-                MouseEventType.Press, MouseButton.Left, 1, 1, 
+                MouseEventType.Press, MouseButton.Left, 1, 1,
                 MouseKeyModifiers.None, providedTimestamp);
 
             // Create event without explicit timestamp (should use current time)
@@ -233,7 +233,7 @@ public class MouseEventProperties
 
             // Assert - Timestamp behavior
             bool explicitTimestampPreserved = eventWithTimestamp.Timestamp == providedTimestamp;
-            bool implicitTimestampReasonable = 
+            bool implicitTimestampReasonable =
                 eventWithoutTimestamp.Timestamp >= beforeCreation &&
                 eventWithoutTimestamp.Timestamp <= afterCreation;
 
@@ -247,7 +247,7 @@ public class MouseEventProperties
     ///     Property: For any mouse event, the string representation should contain
     ///     all essential information in a readable format.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MouseEventStringRepresentationIsComplete()
     {
         return Prop.ForAll(MouseEventTypeArb, MouseButtonArb, TerminalCoordinateArb,
@@ -264,10 +264,10 @@ public class MouseEventProperties
                 bool containsEventType = stringRep.Contains(eventType.ToString());
                 bool containsButton = stringRep.Contains(button.ToString());
                 bool containsCoordinates = stringRep.Contains($"({x1},{y1})");
-                bool containsModifiersWhenPresent = modifiers == MouseKeyModifiers.None || 
+                bool containsModifiersWhenPresent = modifiers == MouseKeyModifiers.None ||
                                                     stringRep.Contains(modifiers.ToString());
 
-                return containsEventType && containsButton && containsCoordinates && 
+                return containsEventType && containsButton && containsCoordinates &&
                        containsModifiersWhenPresent;
             });
     }

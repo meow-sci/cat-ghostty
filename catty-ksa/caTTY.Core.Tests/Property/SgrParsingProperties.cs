@@ -42,7 +42,7 @@ public class SgrParsingProperties
     ///     Property: For any valid SGR sequence, parsing should succeed and produce
     ///     a valid SgrSequence with consistent message structure.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SgrParsingProducesValidSequence()
     {
         return Prop.ForAll(SimpleSgrSequenceArb, sequence =>
@@ -70,7 +70,7 @@ public class SgrParsingProperties
     ///     Property: For any valid parameter string, parsing should be consistent
     ///     regardless of separator type (semicolon vs colon).
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SgrParameterParsingIsConsistent()
     {
         return Prop.ForAll(ValidSgrParameterArb, ValidSgrParameterArb, (param1, param2) =>
@@ -99,7 +99,7 @@ public class SgrParsingProperties
     ///     Property: For any SGR reset sequence (CSI 0 m), applying it multiple times
     ///     should produce the same result as applying it once.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SgrResetIsIdempotent()
     {
         return Prop.ForAll<bool, bool>((bold, italic) =>
@@ -112,7 +112,7 @@ public class SgrParsingProperties
 
             // Act - Apply reset once
             var afterOneReset = parser.ApplyAttributes(initialAttributes, resetSequence.Messages);
-            
+
             // Apply reset again
             var afterTwoResets = parser.ApplyAttributes(afterOneReset, resetSequence.Messages);
 
@@ -130,7 +130,7 @@ public class SgrParsingProperties
     ///     Property: For any valid RGB color sequence, the parsed color should
     ///     match the input RGB values exactly.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property RgbColorParsingIsCorrect()
     {
         return Prop.ForAll(ColorComponentArb, ColorComponentArb, ColorComponentArb, (r, g, b) =>
@@ -142,7 +142,7 @@ public class SgrParsingProperties
 
             // Act
             var result = parser.ParseSgrSequence(sequenceBytes, sequence);
-            var colorMessage = result.Messages.FirstOrDefault(m => 
+            var colorMessage = result.Messages.FirstOrDefault(m =>
                 m.Type == "sgr.foregroundColor" || m.Type == "sgr.backgroundColor");
 
             // Assert - Color should match input values
@@ -161,7 +161,7 @@ public class SgrParsingProperties
     ///     Property: For any SGR sequence that modifies specific attributes, unrelated
     ///     attributes should remain unchanged.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SgrApplicationPreservesUnrelatedAttributes()
     {
         return Prop.ForAll<bool, bool>((initialItalic, initialUnderline) =>
@@ -177,7 +177,7 @@ public class SgrParsingProperties
 
             // Assert - Only bold should change, other attributes preserved
             bool boldChanged = result.Bold == true;
-            bool otherAttributesPreserved = 
+            bool otherAttributesPreserved =
                 result.Italic == initialAttributes.Italic &&
                 result.Underline == initialAttributes.Underline;
 
@@ -191,7 +191,7 @@ public class SgrParsingProperties
     ///     Property: For any valid 256-color sequence, the parsed color should
     ///     match the input index exactly.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property IndexedColorParsingIsCorrect()
     {
         return Prop.ForAll(Arb.From(Gen.Choose(0, 255)), index =>
@@ -203,7 +203,7 @@ public class SgrParsingProperties
 
             // Act
             var result = parser.ParseSgrSequence(sequenceBytes, sequence);
-            var colorMessage = result.Messages.FirstOrDefault(m => 
+            var colorMessage = result.Messages.FirstOrDefault(m =>
                 m.Type == "sgr.foregroundColor" || m.Type == "sgr.backgroundColor");
 
             // Assert - Color should match input index
@@ -222,7 +222,7 @@ public class SgrParsingProperties
     ///     Property: For any valid underline style sequence, the parsed underline style
     ///     should match the expected style for the input parameter.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnderlineStyleParsingIsCorrect()
     {
         return Prop.ForAll(Arb.From(Gen.Choose(0, 5)), styleParam =>
@@ -271,7 +271,7 @@ public class SgrParsingProperties
     ///     Property: For any SGR attributes state, applying a reset SGR sequence (CSI 0 m)
     ///     should always result in the default attributes state, regardless of the initial state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property SgrResetAlwaysProducesDefaultState()
     {
         return Prop.ForAll<bool, bool>((bold, italic) =>
@@ -293,7 +293,7 @@ public class SgrParsingProperties
                 font: 3); // Some arbitrary font
 
             var parser = new SgrParser(NullLogger.Instance);
-            
+
             // Test both explicit reset (CSI 0 m) and implicit reset (CSI m)
             var explicitResetSequence = parser.ParseSgrSequence(
                 System.Text.Encoding.UTF8.GetBytes("\x1b[0m"), "\x1b[0m");
@@ -310,7 +310,7 @@ public class SgrParsingProperties
             bool bothResetsSame = afterExplicitReset.Equals(afterImplicitReset);
 
             // Verify specific properties are reset
-            bool allBooleanAttributesReset = 
+            bool allBooleanAttributesReset =
                 !afterExplicitReset.Bold &&
                 !afterExplicitReset.Faint &&
                 !afterExplicitReset.Italic &&
@@ -320,7 +320,7 @@ public class SgrParsingProperties
                 !afterExplicitReset.Hidden &&
                 !afterExplicitReset.Strikethrough;
 
-            bool allColorsReset = 
+            bool allColorsReset =
                 !afterExplicitReset.ForegroundColor.HasValue &&
                 !afterExplicitReset.BackgroundColor.HasValue &&
                 !afterExplicitReset.UnderlineColor.HasValue;
@@ -328,7 +328,7 @@ public class SgrParsingProperties
             bool underlineStyleReset = afterExplicitReset.UnderlineStyle == UnderlineStyle.None;
             bool fontReset = afterExplicitReset.Font == 0;
 
-            return explicitResetWorks && implicitResetWorks && bothResetsSame && 
+            return explicitResetWorks && implicitResetWorks && bothResetsSame &&
                    allBooleanAttributesReset && allColorsReset && underlineStyleReset && fontReset;
         });
     }

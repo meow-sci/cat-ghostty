@@ -26,7 +26,7 @@ public class CursorMovementProperties
     ///     **Validates: Requirements 8.4, 11.1, 11.2, 11.3, 11.4, 11.5**
     ///     Property: For any cursor movement sequence, the cursor should never move outside the terminal boundaries.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorMovementMaintainsBounds()
     {
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
@@ -57,7 +57,7 @@ public class CursorMovementProperties
     ///     Property: Cursor movement sequences are deterministic.
     ///     Applying the same cursor movement sequence should always produce the same result.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorMovementIsDeterministic()
     {
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
@@ -86,7 +86,7 @@ public class CursorMovementProperties
     ///     Property: Cursor movement preserves terminal state integrity.
     ///     After any cursor movement, the terminal should remain in a valid state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorMovementPreservesStateIntegrity()
     {
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
@@ -123,7 +123,7 @@ public class CursorMovementProperties
     ///     Property: For any terminal with auto-wrap enabled, writing characters at the right edge should wrap to the next line.
     ///     For any terminal with auto-wrap disabled, writing characters at the right edge should keep cursor at the edge.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorWrappingBehavior()
     {
         return Prop.ForAll(
@@ -134,33 +134,33 @@ public class CursorMovementProperties
             {
                 // Test with auto-wrap enabled
                 var terminalWithWrap = new TerminalEmulator(width, height);
-                
+
                 // Enable auto-wrap mode (should be default, but make it explicit)
                 terminalWithWrap.Write("\x1b[?7h");
-                
+
                 // Position cursor at right edge
                 terminalWithWrap.Write($"\x1b[1;{width}H");
-                
+
                 // Write characters that should trigger wrapping
                 string testChars = new string('X', charCount);
                 terminalWithWrap.Write(testChars);
-                
+
                 ICursor cursorWithWrap = terminalWithWrap.Cursor;
-                
+
                 // Test with auto-wrap disabled
                 var terminalWithoutWrap = new TerminalEmulator(width, height);
-                
+
                 // Disable auto-wrap mode
                 terminalWithoutWrap.Write("\x1b[?7l");
-                
+
                 // Position cursor at right edge
                 terminalWithoutWrap.Write($"\x1b[1;{width}H");
-                
+
                 // Write the same characters
                 terminalWithoutWrap.Write(testChars);
-                
+
                 ICursor cursorWithoutWrap = terminalWithoutWrap.Cursor;
-                
+
                 // Verify wrapping behavior
                 bool wrapBehaviorCorrect;
                 if (charCount > 1)
@@ -176,16 +176,16 @@ public class CursorMovementProperties
                     // The difference appears when writing additional characters
                     wrapBehaviorCorrect = true;
                 }
-                
+
                 // Verify cursors are within bounds
                 bool cursorsInBounds = cursorWithWrap.Row >= 0 && cursorWithWrap.Row < height &&
                                       cursorWithWrap.Col >= 0 && cursorWithWrap.Col < width &&
                                       cursorWithoutWrap.Row >= 0 && cursorWithoutWrap.Row < height &&
                                       cursorWithoutWrap.Col >= 0 && cursorWithoutWrap.Col < width;
-                
+
                 terminalWithWrap.Dispose();
                 terminalWithoutWrap.Dispose();
-                
+
                 return wrapBehaviorCorrect && cursorsInBounds;
             });
     }

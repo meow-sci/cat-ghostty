@@ -79,7 +79,7 @@ public class OscParsingProperties
     ///     Property: For any valid OSC sequence, parsing should succeed and produce
     ///     a valid OscMessage with consistent structure and proper event emission.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscParsingProducesValidMessage()
     {
         return Prop.ForAll(ValidOscCommandArb, SafeTextArb, OscTerminatorArb, (command, payload, terminator) =>
@@ -93,11 +93,11 @@ public class OscParsingProperties
             // Act - Process bytes one by one to simulate real parsing
             OscMessage? result = null;
             bool sequenceComplete = false;
-            
+
             for (int i = 0; i < sequenceBytes.Count && !sequenceComplete; i++)
             {
                 byte b = sequenceBytes[i];
-                
+
                 if (i >= 2) // Skip ESC ] prefix
                 {
                     if (b == 0x1b && i + 1 < sequenceBytes.Count && sequenceBytes[i + 1] == 0x5c)
@@ -126,7 +126,7 @@ public class OscParsingProperties
 
             // Assert - Basic structure validation
             if (result == null) return false;
-            
+
             bool hasValidType = result.Type == "osc";
             bool hasValidRaw = !string.IsNullOrEmpty(result.Raw);
             bool hasValidTerminator = result.Terminator == terminator;
@@ -138,7 +138,7 @@ public class OscParsingProperties
                 bool hasValidXtermType = !string.IsNullOrEmpty(result.XtermMessage.Type);
                 bool hasValidCommand = result.XtermMessage.Command >= 0 && result.XtermMessage.Command <= 999;
                 bool hasValidPayload = result.XtermMessage.Payload != null;
-                
+
                 return hasValidType && hasValidRaw && hasValidTerminator && implementedFlagSet &&
                        hasValidXtermType && hasValidCommand && hasValidPayload;
             }
@@ -153,7 +153,7 @@ public class OscParsingProperties
     ///     Property: For any valid OSC title sequence (0, 1, 2), the terminal should
     ///     emit the appropriate title/icon change events with correct data.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscTitleSequenceEmitsCorrectEvents()
     {
         return Prop.ForAll<int, string, string>((command, title, terminator) =>
@@ -165,7 +165,7 @@ public class OscParsingProperties
             var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]{command};{title}{terminatorBytes}";
-            
+
             // Track events
             string? receivedTitle = null;
             string? receivedIconName = null;
@@ -218,10 +218,10 @@ public class OscParsingProperties
     ///     Property: For any valid OSC 52 clipboard sequence, the terminal should
     ///     emit clipboard events with correct selection target and decoded data.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscClipboardSequenceEmitsCorrectEvents()
     {
-        return Prop.ForAll(ClipboardSelectionArb, Base64StringArb, OscTerminatorArb, 
+        return Prop.ForAll(ClipboardSelectionArb, Base64StringArb, OscTerminatorArb,
             (selection, base64Data, terminator) =>
         {
             // Skip empty base64 data to avoid conversion issues
@@ -231,7 +231,7 @@ public class OscParsingProperties
             var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};{base64Data}{terminatorBytes}";
-            
+
             // Track clipboard events
             string? receivedSelection = null;
             string? receivedData = null;
@@ -254,14 +254,14 @@ public class OscParsingProperties
 
             bool correctSelection = receivedSelection == selection;
             bool notAQuery = !isQuery;
-            
+
             // Decode the expected data for comparison
             try
             {
                 byte[] expectedBytes = Convert.FromBase64String(base64Data);
                 string expectedText = Encoding.UTF8.GetString(expectedBytes);
                 bool correctData = receivedData == expectedText;
-                
+
                 return correctSelection && correctData && notAQuery;
             }
             catch (FormatException)
@@ -278,7 +278,7 @@ public class OscParsingProperties
     ///     Property: For any OSC 52 clipboard query sequence (data = "?"), the terminal
     ///     should emit clipboard query events with correct selection target.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscClipboardQueryEmitsCorrectEvents()
     {
         return Prop.ForAll(ClipboardSelectionArb, OscTerminatorArb, (selection, terminator) =>
@@ -287,7 +287,7 @@ public class OscParsingProperties
             var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};?{terminatorBytes}";
-            
+
             // Track clipboard events
             string? receivedSelection = null;
             string? receivedData = null;
@@ -321,7 +321,7 @@ public class OscParsingProperties
     ///     Property: For any OSC 52 clipboard clear sequence (empty data), the terminal
     ///     should emit clipboard clear events with correct selection target.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscClipboardClearEmitsCorrectEvents()
     {
         return Prop.ForAll(ClipboardSelectionArb, OscTerminatorArb, (selection, terminator) =>
@@ -330,7 +330,7 @@ public class OscParsingProperties
             var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};{terminatorBytes}";
-            
+
             // Track clipboard events
             string? receivedSelection = null;
             string? receivedData = null;
@@ -364,7 +364,7 @@ public class OscParsingProperties
     ///     Property: For any OSC sequence with invalid or malformed content, the parser
     ///     should handle it gracefully without throwing exceptions or corrupting state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscParsingIsRobust()
     {
         return Prop.ForAll<int, byte[], string>((command, payloadBytes, terminator) =>
@@ -374,17 +374,17 @@ public class OscParsingProperties
             // Arrange
             var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
-            
+
             // Create potentially malformed OSC sequence
             var sequenceBuilder = new StringBuilder();
             sequenceBuilder.Append($"\x1b]{command};");
-            
+
             // Add potentially problematic payload bytes
             foreach (byte b in payloadBytes.Take(50)) // Limit length to avoid excessive test time
             {
                 sequenceBuilder.Append((char)b);
             }
-            
+
             sequenceBuilder.Append(terminatorBytes);
             string oscSequence = sequenceBuilder.ToString();
 
@@ -392,13 +392,13 @@ public class OscParsingProperties
             try
             {
                 terminal.Write(oscSequence);
-                
+
                 // Terminal should still be functional after processing malformed sequence
                 terminal.Write("test");
-                
+
                 // Basic state should be preserved
                 bool terminalStillFunctional = terminal.Width == 80 && terminal.Height == 24;
-                
+
                 return terminalStillFunctional;
             }
             catch (Exception)
@@ -415,7 +415,7 @@ public class OscParsingProperties
     ///     Property: For any OSC sequence exceeding maximum payload length, the parser
     ///     should apply safety limits and handle the sequence gracefully.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscPayloadLengthLimitsAreEnforced()
     {
         return Prop.ForAll(ValidOscCommandArb, OscTerminatorArb, (command, terminator) =>
@@ -425,7 +425,7 @@ public class OscParsingProperties
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string longPayload = new string('A', 2000); // Exceeds MaxOscPayloadLength
             string oscSequence = $"\x1b]{command};{longPayload}{terminatorBytes}";
-            
+
             // Track events to ensure they're not fired for oversized payloads
             bool anyEventFired = false;
             terminal.TitleChanged += (s, e) => anyEventFired = true;
@@ -436,14 +436,14 @@ public class OscParsingProperties
             try
             {
                 terminal.Write(oscSequence);
-                
+
                 // Terminal should still be functional
                 terminal.Write("test");
-                
+
                 // No events should be fired for oversized payloads
                 bool terminalStillFunctional = terminal.Width == 80 && terminal.Height == 24;
                 bool noEventsForOversizedPayload = !anyEventFired;
-                
+
                 return terminalStillFunctional && noEventsForOversizedPayload;
             }
             catch (Exception)
@@ -484,17 +484,17 @@ public class OscParsingProperties
     ///     correctly associated with all characters written while the hyperlink is active,
     ///     and cleared when the hyperlink is terminated.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscHyperlinkAssociationIsCorrect()
     {
-        return Prop.ForAll(ValidUrlArb, PrintableTextArb, OscTerminatorArb, 
+        return Prop.ForAll(ValidUrlArb, PrintableTextArb, OscTerminatorArb,
             (url, textWithLink, terminator) =>
         {
             // Handle null values by treating as empty - FsCheck might generate nulls despite generators
             url = url ?? "";
             textWithLink = textWithLink ?? "";
             terminator = terminator ?? "BEL";
-            
+
             // Skip empty text to ensure we have characters to test
             if (string.IsNullOrEmpty(textWithLink))
                 return true;
@@ -505,7 +505,7 @@ public class OscParsingProperties
                 var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
                 string textWithoutLink = "XYZ"; // Fixed text for second part
-                
+
                 // Create OSC 8 sequence: start hyperlink, write text, end hyperlink, write more text
                 string oscSequence = $"\x1b]8;;{url}{terminatorBytes}{textWithLink}\x1b]8;;{terminatorBytes}{textWithoutLink}";
 
@@ -515,7 +515,7 @@ public class OscParsingProperties
                 // Assert - Check hyperlink association
                 bool allLinkedCharsHaveUrl = true;
                 bool allUnlinkedCharsHaveNoUrl = true;
-                
+
                 // Check characters that should have the hyperlink URL
                 for (int i = 0; i < textWithLink.Length && i < 80; i++)
                 {
@@ -525,7 +525,7 @@ public class OscParsingProperties
                         // Character mismatch - skip this test case
                         return true;
                     }
-                    
+
                     if (string.IsNullOrEmpty(url))
                     {
                         // Empty URL should clear hyperlink state
@@ -545,7 +545,7 @@ public class OscParsingProperties
                         }
                     }
                 }
-                
+
                 // Check characters that should not have hyperlink URL (after clearing)
                 int startCol = textWithLink.Length;
                 for (int i = 0; i < textWithoutLink.Length && (startCol + i) < 80; i++)
@@ -556,7 +556,7 @@ public class OscParsingProperties
                         // Character mismatch - skip this test case
                         return true;
                     }
-                    
+
                     // These characters should have no hyperlink URL (cleared by empty OSC 8)
                     if (cell.HyperlinkUrl != null)
                     {
@@ -581,7 +581,7 @@ public class OscParsingProperties
     ///     Property: For any sequence of OSC 8 hyperlink operations, the terminal should
     ///     correctly maintain hyperlink state and apply it to subsequent characters.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscHyperlinkStateManagementIsCorrect()
     {
         return Prop.ForAll(ValidUrlArb, ValidUrlArb, OscTerminatorArb, (url1, url2, terminator) =>
@@ -610,12 +610,12 @@ public class OscParsingProperties
                 bool firstCharCorrect = cell1.Character == 'A';
                 bool secondCharCorrect = cell2.Character == 'B';
 
-                bool firstUrlCorrect = string.IsNullOrEmpty(url1) ? 
-                    cell1.HyperlinkUrl == null : 
+                bool firstUrlCorrect = string.IsNullOrEmpty(url1) ?
+                    cell1.HyperlinkUrl == null :
                     cell1.HyperlinkUrl == url1;
-                    
-                bool secondUrlCorrect = string.IsNullOrEmpty(url2) ? 
-                    cell2.HyperlinkUrl == null : 
+
+                bool secondUrlCorrect = string.IsNullOrEmpty(url2) ?
+                    cell2.HyperlinkUrl == null :
                     cell2.HyperlinkUrl == url2;
 
                 return firstCharCorrect && secondCharCorrect && firstUrlCorrect && secondUrlCorrect;
@@ -634,7 +634,7 @@ public class OscParsingProperties
     ///     Property: For any OSC 8 hyperlink sequence with parameters, the URL should be
     ///     correctly extracted and associated with characters, ignoring the parameters.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property OscHyperlinkParameterHandlingIsCorrect()
     {
         return Prop.ForAll<string, string, string>((url, parameters, terminator) =>
@@ -643,16 +643,16 @@ public class OscParsingProperties
             url = url ?? "";
             parameters = parameters ?? "";
             terminator = terminator ?? "BEL";
-            
+
             // Only test valid terminators
             if (terminator != "BEL" && terminator != "ST") return true;
-            
+
             // Skip empty URL to focus on parameter handling
             if (string.IsNullOrEmpty(url)) return true;
-            
+
             // Skip empty parameters to avoid issues
             if (string.IsNullOrEmpty(parameters)) return true;
-            
+
             // Skip URLs or parameters with control characters that might cause issues
             if (url.Any(c => c < 0x20) || parameters.Any(c => c < 0x20)) return true;
 
@@ -661,7 +661,7 @@ public class OscParsingProperties
                 // Arrange
                 var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
-                
+
                 // Create OSC 8 sequence with parameters: ESC ] 8 ; [params] ; [url] BEL/ST
                 string oscSequence = $"\x1b]8;{parameters};{url}{terminatorBytes}X\x1b]8;;{terminatorBytes}";
 
@@ -670,7 +670,7 @@ public class OscParsingProperties
 
                 // Assert - Check that URL is correctly extracted despite parameters
                 var cell = terminal.ScreenBuffer.GetCell(0, 0); // 'X'
-                
+
                 bool characterCorrect = cell.Character == 'X';
                 bool urlCorrect = cell.HyperlinkUrl == url;
 
@@ -719,16 +719,16 @@ public class OscParsingProperties
     ///     Property: For any unknown OSC sequence, the terminal should ignore it without
     ///     error and continue processing normally without affecting terminal state.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property UnknownOscSequenceHandlingIsGraceful()
     {
-        return Prop.ForAll(UnknownOscCommandArb, SafeTextArb, OscTerminatorArb, 
+        return Prop.ForAll(UnknownOscCommandArb, SafeTextArb, OscTerminatorArb,
             (unknownCommand, payload, terminator) =>
         {
             // Handle null values
             payload = payload ?? "";
             terminator = terminator ?? "BEL";
-            
+
             // Skip very long payloads to avoid timeout issues
             if (payload.Length > 100) return true;
 
@@ -737,13 +737,13 @@ public class OscParsingProperties
                 // Arrange - Create terminal and capture initial state
                 var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
-                
+
                 // Capture initial state
                 int initialWidth = terminal.Width;
                 int initialHeight = terminal.Height;
                 int initialCursorRow = terminal.Cursor.Row;
                 int initialCursorCol = terminal.Cursor.Col;
-                
+
                 // Track events to ensure unknown OSC doesn't emit any
                 bool anyEventFired = false;
                 terminal.TitleChanged += (s, e) => anyEventFired = true;
@@ -756,9 +756,9 @@ public class OscParsingProperties
                 terminal.Write(unknownOscSequence);
 
                 // Assert - Terminal should remain functional and unchanged
-                bool terminalStillFunctional = terminal.Width == initialWidth && 
+                bool terminalStillFunctional = terminal.Width == initialWidth &&
                                                terminal.Height == initialHeight;
-                bool cursorUnchanged = terminal.Cursor.Row == initialCursorRow && 
+                bool cursorUnchanged = terminal.Cursor.Row == initialCursorRow &&
                                        terminal.Cursor.Col == initialCursorCol;
                 bool noEventsEmitted = !anyEventFired;
 

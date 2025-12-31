@@ -22,14 +22,14 @@ public class FontRegistryProperties
         var expectedFamilies = new[]
         {
             "Jet Brains Mono",
-            "Space Mono", 
+            "Space Mono",
             "Hack",
             "Pro Font",
             "Proggy Clean",
             "Shure Tech Mono",
             "Departure Mono"
         };
-        
+
         return Gen.Elements(expectedFamilies).ToArbitrary();
     }
 
@@ -49,7 +49,7 @@ public class FontRegistryProperties
             ("Shure Tech Mono", "ShureTechMonoNerdFontMono"),
             ("Departure Mono", "DepartureMonoNerdFont")
         };
-        
+
         return Gen.Elements(expectedMappings).ToArbitrary();
     }
 
@@ -69,19 +69,19 @@ public class FontRegistryProperties
             ("Shure Tech Mono", false),  // Regular only
             ("Departure Mono", false)    // Regular only
         };
-        
+
         return Gen.Elements(expectedVariants).ToArbitrary();
     }
 
     /// <summary>
     /// Property 1: Font Registry Completeness and Accuracy
-    /// For any hardcoded font family in the system, the font registry should contain a complete 
-    /// and accurate FontFamilyDefinition with correct display name, font base name, and variant 
+    /// For any hardcoded font family in the system, the font registry should contain a complete
+    /// and accurate FontFamilyDefinition with correct display name, font base name, and variant
     /// availability flags.
     /// Feature: font-selection-ui, Property 1: Font Registry Completeness and Accuracy
     /// Validates: Requirements 1.1, 1.2, 1.3, 1.4, 5.2, 5.3, 5.4, 9.1-9.7, 10.1-10.7
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontRegistryCompletenessAndAccuracy_ShouldContainAllExpectedFontFamilies()
     {
         return Prop.ForAll(ExpectedFontFamilyNames(), displayName =>
@@ -149,7 +149,7 @@ public class FontRegistryProperties
 
                 // Test that ToString() method works correctly
                 string toStringResult = definition.ToString();
-                bool toStringValid = !string.IsNullOrWhiteSpace(toStringResult) && 
+                bool toStringValid = !string.IsNullOrWhiteSpace(toStringResult) &&
                                     toStringResult.Contains(displayName);
 
                 if (!toStringValid)
@@ -171,7 +171,7 @@ public class FontRegistryProperties
     /// For any expected font family mapping, the registry should correctly map display names
     /// to technical font base names according to the hardcoded specifications.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontRegistryMappingAccuracy_ShouldMapDisplayNamesToCorrectBaseNames()
     {
         return Prop.ForAll(ExpectedFontMappings(), mapping =>
@@ -227,7 +227,7 @@ public class FontRegistryProperties
     /// For any font family with expected variant availability, the registry should correctly
     /// reflect which variants are available according to the hardcoded specifications.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontRegistryVariantConsistency_ShouldReflectCorrectVariantAvailability()
     {
         return Prop.ForAll(ExpectedVariantAvailability(), variantInfo =>
@@ -252,7 +252,7 @@ public class FontRegistryProperties
                 if (hasAll4Variants)
                 {
                     // Should have all 4 variants
-                    bool allVariantsAvailable = definition!.HasRegular && definition.HasBold && 
+                    bool allVariantsAvailable = definition!.HasRegular && definition.HasBold &&
                                                definition.HasItalic && definition.HasBoldItalic;
 
                     if (!allVariantsAvailable)
@@ -265,7 +265,7 @@ public class FontRegistryProperties
                 else
                 {
                     // Should have only Regular variant
-                    bool onlyRegularAvailable = definition!.HasRegular && !definition.HasBold && 
+                    bool onlyRegularAvailable = definition!.HasRegular && !definition.HasBold &&
                                                !definition.HasItalic && !definition.HasBoldItalic;
 
                     if (!onlyRegularAvailable)
@@ -282,16 +282,16 @@ public class FontRegistryProperties
 
                 if (hasAll4Variants)
                 {
-                    toStringReflectsVariants = toStringResult.Contains("Regular") && 
+                    toStringReflectsVariants = toStringResult.Contains("Regular") &&
                                               toStringResult.Contains("Bold") &&
-                                              toStringResult.Contains("Italic") && 
+                                              toStringResult.Contains("Italic") &&
                                               toStringResult.Contains("BoldItalic");
                 }
                 else
                 {
-                    toStringReflectsVariants = toStringResult.Contains("Regular") && 
+                    toStringReflectsVariants = toStringResult.Contains("Regular") &&
                                               !toStringResult.Contains("Bold") &&
-                                              !toStringResult.Contains("Italic") && 
+                                              !toStringResult.Contains("Italic") &&
                                               !toStringResult.Contains("BoldItalic");
                 }
 
@@ -314,7 +314,7 @@ public class FontRegistryProperties
     /// The font registry should contain exactly the expected number of font families
     /// and no unexpected entries.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 10)]
+    [FsCheck.NUnit.Property(MaxTest = 10, QuietOnSuccess = true)]
     public FsCheck.Property FontRegistryCompleteness_ShouldContainExactlyExpectedFamilies()
     {
         return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>
@@ -363,7 +363,7 @@ public class FontRegistryProperties
                 foreach (var family in availableFamilies)
                 {
                     var definition = CaTTYFontManager.GetFontFamilyDefinition(family);
-                    bool hasValidDefinition = definition != null && 
+                    bool hasValidDefinition = definition != null &&
                                              !string.IsNullOrWhiteSpace(definition.DisplayName) &&
                                              !string.IsNullOrWhiteSpace(definition.FontBaseName) &&
                                              definition.HasRegular; // All fonts should have Regular
@@ -412,13 +412,13 @@ public class FontRegistryProperties
 
     /// <summary>
     /// Property 2: Font Configuration Generation with Variant Fallback
-    /// For any font family selection, the system should generate a TerminalFontConfig where 
-    /// fonts with all variants use appropriate variant names, and fonts with only Regular 
+    /// For any font family selection, the system should generate a TerminalFontConfig where
+    /// fonts with all variants use appropriate variant names, and fonts with only Regular
     /// variant use Regular for all styles (Bold, Italic, BoldItalic).
     /// Feature: font-selection-ui, Property 2: Font Configuration Generation with Variant Fallback
     /// Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationGenerationWithVariantFallback_ShouldCreateCorrectConfigurations()
     {
         return Prop.ForAll(ExpectedFontFamilyNames(), ValidFontSizes(), (displayName, fontSize) =>
@@ -543,10 +543,10 @@ public class FontRegistryProperties
     /// For any invalid font family name, CreateFontConfigForFamily should return a default
     /// configuration without throwing exceptions.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontConfigurationGenerationErrorHandling_ShouldHandleInvalidFontFamilies()
     {
-        return Prop.ForAll(Gen.Elements("", "NonExistentFont", "Invalid Font Name", null!).ToArbitrary(), 
+        return Prop.ForAll(Gen.Elements("", "NonExistentFont", "Invalid Font Name", null!).ToArbitrary(),
                           ValidFontSizes(), (invalidDisplayName, fontSize) =>
         {
             try
@@ -620,7 +620,7 @@ public class FontRegistryProperties
         var unknownFontNames = new[]
         {
             "UnknownFont-Regular",
-            "NonExistentFont-Regular", 
+            "NonExistentFont-Regular",
             "CustomFont-Regular",
             "Arial-Regular",
             "Times-Regular"
@@ -643,13 +643,13 @@ public class FontRegistryProperties
 
     /// <summary>
     /// Property 4: Current Font Family Detection
-    /// For any existing TerminalFontConfig, the system should correctly identify which 
-    /// registered font family it corresponds to by matching the RegularFontName against 
+    /// For any existing TerminalFontConfig, the system should correctly identify which
+    /// registered font family it corresponds to by matching the RegularFontName against
     /// registered font base names, or return null if no match is found.
     /// Feature: font-selection-ui, Property 4: Current Font Family Detection
     /// Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CurrentFontFamilyDetection_ShouldCorrectlyIdentifyFontFamilies()
     {
         return Prop.ForAll(ValidTerminalFontConfigs(), config =>
@@ -724,7 +724,7 @@ public class FontRegistryProperties
     /// For any TerminalFontConfig that doesn't match registered font families,
     /// GetCurrentFontFamily should return null without throwing exceptions.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CurrentFontFamilyDetectionNullHandling_ShouldReturnNullForUnknownFonts()
     {
         return Prop.ForAll(UndetectableTerminalFontConfigs(), config =>
@@ -766,7 +766,7 @@ public class FontRegistryProperties
     /// For any invalid TerminalFontConfig (null or invalid), GetCurrentFontFamily
     /// should handle errors gracefully and return null.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property CurrentFontFamilyDetectionErrorHandling_ShouldHandleInvalidConfigs()
     {
         return Prop.ForAll<bool>(Gen.Constant(true).ToArbitrary(), _ =>

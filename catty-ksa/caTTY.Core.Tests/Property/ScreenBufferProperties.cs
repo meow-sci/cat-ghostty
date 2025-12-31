@@ -43,7 +43,7 @@ public class ScreenBufferProperties
     ///     - Height change: preserve top-to-bottom rows where possible
     ///     - Width change: truncate/pad each row; do not attempt complex reflow
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScreenBufferResizePreservesContent()
     {
         return Prop.ForAll(TerminalDimensionsArb, NewDimensionsArb, TestCharArb,
@@ -51,7 +51,7 @@ public class ScreenBufferProperties
         {
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
-            
+
             using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Fill the original buffer with a test pattern
@@ -81,14 +81,14 @@ public class ScreenBufferProperties
     ///     Property: Screen buffer resize should handle edge cases correctly.
     ///     Resizing to same dimensions should have no effect on content.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ResizeToSameDimensionsHasNoEffect()
     {
         return Prop.ForAll(TerminalDimensionsArb, TestCharArb,
             (dimensions, testChar) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
 
             // Fill buffer with test pattern
@@ -126,7 +126,7 @@ public class ScreenBufferProperties
     ///     Property: Screen buffer resize should preserve cursor position appropriately.
     ///     Cursor should remain valid after resize, clamped to new dimensions if necessary.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ResizePreservesCursorPosition()
     {
         return Prop.ForAll(TerminalDimensionsArb, NewDimensionsArb,
@@ -134,7 +134,7 @@ public class ScreenBufferProperties
         {
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
-            
+
             using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Position cursor at a specific location
@@ -154,10 +154,10 @@ public class ScreenBufferProperties
 
             // Verify cursor position follows the actual resize logic from TerminalEmulator.Resize()
             bool cursorPositionCorrect = true;
-            
+
             // Expected column position: clamped to new width
             int expectedCol = Math.Min(originalCursorCol, newWidth - 1);
-            
+
             // Expected row position: follows the height adjustment logic
             int expectedRow;
             if (newHeight < originalHeight)
@@ -171,7 +171,7 @@ public class ScreenBufferProperties
                 // Height increased or same - keep cursor position, clamped to new height
                 expectedRow = Math.Min(originalCursorRow, newHeight - 1);
             }
-            
+
             cursorPositionCorrect = terminal.Cursor.Row == expectedRow &&
                                   terminal.Cursor.Col == expectedCol;
 
@@ -183,7 +183,7 @@ public class ScreenBufferProperties
     ///     Property: Screen buffer resize should handle extreme dimension changes correctly.
     ///     Resizing to very small or very large dimensions should work without errors.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ResizeHandlesExtremeDimensions()
     {
         return Prop.ForAll(TestCharArb, testChar =>
@@ -240,7 +240,7 @@ public class ScreenBufferProperties
     ///     Property: Screen buffer resize should be deterministic.
     ///     Resizing with the same parameters should always produce the same result.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ResizeIsDeterministic()
     {
         return Prop.ForAll(TerminalDimensionsArb, NewDimensionsArb, TestCharArb,
@@ -248,7 +248,7 @@ public class ScreenBufferProperties
         {
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
-            
+
             // Create two identical terminals
             using var terminal1 = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
             using var terminal2 = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
@@ -288,7 +288,7 @@ public class ScreenBufferProperties
     ///     Property: Screen buffer resize should preserve SGR attributes along with characters.
     ///     When content is preserved during resize, attributes should also be preserved.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ResizePreservesAttributes()
     {
         return Prop.ForAll(TerminalDimensionsArb, NewDimensionsArb,
@@ -296,12 +296,12 @@ public class ScreenBufferProperties
         {
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
-            
+
             using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Set bold attribute and write some content
             terminal.Write("\x1b[1mBOLD");
-            
+
             // Set italic attribute and write more content
             terminal.Write("\x1b[3mITALIC");
 
@@ -325,9 +325,9 @@ public class ScreenBufferProperties
                 {
                     var currentCell = terminal.ScreenBuffer.GetCell(row, col);
                     var originalCell = originalContent[row, col];
-                    
+
                     // If the character is preserved, attributes should be too
-                    if (currentCell.Character == originalCell.Character && 
+                    if (currentCell.Character == originalCell.Character &&
                         currentCell.Character != ' ')
                     {
                         if (currentCell.Attributes.Bold != originalCell.Attributes.Bold ||
@@ -347,7 +347,7 @@ public class ScreenBufferProperties
     ///     Property: Multiple consecutive resizes should work correctly.
     ///     Performing multiple resize operations should maintain buffer integrity.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property MultipleResizesWork()
     {
         return Prop.ForAll(TestCharArb, testChar =>
@@ -374,11 +374,11 @@ public class ScreenBufferProperties
                 try
                 {
                     terminal.Resize(width, height);
-                    
+
                     // Verify basic functionality after each resize
                     bool dimensionsCorrect = terminal.Width == width && terminal.Height == height;
                     bool bufferFunctional = VerifyBufferFunctionality(terminal, width, height);
-                    
+
                     if (!dimensionsCorrect || !bufferFunctional)
                     {
                         allResizesWork = false;
@@ -402,7 +402,7 @@ public class ScreenBufferProperties
     private static void FillBufferWithPattern(TerminalEmulator terminal, char baseChar, int width, int height)
     {
         terminal.Write("\x1b[1;1H"); // Move to top-left
-        
+
         for (int row = 0; row < height; row++)
         {
             // Create a pattern with the base character and row number
@@ -412,7 +412,7 @@ public class ScreenBufferProperties
                 var colChar = (char)(rowChar + (col % 10));
                 terminal.Write(colChar.ToString());
             }
-            
+
             if (row < height - 1) // Don't move down on last row to avoid scrolling
             {
                 terminal.Write("\r\n");
@@ -426,7 +426,7 @@ public class ScreenBufferProperties
     private static Cell[,] CaptureBufferContent(TerminalEmulator terminal, int width, int height)
     {
         var content = new Cell[height, width];
-        
+
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
@@ -434,7 +434,7 @@ public class ScreenBufferProperties
                 content[row, col] = terminal.ScreenBuffer.GetCell(row, col);
             }
         }
-        
+
         return content;
     }
 
@@ -457,7 +457,7 @@ public class ScreenBufferProperties
             {
                 var currentCell = terminal.ScreenBuffer.GetCell(row, col);
                 var originalCell = originalContent[row, col];
-                
+
                 // Content should be preserved in the overlapping region
                 if (currentCell.Character != originalCell.Character)
                 {
@@ -511,7 +511,7 @@ public class ScreenBufferProperties
 
             // Test that we can read from the buffer
             var cell = terminal.ScreenBuffer.GetCell(0, 0);
-            
+
             // Test cursor is within bounds
             bool cursorValid = terminal.Cursor.Row >= 0 && terminal.Cursor.Row < height &&
                                terminal.Cursor.Col >= 0 && terminal.Cursor.Col < width;

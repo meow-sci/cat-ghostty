@@ -38,7 +38,7 @@ public class FontContextDetectionProperties
     {
         return Gen.Elements(
                 "HackNerdFontMono-Regular",
-                "HackNerdFontMono-Bold", 
+                "HackNerdFontMono-Bold",
                 "HackNerdFontMono-Italic",
                 "HackNerdFontMono-BoldItalic",
                 "TestFont-Regular",
@@ -51,12 +51,12 @@ public class FontContextDetectionProperties
     /// <summary>
     /// Property 2: Context Detection and Default Configuration
     /// For any execution environment (TestApp or GameMod), the system should correctly detect
-    /// the context and apply appropriate default font configuration, with TestApp using 
+    /// the context and apply appropriate default font configuration, with TestApp using
     /// development-friendly defaults and GameMod using game-appropriate defaults.
     /// Feature: font-configuration, Property 2: Context Detection and Default Configuration
     /// Validates: Requirements 3.1, 3.2, 3.3, 3.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ContextDetectionAndDefaultConfiguration_ShouldApplyAppropriateDefaults()
     {
         return Prop.ForAll<bool>(_ =>
@@ -97,7 +97,7 @@ public class FontContextDetectionProperties
                 // Validate that AutoDetectContext is set to false (since we used explicit detection)
                 bool autoDetectDisabled = !config.AutoDetectContext;
 
-                return configValid && fontNamesValid && 
+                return configValid && fontNamesValid &&
                        fontSizeValid && fontSizeReasonable && autoDetectDisabled;
             }
             catch
@@ -113,7 +113,7 @@ public class FontContextDetectionProperties
     /// For any factory method (CreateForTestApp or CreateForGameMod), the created configuration
     /// should always pass validation and have consistent properties.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FactoryMethods_ShouldCreateValidConfigurations()
     {
         return Prop.ForAll<bool>(_ =>
@@ -162,7 +162,7 @@ public class FontContextDetectionProperties
     /// The context detection system should handle various execution environments gracefully
     /// and always return a valid ExecutionContext value.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property ContextDetection_ShouldAlwaysReturnValidContext()
     {
         return Prop.ForAll<bool>(_ =>
@@ -191,7 +191,7 @@ public class FontContextDetectionProperties
     /// For any valid font configuration created through any means, validation should
     /// either pass or fail consistently based on the configuration values.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ConfigurationValidation_ShouldBeConsistent()
     {
         return Prop.ForAll(ValidFontNames(), ValidFontSizes(), (fontName, fontSize) =>
@@ -200,7 +200,7 @@ public class FontContextDetectionProperties
             {
                 RegularFontName = fontName,
                 BoldFontName = fontName + "-Bold",
-                ItalicFontName = fontName + "-Italic", 
+                ItalicFontName = fontName + "-Italic",
                 BoldItalicFontName = fontName + "-BoldItalic",
                 FontSize = fontSize
             };
@@ -239,7 +239,7 @@ public class FontContextDetectionProperties
     /// When style-specific font names are null, they should fall back to the regular font name
     /// after validation.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property FontFallback_ShouldUseRegularFontForNullStyles()
     {
         return Prop.ForAll(ValidFontNames(), ValidFontSizes(), (regularFont, fontSize) =>
@@ -280,7 +280,7 @@ public class FontContextDetectionProperties
     /// The DetectAndCreateConfig method should always produce a configuration that is
     /// equivalent to calling the appropriate factory method for the detected context.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property DetectionAndConfiguration_ShouldBeEquivalentToFactoryMethods()
     {
         return Prop.ForAll<bool>(_ =>

@@ -24,6 +24,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Tomlyn" Version="0.19.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- Managed assembly references (only added if the file exists) -->
         <Reference Include="Brutal.Glfw" Condition="Exists('$(KSAFolder)/Brutal.Glfw.dll')">
             <HintPath>$(KSAFolder)/Brutal.Glfw.dll</HintPath>
@@ -79,10 +83,6 @@
         </Reference>
         <Reference Include="Brutal.Render.Common" Condition="Exists('$(KSAFolder)/Brutal.Render.Common.dll')">
             <HintPath>$(KSAFolder)/Brutal.Render.Common.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Samboy063.Tomlet" Condition="Exists('$(KSAFolder)/Tomlet.dll')">
-            <HintPath>$(KSAFolder)/Tomlet.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>

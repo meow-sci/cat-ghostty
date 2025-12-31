@@ -21,7 +21,7 @@ public class CoordinateConversionProperties
     {
         var widthGen = Gen.Choose(4, 32).Select(x => (float)x);
         var heightGen = Gen.Choose(8, 64).Select(x => (float)x);
-        
+
         return Gen.Zip(widthGen, heightGen)
             .Select(tuple => (tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -35,7 +35,7 @@ public class CoordinateConversionProperties
     {
         var xGen = Gen.Choose(0, 1920).Select(x => (float)x);
         var yGen = Gen.Choose(0, 1080).Select(y => (float)y);
-        
+
         return Gen.Zip(xGen, yGen)
             .Select(tuple => new float2(tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -49,7 +49,7 @@ public class CoordinateConversionProperties
     {
         var widthGen = Gen.Choose(10, 200);
         var heightGen = Gen.Choose(5, 100);
-        
+
         return Gen.Zip(widthGen, heightGen)
             .Select(tuple => (tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -63,10 +63,10 @@ public class CoordinateConversionProperties
     {
         var terminalPixelWidth = terminalWidth * charWidth;
         var terminalPixelHeight = terminalHeight * lineHeight;
-        
+
         var xGen = Gen.Choose(0, (int)terminalPixelWidth).Select(x => origin.X + (float)x);
         var yGen = Gen.Choose(0, (int)terminalPixelHeight).Select(y => origin.Y + (float)y);
-        
+
         return Gen.Zip(xGen, yGen)
             .Select(tuple => new float2(tuple.Item1, tuple.Item2))
             .ToArbitrary();
@@ -74,12 +74,12 @@ public class CoordinateConversionProperties
 
     /// <summary>
     /// Property 8: Coordinate Conversion Accuracy
-    /// For any valid screen pixel position within terminal bounds, conversion to 1-based terminal 
+    /// For any valid screen pixel position within terminal bounds, conversion to 1-based terminal
     /// coordinates should be accurate and consistent with character metrics.
     /// Feature: mouse-input-support, Property 8: Coordinate Conversion Accuracy
     /// Validates: Requirements R3.1, R3.2, R3.4
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CoordinateConversionAccuracy_ShouldBeAccurateAndConsistent()
     {
         return Prop.ForAll(
@@ -110,7 +110,7 @@ public class CoordinateConversionProperties
                     foreach (var pixelPos in testPositions)
                     {
                         // Skip positions that are outside terminal bounds
-                        if (pixelPos.X >= origin.X + terminalPixelWidth || 
+                        if (pixelPos.X >= origin.X + terminalPixelWidth ||
                             pixelPos.Y >= origin.Y + terminalPixelHeight)
                         {
                             continue;
@@ -118,7 +118,7 @@ public class CoordinateConversionProperties
 
                         // Test pixel-to-cell conversion
                         var cellCoords = converter.PixelToCell(pixelPos, dimensions.Width, dimensions.Height);
-                        
+
                         // Should always return valid coordinates for positions within bounds
                         if (!cellCoords.HasValue)
                         {
@@ -138,7 +138,7 @@ public class CoordinateConversionProperties
 
                         // Test round-trip conversion accuracy
                         var backToPixel = converter.CellToPixel(x1, y1);
-                        
+
                         // Calculate expected cell boundaries
                         float expectedCellLeft = origin.X + ((x1 - 1) * metrics.Width);
                         float expectedCellTop = origin.Y + ((y1 - 1) * metrics.Height);
@@ -160,8 +160,8 @@ public class CoordinateConversionProperties
 
                         // Test consistency: same input should produce same output
                         var cellCoords2 = converter.PixelToCell(pixelPos, dimensions.Width, dimensions.Height);
-                        bool consistent = cellCoords2.HasValue && 
-                                         cellCoords2.Value.X1 == x1 && 
+                        bool consistent = cellCoords2.HasValue &&
+                                         cellCoords2.Value.X1 == x1 &&
                                          cellCoords2.Value.Y1 == y1;
 
                         if (!consistent)
@@ -198,7 +198,7 @@ public class CoordinateConversionProperties
     {
         var terminalPixelWidth = terminalWidth * charWidth;
         var terminalPixelHeight = terminalHeight * lineHeight;
-        
+
         var outOfBoundsGen = Gen.OneOf(
             // Left of terminal
             Gen.Choose(-1000, -1).Select(x => new float2(origin.X + (float)x, origin.Y + terminalPixelHeight / 2)),
@@ -212,18 +212,18 @@ public class CoordinateConversionProperties
             Gen.Choose(-1000, -1).SelectMany(x => Gen.Choose(-1000, -1).Select(y => new float2(origin.X + (float)x, origin.Y + (float)y))),
             Gen.Choose(1, 1000).SelectMany(x => Gen.Choose(1, 1000).Select(y => new float2(origin.X + terminalPixelWidth + (float)x, origin.Y + terminalPixelHeight + (float)y)))
         );
-        
+
         return outOfBoundsGen.ToArbitrary();
     }
 
     /// <summary>
     /// Property 9: Coordinate Boundary Handling
-    /// For any mouse position outside terminal bounds, coordinate conversion should clamp to 
+    /// For any mouse position outside terminal bounds, coordinate conversion should clamp to
     /// valid terminal ranges and handle gracefully without crashing.
     /// Feature: mouse-input-support, Property 9: Coordinate Boundary Handling
     /// Validates: Requirements R3.3, R3.5
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CoordinateBoundaryHandling_ShouldClampAndHandleGracefully()
     {
         return Prop.ForAll(
@@ -245,7 +245,7 @@ public class CoordinateConversionProperties
                     {
                         // Test that out-of-bounds conversion still returns valid coordinates (clamped)
                         var cellCoords = converter.PixelToCell(pixelPos, dimensions.Width, dimensions.Height);
-                        
+
                         // Should always return coordinates (clamped to bounds)
                         if (!cellCoords.HasValue)
                         {
@@ -275,7 +275,7 @@ public class CoordinateConversionProperties
                         // Test IsWithinBounds method
                         var terminalSize = new float2(dimensions.Width * metrics.Width, dimensions.Height * metrics.Height);
                         bool withinBounds = converter.IsWithinBounds(pixelPos, terminalSize);
-                        
+
                         // Out-of-bounds positions should return false
                         if (withinBounds)
                         {
@@ -286,7 +286,7 @@ public class CoordinateConversionProperties
                     // Test edge cases at exact boundaries
                     var terminalPixelWidth = dimensions.Width * metrics.Width;
                     var terminalPixelHeight = dimensions.Height * metrics.Height;
-                    
+
                     var boundaryPositions = new[]
                     {
                         new float2(origin.X, origin.Y), // Top-left corner
@@ -302,7 +302,7 @@ public class CoordinateConversionProperties
                     foreach (var boundaryPos in boundaryPositions)
                     {
                         var cellCoords = converter.PixelToCell(boundaryPos, dimensions.Width, dimensions.Height);
-                        
+
                         // Should always return valid coordinates
                         if (!cellCoords.HasValue)
                         {
@@ -322,13 +322,13 @@ public class CoordinateConversionProperties
 
                         // Test IsWithinBounds for boundary positions
                         var terminalSize = new float2(terminalPixelWidth, terminalPixelHeight);
-                        bool shouldBeWithinBounds = boundaryPos.X >= origin.X && 
+                        bool shouldBeWithinBounds = boundaryPos.X >= origin.X &&
                                                    boundaryPos.Y >= origin.Y &&
                                                    boundaryPos.X < origin.X + terminalPixelWidth &&
                                                    boundaryPos.Y < origin.Y + terminalPixelHeight;
-                        
+
                         bool actuallyWithinBounds = converter.IsWithinBounds(boundaryPos, terminalSize);
-                        
+
                         if (shouldBeWithinBounds != actuallyWithinBounds)
                         {
                             return false;
@@ -337,11 +337,11 @@ public class CoordinateConversionProperties
 
                     // Test error handling with invalid metrics
                     var errorConverter = new CoordinateConverter();
-                    
+
                     // Test with zero/negative metrics (should use fallback)
                     errorConverter.UpdateMetrics(0, 0, origin);
                     var fallbackCoords = errorConverter.PixelToCell(origin, dimensions.Width, dimensions.Height);
-                    
+
                     // Should still return valid coordinates using fallback metrics
                     bool fallbackWorks = fallbackCoords.HasValue &&
                                         fallbackCoords.Value.X1 >= 1 && fallbackCoords.Value.X1 <= dimensions.Width &&
@@ -355,7 +355,7 @@ public class CoordinateConversionProperties
                     // Test with negative metrics
                     errorConverter.UpdateMetrics(-10, -20, origin);
                     var negativeMetricsCoords = errorConverter.PixelToCell(origin, dimensions.Width, dimensions.Height);
-                    
+
                     // Should still return valid coordinates using fallback metrics
                     bool negativeMetricsHandled = negativeMetricsCoords.HasValue &&
                                                  negativeMetricsCoords.Value.X1 >= 1 && negativeMetricsCoords.Value.X1 <= dimensions.Width &&

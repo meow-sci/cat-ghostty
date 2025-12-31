@@ -57,7 +57,7 @@ public class Utf8Properties
     ///     Property: For any valid UTF-8 string, decoding and processing should produce
     ///     the correct Unicode code points without data loss.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property Utf8DecodingPreservesUnicodeCodePoints()
     {
         return Prop.ForAll(ValidUtf8StringArb, input =>
@@ -95,7 +95,7 @@ public class Utf8Properties
     ///     Property: For any valid UTF-8 string split across multiple Write calls,
     ///     the result should be identical to writing the complete string at once.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property Utf8SequenceSplittingProducesSameResult()
     {
         return Prop.ForAll(SplitUtf8SequenceArb, splitSequences =>
@@ -146,7 +146,7 @@ public class Utf8Properties
     ///     Property: For any string containing wide characters (CJK, emojis),
     ///     the cursor should advance correctly accounting for character width.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property WideCharacterCursorAdvancement()
     {
         Arbitrary<string>? wideCharArb = Arb.From(Gen.Elements("你", "好", "世", "界", "こ", "ん", "に", "ち", "한", "국", "어",
@@ -184,7 +184,7 @@ public class Utf8Properties
     ///     Property: For any sequence containing invalid UTF-8 bytes,
     ///     the terminal should recover gracefully and continue processing.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property InvalidUtf8BytesHandledGracefully()
     {
         Arbitrary<byte[]>? invalidUtf8Arb = Arb.From(Gen.Choose(0x80, 0xFF).SelectMany(invalidByte =>
@@ -225,7 +225,7 @@ public class Utf8Properties
     ///     Property: For any sequence mixing UTF-8 characters with control characters,
     ///     both should be processed correctly without interference.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property Utf8MixedWithControlCharacters()
     {
         Arbitrary<string>? mixedSequenceArb = Arb.From(

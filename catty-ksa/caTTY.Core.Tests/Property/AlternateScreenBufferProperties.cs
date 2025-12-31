@@ -54,17 +54,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 29: Alternate screen buffer switching**
     ///     **Validates: Requirements 15.1, 15.2, 15.4**
-    ///     Property: For any terminal state, switching to alternate screen buffer via DECSET 47 
+    ///     Property: For any terminal state, switching to alternate screen buffer via DECSET 47
     ///     should result in using alternate buffer.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property AlternateScreenBufferSwitching()
     {
         return Prop.ForAll(TerminalDimensionsArb, ContentArrayArb, CursorPositionArb,
             (dimensions, contentItems, cursorPos) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Initially, terminal should be on primary screen
@@ -97,9 +97,9 @@ public class AlternateScreenBufferProperties
             // Write a unique marker to alternate screen at a known position
             terminal.Write("\x1b[1;1H"); // Move to top-left
             terminal.Write("XALTX"); // Unique marker that won't appear in random content
-            
+
             bool markerWrittenToAlternate = terminal.ScreenBuffer.GetCell(0, 0).Character == 'X';
-            
+
             // Switch back to primary screen (DECRST 47)
             terminal.Write("\x1b[?47l");
 
@@ -113,10 +113,10 @@ public class AlternateScreenBufferProperties
             // Switch back to alternate to verify it still has the marker
             terminal.Write("\x1b[?47h");
             bool backToAlternate = terminal.State.IsAlternateScreenActive;
-            
+
             bool markerStillPresent = terminal.ScreenBuffer.GetCell(0, 0).Character == 'X';
 
-            return initiallyOnPrimary && switchedToAlternate && markerWrittenToAlternate && 
+            return initiallyOnPrimary && switchedToAlternate && markerWrittenToAlternate &&
                    backToPrimary && primaryContentPreserved && backToAlternate && markerStillPresent;
         });
     }
@@ -124,17 +124,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 30: Screen buffer round-trip**
     ///     **Validates: Requirements 15.2, 15.3**
-    ///     Property: For any terminal state, switching to alternate screen then back to normal 
+    ///     Property: For any terminal state, switching to alternate screen then back to normal
     ///     should restore the original screen buffer.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ScreenBufferRoundTrip()
     {
         return Prop.ForAll(TerminalDimensionsArb, ContentArrayArb, ContentArrayArb,
             (dimensions, primaryContent, alternateContent) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Write content to primary screen
@@ -176,14 +176,14 @@ public class AlternateScreenBufferProperties
             bool backToPrimary = !terminal.State.IsAlternateScreenActive;
 
             // KEY PROPERTY: Primary screen content should be exactly as it was before switching
-            bool contentPreserved = CompareScreenContent(primaryCellsSnapshot, 
+            bool contentPreserved = CompareScreenContent(primaryCellsSnapshot,
                 CaptureScreenContent(terminal, width, height), width, height);
 
             // Verify cursor position is preserved
             bool cursorPreserved = terminal.Cursor.Col == primaryCursorXBefore &&
                                    terminal.Cursor.Row == primaryCursorYBefore;
 
-            return switchedToAlternate && stillOnAlternate && backToPrimary && 
+            return switchedToAlternate && stillOnAlternate && backToPrimary &&
                    contentPreserved && cursorPreserved;
         });
     }
@@ -191,17 +191,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 31: Buffer content preservation**
     ///     **Validates: Requirements 15.3, 15.5**
-    ///     Property: For any content written to one screen buffer, switching to the other buffer 
+    ///     Property: For any content written to one screen buffer, switching to the other buffer
     ///     and back should preserve the original content unchanged.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50)]
+    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
     public FsCheck.Property BufferContentPreservation()
     {
         return Prop.ForAll(TerminalDimensionsArb, ContentArrayArb, ContentArrayArb,
             (dimensions, primaryContent1, alternateContent1) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Phase 1: Write initial content to primary screen
@@ -256,17 +256,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 32: Alternate screen scrollback isolation**
     ///     **Validates: Requirements 15.3**
-    ///     Property: For any scrolling operations in alternate screen mode, 
+    ///     Property: For any scrolling operations in alternate screen mode,
     ///     scrollback buffer should not be affected.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property AlternateScreenScrollbackIsolation()
     {
         return Prop.ForAll(TerminalDimensionsArb, ContentArrayArb,
             (dimensions, contentItems) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Add some content to scrollback in primary screen first
@@ -310,7 +310,7 @@ public class AlternateScreenBufferProperties
             var finalScrollbackLines = terminal.ScrollbackManager.CurrentLines;
             bool scrollbackStillUnchanged = finalScrollbackLines == initialScrollbackLines;
 
-            return hasInitialScrollback && switchedToAlternate && scrollbackUnchanged && 
+            return hasInitialScrollback && switchedToAlternate && scrollbackUnchanged &&
                    backToPrimary && scrollbackStillUnchanged;
         });
     }
@@ -318,17 +318,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 33: Cursor save and restore with mode 1047**
     ///     **Validates: Requirements 15.2, 15.5**
-    ///     Property: For any cursor position, DECSET 1047 should save cursor position 
+    ///     Property: For any cursor position, DECSET 1047 should save cursor position
     ///     and DECRST 1047 should restore it.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property CursorSaveRestoreMode1047()
     {
         return Prop.ForAll(TerminalDimensionsArb, CursorPositionArb, PrintableTextArb,
             (dimensions, cursorPos, testText) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Move cursor to a specific position and write text
@@ -348,7 +348,7 @@ public class AlternateScreenBufferProperties
             terminal.Write("\x1b[1;1H");
             terminal.Write("Alt");
 
-            bool cursorMovedInAlternate = terminal.Cursor.Col != savedCursorX || 
+            bool cursorMovedInAlternate = terminal.Cursor.Col != savedCursorX ||
                                           terminal.Cursor.Row != savedCursorY;
 
             // Switch back with cursor restore (DECRST 1047)
@@ -356,7 +356,7 @@ public class AlternateScreenBufferProperties
             bool backToPrimary = !terminal.State.IsAlternateScreenActive;
 
             // KEY PROPERTY: Cursor should be restored to saved position
-            bool cursorRestored = terminal.Cursor.Col == savedCursorX && 
+            bool cursorRestored = terminal.Cursor.Col == savedCursorX &&
                                   terminal.Cursor.Row == savedCursorY;
 
             return switchedToAlternate && cursorMovedInAlternate && backToPrimary && cursorRestored;
@@ -366,17 +366,17 @@ public class AlternateScreenBufferProperties
     /// <summary>
     ///     **Feature: catty-ksa, Property 34: Clear alternate screen with mode 1049**
     ///     **Validates: Requirements 15.1, 15.2, 15.5**
-    ///     Property: For any terminal state, DECSET 1049 should clear alternate screen 
+    ///     Property: For any terminal state, DECSET 1049 should clear alternate screen
     ///     and position cursor at origin.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100)]
+    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property ClearAlternateScreenMode1049()
     {
         return Prop.ForAll(TerminalDimensionsArb, PrintableTextArb,
             (dimensions, primaryText) =>
         {
             var (width, height) = dimensions;
-            
+
             using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
 
             // Write to primary screen
@@ -402,7 +402,7 @@ public class AlternateScreenBufferProperties
             var primaryRestored = CaptureScreenContent(terminal, width, height);
             bool primaryPreserved = CompareScreenContent(primarySnapshot, primaryRestored, width, height);
 
-            return switchedToAlternate && cursorAtOrigin && screenCleared && 
+            return switchedToAlternate && cursorAtOrigin && screenCleared &&
                    backToPrimary && primaryPreserved;
         });
     }
@@ -413,7 +413,7 @@ public class AlternateScreenBufferProperties
     private static Cell[,] CaptureScreenContent(TerminalEmulator terminal, int width, int height)
     {
         var content = new Cell[height, width];
-        
+
         for (int row = 0; row < height; row++)
         {
             for (int col = 0; col < width; col++)
@@ -421,7 +421,7 @@ public class AlternateScreenBufferProperties
                 content[row, col] = terminal.ScreenBuffer.GetCell(row, col);
             }
         }
-        
+
         return content;
     }
 
