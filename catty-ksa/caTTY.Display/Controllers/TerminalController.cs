@@ -408,7 +408,7 @@ public class TerminalController : ITerminalController
       // Determine current font family from configuration using CaTTYFontManager
       var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(_fontConfig);
       _currentFontFamily = detectedFamily ?? "Hack"; // Default fallback
-      
+
       // Console.WriteLine($"TerminalController: Initialized current font family: {_currentFontFamily}");
     }
     catch (Exception ex)
@@ -601,7 +601,7 @@ public class TerminalController : ITerminalController
 
       // Check if font size is changing (for terminal resize trigger)
       bool fontSizeChanged = Math.Abs(_fontConfig.FontSize - newFontConfig.FontSize) > 0.1f;
-      
+
       // Check if font family is changing (also requires terminal resize)
       bool fontFamilyChanged = previousRegularFont != newFontConfig.RegularFontName;
 
@@ -1574,7 +1574,7 @@ public class TerminalController : ITerminalController
   {
     // Push terminal content font for this rendering section
     PushTerminalContentFont(out bool terminalFontUsed);
-    
+
     try
     {
       ImDrawListPtr drawList = ImGui.GetWindowDrawList();
@@ -1599,7 +1599,7 @@ public class TerminalController : ITerminalController
 
       // Draw terminal background using theme
       float4 terminalBg = ThemeManager.GetDefaultBackground();
-      terminalBg = OpacityManager.ApplyOpacity(terminalBg);
+      terminalBg = OpacityManager.ApplyBackgroundOpacity(terminalBg);
       uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
       var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
       drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
@@ -1672,9 +1672,9 @@ public class TerminalController : ITerminalController
     // Apply SGR attributes to colors
     var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
-    // Apply global opacity to colors
-    fgColor = OpacityManager.ApplyOpacity(fgColor);
-    bgColor = OpacityManager.ApplyOpacity(bgColor);
+    // Apply separate opacity to foreground and background colors
+    fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
+    bgColor = OpacityManager.ApplyBackgroundOpacity(bgColor);
 
     // Apply selection highlighting
     if (isSelected)
@@ -1683,9 +1683,9 @@ public class TerminalController : ITerminalController
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
-      // Apply opacity to selection colors
-      bgColor = OpacityManager.ApplyOpacity(selectionBg);
-      fgColor = OpacityManager.ApplyOpacity(selectionFg);
+      // Apply appropriate opacity to selection colors
+      bgColor = OpacityManager.ApplyBackgroundOpacity(selectionBg);
+      fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
     }
 
     // Always draw background
@@ -2725,7 +2725,7 @@ public class TerminalController : ITerminalController
   private void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor)
   {
     float4 underlineColor = StyleManager.GetUnderlineColor(attributes, foregroundColor);
-    underlineColor = OpacityManager.ApplyOpacity(underlineColor);
+    underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
     float thickness = StyleManager.GetUnderlineThickness(attributes.UnderlineStyle);
 
     float underlineY = pos.Y + CurrentLineHeight - 2;
@@ -2776,9 +2776,9 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor)
   {
-    // Apply opacity to strikethrough color
-    foregroundColor = OpacityManager.ApplyOpacity(foregroundColor);
-    
+    // Apply foreground opacity to strikethrough color
+    foregroundColor = OpacityManager.ApplyForegroundOpacity(foregroundColor);
+
     float strikeY = pos.Y + (CurrentLineHeight / 2);
     var strikeStart = new float2(pos.X, strikeY);
     var strikeEnd = new float2(pos.X + CurrentCharacterWidth, strikeY);
@@ -3042,16 +3042,16 @@ public class TerminalController : ITerminalController
     try
     {
       Console.WriteLine($"TerminalController: Theme changed from '{e.PreviousTheme.Name}' to '{e.NewTheme.Name}'");
-      
+
       // Reset cursor style to match new theme defaults
       ResetCursorToThemeDefaults();
-      
+
       // Force cursor to be visible immediately after theme change
       _cursorRenderer.ForceVisible();
-      
+
       // Reset cursor blink state to ensure proper timing with new theme
       _cursorRenderer.ResetBlinkState();
-      
+
       Console.WriteLine($"TerminalController: Theme change handling completed for '{e.NewTheme.Name}'");
     }
     catch (Exception ex)
@@ -3469,16 +3469,16 @@ public class TerminalController : ITerminalController
         {
           SetFontSize((float)currentFontSize);
         }
-        
+
         ImGui.Separator();
-        
+
         // Font Family Selection
         var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
-        
+
         foreach (var fontFamily in availableFonts)
         {
           bool isSelected = fontFamily == _currentFontFamily;
-          
+
           if (ImGui.MenuItem(fontFamily, "", isSelected))
           {
             SelectFontFamily(fontFamily);
@@ -3501,19 +3501,19 @@ public class TerminalController : ITerminalController
     try
     {
       Console.WriteLine($"TerminalController: Selecting font family: {displayName}");
-      
+
       // Create new font configuration for the selected family
       var newFontConfig = CaTTYFontManager.CreateFontConfigForFamily(displayName, _fontConfig.FontSize);
-      
+
       // Validate the new configuration
       newFontConfig.Validate();
-      
+
       // Apply the new configuration immediately
       UpdateFontConfig(newFontConfig);
-      
+
       // Update current selection
       _currentFontFamily = displayName;
-      
+
       Console.WriteLine($"TerminalController: Successfully switched to font family: {displayName}");
     }
     catch (Exception ex)
@@ -3535,7 +3535,7 @@ public class TerminalController : ITerminalController
       {
         // Initialize theme system if not already done
         ThemeManager.InitializeThemes();
-        
+
         var availableThemes = ThemeManager.AvailableThemes;
         var currentTheme = ThemeManager.CurrentTheme;
 
@@ -3552,16 +3552,16 @@ public class TerminalController : ITerminalController
         {
           ImGui.Text("Built-in Themes:");
           ImGui.Separator();
-          
+
           foreach (var theme in builtInThemes)
           {
             bool isSelected = theme.Name == currentTheme.Name;
-            
+
             if (ImGui.MenuItem(theme.Name, "", isSelected))
             {
               ApplySelectedTheme(theme);
             }
-            
+
             // Show tooltip with theme information
             if (ImGui.IsItemHovered())
             {
@@ -3581,16 +3581,16 @@ public class TerminalController : ITerminalController
         {
           ImGui.Text("TOML Themes:");
           ImGui.Separator();
-          
+
           foreach (var theme in tomlThemes)
           {
             bool isSelected = theme.Name == currentTheme.Name;
-            
+
             if (ImGui.MenuItem(theme.Name, "", isSelected))
             {
               ApplySelectedTheme(theme);
             }
-            
+
             // Show tooltip with theme information
             if (ImGui.IsItemHovered())
             {
@@ -3618,7 +3618,7 @@ public class TerminalController : ITerminalController
           {
             RefreshThemes();
           }
-          
+
           if (ImGui.IsItemHovered())
           {
             ImGui.SetTooltip("Reload themes from TerminalThemes directory");
@@ -3641,10 +3641,10 @@ public class TerminalController : ITerminalController
     try
     {
       Console.WriteLine($"TerminalController: Applying theme: {theme.Name}");
-      
+
       // Apply the theme through ThemeManager
       ThemeManager.ApplyTheme(theme);
-      
+
       Console.WriteLine($"TerminalController: Successfully applied theme: {theme.Name}");
     }
     catch (Exception ex)
@@ -3662,10 +3662,10 @@ public class TerminalController : ITerminalController
     try
     {
       Console.WriteLine("TerminalController: Refreshing themes...");
-      
+
       // Refresh themes through ThemeManager
       ThemeManager.RefreshAvailableThemes();
-      
+
       Console.WriteLine($"TerminalController: Themes refreshed. Available themes: {ThemeManager.AvailableThemes.Count}");
     }
     catch (Exception ex)
@@ -3685,8 +3685,8 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Renders the Settings menu with opacity control and other display settings.
-  /// Provides a slider for global opacity adjustment with immediate visual feedback.
+  /// Renders the Settings menu with separate background and foreground opacity controls.
+  /// Provides sliders for independent opacity adjustment with immediate visual feedback.
   /// </summary>
   private void RenderSettingsMenu()
   {
@@ -3697,58 +3697,117 @@ public class TerminalController : ITerminalController
         // Initialize opacity manager if not already done
         OpacityManager.Initialize();
 
-        // Global Opacity Section
+        // Display Settings Section
         ImGui.Text("Display Settings");
         ImGui.Separator();
 
-        // Get current opacity as percentage for the slider
-        int currentOpacityPercent = OpacityManager.GetOpacityPercentage();
-        int newOpacityPercent = currentOpacityPercent;
+        // Background Opacity Section
+        ImGui.Text("Background Opacity:");
+        int currentBgOpacityPercent = OpacityManager.GetBackgroundOpacityPercentage();
+        int newBgOpacityPercent = currentBgOpacityPercent;
 
-        // Opacity slider (0-100%)
-        ImGui.Text("Global Opacity:");
-        ImGui.SameLine();
-        if (ImGui.SliderInt("##OpacitySlider", ref newOpacityPercent, 0, 100, $"{newOpacityPercent}%%"))
+        if (ImGui.SliderInt("##BackgroundOpacitySlider", ref newBgOpacityPercent, 0, 100, $"{newBgOpacityPercent}%%"))
         {
-          // Apply opacity change immediately
-          if (OpacityManager.SetOpacityFromPercentage(newOpacityPercent))
+          // Apply background opacity change immediately
+          if (OpacityManager.SetBackgroundOpacityFromPercentage(newBgOpacityPercent))
           {
-            // Console.WriteLine($"TerminalController: Opacity set to {newOpacityPercent}%");
+            // Console.WriteLine($"TerminalController: Background opacity set to {newBgOpacityPercent}%");
           }
           else
           {
-            Console.WriteLine($"TerminalController: Failed to set opacity to {newOpacityPercent}%");
+            Console.WriteLine($"TerminalController: Failed to set background opacity to {newBgOpacityPercent}%");
           }
         }
 
-        // Show tooltip with opacity information
+        // Show tooltip for background opacity
         if (ImGui.IsItemHovered())
         {
-          var currentOpacity = OpacityManager.CurrentOpacity;
-          ImGui.SetTooltip($"Current opacity: {currentOpacity:F2} ({currentOpacityPercent}%)\nAdjust terminal transparency\nRange: 0% (transparent) to 100% (opaque)");
+          var currentBgOpacity = OpacityManager.CurrentBackgroundOpacity;
+          ImGui.SetTooltip($"Background opacity: {currentBgOpacity:F2} ({currentBgOpacityPercent}%)\nAdjust terminal background transparency\nRange: 0% (transparent) to 100% (opaque)");
         }
 
-        // Reset to default button
+        // Reset background opacity button
         ImGui.SameLine();
-        if (ImGui.Button("Reset##OpacityReset"))
+        if (ImGui.Button("Reset##BackgroundOpacityReset"))
+        {
+          if (OpacityManager.ResetBackgroundOpacity())
+          {
+            Console.WriteLine("TerminalController: Background opacity reset to default");
+          }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          ImGui.SetTooltip("Reset background opacity to 100% (fully opaque)");
+        }
+
+        // Foreground Opacity Section
+        ImGui.Text("Foreground Opacity:");
+        int currentFgOpacityPercent = OpacityManager.GetForegroundOpacityPercentage();
+        int newFgOpacityPercent = currentFgOpacityPercent;
+
+        if (ImGui.SliderInt("##ForegroundOpacitySlider", ref newFgOpacityPercent, 0, 100, $"{newFgOpacityPercent}%%"))
+        {
+          // Apply foreground opacity change immediately
+          if (OpacityManager.SetForegroundOpacityFromPercentage(newFgOpacityPercent))
+          {
+            // Console.WriteLine($"TerminalController: Foreground opacity set to {newFgOpacityPercent}%");
+          }
+          else
+          {
+            Console.WriteLine($"TerminalController: Failed to set foreground opacity to {newFgOpacityPercent}%");
+          }
+        }
+
+        // Show tooltip for foreground opacity
+        if (ImGui.IsItemHovered())
+        {
+          var currentFgOpacity = OpacityManager.CurrentForegroundOpacity;
+          ImGui.SetTooltip($"Foreground opacity: {currentFgOpacity:F2} ({currentFgOpacityPercent}%)\nAdjust terminal text transparency\nRange: 0% (transparent) to 100% (opaque)");
+        }
+
+        // Reset foreground opacity button
+        ImGui.SameLine();
+        if (ImGui.Button("Reset##ForegroundOpacityReset"))
+        {
+          if (OpacityManager.ResetForegroundOpacity())
+          {
+            Console.WriteLine("TerminalController: Foreground opacity reset to default");
+          }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          ImGui.SetTooltip("Reset foreground opacity to 100% (fully opaque)");
+        }
+
+        // Reset both button
+        ImGui.Separator();
+        if (ImGui.Button("Reset Both##ResetBothOpacity"))
         {
           if (OpacityManager.ResetOpacity())
           {
-            // Console.WriteLine("TerminalController: Opacity reset to default");
+            Console.WriteLine("TerminalController: Both opacity values reset to default");
           }
         }
 
         if (ImGui.IsItemHovered())
         {
-          // ImGui.SetTooltip("Reset opacity to 100% (fully opaque)");
+          ImGui.SetTooltip("Reset both background and foreground opacity to 100%");
         }
 
         // Show current opacity status
         ImGui.Separator();
-        var opacity = OpacityManager.CurrentOpacity;
-        var isDefault = OpacityManager.IsDefaultOpacity();
-        var statusText = isDefault ? "Default (100%)" : $"{opacity:F2} ({currentOpacityPercent}%)";
-        ImGui.Text($"Current: {statusText}");
+        var bgOpacity = OpacityManager.CurrentBackgroundOpacity;
+        var fgOpacity = OpacityManager.CurrentForegroundOpacity;
+        var bgIsDefault = OpacityManager.IsDefaultBackgroundOpacity();
+        var fgIsDefault = OpacityManager.IsDefaultForegroundOpacity();
+
+        var bgStatusText = bgIsDefault ? "Default (100%)" : $"{bgOpacity:F2} ({currentBgOpacityPercent}%)";
+        var fgStatusText = fgIsDefault ? "Default (100%)" : $"{fgOpacity:F2} ({currentFgOpacityPercent}%)";
+
+        ImGui.Text($"Background: {bgStatusText}");
+        ImGui.Text($"Foreground: {fgStatusText}");
 
         // Future settings can be added here
         ImGui.Separator();
@@ -3874,7 +3933,7 @@ public class TerminalController : ITerminalController
     {
       // Clamp the font size to valid range
       fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, fontSize));
-      
+
       var newFontConfig = new TerminalFontConfig
       {
         FontSize = fontSize,

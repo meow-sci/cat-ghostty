@@ -97,7 +97,8 @@ public class ThemePersistenceProperties
                 var config = new ThemeConfiguration
                 {
                     SelectedThemeName = themeName,
-                    GlobalOpacity = opacity
+                    BackgroundOpacity = opacity,
+                    ForegroundOpacity = opacity
                 };
                 
                 // Save and load configuration
@@ -106,9 +107,10 @@ public class ThemePersistenceProperties
                 
                 // Both theme name and opacity should be preserved
                 bool configThemePreserved = loadedConfig.SelectedThemeName == themeName;
-                bool configOpacityPreserved = Math.Abs(loadedConfig.GlobalOpacity - opacity) < 0.001f;
+                bool configBgOpacityPreserved = Math.Abs(loadedConfig.BackgroundOpacity - opacity) < 0.001f;
+                bool configFgOpacityPreserved = Math.Abs(loadedConfig.ForegroundOpacity - opacity) < 0.001f;
                 
-                return themeNamePreserved && configThemePreserved && configOpacityPreserved;
+                return themeNamePreserved && configThemePreserved && configBgOpacityPreserved && configFgOpacityPreserved;
             }
             catch (Exception)
             {
@@ -133,7 +135,8 @@ public class ThemePersistenceProperties
                 var originalConfig = new ThemeConfiguration
                 {
                     SelectedThemeName = themeName,
-                    GlobalOpacity = opacity
+                    BackgroundOpacity = opacity,
+                    ForegroundOpacity = opacity
                 };
                 
                 // Save configuration
@@ -144,16 +147,19 @@ public class ThemePersistenceProperties
                 
                 // All properties should be preserved
                 bool themeNameMatches = loadedConfig.SelectedThemeName == originalConfig.SelectedThemeName;
-                bool opacityMatches = Math.Abs(loadedConfig.GlobalOpacity - originalConfig.GlobalOpacity) < 0.001f;
+                bool bgOpacityMatches = Math.Abs(loadedConfig.BackgroundOpacity - originalConfig.BackgroundOpacity) < 0.001f;
+                bool fgOpacityMatches = Math.Abs(loadedConfig.ForegroundOpacity - originalConfig.ForegroundOpacity) < 0.001f;
                 
                 // Test multiple save/load cycles
                 loadedConfig.Save();
                 var secondLoadConfig = ThemeConfiguration.Load();
                 
                 bool secondCycleThemeMatches = secondLoadConfig.SelectedThemeName == originalConfig.SelectedThemeName;
-                bool secondCycleOpacityMatches = Math.Abs(secondLoadConfig.GlobalOpacity - originalConfig.GlobalOpacity) < 0.001f;
+                bool secondCycleBgOpacityMatches = Math.Abs(secondLoadConfig.BackgroundOpacity - originalConfig.BackgroundOpacity) < 0.001f;
+                bool secondCycleFgOpacityMatches = Math.Abs(secondLoadConfig.ForegroundOpacity - originalConfig.ForegroundOpacity) < 0.001f;
                 
-                return themeNameMatches && opacityMatches && secondCycleThemeMatches && secondCycleOpacityMatches;
+                return themeNameMatches && bgOpacityMatches && fgOpacityMatches && 
+                       secondCycleThemeMatches && secondCycleBgOpacityMatches && secondCycleFgOpacityMatches;
             }
             catch (Exception)
             {
@@ -177,7 +183,8 @@ public class ThemePersistenceProperties
                 var config = new ThemeConfiguration
                 {
                     SelectedThemeName = null,
-                    GlobalOpacity = opacity
+                    BackgroundOpacity = opacity,
+                    ForegroundOpacity = opacity
                 };
                 
                 // Save and load should work without exceptions
@@ -188,9 +195,10 @@ public class ThemePersistenceProperties
                 bool nullPreserved = loadedConfig.SelectedThemeName == null;
                 
                 // Opacity should still be preserved
-                bool opacityPreserved = Math.Abs(loadedConfig.GlobalOpacity - opacity) < 0.001f;
+                bool bgOpacityPreserved = Math.Abs(loadedConfig.BackgroundOpacity - opacity) < 0.001f;
+                bool fgOpacityPreserved = Math.Abs(loadedConfig.ForegroundOpacity - opacity) < 0.001f;
                 
-                return nullPreserved && opacityPreserved;
+                return nullPreserved && bgOpacityPreserved && fgOpacityPreserved;
             }
             catch (Exception)
             {

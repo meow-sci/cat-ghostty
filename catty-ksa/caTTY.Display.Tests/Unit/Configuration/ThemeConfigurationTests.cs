@@ -94,7 +94,8 @@ public class ThemeConfigurationTests
         // Should return default configuration
         Assert.That(config, Is.Not.Null);
         Assert.That(config.SelectedThemeName, Is.Null);
-        Assert.That(config.GlobalOpacity, Is.EqualTo(1.0f));
+        Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f));
+        Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f));
     }
 
     /// <summary>
@@ -124,7 +125,8 @@ public class ThemeConfigurationTests
             // Should return default configuration despite invalid JSON
             Assert.That(config, Is.Not.Null);
             Assert.That(config.SelectedThemeName, Is.Null);
-            Assert.That(config.GlobalOpacity, Is.EqualTo(1.0f));
+            Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f));
+            Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f));
         }
         finally
         {
@@ -153,9 +155,10 @@ public class ThemeConfigurationTests
         var malformedJsonCases = new[]
         {
             "{ \"SelectedThemeName\": \"Test\", }", // Trailing comma
-            "{ \"SelectedThemeName\": \"Test\" \"GlobalOpacity\": 0.5 }", // Missing comma
+            "{ \"SelectedThemeName\": \"Test\" \"BackgroundOpacity\": 0.5 }", // Missing comma
             "{ \"SelectedThemeName\": }", // Missing value
-            "{ \"GlobalOpacity\": \"not_a_number\" }", // Wrong type
+            "{ \"BackgroundOpacity\": \"not_a_number\" }", // Wrong type
+            "{ \"ForegroundOpacity\": \"not_a_number\" }", // Wrong type
             "{ \"UnknownProperty\": \"value\" }", // Unknown property only
             "", // Empty file
             "null", // Null JSON
@@ -173,7 +176,8 @@ public class ThemeConfigurationTests
                 // Should always return a valid default configuration
                 Assert.That(config, Is.Not.Null, $"Failed for JSON: {malformedJson}");
                 Assert.That(config.SelectedThemeName, Is.Null, $"Failed for JSON: {malformedJson}");
-                Assert.That(config.GlobalOpacity, Is.EqualTo(1.0f), $"Failed for JSON: {malformedJson}");
+                Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f), $"Failed for JSON: {malformedJson}");
+                Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f), $"Failed for JSON: {malformedJson}");
             }
             finally
             {
@@ -195,7 +199,8 @@ public class ThemeConfigurationTests
         var config = new ThemeConfiguration
         {
             SelectedThemeName = "TestTheme",
-            GlobalOpacity = 0.75f
+            BackgroundOpacity = 0.75f,
+            ForegroundOpacity = 0.85f
         };
 
         // Ensure directory doesn't exist initially
@@ -220,7 +225,8 @@ public class ThemeConfigurationTests
             // Content should be correct
             var loadedConfig = ThemeConfiguration.Load();
             Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo("TestTheme"));
-            Assert.That(loadedConfig.GlobalOpacity, Is.EqualTo(0.75f).Within(0.001f));
+            Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(0.75f).Within(0.001f));
+            Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(0.85f).Within(0.001f));
         }
         finally
         {
@@ -245,7 +251,8 @@ public class ThemeConfigurationTests
         var originalConfig = new ThemeConfiguration
         {
             SelectedThemeName = "Adventure",
-            GlobalOpacity = 0.85f
+            BackgroundOpacity = 0.85f,
+            ForegroundOpacity = 0.75f
         };
 
         var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -262,7 +269,8 @@ public class ThemeConfigurationTests
 
             // All values should be preserved
             Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo("Adventure"));
-            Assert.That(loadedConfig.GlobalOpacity, Is.EqualTo(0.85f).Within(0.001f));
+            Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(0.85f).Within(0.001f));
+            Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(0.75f).Within(0.001f));
         }
         finally
         {
@@ -283,7 +291,8 @@ public class ThemeConfigurationTests
         var config = new ThemeConfiguration
         {
             SelectedThemeName = null,
-            GlobalOpacity = 0.5f
+            BackgroundOpacity = 0.5f,
+            ForegroundOpacity = 0.6f
         };
 
         var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -297,7 +306,8 @@ public class ThemeConfigurationTests
 
             // Null theme name should be preserved
             Assert.That(loadedConfig.SelectedThemeName, Is.Null);
-            Assert.That(loadedConfig.GlobalOpacity, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(0.6f).Within(0.001f));
         }
         finally
         {
@@ -325,7 +335,8 @@ public class ThemeConfigurationTests
             var config = new ThemeConfiguration
             {
                 SelectedThemeName = $"TestTheme_{opacity}",
-                GlobalOpacity = opacity
+                BackgroundOpacity = opacity,
+                ForegroundOpacity = opacity
             };
 
             try
@@ -333,8 +344,10 @@ public class ThemeConfigurationTests
                 config.Save();
                 var loadedConfig = ThemeConfiguration.Load();
 
-                Assert.That(loadedConfig.GlobalOpacity, Is.EqualTo(opacity).Within(0.0001f), 
-                    $"Failed to preserve opacity value: {opacity}");
+                Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(opacity).Within(0.0001f), 
+                    $"Failed to preserve background opacity value: {opacity}");
+                Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(opacity).Within(0.0001f), 
+                    $"Failed to preserve foreground opacity value: {opacity}");
                 Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo($"TestTheme_{opacity}"));
             }
             finally

@@ -16,9 +16,14 @@ public class ThemeConfiguration
     public string? SelectedThemeName { get; set; }
 
     /// <summary>
-    /// Global opacity setting for the terminal (0.0 to 1.0).
+    /// Background opacity setting for terminal background colors (0.0 to 1.0).
     /// </summary>
-    public float GlobalOpacity { get; set; } = 1.0f;
+    public float BackgroundOpacity { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Foreground opacity setting for terminal text colors (0.0 to 1.0).
+    /// </summary>
+    public float ForegroundOpacity { get; set; } = 1.0f;
 
     /// <summary>
     /// Load configuration from the default configuration file.
@@ -29,7 +34,7 @@ public class ThemeConfiguration
         try
         {
             var configPath = GetConfigFilePath();
-            
+
             if (!File.Exists(configPath))
             {
                 return new ThemeConfiguration();
@@ -37,7 +42,7 @@ public class ThemeConfiguration
 
             var jsonContent = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize<ThemeConfiguration>(jsonContent);
-            
+
             return config ?? new ThemeConfiguration();
         }
         catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is JsonException)
@@ -57,7 +62,7 @@ public class ThemeConfiguration
         {
             var configPath = GetConfigFilePath();
             var configDirectory = Path.GetDirectoryName(configPath);
-            
+
             // Ensure directory exists
             if (!string.IsNullOrEmpty(configDirectory) && !Directory.Exists(configDirectory))
             {

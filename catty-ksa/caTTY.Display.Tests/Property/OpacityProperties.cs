@@ -175,7 +175,7 @@ public class OpacityProperties
                     notificationCount++;
                 }
 
-                OpacityManager.OpacityChanged += OnOpacityChanged;
+                OpacityManager.BackgroundOpacityChanged += OnOpacityChanged;
 
                 try
                 {
@@ -210,7 +210,7 @@ public class OpacityProperties
                 }
                 finally
                 {
-                    OpacityManager.OpacityChanged -= OnOpacityChanged;
+                    OpacityManager.BackgroundOpacityChanged -= OnOpacityChanged;
                 }
             }
             catch (Exception)
