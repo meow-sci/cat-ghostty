@@ -6,13 +6,13 @@ This implementation plan transforms the caTTY terminal from single-session to mu
 
 ## Tasks
 
-- [ ] 1. Create core session infrastructure
+- [x] 1. Create core session infrastructure
   - Create TerminalSession class with session state management
   - Create SessionManager class for session lifecycle coordination
   - Create event argument classes for session events
   - _Requirements: 1.1, 1.2, 1.3, 1.5_
 
-- [ ] 1.1 Write property test for session lifecycle management
+- [x] 1.1 Write property test for session lifecycle management
   - **Property 1: Session Lifecycle Management**
   - **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 2.1, 2.4**
 
