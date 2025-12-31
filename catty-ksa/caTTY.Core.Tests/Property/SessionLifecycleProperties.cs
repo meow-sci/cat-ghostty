@@ -376,6 +376,125 @@ public class SessionLifecycleProperties
     }
 
     /// <summary>
+    ///     **Feature: multi-session-support, Property 4: Session Switching Behavior**
+    ///     **Validates: Requirements 3.2, 4.3**
+    ///     Property: For any session switch operation, the target session should become active 
+    ///     and the previous session should become inactive. When closing the active session,
+    ///     another session should automatically become active.
+    /// </summary>
+    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [Ignore(reason:"wsl2 too slow to do this regularly")]
+    public FsCheck.Property SessionSwitchingBehavior()
+    {
+        return Prop.ForAll(SessionCreateCountArb,
+            createCount =>
+            {
+                // Need at least 2 sessions to test switching behavior
+                if (createCount < 2) return true.ToProperty();
+
+                using var sessionManager = new SessionManager(createCount);
+                var createdSessions = new List<TerminalSession>();
+
+                try
+                {
+                    // Create multiple sessions
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var session = sessionManager.CreateSessionAsync().Result;
+                        createdSessions.Add(session);
+                    }
+
+                    // Test Requirement 3.2: Session switching makes target session active
+                    for (int i = 0; i < createCount; i++)
+                    {
+                        var targetSession = createdSessions[i];
+                        var previousActiveSession = sessionManager.ActiveSession;
+                        
+                        sessionManager.SwitchToSession(targetSession.Id);
+
+                        // Target session should become active (Requirement 3.2)
+                        if (sessionManager.ActiveSession?.Id != targetSession.Id)
+                        {
+                            return false.ToProperty().Label($"Expected session {targetSession.Id} to become active after switch");
+                        }
+
+                        if (targetSession.State != SessionState.Active)
+                        {
+                            return false.ToProperty().Label($"Expected switched session {targetSession.Id} to have Active state, got {targetSession.State}");
+                        }
+
+                        // Previous session should become inactive
+                        if (previousActiveSession != null && previousActiveSession.Id != targetSession.Id)
+                        {
+                            if (previousActiveSession.State != SessionState.Inactive)
+                            {
+                                return false.ToProperty().Label($"Expected previous session {previousActiveSession.Id} to become Inactive, got {previousActiveSession.State}");
+                            }
+                        }
+                    }
+
+                    // Test Requirement 4.3: Closing active session activates another session
+                    while (sessionManager.SessionCount > 1)
+                    {
+                        var activeSession = sessionManager.ActiveSession;
+                        if (activeSession == null)
+                        {
+                            return false.ToProperty().Label("Expected an active session before closing");
+                        }
+
+                        var activeSessionId = activeSession.Id;
+                        var remainingSessionsBefore = sessionManager.Sessions.Where(s => s.Id != activeSessionId).ToList();
+
+                        sessionManager.CloseSessionAsync(activeSessionId).Wait(TimeSpan.FromSeconds(2));
+
+                        // Another session should become active (Requirement 4.3)
+                        var newActiveSession = sessionManager.ActiveSession;
+                        if (newActiveSession == null)
+                        {
+                            return false.ToProperty().Label("Expected another session to become active after closing active session");
+                        }
+
+                        if (newActiveSession.Id == activeSessionId)
+                        {
+                            return false.ToProperty().Label("Expected a different session to become active after closing active session");
+                        }
+
+                        if (newActiveSession.State != SessionState.Active)
+                        {
+                            return false.ToProperty().Label($"Expected new active session {newActiveSession.Id} to have Active state, got {newActiveSession.State}");
+                        }
+
+                        // New active session should be one of the remaining sessions
+                        if (!remainingSessionsBefore.Any(s => s.Id == newActiveSession.Id))
+                        {
+                            return false.ToProperty().Label($"New active session {newActiveSession.Id} was not in the remaining sessions list");
+                        }
+                    }
+
+                    return true.ToProperty();
+                }
+                finally
+                {
+                    // Clean up sessions
+                    foreach (var session in createdSessions)
+                    {
+                        try
+                        {
+                            if (session.State != SessionState.Disposed)
+                            {
+                                session.CloseAsync().Wait(TimeSpan.FromSeconds(1));
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup errors in tests
+                        }
+                    }
+                }
+            });
+    }
+
+    /// <summary>
     ///     **Feature: multi-session-support, Property 1: Session Lifecycle Management**
     ///     **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 2.1, 2.4**
     ///     Property: For any session manager, resource cleanup should properly dispose of

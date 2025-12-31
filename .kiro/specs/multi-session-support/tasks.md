@@ -32,18 +32,18 @@ This implementation plan transforms the caTTY terminal from single-session to mu
     - Make newly created session the active session
     - _Requirements: 2.4, 2.5_
 
-- [ ] 3. Implement session switching and management
-  - [ ] 3.1 Implement SessionManager.SwitchToSession method
+- [x] 3. Implement session switching and management
+  - [x] 3.1 Implement SessionManager.SwitchToSession method
     - Deactivate current session and activate target session
     - Update active session tracking
     - Handle invalid session ID requests
     - _Requirements: 3.2, 4.3_
 
-  - [ ] 3.2 Write property test for session switching behavior
+  - [x] 3.2 Write property test for session switching behavior
     - **Property 4: Session Switching Behavior**
     - **Validates: Requirements 3.2, 4.3**
 
-  - [ ] 3.3 Implement next/previous session navigation
+  - [x] 3.3 Implement next/previous session navigation
     - Add SwitchToNextSession and SwitchToPreviousSession methods
     - Handle tab order management
     - _Requirements: 12.3_
