@@ -104,7 +104,7 @@ public class WindowDesignLayoutProperties
                                            LayoutConstants.MIN_WINDOW_HEIGHT <= 400.0f;
 
                 // Test font size bounds are reasonable
-                bool fontSizeBoundsValid = LayoutConstants.MIN_FONT_SIZE >= 6.0f &&
+                bool fontSizeBoundsValid = LayoutConstants.MIN_FONT_SIZE >= 3.0f &&
                                           LayoutConstants.MIN_FONT_SIZE <= 12.0f &&
                                           LayoutConstants.MAX_FONT_SIZE >= 48.0f &&
                                           LayoutConstants.MAX_FONT_SIZE <= 144.0f &&

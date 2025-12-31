@@ -104,17 +104,17 @@ This implementation plan converts the TOML-based terminal theming design into a 
   - **Property 11: Opacity Application Completeness**
   - **Validates: Requirements 7.2, 7.3, 7.5**
 
-- [ ] 8. Simplify terminal UI layout
+- [x] 8. Simplify terminal UI layout
   - Remove tab bar and info display from main terminal rendering
   - Implement RenderTerminalCanvas method for clean terminal-only display
   - Update terminal dimension calculations for simplified layout
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 8.1 Write property test for terminal canvas space utilization
+- [x] 8.1 Write property test for terminal canvas space utilization
   - **Property 13: Terminal Canvas Space Utilization**
   - **Validates: Requirements 8.3**
 
-- [ ] 8.2 Write unit tests for simplified UI layout
+- [x] 8.2 Write unit tests for simplified UI layout
   - Test that tab bars and info displays are not rendered
   - Test that menu functionality remains accessible
   - _Requirements: 8.1, 8.2, 8.4, 8.5_

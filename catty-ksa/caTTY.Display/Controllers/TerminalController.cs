@@ -69,7 +69,7 @@ public static class LayoutConstants
     public const float MAX_FONT_SIZE = 72.0f;
 
     /// <summary>Minimum reasonable font size for validation</summary>
-    public const float MIN_FONT_SIZE = 8.0f;
+    public const float MIN_FONT_SIZE = 4.0f;
 }
 
 /// <summary>
@@ -429,7 +429,8 @@ public class TerminalController : ITerminalController
   public event EventHandler<DataInputEventArgs>? DataInput;
 
   /// <summary>
-  ///     Renders the terminal window using ImGui.
+  ///     Renders the terminal window using ImGui with simplified UI layout.
+  ///     Removes tab bar and info display to maximize terminal canvas space.
   /// </summary>
   public void Render()
   {
@@ -441,7 +442,7 @@ public class TerminalController : ITerminalController
     // Ensure fonts are loaded before rendering (deferred loading)
     EnsureFontsLoaded();
 
-    // Push UI font for menus, tabs, and info widgets (always Hack Regular 32.0f)
+    // Push UI font for menus (always Hack Regular 32.0f)
     PushUIFont(out bool uiFontUsed);
 
     try
@@ -457,11 +458,8 @@ public class TerminalController : ITerminalController
       // This ensures the game doesn't process keyboard input when terminal is focused
       ManageInputCapture();
 
-      // Render menu bar (uses UI font)
+      // Render menu bar (uses UI font) - preserved for accessibility
       RenderMenuBar();
-
-      // Render tab area (uses UI font)
-      RenderTabArea();
 
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
@@ -469,28 +467,12 @@ public class TerminalController : ITerminalController
       // Process any pending font-triggered terminal resize
       ProcessPendingFontResize();
 
-      // Display terminal info (uses UI font)
-      ImGui.Text($"Terminal: {_terminal.Width}x{_terminal.Height}");
-      ImGui.SameLine();
-      ImGui.Text($"Cursor: ({_terminal.Cursor.Row}, {_terminal.Cursor.Col})");
-      ImGui.SameLine();
-      ImGui.Text(
-          $"Process: {(_processManager.IsRunning ? $"Running (PID: {_processManager.ProcessId})" : "Stopped")}");
-
-      if (_processManager.ExitCode.HasValue)
-      {
-        ImGui.SameLine();
-        ImGui.Text($"Exit Code: {_processManager.ExitCode}");
-      }
-
-      ImGui.Separator();
-
       // Pop UI font before rendering terminal content
       MaybePopFont(uiFontUsed);
       uiFontUsed = false; // Mark as popped
 
-      // Render terminal content (uses terminal content font)
-      RenderTerminalContent();
+      // Render simplified terminal canvas (no tab area or info display)
+      RenderTerminalCanvas();
 
       // Push UI font again for focus indicators
       PushUIFont(out uiFontUsed);
@@ -1324,21 +1306,19 @@ public class TerminalController : ITerminalController
   {
     try
     {
-      // Calculate UI overhead: original terminal info + new menu bar + tab area
-      // Original calculation was 60.0f for terminal info + separator + padding
-      // Now add menu bar (25.0f) + tab area (50.0f) = +75.0f
-      const float ORIGINAL_UI_OVERHEAD = 60.0f; // Original: terminal info + separator + padding
+      // Calculate UI overhead for simplified UI layout
+      // Simplified UI only includes menu bar (no tab area or terminal info display)
       float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
-      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
+      float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // Top and bottom padding
 
-      float totalUIOverheadHeight = ORIGINAL_UI_OVERHEAD + menuBarHeight + tabAreaHeight;
+      float totalUIOverheadHeight = menuBarHeight + windowPadding;
 
-      // Debug logging for UI overhead calculation
-      // Console.WriteLine($"TerminalController: UI Overhead - Original: {ORIGINAL_UI_OVERHEAD}, Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Total: {totalUIOverheadHeight}");
+      // Debug logging for simplified UI overhead calculation
+      // Console.WriteLine($"TerminalController: Simplified UI Overhead - Menu: {menuBarHeight}, Padding: {windowPadding}, Total: {totalUIOverheadHeight}");
 
-      const float PADDING_WIDTH = 20.0f; // Horizontal padding
+      float horizontalPadding = LayoutConstants.WINDOW_PADDING * 2; // Left and right padding
 
-      float availableWidth = availableSize.X - PADDING_WIDTH;
+      float availableWidth = availableSize.X - horizontalPadding;
       float availableHeight = availableSize.Y - totalUIOverheadHeight;
 
       // Ensure we have positive dimensions
@@ -3465,7 +3445,7 @@ public class TerminalController : ITerminalController
         int currentFontSize = (int)_fontConfig.FontSize;
         ImGui.Text("Font Size:");
         ImGui.SameLine();
-        if (ImGui.SliderInt("##FontSize", ref currentFontSize, 10, 72))
+        if (ImGui.SliderInt("##FontSize", ref currentFontSize, 4, 72))
         {
           SetFontSize((float)currentFontSize);
         }
@@ -3892,6 +3872,29 @@ public class TerminalController : ITerminalController
       ImGui.Text("Terminal 1");
       ImGui.SameLine();
       ImGui.Text("[+]");
+    }
+  }
+
+  /// <summary>
+  /// Renders the terminal canvas for simplified UI layout.
+  /// This method provides a clean terminal-only display without tab bars or info displays.
+  /// </summary>
+  private void RenderTerminalCanvas()
+  {
+    try
+    {
+      // Pop UI font before rendering terminal content
+      // Note: This assumes UI font was pushed before calling this method
+
+      // Render terminal content directly without additional UI elements
+      RenderTerminalContent();
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error rendering terminal canvas: {ex.Message}");
+
+      // Fallback: render a simple error message
+      ImGui.Text("Terminal rendering error");
     }
   }
 

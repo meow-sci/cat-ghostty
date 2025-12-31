@@ -26,7 +26,7 @@ public class ThemeConfigurationTests
 
         // Store original AppData path and set temporary one for testing
         _originalAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        
+
         // We can't easily override Environment.GetFolderPath, so we'll test with actual paths
         // but clean up afterwards
     }
@@ -53,7 +53,7 @@ public class ThemeConfigurationTests
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var configDirectory = Path.Combine(appDataPath, "caTTY");
             var configFile = Path.Combine(configDirectory, "theme-config.json");
-            
+
             if (File.Exists(configFile))
             {
                 var content = File.ReadAllText(configFile);
@@ -204,7 +204,8 @@ public class ThemeConfigurationTests
         };
 
         // Ensure directory doesn't exist initially
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataPath = Path.GetTempPath();
+        ThemeConfiguration.OverrideAppDataDirectory = appDataPath;
         var configDirectory = Path.Combine(appDataPath, "caTTY");
         var configFile = Path.Combine(configDirectory, "theme-config.json");
 
@@ -215,12 +216,13 @@ public class ThemeConfigurationTests
 
         try
         {
+          Console.WriteLine($"configFile={configFile}");
             // Save configuration
             config.Save();
 
             // Directory and file should be created
-            Assert.That(Directory.Exists(configDirectory), Is.True);
-            Assert.That(File.Exists(configFile), Is.True);
+            Assert.That(Directory.Exists(configDirectory), Is.True, $"configDirectory={configDirectory} did not exist");
+            Assert.That(File.Exists(configFile), Is.True, $"configFile={configFile} did not exist");
 
             // Content should be correct
             var loadedConfig = ThemeConfiguration.Load();
@@ -344,9 +346,9 @@ public class ThemeConfigurationTests
                 config.Save();
                 var loadedConfig = ThemeConfiguration.Load();
 
-                Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(opacity).Within(0.0001f), 
+                Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(opacity).Within(0.0001f),
                     $"Failed to preserve background opacity value: {opacity}");
-                Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(opacity).Within(0.0001f), 
+                Assert.That(loadedConfig.ForegroundOpacity, Is.EqualTo(opacity).Within(0.0001f),
                     $"Failed to preserve foreground opacity value: {opacity}");
                 Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo($"TestTheme_{opacity}"));
             }

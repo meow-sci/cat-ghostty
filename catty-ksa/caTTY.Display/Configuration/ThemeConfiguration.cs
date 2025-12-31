@@ -25,6 +25,9 @@ public class ThemeConfiguration
     /// </summary>
     public float ForegroundOpacity { get; set; } = 1.0f;
 
+
+    public static string? OverrideAppDataDirectory { get; set; }
+
     /// <summary>
     /// Load configuration from the default configuration file.
     /// </summary>
@@ -89,7 +92,7 @@ public class ThemeConfiguration
     /// <returns>Full path to the configuration file</returns>
     private static string GetConfigFilePath()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var appDataPath = OverrideAppDataDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var configDirectory = Path.Combine(appDataPath, "caTTY");
         return Path.Combine(configDirectory, "theme-config.json");
     }
