@@ -727,8 +727,20 @@ public class SessionStateIsolationProperties
                         var uniqueWidth = 80 + i * 10;
                         var uniqueHeight = 24 + i * 5;
                         session.Terminal.Resize(uniqueWidth, uniqueHeight);
+                    }
+
+                    // Allow shells to stabilize and capture their actual titles
+                    // (shells like PowerShell will change the title from the initial value)
+                    Task.Delay(100).Wait(); // Brief delay for shell initialization
+                    
+                    // Capture the actual state after shell stabilization
+                    for (int i = 0; i < sessionCount; i++)
+                    {
+                        var session = createdSessions[i];
+                        var uniqueWidth = 80 + i * 10;
+                        var uniqueHeight = 24 + i * 5;
                         
-                        // Store the expected state
+                        // Store the actual state (including shell-modified title)
                         sessionStates[session.Id] = (uniqueWidth, uniqueHeight, session.Title);
                     }
 
