@@ -111,8 +111,8 @@ public class ProcessLaunchOptions
         // Set platform-specific defaults
         if (OperatingSystem.IsWindows())
         {
-            // Default to WSL2 for better terminal compatibility
-            options.ShellType = ShellType.Wsl;
+            // Default to cmd.exe for reliability and performance
+            options.ShellType = ShellType.PowerShell;
             options.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
         else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
@@ -135,12 +135,25 @@ public class ProcessLaunchOptions
     ///     Creates launch options for PowerShell on Windows.
     /// </summary>
     /// <returns>PowerShell launch options</returns>
-    public static ProcessLaunchOptions CreatePowerShell()
+    public static ProcessLaunchOptions CreatePowerShellQuietCDrive()
     {
         ProcessLaunchOptions options = CreateDefault();
         options.ShellType = ShellType.PowerShell;
         options.Arguments.Clear();
         options.Arguments.AddRange(["-NoLogo", "-NoProfile"]);
+        return options;
+    }
+
+    /// <summary>
+    ///     Creates launch options for PowerShell on Windows.
+    /// </summary>
+    /// <returns>PowerShell launch options</returns>
+    public static ProcessLaunchOptions CreatePowerShell()
+    {
+        ProcessLaunchOptions options = CreateDefault();
+        options.ShellType = ShellType.PowerShell;
+        options.Arguments.Clear();
+        // options.Arguments.AddRange([]);
         return options;
     }
 

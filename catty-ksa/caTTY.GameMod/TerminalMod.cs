@@ -147,9 +147,8 @@ public class TerminalMod
       // Create process manager
       _processManager = new ProcessManager();
 
-      // Option 1: Explicit font configuration (current approach - recommended for production)
-      // Create session manager and add a session
-      var sessionManager = new SessionManager();
+      // Create session manager with persisted shell configuration
+      var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration();
       var session = sessionManager.CreateSessionAsync().Result;
       
       var fontConfig = TerminalFontConfig.CreateForGameMod();

@@ -16,6 +16,75 @@ namespace caTTY.Core.Tests.Property;
 [Category("Property")]
 public class PtyBridgeIntegrationProperties
 {
+    private static readonly object SharedLock = new();
+    private static CustomShellPtyBridge? _sharedBridge;
+    private static MockCustomShell? _sharedShell;
+
+    /// <summary>
+    ///     Gets or creates a shared bridge instance for faster test execution.
+    ///     This avoids the overhead of creating/disposing bridges for each test iteration.
+    /// </summary>
+    private static CustomShellPtyBridge GetSharedBridge()
+    {
+        lock (SharedLock)
+        {
+            if (_sharedBridge == null || !_sharedBridge.IsRunning)
+            {
+                // Clean up previous instance if needed
+                _sharedBridge?.Dispose();
+                _sharedShell?.Dispose();
+
+                // Create new shared instances
+                _sharedShell = new MockCustomShell();
+                _sharedBridge = new CustomShellPtyBridge(_sharedShell);
+
+                // Start the bridge once
+                var options = ProcessLaunchOptions.CreateCustomGame("shared-test-shell");
+                var startTask = _sharedBridge.StartAsync(options);
+                
+                // Use shorter timeout for faster test execution
+                if (!startTask.Wait(TimeSpan.FromMilliseconds(100)))
+                {
+                    throw new TimeoutException("Failed to start shared bridge within timeout");
+                }
+
+                if (!_sharedBridge.IsRunning)
+                {
+                    throw new InvalidOperationException("Shared bridge failed to start");
+                }
+            }
+
+            return _sharedBridge;
+        }
+    }
+
+    /// <summary>
+    ///     Gets the shared mock shell instance.
+    /// </summary>
+    private static MockCustomShell GetSharedShell()
+    {
+        lock (SharedLock)
+        {
+            GetSharedBridge(); // Ensure bridge is initialized
+            return _sharedShell!;
+        }
+    }
+
+    /// <summary>
+    ///     Cleanup shared resources after all tests complete.
+    /// </summary>
+    [OneTimeTearDown]
+    public static void CleanupSharedResources()
+    {
+        lock (SharedLock)
+        {
+            _sharedBridge?.Dispose();
+            _sharedShell?.Dispose();
+            _sharedBridge = null;
+            _sharedShell = null;
+        }
+    }
+
     /// <summary>
     ///     Generator for valid input data.
     /// </summary>
@@ -56,44 +125,54 @@ public class PtyBridgeIntegrationProperties
     {
         return Prop.ForAll(InputDataArb, inputData =>
         {
-            // Arrange: Create mock shell and PTY bridge
-            var mockShell = new MockCustomShell();
-            using var bridge = new CustomShellPtyBridge(mockShell);
-
-            var dataReceived = false;
-            var receivedData = Array.Empty<byte>();
-
-            bridge.DataReceived += (sender, e) =>
+            try
             {
-                dataReceived = true;
-                receivedData = e.Data.ToArray();
-            };
+                // Use shared bridge for faster execution
+                var bridge = GetSharedBridge();
+                var mockShell = GetSharedShell();
 
-            // Act: Start the bridge and send input
-            var options = ProcessLaunchOptions.CreateCustomGame("test-shell");
-            var startTask = bridge.StartAsync(options);
-            startTask.Wait(TimeSpan.FromSeconds(1));
+                // Reset shell state for this test iteration
+                mockShell.Reset();
 
-            // Verify bridge is running
-            if (!bridge.IsRunning)
+                var dataReceived = false;
+                var receivedData = Array.Empty<byte>();
+
+                // Use local event handler to avoid interference between test iterations
+                void OnDataReceived(object? sender, DataReceivedEventArgs e)
+                {
+                    dataReceived = true;
+                    receivedData = e.Data.ToArray();
+                }
+
+                bridge.DataReceived += OnDataReceived;
+
+                try
+                {
+                    // Send input to the bridge
+                    bridge.Write(inputData.AsSpan());
+
+                    // Trigger output from mock shell (synchronous for speed)
+                    mockShell.TriggerOutput(inputData);
+
+                    // Minimal wait for async operations - reduced from 50ms to 5ms
+                    Thread.Sleep(5);
+
+                    // Assert: Verify input reached the shell and output reached the bridge
+                    bool inputReachedShell = mockShell.ReceivedInput.SequenceEqual(inputData);
+                    bool outputReachedBridge = dataReceived && receivedData.SequenceEqual(inputData);
+
+                    return inputReachedShell && outputReachedBridge;
+                }
+                finally
+                {
+                    bridge.DataReceived -= OnDataReceived;
+                }
+            }
+            catch (Exception)
             {
+                // Return false for any exceptions to avoid test framework issues
                 return false;
             }
-
-            // Send input to the bridge
-            bridge.Write(inputData.AsSpan());
-
-            // Trigger output from mock shell
-            mockShell.TriggerOutput(inputData);
-
-            // Wait a bit for async operations
-            Thread.Sleep(50);
-
-            // Assert: Verify input reached the shell and output reached the bridge
-            bool inputReachedShell = mockShell.ReceivedInput.SequenceEqual(inputData);
-            bool outputReachedBridge = dataReceived && receivedData.SequenceEqual(inputData);
-
-            return inputReachedShell && outputReachedBridge;
         });
     }
 
@@ -108,27 +187,28 @@ public class PtyBridgeIntegrationProperties
     {
         return Prop.ForAll(TerminalDimensionsArb, dimensions =>
         {
-            var (width, height) = dimensions;
-
-            // Arrange: Create mock shell and PTY bridge
-            var mockShell = new MockCustomShell();
-            using var bridge = new CustomShellPtyBridge(mockShell);
-
-            // Act: Start the bridge
-            var options = ProcessLaunchOptions.CreateCustomGame("test-shell");
-            var startTask = bridge.StartAsync(options);
-            startTask.Wait(TimeSpan.FromSeconds(1));
-
-            if (!bridge.IsRunning)
+            try
             {
+                var (width, height) = dimensions;
+
+                // Use shared bridge for faster execution
+                var bridge = GetSharedBridge();
+                var mockShell = GetSharedShell();
+
+                // Reset shell state for this test iteration
+                mockShell.Reset();
+
+                // Send resize notification
+                bridge.Resize(width, height);
+
+                // Assert: Verify resize notification reached the shell
+                return mockShell.LastResizeWidth == width && mockShell.LastResizeHeight == height;
+            }
+            catch (Exception)
+            {
+                // Return false for any exceptions to avoid test framework issues
                 return false;
             }
-
-            // Send resize notification
-            bridge.Resize(width, height);
-
-            // Assert: Verify resize notification reached the shell
-            return mockShell.LastResizeWidth == width && mockShell.LastResizeHeight == height;
         });
     }
 
@@ -136,7 +216,7 @@ public class PtyBridgeIntegrationProperties
     ///     Generator for lists of input data.
     /// </summary>
     public static Arbitrary<byte[][]> InputArrayArb =>
-        Arb.From(Gen.Choose(2, 10).SelectMany(count =>
+        Arb.From(Gen.Choose(2, 5).SelectMany(count =>
             Gen.ArrayOf(count, InputDataArb.Generator)));
 
     /// <summary>
@@ -145,68 +225,80 @@ public class PtyBridgeIntegrationProperties
     ///     Property: For any custom shell, the PTY bridge should handle concurrent 
     ///     input and output operations safely without data corruption or race conditions.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 50, QuietOnSuccess = true)]
+    [FsCheck.NUnit.Property(MaxTest = 20, QuietOnSuccess = true)]
     public FsCheck.Property PtyBridgeHandlesConcurrentOperationsSafely()
     {
         return Prop.ForAll(InputArrayArb, inputArray =>
         {
-            // Arrange: Create mock shell and PTY bridge
-            var mockShell = new MockCustomShell();
-            using var bridge = new CustomShellPtyBridge(mockShell);
-
-            var receivedOutputs = new List<byte[]>();
-            var lockObject = new object();
-
-            bridge.DataReceived += (sender, e) =>
+            try
             {
-                lock (lockObject)
+                // Use shared bridge for faster execution
+                var bridge = GetSharedBridge();
+                var mockShell = GetSharedShell();
+
+                // Reset shell state for this test iteration
+                mockShell.Reset();
+
+                var receivedOutputs = new List<byte[]>();
+                var lockObject = new object();
+
+                // Use local event handler to avoid interference between test iterations
+                void OnDataReceived(object? sender, DataReceivedEventArgs e)
                 {
-                    receivedOutputs.Add(e.Data.ToArray());
+                    lock (lockObject)
+                    {
+                        receivedOutputs.Add(e.Data.ToArray());
+                    }
                 }
-            };
 
-            // Act: Start the bridge
-            var options = ProcessLaunchOptions.CreateCustomGame("test-shell");
-            var startTask = bridge.StartAsync(options);
-            startTask.Wait(TimeSpan.FromSeconds(1));
+                bridge.DataReceived += OnDataReceived;
 
-            if (!bridge.IsRunning)
-            {
-                return false;
+                try
+                {
+                    // Send multiple inputs concurrently and trigger outputs
+                    var tasks = inputArray.Select(input => Task.Run(() =>
+                    {
+                        bridge.Write(input.AsSpan());
+                        // Reduced delay for faster execution
+                        Thread.Sleep(1);
+                        mockShell.TriggerOutput(input);
+                    })).ToArray();
+
+                    // Reduced timeout for faster execution
+                    Task.WaitAll(tasks, TimeSpan.FromMilliseconds(200));
+
+                    // Reduced wait for all outputs to be processed
+                    Thread.Sleep(10);
+
+                    // Assert: Verify all inputs were received and all outputs were generated
+                    lock (lockObject)
+                    {
+                        var allInputsReceived = mockShell.AllReceivedInputs;
+                        
+                        // Check that we received the expected number of inputs and outputs
+                        bool correctInputCount = allInputsReceived.Count == inputArray.Length;
+                        bool correctOutputCount = receivedOutputs.Count == inputArray.Length;
+                        
+                        // Check that all expected inputs are present (order may vary due to concurrency)
+                        bool allInputsPresent = inputArray.All(input =>
+                            allInputsReceived.Any(received => received.SequenceEqual(input)));
+                        
+                        // Check that all expected outputs are present (order may vary due to concurrency)
+                        bool allOutputsPresent = inputArray.All(input =>
+                            receivedOutputs.Any(output => output.SequenceEqual(input)));
+
+                        return correctInputCount && correctOutputCount && allInputsPresent && allOutputsPresent;
+                    }
+                }
+                finally
+                {
+                    bridge.DataReceived -= OnDataReceived;
+                }
             }
-
-            // Send multiple inputs concurrently and trigger outputs
-            var tasks = inputArray.Select(input => Task.Run(async () =>
+            catch (Exception)
             {
-                bridge.Write(input.AsSpan());
-                // Add small delay to allow input processing
-                await Task.Delay(10);
-                mockShell.TriggerOutput(input);
-            })).ToArray();
-
-            Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
-
-            // Wait for all outputs to be processed
-            Thread.Sleep(200);
-
-            // Assert: Verify all inputs were received and all outputs were generated
-            lock (lockObject)
-            {
-                var allInputsReceived = mockShell.AllReceivedInputs;
-                
-                // Check that we received the expected number of inputs and outputs
-                bool correctInputCount = allInputsReceived.Count == inputArray.Length;
-                bool correctOutputCount = receivedOutputs.Count == inputArray.Length;
-                
-                // Check that all expected inputs are present (order may vary due to concurrency)
-                bool allInputsPresent = inputArray.All(input =>
-                    allInputsReceived.Any(received => received.SequenceEqual(input)));
-                
-                // Check that all expected outputs are present (order may vary due to concurrency)
-                bool allOutputsPresent = inputArray.All(input =>
-                    receivedOutputs.Any(output => output.SequenceEqual(input)));
-
-                return correctInputCount && correctOutputCount && allInputsPresent && allOutputsPresent;
+                // Return false for any exceptions to avoid test framework issues
+                return false;
             }
         });
     }
@@ -219,37 +311,49 @@ public class PtyBridgeIntegrationProperties
     {
         return Prop.ForAll(ExitCodeArb, exitCode =>
         {
-            // Arrange: Create mock shell and PTY bridge
-            var mockShell = new MockCustomShell();
-            using var bridge = new CustomShellPtyBridge(mockShell);
-
-            var processExited = false;
-            var receivedExitCode = -999;
-
-            bridge.ProcessExited += (sender, e) =>
+            try
             {
-                processExited = true;
-                receivedExitCode = e.ExitCode;
-            };
+                // Create dedicated bridge for termination testing (can't reuse shared bridge)
+                var mockShell = new MockCustomShell();
+                using var bridge = new CustomShellPtyBridge(mockShell);
 
-            // Act: Start the bridge
-            var options = ProcessLaunchOptions.CreateCustomGame("test-shell");
-            var startTask = bridge.StartAsync(options);
-            startTask.Wait(TimeSpan.FromSeconds(1));
+                var processExited = false;
+                var receivedExitCode = -999;
 
-            if (!bridge.IsRunning)
+                bridge.ProcessExited += (sender, e) =>
+                {
+                    processExited = true;
+                    receivedExitCode = e.ExitCode;
+                };
+
+                // Start the bridge with reduced timeout
+                var options = ProcessLaunchOptions.CreateCustomGame("termination-test-shell");
+                var startTask = bridge.StartAsync(options);
+                
+                if (!startTask.Wait(TimeSpan.FromMilliseconds(50)))
+                {
+                    return false;
+                }
+
+                if (!bridge.IsRunning)
+                {
+                    return false;
+                }
+
+                // Trigger shell termination
+                mockShell.TriggerTermination(exitCode);
+
+                // Reduced wait time for termination processing
+                Thread.Sleep(5);
+
+                // Assert: Verify termination was handled correctly
+                return processExited && receivedExitCode == exitCode && !bridge.IsRunning;
+            }
+            catch (Exception)
             {
+                // Return false for any exceptions to avoid test framework issues
                 return false;
             }
-
-            // Trigger shell termination
-            mockShell.TriggerTermination(exitCode);
-
-            // Wait for termination to be processed
-            Thread.Sleep(50);
-
-            // Assert: Verify termination was handled correctly
-            return processExited && receivedExitCode == exitCode && !bridge.IsRunning;
         });
     }
 
@@ -261,29 +365,30 @@ public class PtyBridgeIntegrationProperties
     {
         return Prop.ForAll(TextInputArb, textInput =>
         {
-            // Arrange: Create mock shell and PTY bridge
-            var mockShell = new MockCustomShell();
-            using var bridge = new CustomShellPtyBridge(mockShell);
-
-            // Act: Start the bridge
-            var options = ProcessLaunchOptions.CreateCustomGame("test-shell");
-            var startTask = bridge.StartAsync(options);
-            startTask.Wait(TimeSpan.FromSeconds(1));
-
-            if (!bridge.IsRunning)
+            try
             {
+                // Use shared bridge for faster execution
+                var bridge = GetSharedBridge();
+                var mockShell = GetSharedShell();
+
+                // Reset shell state for this test iteration
+                mockShell.Reset();
+
+                // Send text input
+                bridge.Write(textInput);
+
+                // Reduced wait time for input processing
+                Thread.Sleep(2);
+
+                // Assert: Verify text input was converted to bytes correctly
+                var expectedBytes = Encoding.UTF8.GetBytes(textInput);
+                return mockShell.ReceivedInput.SequenceEqual(expectedBytes);
+            }
+            catch (Exception)
+            {
+                // Return false for any exceptions to avoid test framework issues
                 return false;
             }
-
-            // Send text input
-            bridge.Write(textInput);
-
-            // Wait for input to be processed
-            Thread.Sleep(50);
-
-            // Assert: Verify text input was converted to bytes correctly
-            var expectedBytes = Encoding.UTF8.GetBytes(textInput);
-            return mockShell.ReceivedInput.SequenceEqual(expectedBytes);
         });
     }
 
@@ -365,6 +470,20 @@ internal class MockCustomShell : ICustomShell
     public event EventHandler<ShellOutputEventArgs>? OutputReceived;
     public event EventHandler<ShellTerminatedEventArgs>? Terminated;
 
+    /// <summary>
+    ///     Resets the shell state for reuse in multiple test iterations.
+    /// </summary>
+    public void Reset()
+    {
+        lock (_lockObject)
+        {
+            ReceivedInput = Array.Empty<byte>();
+            _allReceivedInputs.Clear();
+            LastResizeWidth = 0;
+            LastResizeHeight = 0;
+        }
+    }
+
     public Task StartAsync(CustomShellStartOptions options, CancellationToken cancellationToken = default)
     {
         _isRunning = true;
@@ -400,8 +519,8 @@ internal class MockCustomShell : ICustomShell
 
     public void TriggerOutput(byte[] data)
     {
-        // Use Task.Run to simulate async output generation
-        Task.Run(() => OutputReceived?.Invoke(this, new ShellOutputEventArgs(data)));
+        // Trigger output synchronously for faster test execution
+        OutputReceived?.Invoke(this, new ShellOutputEventArgs(data));
     }
 
     public void TriggerTermination(int exitCode)

@@ -22,8 +22,8 @@ public class TerminalTestApp : IDisposable
     /// </summary>
     public TerminalTestApp()
     {
-        // Create session manager for multi-session support
-        _sessionManager = new SessionManager();
+        // Create session manager with persisted shell configuration
+        _sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration();
     }
 
     /// <summary>

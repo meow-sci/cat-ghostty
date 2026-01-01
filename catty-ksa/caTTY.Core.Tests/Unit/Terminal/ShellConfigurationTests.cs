@@ -80,8 +80,6 @@ public class ShellConfigurationTests
         // Assert
         Assert.That(options, Is.Not.Null);
         Assert.That(options.ShellType, Is.EqualTo(ShellType.PowerShell));
-        Assert.That(options.Arguments, Contains.Item("-NoLogo"));
-        Assert.That(options.Arguments, Contains.Item("-NoProfile"));
     }
 
     [Test]

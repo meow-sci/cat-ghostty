@@ -48,7 +48,7 @@ public class ShellAvailabilityIntegrationTests
         // Arrange - Create configuration with an available shell (Cmd should always be available on Windows)
         var config = new ThemeConfiguration
         {
-            DefaultShellType = ShellType.Cmd,
+            DefaultShellType = ShellType.PowerShell,
             SelectedThemeName = "TestTheme"
         };
         config.Save();
@@ -59,7 +59,7 @@ public class ShellAvailabilityIntegrationTests
 
         // Assert - Should initialize without issues
         var defaultOptions = sessionManager.DefaultLaunchOptions;
-        Assert.That(defaultOptions.ShellType, Is.EqualTo(ShellType.Cmd));
+        Assert.That(defaultOptions.ShellType, Is.EqualTo(ShellType.PowerShell));
     }
 
     [Test]

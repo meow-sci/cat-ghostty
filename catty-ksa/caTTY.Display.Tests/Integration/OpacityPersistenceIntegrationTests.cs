@@ -112,7 +112,7 @@ public class OpacityPersistenceIntegrationTests
         // and change shell type WITHOUT syncing opacity from OpacityManager
         var newConfig = new ThemeConfiguration
         {
-            DefaultShellType = ShellType.Cmd,
+            DefaultShellType = ShellType.PowerShell,
             SelectedThemeName = "TestTheme"
             // Note: BackgroundOpacity and ForegroundOpacity will be default (1.0f)
         };
@@ -121,7 +121,7 @@ public class OpacityPersistenceIntegrationTests
         // Assert - Load configuration and verify opacity was reset to default
         var loadedConfig = ThemeConfiguration.Load();
         
-        Assert.That(loadedConfig.DefaultShellType, Is.EqualTo(ShellType.Cmd), 
+        Assert.That(loadedConfig.DefaultShellType, Is.EqualTo(ShellType.PowerShell), 
             "Shell type should be updated to Cmd");
         Assert.That(loadedConfig.BackgroundOpacity, Is.EqualTo(1.0f).Within(0.001f), 
             "Background opacity should be reset to default when not synced");
