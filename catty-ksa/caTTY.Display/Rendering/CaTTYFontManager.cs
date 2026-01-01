@@ -15,6 +15,16 @@ public class CaTTYFontManager
   private static bool _fontsLoaded;
   private static bool _registryInitialized;
 
+  /// <summary>
+  /// Initializes the font registry with hardcoded font family definitions.
+  /// Called automatically during font loading process.
+  /// </summary>
+  static CaTTYFontManager()
+  {
+    // Ensure the registry is initialized as soon as the type is first loaded/used.
+    InitializeFontRegistry();
+  }
+
 
   /// <summary>
   ///     Loads fonts explicitly for the game mod.
@@ -106,10 +116,6 @@ public class CaTTYFontManager
     }
   }
 
-  /// <summary>
-  /// Initializes the font registry with hardcoded font family definitions.
-  /// Called automatically during font loading process.
-  /// </summary>
   private static void InitializeFontRegistry()
   {
     if (_registryInitialized) return;

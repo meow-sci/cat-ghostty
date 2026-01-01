@@ -28,6 +28,16 @@ public class ThemeConfiguration
     public float ForegroundOpacity { get; set; } = 1.0f;
 
     /// <summary>
+    /// Font family name for terminal text rendering.
+    /// </summary>
+    public string? FontFamily { get; set; }
+
+    /// <summary>
+    /// Font size for terminal text rendering (4.0 to 72.0).
+    /// </summary>
+    public float? FontSize { get; set; }
+
+    /// <summary>
     /// Default shell type for new terminal sessions.
     /// </summary>
     [JsonIgnore]
