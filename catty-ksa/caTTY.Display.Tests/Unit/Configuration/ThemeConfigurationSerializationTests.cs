@@ -43,8 +43,6 @@ public class ThemeConfigurationSerializationTests
             // Assert
             Assert.That(json, Contains.Substring($"\"DefaultShellType\": \"{shellType}\""));
             Assert.That(json, Does.Not.Contain("\"DefaultShellType\": " + ((int)shellType).ToString()));
-            
-            Console.WriteLine($"Shell type {shellType} serialized as: \"{shellType}\"");
         }
     }
 
@@ -80,9 +78,7 @@ public class ThemeConfigurationSerializationTests
 
             // Assert
             Assert.That(config, Is.Not.Null);
-            Assert.That(config!.DefaultShellType, Is.EqualTo(expectedEnum));
-            
-            Console.WriteLine($"String \"{shellTypeString}\" deserialized to enum {expectedEnum}");
+            Assert.That(config!.DefaultShellType, Is.EqualTo(expectedEnum));            
         }
     }
 
@@ -142,9 +138,7 @@ public class ThemeConfigurationSerializationTests
 
             // Assert
             Assert.That(config, Is.Not.Null);
-            Assert.That(config!.DefaultShellType, Is.EqualTo(expectedEnum));
-            
-            Console.WriteLine($"Numeric shell type {numericValue} converted to: {config.DefaultShellType}");
+            Assert.That(config!.DefaultShellType, Is.EqualTo(expectedEnum));            
         }
     }
 

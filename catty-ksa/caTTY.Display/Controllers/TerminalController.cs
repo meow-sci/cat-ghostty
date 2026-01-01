@@ -812,9 +812,6 @@ public class TerminalController : ITerminalController
         _numFocusedTerminals = Math.Max(0, _numFocusedTerminals - 1);
       }
 
-      // Log focus changes for debugging
-      Console.WriteLine($"TerminalController: Focus changed from {_wasFocusedLastFrame} to {currentFocus}");
-
       // Update focus state
       HasFocus = currentFocus;
 
@@ -862,8 +859,6 @@ public class TerminalController : ITerminalController
 
       // Reset cursor blink state to ensure it's visible
       _cursorRenderer.ResetBlinkState();
-
-      Console.WriteLine("TerminalController: Terminal gained focus - input capture active");
     }
     catch (Exception ex)
     {
@@ -4401,9 +4396,7 @@ public class TerminalController : ITerminalController
       launchOptions.WorkingDirectory = Environment.CurrentDirectory;
       
       // Update session manager with loaded default launch options
-      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
-      
-      Console.WriteLine($"Loaded shell configuration: {_themeConfig.GetShellDisplayName()}");
+      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);      
     }
     catch (Exception ex)
     {

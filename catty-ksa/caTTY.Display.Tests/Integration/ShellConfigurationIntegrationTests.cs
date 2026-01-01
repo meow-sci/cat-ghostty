@@ -40,7 +40,6 @@ public class ShellConfigurationIntegrationTests
         
         // Assert - Should have some shell type configured (default is WSL)
         Assert.That(defaultLaunchOptions.ShellType, Is.Not.EqualTo(ShellType.Auto));
-        Console.WriteLine($"Loaded shell configuration: {defaultLaunchOptions.ShellType}");
     }
 
     [Test]
@@ -83,7 +82,6 @@ public class ShellConfigurationIntegrationTests
             
             // Assert
             Assert.That(launchOptions.ShellType, Is.EqualTo(shellType));
-            Console.WriteLine($"Shell type {shellType} creates launch options with shell type {launchOptions.ShellType}");
         }
     }
 

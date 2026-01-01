@@ -15,7 +15,7 @@ public class ThemeConfiguration
     /// <summary>
     /// Name of the currently selected theme.
     /// </summary>
-    public string? SelectedThemeName { get; set; }
+    public string? SelectedThemeName { get; set; } = "Firefly Traditional";
 
     /// <summary>
     /// Background opacity setting for terminal background colors (0.0 to 1.0).
@@ -31,7 +31,7 @@ public class ThemeConfiguration
     /// Default shell type for new terminal sessions.
     /// </summary>
     [JsonIgnore]
-    public ShellType DefaultShellType { get; set; } = ShellType.Wsl;
+    public ShellType DefaultShellType { get; set; } = ShellType.PowerShell;
 
     /// <summary>
     /// String representation of DefaultShellType for JSON serialization.
