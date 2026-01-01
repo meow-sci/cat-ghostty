@@ -449,7 +449,16 @@ public class TerminalController : ITerminalController
     try
     {
       // Create terminal window with menu bar and transparent background
-      ImGui.Begin("Terminal", ref _isVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoBackground);
+      // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+      // const ImGuiWindowFlags window_flags = auto_resize ? ImGuiWindowFlags_AlwaysAutoResize : 0;
+
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
+      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar |
+                  ImGuiWindowFlags.NoBackground ;
+      ImGui.Begin("Terminal", ref _isVisible, windowFlags);
+      ImGui.PopStyleVar();
+      ImGui.PopStyleVar();
 
       // Track focus state and detect changes
       bool currentFocus = ImGui.IsWindowFocused();
@@ -463,7 +472,11 @@ public class TerminalController : ITerminalController
       RenderMenuBar();
 
       // Render tab area for session management
+
+      ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new float2(4.0f, 0.0f));
+      ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, new float2(4.0f, 0.0f));
       RenderTabArea();
+      // ImGui.PopStyleVar();
 
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
@@ -477,6 +490,8 @@ public class TerminalController : ITerminalController
 
       // Render terminal canvas
       RenderTerminalCanvas();
+      ImGui.PopStyleVar();
+      ImGui.PopStyleVar();
 
       // Push UI font again for focus indicators
       PushUIFont(out uiFontUsed);
@@ -523,7 +538,7 @@ public class TerminalController : ITerminalController
         _sessionManager.SessionCreated -= OnSessionCreated;
         _sessionManager.SessionClosed -= OnSessionClosed;
         _sessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
-        
+
         // Unsubscribe from all session events
         foreach (var session in _sessionManager.Sessions)
         {
@@ -633,10 +648,10 @@ public class TerminalController : ITerminalController
         Console.WriteLine($"  Font size changed: {fontSizeChanged}");
         Console.WriteLine($"  Font family changed: {fontFamilyChanged}");
         Console.WriteLine($"  Character metrics changed: {characterMetricsChanged}");
-        
+
         // Apply font configuration to all sessions
         _sessionManager.ApplyFontConfigToAllSessions(_fontConfig);
-        
+
         // Trigger terminal resize for all sessions with new character metrics
         TriggerTerminalResizeForAllSessions();
       }
@@ -1553,7 +1568,7 @@ public class TerminalController : ITerminalController
     {
       // Get current window size for dimension calculations
       float2 currentWindowSize = ImGui.GetWindowSize();
-      
+
       // Skip if window size is not initialized or invalid
       if (!_windowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
       {
@@ -3365,7 +3380,7 @@ public class TerminalController : ITerminalController
     session.Terminal.ScreenUpdated += OnScreenUpdated;
     session.Terminal.ResponseEmitted += OnResponseEmitted;
     session.TitleChanged += OnSessionTitleChanged;
-    
+
     Console.WriteLine($"TerminalController: Session created - {session.Title} ({session.Id})");
   }
 
@@ -3379,7 +3394,7 @@ public class TerminalController : ITerminalController
     session.Terminal.ScreenUpdated -= OnScreenUpdated;
     session.Terminal.ResponseEmitted -= OnResponseEmitted;
     session.TitleChanged -= OnSessionTitleChanged;
-    
+
     Console.WriteLine($"TerminalController: Session closed - {session.Title} ({session.Id})");
   }
 
@@ -3389,13 +3404,13 @@ public class TerminalController : ITerminalController
   private void OnActiveSessionChanged(object? sender, ActiveSessionChangedEventArgs e)
   {
     Console.WriteLine($"TerminalController: Active session changed from {e.PreviousSession?.Title} to {e.NewSession?.Title}");
-    
+
     // Clear any existing selection when switching sessions
     if (!_currentSelection.IsEmpty)
     {
       ClearSelection();
     }
-    
+
     // Reset cursor blink state for new active session
     _cursorRenderer.ResetBlinkState();
   }
@@ -3757,7 +3772,7 @@ public class TerminalController : ITerminalController
           {
             bool isActive = session == activeSession;
             string sessionLabel = session.Title;
-            
+
             // Add process exit code to label if process has exited
             if (session.ProcessManager.ExitCode.HasValue)
             {
@@ -4187,7 +4202,7 @@ public class TerminalController : ITerminalController
 
     // Check if current shell is available
     bool currentShellAvailable = ShellAvailabilityChecker.IsShellAvailable(config.DefaultShellType);
-    
+
     // Current shell display with availability indicator
     if (currentShellAvailable)
     {
@@ -4201,7 +4216,7 @@ public class TerminalController : ITerminalController
         ImGui.SetTooltip("The currently configured shell is not available on this system. Please select an available shell below.");
       }
     }
-    
+
     if (ImGui.IsItemHovered() && currentShellAvailable)
     {
       ImGui.SetTooltip("This shell will be used for new terminal sessions");
@@ -4211,9 +4226,9 @@ public class TerminalController : ITerminalController
 
     // Shell type selection - only show available shells
     ImGui.Text("Select Default Shell:");
-    
+
     var availableShells = ShellAvailabilityChecker.GetAvailableShellsWithNames();
-    
+
     // Show message if no shells are available (shouldn't happen, but defensive programming)
     if (availableShells.Count == 0)
     {
@@ -4231,14 +4246,14 @@ public class TerminalController : ITerminalController
     foreach (var (shellType, displayName) in availableShells)
     {
       bool isSelected = config.DefaultShellType == shellType;
-      
+
       if (ImGui.RadioButton($"{displayName}##shell_{shellType}", isSelected))
       {
         if (!isSelected)
         {
           config.DefaultShellType = shellType;
           configChanged = true;
-          
+
           // Apply configuration immediately when shell type changes
           ApplyShellConfiguration();
         }
@@ -4276,7 +4291,7 @@ public class TerminalController : ITerminalController
     {
       ImGui.Text("WSL Distribution:");
       ImGui.Text($"Current: {config.WslDistribution ?? "Default"}");
-      
+
       if (ImGui.Button("Change WSL Distribution##wsl_dist"))
       {
         // For now, cycle through common distributions
@@ -4285,11 +4300,11 @@ public class TerminalController : ITerminalController
         var nextIndex = (currentIndex + 1) % distributions.Length;
         config.WslDistribution = distributions[nextIndex];
         configChanged = true;
-        
+
         // Apply configuration immediately when WSL distribution changes
         ApplyShellConfiguration();
       }
-      
+
       if (ImGui.IsItemHovered())
       {
         ImGui.SetTooltip("Click to cycle through: Default → Ubuntu → Debian → Alpine");
@@ -4301,12 +4316,12 @@ public class TerminalController : ITerminalController
     {
       ImGui.Text("Custom Shell Path:");
       ImGui.Text($"Current: {config.CustomShellPath ?? "Not set"}");
-      
+
       if (ImGui.Button("Set Custom Shell Path##custom_path"))
       {
         // For now, provide some common examples
-        var commonPaths = new[] { 
-          null, 
+        var commonPaths = new[] {
+          null,
           @"C:\msys64\usr\bin\bash.exe",
           @"C:\Program Files\Git\bin\bash.exe",
           @"C:\Windows\System32\wsl.exe"
@@ -4315,11 +4330,11 @@ public class TerminalController : ITerminalController
         var nextIndex = (currentIndex + 1) % commonPaths.Length;
         config.CustomShellPath = commonPaths[nextIndex];
         configChanged = true;
-        
+
         // Apply configuration immediately when custom shell path changes
         ApplyShellConfiguration();
       }
-      
+
       if (ImGui.IsItemHovered())
       {
         ImGui.SetTooltip("Click to cycle through common shell paths\nOr manually edit the configuration file");
@@ -4329,7 +4344,7 @@ public class TerminalController : ITerminalController
     // Show current configuration status
     ImGui.Spacing();
     ImGui.Text("Settings are applied automatically to new terminal sessions.");
-    
+
     if (configChanged)
     {
       ImGui.TextColored(new Brutal.Numerics.float4(0.0f, 1.0f, 0.0f, 1.0f), "✓ Configuration updated successfully!");
@@ -4345,18 +4360,18 @@ public class TerminalController : ITerminalController
     {
       // Create launch options from current configuration
       var launchOptions = _themeConfig.CreateLaunchOptions();
-      
+
       // Update session manager with new default launch options
       _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
-      
+
       // Sync current opacity values from OpacityManager before saving
       // This ensures global opacity settings are preserved when shell type changes
       _themeConfig.BackgroundOpacity = OpacityManager.CurrentBackgroundOpacity;
       _themeConfig.ForegroundOpacity = OpacityManager.CurrentForegroundOpacity;
-      
+
       // Save configuration to disk
       _themeConfig.Save();
-      
+
       Console.WriteLine($"Shell configuration applied: {_themeConfig.GetShellDisplayName()}");
     }
     catch (Exception ex)
@@ -4385,7 +4400,7 @@ public class TerminalController : ITerminalController
           {
             fallbackShell = availableShells[0];
           }
-          
+
           _themeConfig.DefaultShellType = fallbackShell;
           _themeConfig.Save(); // Save the fallback choice
         }
@@ -4393,14 +4408,14 @@ public class TerminalController : ITerminalController
 
       // Create launch options from loaded configuration
       var launchOptions = _themeConfig.CreateLaunchOptions();
-      
+
       // Set default terminal dimensions and working directory
       launchOptions.InitialWidth = 80;
       launchOptions.InitialHeight = 24;
       launchOptions.WorkingDirectory = Environment.CurrentDirectory;
-      
+
       // Update session manager with loaded default launch options
-      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);      
+      _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
     }
     catch (Exception ex)
     {
@@ -4435,7 +4450,7 @@ public class TerminalController : ITerminalController
 
       // Create a child region for the tab area to maintain consistent height
       bool childBegun = ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
-      
+
       try
       {
         if (childBegun)
@@ -4444,7 +4459,7 @@ public class TerminalController : ITerminalController
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
           {
             _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-            
+
             // Focus the terminal window when add button is clicked
             ForceFocus();
           }
@@ -4483,7 +4498,7 @@ public class TerminalController : ITerminalController
             try
             {
               string tabLabel = $"{session.Title}##tab_{session.Id}";
-              
+
               // Show process exit code if process has exited
               if (session.ProcessManager.ExitCode.HasValue)
               {
@@ -4494,7 +4509,7 @@ public class TerminalController : ITerminalController
               {
                 // Switch to this session
                 _sessionManager.SwitchToSession(session.Id);
-                
+
                 // Focus the terminal window when tab is clicked
                 ForceFocus();
               }
@@ -4516,13 +4531,13 @@ public class TerminalController : ITerminalController
               {
                 _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
               }
-              
+
               // Add restart option for terminated sessions
               if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
               {
                 if (ImGui.MenuItem("Restart Session"))
                 {
-                  _ = Task.Run(async () => 
+                  _ = Task.Run(async () =>
                   {
                     try
                     {
@@ -4535,7 +4550,7 @@ public class TerminalController : ITerminalController
                   });
                 }
               }
-              
+
               if (ImGui.MenuItem("Rename Tab"))
               {
                 // TODO: Implement tab renaming in future
