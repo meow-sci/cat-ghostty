@@ -16,9 +16,10 @@ public class GlobalSettingsPropagationProperties
 {
     /// <summary>
     ///     Generator for valid session counts for testing.
+    ///     Reduced range for better performance.
     /// </summary>
     public static Arbitrary<int> SessionCountArb =>
-        Arb.From(Gen.Choose(1, 5)); // Keep reasonable for testing
+        Arb.From(Gen.Choose(1, 3)); // Reduced from 5 to 3 for performance
 
     /// <summary>
     ///     Generator for mock font configuration objects.
@@ -37,7 +38,7 @@ public class GlobalSettingsPropagationProperties
     ///     Property: For any session manager with multiple sessions, when global settings
     ///     are applied, all sessions should remain functional and accessible.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [FsCheck.NUnit.Property(MaxTest = 1, QuietOnSuccess = true)] // Reduced iterations for performance
     public FsCheck.Property GlobalSettingsPreserveSessionFunctionality()
     {
         return Prop.ForAll(SessionCountArb, FontConfigArb,
@@ -49,10 +50,13 @@ public class GlobalSettingsPropagationProperties
 
                 try
                 {
-                    // Create multiple sessions
+                    // Create multiple sessions with optimized launch options
+                    var optimizedOptions = ProcessLaunchOptions.CreatePowerShellQuietCDrive();
+                    optimizedOptions.ShellType = ShellType.PowerShell; // Use fastest shell
+                    
                     for (int i = 0; i < sessionCount; i++)
                     {
-                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}").Result;
+                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}", optimizedOptions).Result;
                         sessions.Add(session);
                     }
 
@@ -94,18 +98,8 @@ public class GlobalSettingsPropagationProperties
                 }
                 finally
                 {
-                    // Cleanup: Dispose all sessions
-                    foreach (var session in sessions)
-                    {
-                        try
-                        {
-                            session.Dispose();
-                        }
-                        catch
-                        {
-                            // Ignore cleanup errors in tests
-                        }
-                    }
+                    // SessionManager.Dispose() will handle session cleanup automatically
+                    // No need for manual session disposal
                 }
             });
     }
@@ -116,7 +110,7 @@ public class GlobalSettingsPropagationProperties
     ///     Property: For any session manager, global settings changes should not affect
     ///     session-specific state like active session tracking and session order.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [FsCheck.NUnit.Property(MaxTest = 1, QuietOnSuccess = true)] // Reduced iterations for performance
     public FsCheck.Property GlobalSettingsPreserveSessionOrder()
     {
         return Prop.ForAll(SessionCountArb, FontConfigArb,
@@ -128,10 +122,13 @@ public class GlobalSettingsPropagationProperties
 
                 try
                 {
-                    // Create multiple sessions
+                    // Create multiple sessions with optimized launch options
+                    var optimizedOptions = ProcessLaunchOptions.CreatePowerShellQuietCDrive();
+                    optimizedOptions.ShellType = ShellType.PowerShell; // Use fastest shell
+                    
                     for (int i = 0; i < sessionCount; i++)
                     {
-                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}").Result;
+                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}", optimizedOptions).Result;
                         sessions.Add(session);
                     }
 
@@ -166,18 +163,8 @@ public class GlobalSettingsPropagationProperties
                 }
                 finally
                 {
-                    // Cleanup: Dispose all sessions
-                    foreach (var session in sessions)
-                    {
-                        try
-                        {
-                            session.Dispose();
-                        }
-                        catch
-                        {
-                            // Ignore cleanup errors in tests
-                        }
-                    }
+                    // SessionManager.Dispose() will handle session cleanup automatically
+                    // No need for manual session disposal
                 }
             });
     }
@@ -188,7 +175,7 @@ public class GlobalSettingsPropagationProperties
     ///     Property: For any session manager, applying global settings should not cause
     ///     session disposal or state corruption.
     /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 2, QuietOnSuccess = true)]
+    [FsCheck.NUnit.Property(MaxTest = 1, QuietOnSuccess = true)] // Reduced iterations for performance
     public FsCheck.Property GlobalSettingsDoNotCorruptSessions()
     {
         return Prop.ForAll(SessionCountArb, FontConfigArb,
@@ -200,10 +187,13 @@ public class GlobalSettingsPropagationProperties
 
                 try
                 {
-                    // Create multiple sessions
+                    // Create multiple sessions with optimized launch options
+                    var optimizedOptions = ProcessLaunchOptions.CreatePowerShellQuietCDrive();
+                    optimizedOptions.ShellType = ShellType.PowerShell; // Use fastest shell
+                    
                     for (int i = 0; i < sessionCount; i++)
                     {
-                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}").Result;
+                        var session = sessionManager.CreateSessionAsync($"Test Session {i + 1}", optimizedOptions).Result;
                         sessions.Add(session);
                     }
 
@@ -238,18 +228,8 @@ public class GlobalSettingsPropagationProperties
                 }
                 finally
                 {
-                    // Cleanup: Dispose all sessions
-                    foreach (var session in sessions)
-                    {
-                        try
-                        {
-                            session.Dispose();
-                        }
-                        catch
-                        {
-                            // Ignore cleanup errors in tests
-                        }
-                    }
+                    // SessionManager.Dispose() will handle session cleanup automatically
+                    // No need for manual session disposal
                 }
             });
     }

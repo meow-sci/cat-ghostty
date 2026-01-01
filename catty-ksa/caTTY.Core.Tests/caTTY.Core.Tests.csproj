@@ -8,6 +8,8 @@
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     </PropertyGroup>
 
     <ItemGroup>
@@ -32,6 +34,11 @@
     <ItemGroup>
         <Folder Include="Unit\"/>
         <Folder Include="Property\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="TestResults\ParseTrxResults.cs" />
+        <None Include="TestResults\ParseTrxResults.cs" />
     </ItemGroup>
 
     <Target Name="CleanTestDatabaseFiles" AfterTargets="Clean">

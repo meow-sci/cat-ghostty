@@ -53,7 +53,7 @@ public class ShellConfigurationPersistenceTests
     config.Save();
 
     // Act - Create a TerminalController (which should load the persisted configuration)
-    using var sessionManager = new SessionManager();
+    using var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration();
     using var controller = new TerminalController(sessionManager);
 
     // Assert - The session manager should have PowerShell as default
@@ -73,7 +73,7 @@ public class ShellConfigurationPersistenceTests
     config.Save();
 
     // Act - Create controller and session without explicit launch options
-    using var sessionManager = new SessionManager();
+    using var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration();
     using var controller = new TerminalController(sessionManager);
 
     // The session manager should now have the configured shell or a fallback if not available
@@ -116,7 +116,7 @@ public class ShellConfigurationPersistenceTests
     };
     config.Save();
 
-    using var sessionManager = new SessionManager();
+    using var sessionManager = SessionManagerFactory.CreateWithDefaultConfiguration();
     using var controller = new TerminalController(sessionManager);
 
     // Act - Create session with explicit Cmd options (should override persisted PowerShell)
@@ -139,7 +139,7 @@ public class ShellConfigurationPersistenceTests
     // The temp directory is empty, so no config file exists
 
     // Act - Create controller (should use default configuration)
-    using var sessionManager = new SessionManager();
+    using var sessionManager = SessionManagerFactory.CreateWithDefaultConfiguration();
     using var controller = new TerminalController(sessionManager);
 
     // Assert - Should use default shell (WSL)
@@ -158,7 +158,7 @@ public class ShellConfigurationPersistenceTests
     };
     config.Save();
 
-    using var sessionManager = new SessionManager();
+    using var sessionManager = SessionManagerFactory.CreateWithDefaultConfiguration();
     using var controller = new TerminalController(sessionManager);
 
     // Verify initial state

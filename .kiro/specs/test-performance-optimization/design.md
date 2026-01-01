@@ -2,241 +2,256 @@
 
 ## Overview
 
-This design outlines a comprehensive approach to optimize test performance in the caTTY terminal emulator project. The solution focuses on four key areas: quiet test execution, fast shell selection, performance analysis integration, and iterative improvement tooling. The design leverages existing .NET testing infrastructure while adding custom optimizations specific to terminal emulation testing needs.
+This design outlines a targeted approach to optimize test performance by identifying the slowest tests using standard dotnet tooling, analyzing their shell usage patterns, and converting WSL-based tests to faster alternatives. The solution leverages existing .NET CLI capabilities and focuses on surgical changes to the worst-performing tests without disrupting the broader test infrastructure.
 
 ## Architecture
 
-The test performance optimization system consists of several interconnected components:
+The optimization approach consists of three main phases:
 
-1. **Test Configuration Manager**: Centralized configuration for performance settings
-2. **Shell Selection Strategy**: Intelligent shell selection for optimal startup times
-3. **Performance Metrics Collector**: Integration with dotnet test CLI for timing analysis
-4. **Output Suppression System**: Configurable logging levels for quiet execution
-5. **Performance Analysis Tools**: Custom tooling for identifying and tracking slow tests
+1. **Performance Analysis Phase**: Use dotnet test with timing loggers to identify bottlenecks
+2. **Code Analysis Phase**: Examine slow tests to identify shell selection patterns
+3. **Optimization Phase**: Convert WSL usage to cmd.exe/PowerShell with before/after measurement
 
 ## Components and Interfaces
 
-### Test Configuration Manager
+### Performance Analysis Tools
 
 ```csharp
-public interface ITestConfigurationManager
+// Leverage existing dotnet test CLI with custom analysis
+public class TestPerformanceAnalyzer
 {
-    TestPerformanceConfig GetConfiguration();
-    void ApplyEnvironmentOverrides();
-    bool ValidateConfiguration();
+    public List<SlowTest> AnalyzeTestResults(string trxFilePath);
+    public void ExportSlowTests(List<SlowTest> tests, string outputPath);
+    public PerformanceBaseline EstablishBaseline();
 }
 
-public class TestPerformanceConfig
+public class SlowTest
 {
-    public bool QuietMode { get; set; } = true;
-    public ShellType PreferredShell { get; set; } = ShellType.Cmd;
-    public bool AvoidWsl { get; set; } = true;
-    public int PropertyTestIterations { get; set; } = 100;
-    public LogLevel TestLogLevel { get; set; } = LogLevel.Warning;
-    public bool EnablePerformanceTracking { get; set; } = true;
+    public string TestName { get; set; }
+    public TimeSpan Duration { get; set; }
+    public string Category { get; set; }
+    public string FilePath { get; set; }
 }
 ```
 
-### Shell Selection Strategy
+### Shell Usage Detection
 
 ```csharp
-public interface IShellSelectionStrategy
+// Simple code analysis to find shell patterns
+public class ShellUsageDetector
 {
-    ShellType SelectOptimalShell(TestContext context);
-    ProcessLaunchOptions CreateOptimizedOptions(ShellType shellType);
-    TimeSpan EstimateStartupTime(ShellType shellType);
+    public ShellUsageReport AnalyzeTestFile(string filePath);
+    public List<ShellUsageInstance> FindWslUsage(string testCode);
+    public ShellType DetectCurrentShell(string testMethod);
 }
 
-public class FastShellSelector : IShellSelectionStrategy
+public class ShellUsageInstance
 {
-    private static readonly Dictionary<ShellType, int> StartupTimeRanking = new()
-    {
-        { ShellType.Cmd, 1 },           // Fastest - ~50ms
-        { ShellType.PowerShell, 2 },    // Medium - ~200ms
-        { ShellType.Wsl, 3 }            // Slowest - ~1000ms+
-    };
+    public string TestMethod { get; set; }
+    public int LineNumber { get; set; }
+    public ShellType CurrentShell { get; set; }
+    public string CodeSnippet { get; set; }
 }
 ```
 
-### Performance Metrics Collector
+### Test Conversion Tools
 
 ```csharp
-public interface IPerformanceMetricsCollector
+// Simple find/replace operations for shell conversion
+public class TestShellConverter
 {
-    void StartTestTiming(string testName);
-    void EndTestTiming(string testName);
-    TestPerformanceReport GenerateReport();
-    void ExportMetrics(string filePath, MetricsFormat format);
+    public ConversionResult ConvertWslToCmd(string filePath, string testMethod);
+    public ConversionResult ConvertWslToPowerShell(string filePath, string testMethod);
+    public void ValidateConversion(ConversionResult result);
 }
 
-public class TestPerformanceReport
+public class ConversionResult
 {
-    public List<TestTiming> SlowestTests { get; set; }
-    public Dictionary<string, TimeSpan> CategoryAverages { get; set; }
-    public TimeSpan TotalExecutionTime { get; set; }
-    public int TestCount { get; set; }
-}
-```
-
-### Output Suppression System
-
-```csharp
-public interface ITestOutputManager
-{
-    void ConfigureQuietMode(bool enabled);
-    void SuppressConsoleOutput(Action testAction);
-    void RestoreConsoleOutput();
-}
-
-public class QuietTestOutputManager : ITestOutputManager
-{
-    private readonly TextWriter _originalOut;
-    private readonly TextWriter _originalError;
-    private readonly TextWriter _nullWriter;
+    public bool Success { get; set; }
+    public string OriginalCode { get; set; }
+    public string ConvertedCode { get; set; }
+    public List<string> Changes { get; set; }
 }
 ```
 
 ## Data Models
 
-### Test Performance Configuration
-
-```json
-{
-  "TestPerformance": {
-    "QuietMode": true,
-    "PreferredShell": "Cmd",
-    "AvoidWsl": true,
-    "PropertyTestIterations": 100,
-    "TestLogLevel": "Warning",
-    "EnablePerformanceTracking": true,
-    "ShellStartupTimeouts": {
-      "Cmd": "00:00:05",
-      "PowerShell": "00:00:10",
-      "Wsl": "00:00:30"
-    },
-    "PerformanceThresholds": {
-      "UnitTestMaxDuration": "00:00:01",
-      "PropertyTestMaxDuration": "00:00:05",
-      "IntegrationTestMaxDuration": "00:00:10"
-    }
-  }
-}
-```
-
-### Test Timing Data Model
+### Performance Measurement Data
 
 ```csharp
+public class PerformanceBaseline
+{
+    public DateTime MeasuredAt { get; set; }
+    public TimeSpan TotalSuiteTime { get; set; }
+    public List<TestTiming> IndividualTests { get; set; }
+    public int TestCount { get; set; }
+}
+
 public class TestTiming
 {
     public string TestName { get; set; }
-    public string Category { get; set; }
     public TimeSpan Duration { get; set; }
-    public DateTime ExecutedAt { get; set; }
-    public ShellType ShellUsed { get; set; }
-    public bool PassedThreshold { get; set; }
+    public string Category { get; set; }
+}
+
+public class PerformanceImprovement
+{
+    public string TestName { get; set; }
+    public TimeSpan BeforeDuration { get; set; }
+    public TimeSpan AfterDuration { get; set; }
+    public double ImprovementPercentage { get; set; }
+    public ShellType FromShell { get; set; }
+    public ShellType ToShell { get; set; }
 }
 ```
 
-Now I need to use the prework tool to analyze the acceptance criteria before writing the correctness properties.
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property 1: Quiet Mode Output Suppression
-*For any* test execution in quiet mode, the console output should only contain essential test results and failure messages, with all verbose logging and debug information suppressed.
-**Validates: Requirements 1.1, 1.2, 1.3, 1.5**
+### Property 1: Test Ranking Correctness
+*For any* collection of test timing data, the ranking algorithm should correctly order tests from slowest to fastest by execution duration.
+**Validates: Requirements 1.2**
 
-### Property 2: Verbose Mode Toggle Functionality
-*For any* test configuration, enabling verbose mode should increase output verbosity while disabling it should suppress non-essential output.
-**Validates: Requirements 1.4**
+### Property 2: Timing Data Export Completeness
+*For any* collection of test results, the exported timing data should contain all required fields and be in valid machine-readable format.
+**Validates: Requirements 1.3**
 
-### Property 3: Shell Selection Prioritization
-*For any* test execution context, the shell selection algorithm should prioritize cmd.exe over PowerShell and WSL, selecting the fastest available option.
-**Validates: Requirements 2.1, 2.2, 2.4**
+### Property 3: Test Categorization Accuracy
+*For any* test name, the categorization logic should correctly identify whether it's a unit, property, or integration test based on naming patterns.
+**Validates: Requirements 1.5**
 
-### Property 4: WSL Avoidance in Property Tests
-*For any* property test execution, WSL should not be selected as the shell due to slow startup times.
+### Property 4: Shell Type Detection Accuracy
+*For any* test code containing shell usage, the detection algorithm should correctly identify the shell type being used.
+**Validates: Requirements 2.1**
+
+### Property 5: WSL Usage Pattern Detection
+*For any* test code, the WSL detection should identify all instances of WSL usage regardless of the specific code pattern used.
+**Validates: Requirements 2.2**
+
+### Property 6: Hardcoded Shell Pattern Recognition
+*For any* test code with hardcoded shell selections, the analysis should identify and report all such instances.
 **Validates: Requirements 2.3**
 
-### Property 5: Performance Metrics Collection
-*For any* test execution with performance tracking enabled, timing data should include startup time, execution time, and cleanup time for each test.
-**Validates: Requirements 3.1, 3.5**
+### Property 7: Shell Usage Documentation Completeness
+*For any* collection of analyzed tests, the generated documentation should include shell usage patterns for all identified tests.
+**Validates: Requirements 2.4**
 
-### Property 6: Test Ranking by Duration
-*For any* collection of test results, the performance analysis should correctly rank tests by execution duration from slowest to fastest.
-**Validates: Requirements 3.2, 4.1**
+### Property 8: WSL Test Prioritization
+*For any* collection of tests with mixed shell usage, WSL-using tests should be prioritized higher than cmd.exe or PowerShell tests for conversion.
+**Validates: Requirements 2.5**
 
-### Property 7: Performance Data Export Format
-*For any* performance metrics export, the output should be in a valid machine-readable format containing all required timing and categorization data.
-**Validates: Requirements 3.3, 3.4**
+### Property 9: WSL to Cmd Conversion Correctness
+*For any* test code using WSL, the conversion to cmd.exe should preserve all test logic while changing only the shell selection.
+**Validates: Requirements 3.1**
 
-### Property 8: Performance Trend Tracking
-*For any* sequence of test runs, the system should track before/after execution times and support trend analysis over time.
-**Validates: Requirements 4.2, 4.3**
+### Property 10: PowerShell Fallback Logic
+*For any* test conversion scenario where cmd.exe is not suitable, the system should correctly fall back to PowerShell instead of WSL.
+**Validates: Requirements 3.2**
 
-### Property 9: Performance Optimization Recommendations
-*For any* test performance analysis, the system should generate appropriate optimization recommendations based on identified performance patterns.
+### Property 11: Test Logic Preservation
+*For any* shell conversion operation, the converted code should preserve all original test assertions and logic flow.
+**Validates: Requirements 3.3**
+
+### Property 12: WSL Avoidance Policy
+*For any* test conversion, WSL should be avoided unless the test specifically requires WSL-only functionality.
+**Validates: Requirements 3.5**
+
+### Property 13: Performance Measurement Accuracy
+*For any* test conversion, the before and after timing measurements should be captured and stored correctly.
+**Validates: Requirements 4.1**
+
+### Property 14: Improvement Percentage Calculation
+*For any* before/after timing data, the percentage improvement calculation should be mathematically correct.
+**Validates: Requirements 4.2**
+
+### Property 15: Suite-Level Performance Aggregation
+*For any* collection of individual test improvements, the overall suite performance calculation should correctly aggregate the improvements.
+**Validates: Requirements 4.3**
+
+### Property 16: Performance Documentation Generation
+*For any* set of performance improvements, the generated documentation should include all required performance metrics and changes.
 **Validates: Requirements 4.5**
 
-### Property 10: Property Test Process Optimization
-*For any* property test execution, the system should use optimized shell processes and support process reuse to minimize startup overhead.
-**Validates: Requirements 5.1, 5.2**
+### Property 17: Slowest Test Workflow Ordering
+*For any* collection of tests, the optimization workflow should process tests in correct order of performance impact.
+**Validates: Requirements 5.1**
 
-### Property 11: Property Test Configuration Balance
-*For any* property test configuration, iteration counts should balance thoroughness with execution speed based on performance requirements.
-**Validates: Requirements 5.3, 5.4**
+### Property 18: Execution Time Filtering
+*For any* collection of test timing data, the filtering logic should correctly identify tests exceeding the 1-second threshold.
+**Validates: Requirements 5.2**
 
-### Property 12: Property Test Failure Output Optimization
-*For any* failing property test, the output should provide minimal but sufficient debugging information without excessive verbosity.
+### Property 19: Diminishing Returns Detection
+*For any* sequence of optimization improvements, the system should correctly detect when further optimization provides diminishing returns.
+**Validates: Requirements 5.4**
+
+### Property 20: Optimization Change Logging
+*For any* optimization operation, the system should log all changes and their performance impact in the required format.
 **Validates: Requirements 5.5**
 
-### Property 13: Configuration Centralization and Validation
-*For any* test performance configuration, settings should be centralized, support environment overrides, and validate with clear error messages for invalid options.
-**Validates: Requirements 6.1, 6.2, 6.5**
+<function_calls>
+<invoke name="prework">
+<parameter name="featureName">test-performance-optimization
 
-### Property 14: Category-Specific Configuration
-*For any* test category (unit, property, integration), the system should support and apply category-specific performance configurations.
-**Validates: Requirements 6.3**
+## Implementation Strategy
 
-### Property 15: CI/CD Environment Optimization
-*For any* CI/CD environment detection, the system should automatically apply performance-optimized settings appropriate for continuous integration scenarios.
-**Validates: Requirements 6.4**
+### Phase 1: Performance Analysis
+1. Use `dotnet test --logger:trx` to generate detailed timing reports
+2. Parse TRX files to extract individual test durations
+3. Identify top 20 slowest tests across all test projects
+4. Establish performance baseline for comparison
+
+### Phase 2: Shell Usage Analysis
+1. Analyze source code of identified slow tests
+2. Search for shell selection patterns (WSL, PowerShell, cmd.exe)
+3. Document current shell usage across slow tests
+4. Prioritize WSL-using tests for conversion
+
+### Phase 3: Targeted Optimization
+1. Convert WSL usage to cmd.exe where possible
+2. Use PowerShell as fallback for tests requiring advanced features
+3. Measure before/after performance for each conversion
+4. Validate that converted tests still pass
+
+### Phase 4: Validation and Documentation
+1. Re-run full test suite to measure overall improvement
+2. Document performance gains achieved
+3. Create optimization log for future reference
 
 ## Error Handling
 
-The test performance optimization system implements comprehensive error handling:
+The optimization system handles errors gracefully:
 
-1. **Configuration Validation**: Invalid configuration values are caught early with descriptive error messages
-2. **Shell Availability Checking**: Graceful fallback when preferred shells are unavailable
-3. **Performance Tracking Failures**: Non-critical performance tracking failures don't interrupt test execution
-4. **File System Errors**: Robust handling of configuration file access and metrics export failures
-5. **Process Startup Failures**: Timeout handling and fallback strategies for shell process startup
+1. **File Access Errors**: Skip files that cannot be read/written, log warnings
+2. **Parsing Errors**: Continue processing other tests if one fails to parse
+3. **Conversion Failures**: Revert changes if conversion breaks test functionality
+4. **Measurement Errors**: Use fallback timing methods if primary measurement fails
 
 ## Testing Strategy
 
 ### Unit Tests
-- Configuration validation logic
-- Shell selection algorithm correctness
-- Performance metrics calculation accuracy
-- Output suppression mechanism functionality
-- Error handling for edge cases
+- TRX file parsing accuracy
+- Shell pattern detection in various code formats
+- Conversion logic for different WSL usage patterns
+- Performance calculation accuracy
+- File I/O operations
 
 ### Property-Based Tests
-- **Property 1-15**: Each correctness property implemented as a property-based test
+- **Properties 1-20**: Each correctness property implemented as a property-based test
 - Minimum 100 iterations per property test
-- Smart generators for test configurations, shell types, and performance data
-- Comprehensive input space coverage for timing scenarios
+- Smart generators for test timing data, code patterns, and shell configurations
+- Comprehensive coverage of edge cases in timing analysis and code conversion
 
 ### Integration Tests
-- End-to-end test performance optimization workflows
-- dotnet test CLI integration with custom loggers
-- Configuration file loading and environment override behavior
-- Performance report generation and export functionality
+- End-to-end workflow from analysis to optimization
+- Validation that optimized tests maintain correctness
+- Performance measurement accuracy across different test types
+- File system operations and report generation
 
 ### Performance Validation
-- Baseline performance measurements before optimization
+- Baseline measurements before any changes
 - Regression testing to ensure optimizations don't break functionality
 - Comparative analysis of shell startup times
-- Memory usage validation for performance tracking overhead
+- Overall test suite execution time improvements
 
-The testing strategy ensures that performance optimizations maintain correctness while achieving the desired speed improvements. Each property test validates universal behaviors across all valid inputs, while unit tests cover specific implementation details and edge cases.
+The testing strategy ensures that the optimization process maintains test correctness while achieving significant performance improvements. Property tests validate universal behaviors across all possible inputs, while unit tests cover specific implementation details and edge cases.
