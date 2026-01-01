@@ -1263,8 +1263,9 @@ public class TerminalController : ITerminalController
       var (newCols, newRows) = newDimensions.Value;
 
       // Check if terminal dimensions would actually change
-      var activeSession = _sessionManager.ActiveSession;
-      if (activeSession == null || (newCols == activeSession.Terminal.Width && newRows == activeSession.Terminal.Height))
+      // IMPORTANT: window resize should apply to all sessions, not just the active one.
+      var (lastCols, lastRows) = _sessionManager.LastKnownTerminalDimensions;
+      if (newCols == lastCols && newRows == lastRows)
       {
         _lastWindowSize = currentWindowSize;
         return; // No terminal dimension change needed
@@ -1277,31 +1278,7 @@ public class TerminalController : ITerminalController
         return;
       }
 
-      // Log the resize operation
-      // Console.WriteLine($"TerminalController: Window resized from {_lastWindowSize.X:F0}x{_lastWindowSize.Y:F0} to {currentWindowSize.X:F0}x{currentWindowSize.Y:F0}");
-      // Console.WriteLine($"TerminalController: Resizing terminal from {activeSession.Terminal.Width}x{activeSession.Terminal.Height} to {newCols}x{newRows}");
-
-      // Resize the headless terminal emulator (matches TypeScript StatefulTerminal behavior)
-      activeSession.Terminal.Resize(newCols, newRows);
-
-      // Persist dimensions for session metadata + future sessions
-      activeSession.UpdateTerminalDimensions(newCols, newRows);
-      _sessionManager.UpdateLastKnownTerminalDimensions(newCols, newRows);
-
-      // Resize the PTY process (matches TypeScript BackendServer behavior)
-      if (activeSession.ProcessManager.IsRunning)
-      {
-        try
-        {
-          activeSession.ProcessManager.Resize(newCols, newRows);
-          // Console.WriteLine($"TerminalController: PTY process resized to {newCols}x{newRows}");
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"TerminalController: Failed to resize PTY process: {ex.Message}");
-          // Continue anyway - terminal emulator resize succeeded
-        }
-      }
+      ApplyTerminalDimensionsToAllSessions(newCols, newRows);
 
       // Update tracking variables
       _lastWindowSize = currentWindowSize;
@@ -1316,6 +1293,53 @@ public class TerminalController : ITerminalController
 #if DEBUG
       Console.WriteLine($"TerminalController: Resize error stack trace: {ex.StackTrace}");
 #endif
+    }
+  }
+
+  /// <summary>
+  ///     Applies a terminal resize to all sessions.
+  ///     This updates the headless terminal dimensions for every session and resizes any running PTY processes.
+  /// </summary>
+  /// <param name="cols">New terminal width in columns</param>
+  /// <param name="rows">New terminal height in rows</param>
+  internal void ApplyTerminalDimensionsToAllSessions(int cols, int rows)
+  {
+    // NOTE: This method is intentionally ImGui-free so it can be unit-tested.
+    // Dimension validation is performed by callers (window resize/font resize/manual paths).
+    try
+    {
+      var sessions = _sessionManager.Sessions;
+      foreach (var session in sessions)
+      {
+        try
+        {
+          session.Terminal.Resize(cols, rows);
+          session.UpdateTerminalDimensions(cols, rows);
+
+          if (session.ProcessManager.IsRunning)
+          {
+            try
+            {
+              session.ProcessManager.Resize(cols, rows);
+            }
+            catch (Exception ex)
+            {
+              Console.WriteLine($"TerminalController: Failed to resize PTY process for session {session.Id}: {ex.Message}");
+            }
+          }
+        }
+        catch (Exception ex)
+        {
+          Console.WriteLine($"TerminalController: Error resizing session {session.Id}: {ex.Message}");
+        }
+      }
+
+      // Persist dimensions for future sessions
+      _sessionManager.UpdateLastKnownTerminalDimensions(cols, rows);
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalController: Error applying resize to all sessions: {ex.Message}");
     }
   }
 

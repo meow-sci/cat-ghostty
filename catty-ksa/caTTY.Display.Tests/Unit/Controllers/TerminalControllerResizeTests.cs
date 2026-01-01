@@ -16,6 +16,32 @@ namespace caTTY.Display.Tests.Unit.Controllers;
 public class TerminalControllerResizeTests
 {
     [Test]
+    public void ApplyTerminalDimensionsToAllSessions_MultipleSessions_ResizesEachTerminal()
+    {
+        using var sessionManager = new SessionManager(maxSessions: 5);
+
+        // Create multiple sessions (processes are not started; this is a headless resize test)
+        var s1 = sessionManager.CreateSessionAsync("S1").Result;
+        var s2 = sessionManager.CreateSessionAsync("S2").Result;
+        var s3 = sessionManager.CreateSessionAsync("S3").Result;
+
+        using var controller = new TerminalController(sessionManager);
+
+        controller.ApplyTerminalDimensionsToAllSessions(120, 40);
+
+        Assert.That(s1.Terminal.Width, Is.EqualTo(120));
+        Assert.That(s1.Terminal.Height, Is.EqualTo(40));
+        Assert.That(s2.Terminal.Width, Is.EqualTo(120));
+        Assert.That(s2.Terminal.Height, Is.EqualTo(40));
+        Assert.That(s3.Terminal.Width, Is.EqualTo(120));
+        Assert.That(s3.Terminal.Height, Is.EqualTo(40));
+
+        var (cols, rows) = sessionManager.LastKnownTerminalDimensions;
+        Assert.That(cols, Is.EqualTo(120));
+        Assert.That(rows, Is.EqualTo(40));
+    }
+
+    [Test]
     [TestCase(0, 24)]
     [TestCase(80, 0)]
     [TestCase(-1, 24)]
