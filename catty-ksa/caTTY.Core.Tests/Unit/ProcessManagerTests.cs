@@ -173,6 +173,29 @@ public class ProcessManagerTests
     }
 
     /// <summary>
+    ///     Tests that CreateCustomGame returns valid custom game shell launch options.
+    /// </summary>
+    [Test]
+    public void ProcessLaunchOptions_CreateCustomGame_ReturnsValidOptions()
+    {
+        // Arrange
+        const string customShellId = "game-rcs-shell";
+
+        // Act
+        var options = ProcessLaunchOptions.CreateCustomGame(customShellId);
+
+        // Assert
+        Assert.That(options, Is.Not.Null);
+        Assert.That(options.ShellType, Is.EqualTo(ShellType.CustomGame));
+        Assert.That(options.CustomShellId, Is.EqualTo(customShellId));
+        Assert.That(options.Arguments, Is.Empty, "Custom game shell should have no default arguments");
+        Assert.That(options.InitialWidth, Is.EqualTo(80));
+        Assert.That(options.InitialHeight, Is.EqualTo(24));
+        Assert.That(options.CreateWindow, Is.False);
+        Assert.That(options.UseShellExecute, Is.False);
+    }
+
+    /// <summary>
     ///     Tests that CreateWsl returns valid WSL launch options with default settings.
     /// </summary>
     [Test]

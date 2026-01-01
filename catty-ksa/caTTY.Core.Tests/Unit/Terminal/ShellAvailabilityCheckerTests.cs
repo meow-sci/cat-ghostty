@@ -32,6 +32,16 @@ public class ShellAvailabilityCheckerTests
   }
 
   [Test]
+  public void IsShellAvailable_WithCustomGameShellType_ShouldReturnTrue()
+  {
+    // Act
+    bool isAvailable = ShellAvailabilityChecker.IsShellAvailable(ShellType.CustomGame);
+
+    // Assert
+    Assert.That(isAvailable, Is.True, "Custom game shell type should always be available (managed by registry)");
+  }
+
+  [Test]
   public void IsShellAvailable_WithCmdShellType_ShouldReturnTrueOnWindows()
   {
     // Act
@@ -88,6 +98,7 @@ public class ShellAvailabilityCheckerTests
     // Auto and Custom should always be available
     Assert.That(availableShells, Contains.Item(ShellType.Auto), "Auto shell should always be available");
     Assert.That(availableShells, Contains.Item(ShellType.Custom), "Custom shell should always be available");
+    Assert.That(availableShells, Contains.Item(ShellType.CustomGame), "Custom game shell should always be available");
 
     Console.WriteLine($"Available shells: {string.Join(", ", availableShells)}");
   }

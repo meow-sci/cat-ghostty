@@ -28,6 +28,7 @@ public static class ShellAvailabilityChecker
                 ShellType.PowerShellCore => IsPowerShellCoreAvailable(),
                 ShellType.Cmd => IsCmdAvailable(),
                 ShellType.Custom => true, // Custom shells are checked when the path is provided
+                ShellType.CustomGame => true, // Custom game shells are always available (managed by registry)
                 _ => false
             };
         }
@@ -71,7 +72,8 @@ public static class ShellAvailabilityChecker
             (ShellType.PowerShell, "Windows PowerShell"),
             (ShellType.PowerShellCore, "PowerShell Core (pwsh)"),
             (ShellType.Cmd, "Command Prompt"),
-            (ShellType.Custom, "Custom Shell")
+            (ShellType.Custom, "Custom Shell"),
+            (ShellType.CustomGame, "Custom Game Shell")
         };
 
         foreach (var (shellType, displayName) in shellDefinitions)

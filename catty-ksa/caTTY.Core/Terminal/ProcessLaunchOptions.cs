@@ -33,7 +33,12 @@ public enum ShellType
     /// <summary>
     ///     Custom shell with explicit path.
     /// </summary>
-    Custom
+    Custom,
+
+    /// <summary>
+    ///     Custom game shell implementation.
+    /// </summary>
+    CustomGame
 }
 
 /// <summary>
@@ -50,6 +55,11 @@ public class ProcessLaunchOptions
     ///     Gets or sets the custom shell path (used when ShellType is Custom).
     /// </summary>
     public string? CustomShellPath { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the custom shell ID (used when ShellType is CustomGame).
+    /// </summary>
+    public string? CustomShellId { get; set; }
 
     /// <summary>
     ///     Gets or sets additional arguments to pass to the shell.
@@ -199,6 +209,20 @@ public class ProcessLaunchOptions
         options.CustomShellPath = shellPath;
         options.Arguments.Clear();
         options.Arguments.AddRange(arguments);
+        return options;
+    }
+
+    /// <summary>
+    ///     Creates launch options for a custom game shell.
+    /// </summary>
+    /// <param name="customShellId">ID of the custom game shell to launch</param>
+    /// <returns>Custom game shell launch options</returns>
+    public static ProcessLaunchOptions CreateCustomGame(string customShellId)
+    {
+        ProcessLaunchOptions options = CreateDefault();
+        options.ShellType = ShellType.CustomGame;
+        options.CustomShellId = customShellId;
+        options.Arguments.Clear();
         return options;
     }
 }

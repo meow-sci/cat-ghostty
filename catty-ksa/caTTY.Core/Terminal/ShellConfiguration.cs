@@ -62,6 +62,14 @@ public static class ShellConfiguration
         ProcessLaunchOptions.CreateCustom(shellPath, arguments);
 
     /// <summary>
+    ///     Creates launch options for a custom game shell.
+    /// </summary>
+    /// <param name="customShellId">ID of the custom game shell to launch</param>
+    /// <returns>Custom game shell launch options</returns>
+    public static ProcessLaunchOptions CustomGame(string customShellId) => 
+        ProcessLaunchOptions.CreateCustomGame(customShellId);
+
+    /// <summary>
     ///     Common shell configurations for quick access.
     /// </summary>
     public static class Common

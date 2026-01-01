@@ -334,14 +334,14 @@ public class TerminalController : ITerminalController
       // Load fresh configuration from disk to get latest saved values
       var config = ThemeConfiguration.Load();
       
-      Console.WriteLine($"TerminalController: Constructor - Loaded config FontFamily: '{config.FontFamily}', FontSize: {config.FontSize}");
+      // Console.WriteLine($"TerminalController: Constructor - Loaded config FontFamily: '{config.FontFamily}', FontSize: {config.FontSize}");
       
       // Apply saved font family if available
       if (!string.IsNullOrEmpty(config.FontFamily))
       {
         try
         {
-          Console.WriteLine($"TerminalController: Constructor - Attempting to create font config for family: '{config.FontFamily}'");
+          // Console.WriteLine($"TerminalController: Constructor - Attempting to create font config for family: '{config.FontFamily}'");
           
           // Create font configuration manually since CaTTYFontManager.CreateFontConfigForFamily is broken
           var savedFontConfig = CaTTYFontManager.CreateFontConfigForFamily(config.FontFamily, config.FontSize ?? _fontConfig.FontSize);
@@ -349,10 +349,10 @@ public class TerminalController : ITerminalController
           if (savedFontConfig != null)
           {
             // Log what we're trying to load vs what we got
-            Console.WriteLine($"TerminalController: Constructor - Successfully created font config");
-            Console.WriteLine($"TerminalController: Constructor - Regular: {savedFontConfig.RegularFontName}");
-            Console.WriteLine($"TerminalController: Constructor - Bold: {savedFontConfig.BoldFontName}");
-            Console.WriteLine($"TerminalController: Constructor - Size: {savedFontConfig.FontSize}");
+            // Console.WriteLine($"TerminalController: Constructor - Successfully created font config");
+            // Console.WriteLine($"TerminalController: Constructor - Regular: {savedFontConfig.RegularFontName}");
+            // Console.WriteLine($"TerminalController: Constructor - Bold: {savedFontConfig.BoldFontName}");
+            // Console.WriteLine($"TerminalController: Constructor - Size: {savedFontConfig.FontSize}");
             
             // Store the old config for comparison
             var oldRegular = _fontConfig.RegularFontName;
@@ -360,12 +360,12 @@ public class TerminalController : ITerminalController
             _fontConfig = savedFontConfig;
             _currentFontFamily = config.FontFamily;
             
-            Console.WriteLine($"TerminalController: Constructor - Font config updated from '{oldRegular}' to '{_fontConfig.RegularFontName}'");
-            Console.WriteLine($"TerminalController: Constructor - Current font family set to: '{_currentFontFamily}'");
+            // Console.WriteLine($"TerminalController: Constructor - Font config updated from '{oldRegular}' to '{_fontConfig.RegularFontName}'");
+            // Console.WriteLine($"TerminalController: Constructor - Current font family set to: '{_currentFontFamily}'");
           }
           else
           {
-            Console.WriteLine($"TerminalController: Constructor - Could not create font config for '{config.FontFamily}', keeping default");
+            // Console.WriteLine($"TerminalController: Constructor - Could not create font config for '{config.FontFamily}', keeping default");
           }
         }
         catch (Exception ex)
@@ -378,7 +378,7 @@ public class TerminalController : ITerminalController
       }
       else
       {
-        Console.WriteLine("TerminalController: Constructor - No saved font family found in config");
+        // Console.WriteLine("TerminalController: Constructor - No saved font family found in config");
       }
 
       // Apply saved font size if available
@@ -387,14 +387,14 @@ public class TerminalController : ITerminalController
         var fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, config.FontSize.Value));
         var oldSize = _fontConfig.FontSize;
         _fontConfig.FontSize = fontSize;
-        Console.WriteLine($"TerminalController: Constructor - Font size updated from {oldSize} to {fontSize}");
+        // Console.WriteLine($"TerminalController: Constructor - Font size updated from {oldSize} to {fontSize}");
       }
       else
       {
-        Console.WriteLine("TerminalController: Constructor - No saved font size found in config");
+        // Console.WriteLine("TerminalController: Constructor - No saved font size found in config");
       }
       
-      Console.WriteLine($"TerminalController: Constructor - Final font config: Regular='{_fontConfig.RegularFontName}', Size={_fontConfig.FontSize}");
+      // Console.WriteLine($"TerminalController: Constructor - Final font config: Regular='{_fontConfig.RegularFontName}', Size={_fontConfig.FontSize}");
     }
     catch (Exception ex)
     {
@@ -497,14 +497,14 @@ public class TerminalController : ITerminalController
         // Determine current font family from configuration using CaTTYFontManager
         var detectedFamily = CaTTYFontManager.GetCurrentFontFamily(_fontConfig);
         _currentFontFamily = detectedFamily ?? "Hack"; // Default fallback
-        Console.WriteLine($"TerminalController: Detected font family from config: {_currentFontFamily}");
+        // Console.WriteLine($"TerminalController: Detected font family from config: {_currentFontFamily}");
       }
       else
       {
-        Console.WriteLine($"TerminalController: Using font family from constructor loading: {_currentFontFamily}");
+        // Console.WriteLine($"TerminalController: Using font family from constructor loading: {_currentFontFamily}");
       }
       
-      Console.WriteLine($"TerminalController: Final initialization - Font family: {_currentFontFamily}, Regular font: {_fontConfig.RegularFontName}");
+      // Console.WriteLine($"TerminalController: Final initialization - Font family: {_currentFontFamily}, Regular font: {_fontConfig.RegularFontName}");
     }
     catch (Exception ex)
     {

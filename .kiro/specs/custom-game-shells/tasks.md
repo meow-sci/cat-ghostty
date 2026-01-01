@@ -6,64 +6,64 @@ This implementation plan creates a custom shell system that integrates with the 
 
 ## Tasks
 
-- [ ] 1. Define core interfaces and data models
+- [x] 1. Define core interfaces and data models
   - Create ICustomShell interface with async support
   - Define CustomShellMetadata record type
   - Create shell event argument classes (ShellOutputEventArgs, ShellTerminatedEventArgs)
   - Define CustomShellStartOptions class
   - _Requirements: 1.1, 6.1, 7.3_
 
-- [ ] 1.1 Write property test for interface compliance
+- [x] 1.1 Write property test for interface compliance
   - **Property 1: Custom Shell Interface Compliance**
   - **Validates: Requirements 1.1, 5.1, 7.3**
 
-- [ ] 2. Extend existing shell type system
+- [x] 2. Extend existing shell type system
   - Add CustomGame to ShellType enum
   - Extend ProcessLaunchOptions with CustomShellId property
   - Update ShellAvailabilityChecker to support custom shells
   - Modify ShellConfiguration helper methods
   - _Requirements: 3.1, 3.2_
 
-- [ ] 2.1 Write unit tests for shell type extensions
+- [x] 2.1 Write unit tests for shell type extensions
   - Test enum extension and launch options
   - Test availability checker integration
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3. Implement PTY Bridge component
+- [x] 3. Implement PTY Bridge component
   - Create CustomShellPtyBridge class implementing IProcessManager
   - Implement input/output routing between custom shells and PTY system
   - Handle event translation from custom shell events to PTY events
   - Support terminal resize notifications
   - _Requirements: 1.2, 1.4, 2.4, 2.5_
 
-- [ ] 3.1 Write property test for PTY bridge integration
+- [x] 3.1 Write property test for PTY bridge integration
   - **Property 2: PTY Bridge Integration**
   - **Validates: Requirements 1.2, 1.4, 3.3**
 
-- [ ] 3.2 Write property test for terminal resize notification
+- [x] 3.2 Write property test for terminal resize notification
   - **Property 5: Terminal Resize Notification**
   - **Validates: Requirements 2.4, 2.5**
 
-- [ ] 3.3 Write property test for concurrent operation safety
+- [x] 3.3 Write property test for concurrent operation safety
   - **Property 12: Concurrent Operation Safety**
   - **Validates: Requirements 6.4**
 
-- [ ] 4. Create Shell Registry system
+- [-] 4. Create Shell Registry system
   - Implement CustomShellRegistry class for shell discovery and management
   - Add shell registration and validation logic
   - Implement automatic discovery of custom shell implementations
   - Add error handling for registration failures
   - _Requirements: 7.1, 7.2, 7.4, 7.5_
 
-- [ ] 4.1 Write property test for automatic shell discovery
+- [x] 4.1 Write property test for automatic shell discovery
   - **Property 14: Automatic Shell Discovery**
   - **Validates: Requirements 7.1, 7.2**
 
-- [ ] 4.2 Write property test for shell registration validation
+- [x] 4.2 Write property test for shell registration validation
   - **Property 15: Shell Registration Validation**
   - **Validates: Requirements 7.4, 7.5**
 
-- [ ] 5. Checkpoint - Ensure core infrastructure tests pass
+- [x] 5. Checkpoint - Ensure core infrastructure tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Integrate custom shells with ProcessManager
