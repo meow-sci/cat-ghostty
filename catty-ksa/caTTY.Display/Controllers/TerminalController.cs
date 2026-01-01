@@ -4349,6 +4349,11 @@ public class TerminalController : ITerminalController
       // Update session manager with new default launch options
       _sessionManager.UpdateDefaultLaunchOptions(launchOptions);
       
+      // Sync current opacity values from OpacityManager before saving
+      // This ensures global opacity settings are preserved when shell type changes
+      _themeConfig.BackgroundOpacity = OpacityManager.CurrentBackgroundOpacity;
+      _themeConfig.ForegroundOpacity = OpacityManager.CurrentForegroundOpacity;
+      
       // Save configuration to disk
       _themeConfig.Save();
       
