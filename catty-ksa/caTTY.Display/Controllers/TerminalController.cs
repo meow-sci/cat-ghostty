@@ -4539,9 +4539,8 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  /// Renders the tab area with tabs for all active sessions.
-  /// Displays tabs for each session and shows the active session with different styling.
-  /// Uses proper spacing and sizing calculations to maintain consistent layout.
+  /// Renders the tab area using real ImGui tabs for session management.
+  /// Includes add button and context menus for tab operations.
   /// </summary>
   private void RenderTabArea()
   {
@@ -4552,14 +4551,6 @@ public class TerminalController : ITerminalController
 
       // Get available width for tab area
       float availableWidth = ImGui.GetContentRegionAvail().X;
-
-      // Calculate dimensions - put add button on left with fixed width
-      float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
-      float spacing = LayoutConstants.ELEMENT_SPACING;
-      float totalTabWidth = availableWidth - addButtonWidth - spacing;
-      float tabWidth = sessions.Count > 0 ? totalTabWidth / sessions.Count : totalTabWidth;
-
-      // Use fixed tab area height for consistent layout
       float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
 
       // Create a child region for the tab area to maintain consistent height
@@ -4570,107 +4561,122 @@ public class TerminalController : ITerminalController
         if (childBegun)
         {
           // Add button on the left with fixed width
+          float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
           {
             _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-
-            // Focus the terminal window when add button is clicked
             ForceFocus();
           }
 
-          // Show tooltip on add button hover
           if (ImGui.IsItemHovered())
           {
             ImGui.SetTooltip("Add new terminal session");
           }
 
-          // Add spacing after the add button
-          if (sessions.Count > 0) ImGui.SameLine();
-
-          // Render session tabs
-          for (int i = 0; i < sessions.Count; i++)
+          // Only show tabs if we have sessions
+          if (sessions.Count > 0)
           {
-            var session = sessions[i];
-            bool isActive = session == activeSession;
+            ImGui.SameLine();
 
-            if (i > 0) ImGui.SameLine();
+            // Calculate remaining width for tab bar
+            float remainingWidth = availableWidth - addButtonWidth - LayoutConstants.ELEMENT_SPACING;
 
-            // Style active tab differently
-            if (isActive)
+            // Begin tab bar with remaining width
+            if (ImGui.BeginTabBar("SessionTabs", ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.FittingPolicyScroll))
             {
-              ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.2f, 0.3f, 0.5f, 1.0f)); // Active tab color
-              ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.3f, 0.4f, 0.6f, 1.0f)); // Hover color
-              ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.1f, 0.2f, 0.4f, 1.0f)); // Pressed color
-            }
-            else
-            {
-              ImGui.PushStyleColor(ImGuiCol.Button, new float4(0.1f, 0.1f, 0.1f, 1.0f)); // Inactive tab color
-              ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new float4(0.2f, 0.2f, 0.2f, 1.0f)); // Hover color
-              ImGui.PushStyleColor(ImGuiCol.ButtonActive, new float4(0.15f, 0.15f, 0.15f, 1.0f)); // Pressed color
-            }
-
-            try
-            {
-              string tabLabel = $"{session.Title}##tab_{session.Id}";
-
-              // Show process exit code if process has exited
-              if (session.ProcessManager.ExitCode.HasValue)
+              try
               {
-                tabLabel += $" (Exit: {session.ProcessManager.ExitCode})";
-              }
-
-              if (ImGui.Button(tabLabel, new float2(tabWidth, tabHeight - 5.0f)))
-              {
-                // Switch to this session
-                _sessionManager.SwitchToSession(session.Id);
-
-                // Focus the terminal window when tab is clicked
-                ForceFocus();
-              }
-            }
-            finally
-            {
-              ImGui.PopStyleColor(3); // Pop all three colors
-            }
-
-            // Context menu for tab
-            if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-            {
-              ImGui.OpenPopup($"tab_context_{session.Id}");
-            }
-
-            if (ImGui.BeginPopup($"tab_context_{session.Id}"))
-            {
-              if (ImGui.MenuItem("Close Tab") && sessions.Count > 1)
-              {
-                _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
-              }
-
-              // Add restart option for terminated sessions
-              if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
-              {
-                if (ImGui.MenuItem("Restart Session"))
+                // Render each session as a tab
+                foreach (var session in sessions)
                 {
-                  _ = Task.Run(async () =>
+                  bool isActive = session == activeSession;
+                  
+                  // Create tab label with session title and optional exit code
+                  string tabLabel = session.Title;
+                  if (session.ProcessManager.ExitCode.HasValue)
+                  {
+                    tabLabel += $" (Exit: {session.ProcessManager.ExitCode})";
+                  }
+
+                  // Use unique ID for each tab
+                  string tabId = $"{tabLabel}##tab_{session.Id}";
+
+                  // Don't use SetSelected flag - let ImGui handle tab selection naturally
+                  ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags.None;
+
+                  bool tabOpen = true;
+                  if (ImGui.BeginTabItem(tabId, ref tabOpen, tabFlags))
                   {
                     try
                     {
-                      await _sessionManager.RestartSessionAsync(session.Id);
+                      // If this tab is being rendered and it's not the current active session, switch to it
+                      // This only happens when user actually clicks the tab, not when we force selection
+                      if (!isActive)
+                      {
+                        _sessionManager.SwitchToSession(session.Id);
+                        // Don't call ForceFocus() here as it's not needed for tab switching
+                      }
+
+                      // Tab content is handled by the terminal canvas, so we don't render content here
+                      // The tab item just needs to exist to show the tab
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                      Console.WriteLine($"TerminalController: Failed to restart session {session.Id}: {ex.Message}");
+                      ImGui.EndTabItem();
                     }
-                  });
+                  }
+
+                  // Handle tab close button (when tabOpen becomes false)
+                  if (!tabOpen && sessions.Count > 1)
+                  {
+                    _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
+                  }
+
+                  // Context menu for tab (right-click)
+                  if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                  {
+                    ImGui.OpenPopup($"tab_context_{session.Id}");
+                  }
+
+                  if (ImGui.BeginPopup($"tab_context_{session.Id}"))
+                  {
+                    if (ImGui.MenuItem("Close Tab") && sessions.Count > 1)
+                    {
+                      _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
+                    }
+
+                    // Add restart option for terminated sessions
+                    if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
+                    {
+                      if (ImGui.MenuItem("Restart Session"))
+                      {
+                        _ = Task.Run(async () =>
+                        {
+                          try
+                          {
+                            await _sessionManager.RestartSessionAsync(session.Id);
+                          }
+                          catch (Exception ex)
+                          {
+                            Console.WriteLine($"TerminalController: Failed to restart session {session.Id}: {ex.Message}");
+                          }
+                        });
+                      }
+                    }
+
+                    if (ImGui.MenuItem("Rename Tab"))
+                    {
+                      // TODO: Implement tab renaming in future
+                      ShowNotImplementedMessage("Tab renaming");
+                    }
+                    ImGui.EndPopup();
+                  }
                 }
               }
-
-              if (ImGui.MenuItem("Rename Tab"))
+              finally
               {
-                // TODO: Implement tab renaming in future
-                ShowNotImplementedMessage("Tab renaming");
+                ImGui.EndTabBar();
               }
-              ImGui.EndPopup();
             }
           }
         }
