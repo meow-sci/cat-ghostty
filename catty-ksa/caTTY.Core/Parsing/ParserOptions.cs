@@ -1,4 +1,5 @@
 using caTTY.Core.Types;
+using caTTY.Core.Rpc;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -72,4 +73,22 @@ public class ParserOptions
     ///     If null, parsers will trace without position information.
     /// </summary>
     public ICursorPositionProvider? CursorPositionProvider { get; set; }
+
+    /// <summary>
+    ///     RPC sequence detector for identifying private use area RPC sequences.
+    ///     If null, RPC detection will be disabled.
+    /// </summary>
+    public IRpcSequenceDetector? RpcSequenceDetector { get; set; }
+
+    /// <summary>
+    ///     RPC sequence parser for parsing private use area RPC sequences.
+    ///     If null, RPC parsing will be disabled.
+    /// </summary>
+    public IRpcSequenceParser? RpcSequenceParser { get; set; }
+
+    /// <summary>
+    ///     RPC handler for processing parsed RPC messages.
+    ///     If null, RPC handling will be disabled.
+    /// </summary>
+    public IRpcHandler? RpcHandler { get; set; }
 }

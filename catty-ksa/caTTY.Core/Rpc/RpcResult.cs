@@ -26,6 +26,16 @@ public record RpcResult
     public TimeSpan ExecutionTime { get; init; }
 
     /// <summary>
+    /// Indicates whether the command failed due to a timeout.
+    /// </summary>
+    public bool IsTimeout { get; init; }
+
+    /// <summary>
+    /// The command ID that was executed (useful for timeout responses).
+    /// </summary>
+    public int? CommandId { get; init; }
+
+    /// <summary>
     /// Creates a successful result with optional data.
     /// </summary>
     /// <param name="data">The response data</param>
@@ -54,6 +64,25 @@ public record RpcResult
             Success = false,
             ErrorMessage = errorMessage,
             ExecutionTime = executionTime
+        };
+    }
+
+    /// <summary>
+    /// Creates a timeout result with command ID and error message.
+    /// </summary>
+    /// <param name="commandId">The command ID that timed out</param>
+    /// <param name="errorMessage">The timeout error message</param>
+    /// <param name="executionTime">The execution time before timeout</param>
+    /// <returns>A timeout RPC result</returns>
+    public static RpcResult CreateTimeout(int commandId, string errorMessage, TimeSpan executionTime = default)
+    {
+        return new RpcResult
+        {
+            Success = false,
+            ErrorMessage = errorMessage,
+            ExecutionTime = executionTime,
+            IsTimeout = true,
+            CommandId = commandId
         };
     }
 }

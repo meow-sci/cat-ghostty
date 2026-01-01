@@ -17,38 +17,38 @@ This implementation plan converts the RPC design into discrete C# coding tasks t
   - **Validates: Requirements 1.2, 1.6, 2.6, 3.6**
 
 - [ ] 2. Implement RPC sequence detection and parsing
-  - [ ] 2.1 Implement RpcSequenceDetector class
+  - [x] 2.1 Implement RpcSequenceDetector class
     - Detect ESC [ > prefix in byte sequences
     - Classify sequences by final character (F/Q/R/E)
     - Validate command ID ranges (1000-9999)
     - _Requirements: 1.1, 1.3, 1.4_
 
-  - [ ] 2.2 Write property test for sequence detection
+  - [x] 2.2 Write property test for sequence detection
     - **Property 2: Sequence Parsing Consistency**
     - **Validates: Requirements 1.1, 1.3**
 
-  - [ ] 2.3 Implement RpcSequenceParser class
+  - [x] 2.3 Implement RpcSequenceParser class
     - Parse ESC [ > Pn ; Pv ; Pc format
     - Extract command ID, version, and parameters
     - Handle malformed sequences gracefully
     - _Requirements: 1.2, 1.5, 1.6_
 
-  - [ ] 2.4 Write property test for sequence parsing
+  - [x] 2.4 Write property test for sequence parsing
     - **Property 1: Private Use Area Sequence Format Validation**
     - **Validates: Requirements 1.2, 1.6, 2.6, 3.6**
 
 - [ ] 3. Integrate RPC detection with core parser
-  - [ ] 3.1 Extend Parser class to detect private use sequences
+  - [x] 3.1 Extend Parser class to detect private use sequences
     - Add RPC sequence detection in HandleCsiState method
     - Delegate RPC sequences to IRpcHandler without affecting core logic
     - Maintain VT100/xterm compliance for standard sequences
     - _Requirements: 1.4, 4.1, 4.2_
 
-  - [ ] 3.2 Write property test for core emulator compatibility
+  - [x] 3.2 Write property test for core emulator compatibility
     - **Property 3: Core Emulator Compatibility**
     - **Validates: Requirements 1.4, 4.1, 4.2**
 
-  - [ ] 3.3 Create IRpcHandler interface and implementation
+  - [x] 3.3 Create IRpcHandler interface and implementation
     - Handle parsed RPC messages from core parser
     - Route to command router for execution
     - Generate responses for query commands
@@ -58,52 +58,52 @@ This implementation plan converts the RPC design into discrete C# coding tasks t
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Implement command routing and registration
-  - [ ] 5.1 Implement RpcCommandRouter class
+  - [x] 5.1 Implement RpcCommandRouter class
     - Route commands by ID to registered handlers
     - Support fire-and-forget and query-response patterns
     - Handle command registration and unregistration
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 5.2 Write property test for command registration
+  - [x] 5.2 Write property test for command registration
     - **Property 11: Command Registration Interface**
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 
-  - [ ] 5.3 Implement command handler base classes
+  - [x] 5.3 Implement command handler base classes
     - Create abstract RpcCommandHandler base class
     - Implement FireAndForgetCommandHandler
     - Implement QueryCommandHandler with timeout support
     - _Requirements: 2.1, 2.2, 3.1, 3.4_
 
-  - [ ] 5.4 Write property test for fire-and-forget commands
+  - [x] 5.4 Write property test for fire-and-forget commands
     - **Property 5: Fire-and-Forget Command Execution**
     - **Validates: Requirements 2.1, 2.2**
 
-  - [ ] 5.5 Write property test for query-response commands
+  - [x] 5.5 Write property test for query-response commands
     - **Property 6: Query-Response Command Processing**
     - **Validates: Requirements 3.1, 3.3**
 
 - [ ] 6. Implement response generation and error handling
-  - [ ] 6.1 Implement RpcResponseGenerator class
+  - [x] 6.1 Implement RpcResponseGenerator class
     - Generate ESC [ > Pn ; 1 ; R format responses
     - Encode response data in additional parameters
     - Generate error responses with ESC [ > 9999 ; 1 ; E format
     - _Requirements: 3.3, 3.4, 3.5_
 
-  - [ ] 6.2 Write property test for response encoding
+  - [x] 6.2 Write property test for response encoding
     - **Property 9: Response Data Encoding**
     - **Validates: Requirements 3.5**
 
-  - [ ] 6.3 Implement comprehensive error handling
+  - [x] 6.3 Implement comprehensive error handling
     - Catch and log command handler exceptions
     - Handle unknown command IDs with warnings
     - Implement timeout handling for query commands
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 6.4 Write property test for error handling
+  - [x] 6.4 Write property test for error handling
     - **Property 12: Exception Safety**
     - **Validates: Requirements 6.2**
 
-  - [ ] 6.5 Write property test for timeout handling
+  - [x] 6.5 Write property test for timeout handling
     - **Property 8: Timeout Handling**
     - **Validates: Requirements 3.4**
 

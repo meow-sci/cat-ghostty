@@ -1,6 +1,7 @@
 using System.Text;
 using caTTY.Core.Types;
 using caTTY.Core.Tracing;
+using caTTY.Core.Rpc;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -25,6 +26,11 @@ public class Parser
     private readonly ILogger _logger;
     private readonly bool _processC0ControlsDuringEscapeSequence;
     private readonly ICursorPositionProvider? _cursorPositionProvider;
+
+    // RPC components (optional)
+    private readonly IRpcSequenceDetector? _rpcSequenceDetector;
+    private readonly IRpcSequenceParser? _rpcSequenceParser;
+    private readonly IRpcHandler? _rpcHandler;
 
     // UTF-8 decoding
     private readonly IUtf8Decoder _utf8Decoder;
@@ -53,6 +59,11 @@ public class Parser
         _dcsParser = options.DcsParser ?? new DcsParser(_logger, options.CursorPositionProvider);
         _oscParser = options.OscParser ?? new OscParser(_logger, options.CursorPositionProvider);
         _sgrParser = options.SgrParser ?? new SgrParser(_logger, options.CursorPositionProvider);
+        
+        // RPC components are optional
+        _rpcSequenceDetector = options.RpcSequenceDetector;
+        _rpcSequenceParser = options.RpcSequenceParser;
+        _rpcHandler = options.RpcHandler;
     }
 
     /// <summary>
@@ -547,6 +558,13 @@ public class Parser
         string raw = BytesToString(_escapeSequence);
         byte finalByte = _escapeSequence[^1];
 
+        // Check for RPC sequences first (ESC [ > format) if RPC handling is enabled
+        if (IsRpcHandlingEnabled() && TryHandleRpcSequence())
+        {
+            ResetEscapeState();
+            return;
+        }
+
         // CSI SGR: parse using the dedicated SGR parser
         if (finalByte == 0x6d) // 'm'
         {
@@ -595,5 +613,59 @@ public class Parser
     private static string BytesToString(IEnumerable<byte> bytes)
     {
         return string.Concat(bytes.Select(b => (char)b));
+    }
+
+    /// <summary>
+    ///     Checks if RPC handling is enabled and all required components are available.
+    /// </summary>
+    /// <returns>True if RPC handling is enabled</returns>
+    private bool IsRpcHandlingEnabled()
+    {
+        return _rpcSequenceDetector != null && 
+               _rpcSequenceParser != null && 
+               _rpcHandler != null && 
+               _rpcHandler.IsEnabled;
+    }
+
+    /// <summary>
+    ///     Attempts to handle the current escape sequence as an RPC sequence.
+    ///     This method maintains clean separation between core terminal emulation and RPC functionality.
+    /// </summary>
+    /// <returns>True if the sequence was handled as an RPC sequence</returns>
+    private bool TryHandleRpcSequence()
+    {
+        if (!IsRpcHandlingEnabled())
+        {
+            return false;
+        }
+
+        ReadOnlySpan<byte> sequenceSpan = _escapeSequence.ToArray().AsSpan();
+
+        // First check if this is an RPC sequence
+        if (!_rpcSequenceDetector!.IsRpcSequence(sequenceSpan))
+        {
+            return false;
+        }
+
+        // Get the sequence type for more detailed validation
+        RpcSequenceType sequenceType = _rpcSequenceDetector.GetSequenceType(sequenceSpan);
+
+        // Handle malformed sequences
+        if (sequenceType != RpcSequenceType.Valid)
+        {
+            _rpcHandler!.HandleMalformedRpcSequence(sequenceSpan, sequenceType);
+            return true; // Sequence was handled (even if malformed)
+        }
+
+        // Try to parse the valid RPC sequence
+        if (_rpcSequenceParser!.TryParseRpcSequence(sequenceSpan, out RpcMessage? message) && message != null)
+        {
+            _rpcHandler!.HandleRpcMessage(message);
+            return true;
+        }
+
+        // Parsing failed for a supposedly valid sequence
+        _rpcHandler!.HandleMalformedRpcSequence(sequenceSpan, RpcSequenceType.Malformed);
+        return true;
     }
 }
