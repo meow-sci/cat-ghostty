@@ -129,6 +129,9 @@ public class TerminalController : ITerminalController
   private TerminalFontConfig _fontConfig;
   private MouseWheelScrollConfig _scrollConfig;
 
+  // Layout management
+  private readonly ITerminalLayoutManager _layoutManager;
+
   // Input handling
   private readonly StringBuilder _inputBuffer = new();
   private readonly SessionManager _sessionManager;
@@ -279,6 +282,25 @@ public class TerminalController : ITerminalController
     _coordinateConverter = new CoordinateConverter();
     _mouseEventProcessor = new MouseEventProcessor(_mouseTrackingManager, _mouseStateManager);
     _mouseInputHandler = new MouseInputHandler(_mouseEventProcessor, _coordinateConverter, _mouseStateManager, _mouseTrackingManager);
+
+    // Initialize layout manager
+    _layoutManager = new TerminalLayoutManager(
+        _sessionManager,
+        _themeConfig,
+        _config,
+        () => _fontConfig,
+        UpdateFontConfig,
+        SaveFontSettings,
+        () => _currentFontFamily,
+        SelectFontFamily,
+        SetFontSize,
+        () => !_currentSelection.IsEmpty,
+        () => CopySelectionToClipboard(),
+        PasteFromClipboard,
+        SelectAllVisibleContent,
+        ForceFocus,
+        () => _isVisible = false
+    );
 
     // Wire up mouse event handlers
     _mouseEventProcessor.MouseEventGenerated += OnMouseEventGenerated;
@@ -563,15 +585,8 @@ public class TerminalController : ITerminalController
       // This ensures the game doesn't process keyboard input when terminal is focused
       ManageInputCapture();
 
-      // Render menu bar (uses UI font) - preserved for accessibility
-      RenderMenuBar();
-
-      // Render tab area for session management
-
-      ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new float2(4.0f, 0.0f));
-      ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, new float2(4.0f, 0.0f));
-      RenderTabArea();
-      // ImGui.PopStyleVar();
+      // Render layout (menu bar and tab area) using layout manager
+      _layoutManager.RenderLayout();
 
       // Handle window resize detection and terminal resizing
       HandleWindowResize();
@@ -1368,8 +1383,8 @@ public class TerminalController : ITerminalController
         return;
       }
 
-      // Calculate new terminal dimensions based on available space
-      var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+      // Calculate new terminal dimensions based on available space using layout manager
+      var newDimensions = _layoutManager.CalculateTerminalDimensions(currentWindowSize, CurrentCharacterWidth, CurrentLineHeight);
       if (!newDimensions.HasValue)
       {
         return; // Invalid dimensions
@@ -1459,67 +1474,6 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
-  ///     Calculates optimal terminal dimensions based on available window space.
-  ///     Uses character metrics to determine how many columns and rows can fit.
-  ///     Accounts for the complete UI layout structure: menu bar, tab area, terminal info, and padding.
-  ///     Matches the approach used in the TypeScript implementation and playground experiments.
-  /// </summary>
-  /// <param name="availableSize">The available window content area size</param>
-  /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
-  private (int cols, int rows)? CalculateTerminalDimensions(float2 availableSize)
-  {
-    try
-    {
-      // Calculate UI overhead for multi-session UI layout
-      // Multi-session UI includes menu bar and tab area
-      float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
-      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
-      float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // Top and bottom padding
-
-      float totalUIOverheadHeight = menuBarHeight + tabAreaHeight + windowPadding;
-
-      // Debug logging for multi-session UI overhead calculation
-      // Console.WriteLine($"TerminalController: Multi-session UI Overhead - Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Padding: {windowPadding}, Total: {totalUIOverheadHeight}");
-
-      float horizontalPadding = LayoutConstants.WINDOW_PADDING * 2; // Left and right padding
-
-      float availableWidth = availableSize.X - horizontalPadding;
-      float availableHeight = availableSize.Y - totalUIOverheadHeight;
-
-      // Ensure we have positive dimensions
-      if (availableWidth <= 0 || availableHeight <= 0)
-      {
-        return null;
-      }
-
-      // Calculate dimensions using current character metrics
-      if (CurrentCharacterWidth <= 0 || CurrentLineHeight <= 0)
-      {
-        Console.WriteLine($"TerminalController: Invalid character metrics: width={CurrentCharacterWidth}, height={CurrentLineHeight}");
-        return null;
-      }
-
-      int cols = (int)Math.Floor(availableWidth / CurrentCharacterWidth);
-      int rows = (int)Math.Floor(availableHeight / CurrentLineHeight);
-
-      // Apply reasonable bounds (matching TypeScript validation)
-      cols = Math.Max(10, Math.Min(1000, cols));
-      rows = Math.Max(3, Math.Min(1000, rows));
-
-      // Reduce rows by 1 to account for ImGui widget spacing that causes bottom clipping
-      // This prevents the bottom row from being cut off due to ImGui layout overhead
-      rows = Math.Max(3, rows - 1);
-
-      return (cols, rows);
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error calculating terminal dimensions: {ex.Message}");
-      return null;
-    }
-  }
-
-  /// <summary>
   ///     Gets the current terminal dimensions for external access.
   ///     Useful for debugging and integration testing.
   /// </summary>
@@ -1589,8 +1543,8 @@ public class TerminalController : ITerminalController
         return;
       }
 
-      // Calculate new terminal dimensions with updated character metrics
-      var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+      // Calculate new terminal dimensions with updated character metrics using layout manager
+      var newDimensions = _layoutManager.CalculateTerminalDimensions(currentWindowSize, CurrentCharacterWidth, CurrentLineHeight);
       if (!newDimensions.HasValue)
       {
         Console.WriteLine("TerminalController: Cannot process pending font resize - invalid dimensions calculated");
@@ -1691,8 +1645,8 @@ public class TerminalController : ITerminalController
       {
         try
         {
-          // Calculate new terminal dimensions with updated character metrics
-          var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+          // Calculate new terminal dimensions with updated character metrics using layout manager
+          var newDimensions = _layoutManager.CalculateTerminalDimensions(currentWindowSize, CurrentCharacterWidth, CurrentLineHeight);
           if (!newDimensions.HasValue)
           {
             Console.WriteLine($"TerminalController: Cannot resize session {session.Id} - invalid dimensions calculated");
@@ -3748,121 +3702,6 @@ public class TerminalController : ITerminalController
   #region Menu Bar Rendering
 
   /// <summary>
-  /// Renders the menu bar with File, Edit, and Font menus.
-  /// Uses ImGui menu widgets to provide standard menu functionality.
-  /// </summary>
-  private void RenderMenuBar()
-  {
-    if (ImGui.BeginMenuBar())
-    {
-      try
-      {
-        RenderFileMenu();
-        RenderEditMenu();
-        RenderSessionsMenu();
-        RenderFontMenu();
-        RenderThemeMenu();
-        RenderSettingsMenu();
-      }
-      finally
-      {
-        ImGui.EndMenuBar();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the File menu with terminal management options.
-  /// </summary>
-  private void RenderFileMenu()
-  {
-    if (ImGui.BeginMenu("File"))
-    {
-      try
-      {
-        // New Terminal - now enabled for multi-session support
-        if (ImGui.MenuItem("New Terminal"))
-        {
-          _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-        }
-
-        // Close Terminal - enabled when more than one session exists
-        bool canCloseTerminal = _sessionManager.SessionCount > 1;
-        if (ImGui.MenuItem("Close Terminal", "", false, canCloseTerminal))
-        {
-          var activeSession = _sessionManager.ActiveSession;
-          if (activeSession != null)
-          {
-            _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(activeSession.Id));
-          }
-        }
-
-        ImGui.Separator();
-
-        // Next Terminal - enabled when more than one session exists
-        bool canNavigateSessions = _sessionManager.SessionCount > 1;
-        if (ImGui.MenuItem("Next Terminal", "", false, canNavigateSessions))
-        {
-          _sessionManager.SwitchToNextSession();
-        }
-
-        // Previous Terminal - enabled when more than one session exists
-        if (ImGui.MenuItem("Previous Terminal", "", false, canNavigateSessions))
-        {
-          _sessionManager.SwitchToPreviousSession();
-        }
-
-        ImGui.Separator();
-
-        // Exit - closes the terminal window
-        if (ImGui.MenuItem("Exit"))
-        {
-          _isVisible = false;
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the Edit menu with text operations.
-  /// </summary>
-  private void RenderEditMenu()
-  {
-    if (ImGui.BeginMenu("Edit"))
-    {
-      try
-      {
-        // Copy - enabled only when selection exists
-        bool hasSelection = !_currentSelection.IsEmpty;
-        if (ImGui.MenuItem("Copy", "", false, hasSelection))
-        {
-          CopySelectionToClipboard();
-        }
-
-        // Paste - always enabled
-        if (ImGui.MenuItem("Paste"))
-        {
-          PasteFromClipboard();
-        }
-
-        // Select All - always enabled
-        if (ImGui.MenuItem("Select All"))
-        {
-          SelectAllText();
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
-      }
-    }
-  }
-
-  /// <summary>
   /// Renders the Sessions menu with a list of all terminal sessions.
   /// Shows a checkmark for the currently active session and allows clicking to switch sessions.
   /// </summary>
@@ -4544,167 +4383,6 @@ public class TerminalController : ITerminalController
   /// Renders the tab area using real ImGui tabs for session management.
   /// Includes add button and context menus for tab operations.
   /// </summary>
-  private void RenderTabArea()
-  {
-    try
-    {
-      var sessions = _sessionManager.Sessions;
-      var activeSession = _sessionManager.ActiveSession;
-
-      // Get available width for tab area
-      float availableWidth = ImGui.GetContentRegionAvail().X;
-      float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
-
-      // Create a child region for the tab area to maintain consistent height
-      bool childBegun = ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
-
-      try
-      {
-        if (childBegun)
-        {
-          // Add button on the left with fixed width
-          float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
-          if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
-          {
-            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-            ForceFocus();
-          }
-
-          if (ImGui.IsItemHovered())
-          {
-            ImGui.SetTooltip("Add new terminal session");
-          }
-
-          // Only show tabs if we have sessions
-          if (sessions.Count > 0)
-          {
-            ImGui.SameLine();
-
-            // Calculate remaining width for tab bar
-            float remainingWidth = availableWidth - addButtonWidth - LayoutConstants.ELEMENT_SPACING;
-
-            // Begin tab bar with remaining width
-            if (ImGui.BeginTabBar("SessionTabs", ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.FittingPolicyScroll))
-            {
-              try
-              {
-                // Render each session as a tab
-                foreach (var session in sessions)
-                {
-                  bool isActive = session == activeSession;
-                  
-                  // Create tab label with session title and optional exit code
-                  string tabLabel = session.Title;
-                  if (session.ProcessManager.ExitCode.HasValue)
-                  {
-                    tabLabel += $" (Exit: {session.ProcessManager.ExitCode})";
-                  }
-
-                  // Use unique ID for each tab
-                  string tabId = $"{tabLabel}##tab_{session.Id}";
-
-                  // Don't use SetSelected flag - let ImGui handle tab selection naturally
-                  ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags.None;
-
-                  bool tabOpen = true;
-                  if (ImGui.BeginTabItem(tabId, ref tabOpen, tabFlags))
-                  {
-                    try
-                    {
-                      // If this tab is being rendered and it's not the current active session, switch to it
-                      // This only happens when user actually clicks the tab, not when we force selection
-                      if (!isActive)
-                      {
-                        _sessionManager.SwitchToSession(session.Id);
-                        // Don't call ForceFocus() here as it's not needed for tab switching
-                      }
-
-                      // Tab content is handled by the terminal canvas, so we don't render content here
-                      // The tab item just needs to exist to show the tab
-                    }
-                    finally
-                    {
-                      ImGui.EndTabItem();
-                    }
-                  }
-
-                  // Handle tab close button (when tabOpen becomes false)
-                  if (!tabOpen && sessions.Count > 1)
-                  {
-                    _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
-                  }
-
-                  // Context menu for tab (right-click)
-                  if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-                  {
-                    ImGui.OpenPopup($"tab_context_{session.Id}");
-                  }
-
-                  if (ImGui.BeginPopup($"tab_context_{session.Id}"))
-                  {
-                    if (ImGui.MenuItem("Close Tab") && sessions.Count > 1)
-                    {
-                      _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
-                    }
-
-                    // Add restart option for terminated sessions
-                    if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
-                    {
-                      if (ImGui.MenuItem("Restart Session"))
-                      {
-                        _ = Task.Run(async () =>
-                        {
-                          try
-                          {
-                            await _sessionManager.RestartSessionAsync(session.Id);
-                          }
-                          catch (Exception ex)
-                          {
-                            Console.WriteLine($"TerminalController: Failed to restart session {session.Id}: {ex.Message}");
-                          }
-                        });
-                      }
-                    }
-
-                    if (ImGui.MenuItem("Rename Tab"))
-                    {
-                      // TODO: Implement tab renaming in future
-                      ShowNotImplementedMessage("Tab renaming");
-                    }
-                    ImGui.EndPopup();
-                  }
-                }
-              }
-              finally
-              {
-                ImGui.EndTabBar();
-              }
-            }
-          }
-        }
-      }
-      finally
-      {
-        if (childBegun)
-        {
-          ImGui.EndChild();
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error rendering tab area: {ex.Message}");
-
-      // Fallback: render a simple text indicator if tab rendering fails
-      ImGui.Text("No sessions");
-      ImGui.SameLine();
-      if (ImGui.Button("+##fallback_add"))
-      {
-        _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-      }
-    }
-  }
-
   /// <summary>
   /// Renders the terminal canvas for multi-session UI layout.
   /// This method provides terminal display within the session management framework.

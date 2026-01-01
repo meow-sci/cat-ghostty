@@ -58,52 +58,43 @@ public class TerminalControllerSimplifiedUITests
     public void TerminalController_ShouldNotCallRenderTabAreaInSimplifiedMode()
     {
         // Arrange
-        var renderTabAreaMethod = typeof(TerminalController)
-            .GetMethod("RenderTabArea", BindingFlags.NonPublic | BindingFlags.Instance);
+        var layoutManagerField = typeof(TerminalController)
+            .GetField("_layoutManager", BindingFlags.NonPublic | BindingFlags.Instance);
 
         // Assert
-        Assert.That(renderTabAreaMethod, Is.Not.Null, 
-            "RenderTabArea method should exist but not be called in simplified UI mode");
+        Assert.That(layoutManagerField, Is.Not.Null, 
+            "TerminalController should have a layout manager to handle tab area rendering");
         
-        // Note: In simplified UI, RenderTabArea should not be called from the main Render method
-        // This would require integration testing with ImGui to verify the actual call flow
+        // Verify that the layout manager has the RenderLayout method
+        var renderLayoutMethod = typeof(ITerminalLayoutManager)
+            .GetMethod("RenderLayout", BindingFlags.Public | BindingFlags.Instance);
+        
+        Assert.That(renderLayoutMethod, Is.Not.Null,
+            "Layout manager should have RenderLayout method for tab area functionality");
     }
 
     [Test]
     public void TerminalController_ShouldPreserveMenuBarFunctionality()
     {
         // Arrange & Act
-        var renderMenuBarMethod = typeof(TerminalController)
-            .GetMethod("RenderMenuBar", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        var renderFileMenuMethod = typeof(TerminalController)
-            .GetMethod("RenderFileMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        var renderEditMenuMethod = typeof(TerminalController)
-            .GetMethod("RenderEditMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        var renderFontMenuMethod = typeof(TerminalController)
-            .GetMethod("RenderFontMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        var renderThemeMenuMethod = typeof(TerminalController)
-            .GetMethod("RenderThemeMenu", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        var renderSettingsMenuMethod = typeof(TerminalController)
-            .GetMethod("RenderSettingsMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+        var layoutManagerField = typeof(TerminalController)
+            .GetField("_layoutManager", BindingFlags.NonPublic | BindingFlags.Instance);
 
         // Assert
-        Assert.That(renderMenuBarMethod, Is.Not.Null, 
-            "RenderMenuBar method should be preserved in simplified UI");
-        Assert.That(renderFileMenuMethod, Is.Not.Null, 
-            "RenderFileMenu method should be preserved in simplified UI");
-        Assert.That(renderEditMenuMethod, Is.Not.Null, 
-            "RenderEditMenu method should be preserved in simplified UI");
-        Assert.That(renderFontMenuMethod, Is.Not.Null, 
-            "RenderFontMenu method should be preserved in simplified UI");
-        Assert.That(renderThemeMenuMethod, Is.Not.Null, 
-            "RenderThemeMenu method should be preserved in simplified UI");
-        Assert.That(renderSettingsMenuMethod, Is.Not.Null, 
-            "RenderSettingsMenu method should be preserved in simplified UI");
+        Assert.That(layoutManagerField, Is.Not.Null, 
+            "TerminalController should have a layout manager to handle menu bar functionality");
+        
+        // Verify that the layout manager has the RenderLayout method which includes menu bar
+        var renderLayoutMethod = typeof(ITerminalLayoutManager)
+            .GetMethod("RenderLayout", BindingFlags.Public | BindingFlags.Instance);
+        
+        Assert.That(renderLayoutMethod, Is.Not.Null,
+            "Layout manager should have RenderLayout method for menu bar functionality");
+        
+        // Verify that the TerminalLayoutManager implementation exists
+        var layoutManagerType = typeof(TerminalLayoutManager);
+        Assert.That(layoutManagerType, Is.Not.Null,
+            "TerminalLayoutManager implementation should exist");
     }
 
     [Test]
