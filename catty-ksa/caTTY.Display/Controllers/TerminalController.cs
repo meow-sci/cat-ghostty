@@ -1248,11 +1248,13 @@ public class TerminalController : ITerminalController
         }
 
         // Use the maximum width found to ensure all characters fit properly
-        CurrentCharacterWidth = maxWidth;
+        CurrentCharacterWidth = (float)Math.Floor(maxWidth);
 
         // Calculate line height using a standard character
         var lineSize = ImGui.CalcTextSize("M");
-        CurrentLineHeight = lineSize.Y * 1.2f; // Add 20% line spacing for readability
+        // CRITICAL FIX: Use exact font height without extra spacing to prevent gaps between rows
+        // Terminal emulators should have tight line spacing with no gaps
+        CurrentLineHeight = (float)Math.Round(lineSize.Y);
 
         Console.WriteLine($"TerminalController: Calculated metrics from font - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
       }
