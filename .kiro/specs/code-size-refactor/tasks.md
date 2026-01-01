@@ -4,6 +4,11 @@
 
 This implementation plan systematically refactors the caTTY C# codebase to reduce file sizes and improve maintainability. The approach follows a three-phase strategy: extraction of logical components, interface definition, and integration. All refactoring preserves existing functionality and ensures 100% test compatibility.
 
+## IMPORTANT DIRECTIVES
+
+- ENSURE THAT NO FUNCTIONALITY IS LOST
+- STRIVE TO NOT CHANGE LOGIC JUST REFACTOR/RE-ORGANIZE IT AS MUCH AS POSSIBLE
+
 ## Tasks
 
 - [x] 1. Setup and validation infrastructure
