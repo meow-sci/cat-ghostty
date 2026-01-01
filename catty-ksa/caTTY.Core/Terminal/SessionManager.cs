@@ -13,6 +13,7 @@ public class SessionManager : IDisposable
     private Guid? _activeSessionId;
     private readonly object _lock = new();
     private bool _disposed = false;
+    private (int cols, int rows) _lastKnownTerminalDimensions;
     
     // Configuration
     private readonly int _maxSessions;
@@ -32,6 +33,7 @@ public class SessionManager : IDisposable
         
         _maxSessions = maxSessions;
         _defaultLaunchOptions = defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault();
+        _lastKnownTerminalDimensions = (_defaultLaunchOptions.InitialWidth, _defaultLaunchOptions.InitialHeight);
     }
 
     /// <summary>
@@ -44,7 +46,80 @@ public class SessionManager : IDisposable
         
         lock (_lock)
         {
+            // Preserve the last-known terminal dimensions when switching shell configuration.
+            // Shell switching should not reset the terminal size back to the options' defaults.
+            var lastKnown = _lastKnownTerminalDimensions;
+
             _defaultLaunchOptions = launchOptions;
+            _defaultLaunchOptions.InitialWidth = lastKnown.cols;
+            _defaultLaunchOptions.InitialHeight = lastKnown.rows;
+        }
+    }
+
+    /// <summary>
+    ///     Gets the most recently known terminal dimensions (cols, rows).
+    ///     Used to seed new sessions so they start at the current UI size instead of a fixed default.
+    /// </summary>
+    public (int cols, int rows) LastKnownTerminalDimensions
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _lastKnownTerminalDimensions;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Updates the manager's notion of the current terminal dimensions.
+    ///     This also updates the default launch options so newly created processes start at the latest size.
+    /// </summary>
+    /// <param name="cols">Terminal width in columns</param>
+    /// <param name="rows">Terminal height in rows</param>
+    public void UpdateLastKnownTerminalDimensions(int cols, int rows)
+    {
+        if (cols < 1 || cols > 1000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cols), "Width must be between 1 and 1000");
+        }
+
+        if (rows < 1 || rows > 1000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rows), "Height must be between 1 and 1000");
+        }
+
+        lock (_lock)
+        {
+            _lastKnownTerminalDimensions = (cols, rows);
+            _defaultLaunchOptions.InitialWidth = cols;
+            _defaultLaunchOptions.InitialHeight = rows;
+        }
+    }
+
+    private static ProcessLaunchOptions CloneLaunchOptions(ProcessLaunchOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return new ProcessLaunchOptions
+        {
+            ShellType = options.ShellType,
+            CustomShellPath = options.CustomShellPath,
+            Arguments = new List<string>(options.Arguments),
+            WorkingDirectory = options.WorkingDirectory,
+            EnvironmentVariables = new Dictionary<string, string>(options.EnvironmentVariables),
+            InitialWidth = options.InitialWidth,
+            InitialHeight = options.InitialHeight,
+            CreateWindow = options.CreateWindow,
+            UseShellExecute = options.UseShellExecute
+        };
+    }
+
+    private ProcessLaunchOptions GetDefaultLaunchOptionsSnapshot()
+    {
+        lock (_lock)
+        {
+            return CloneLaunchOptions(_defaultLaunchOptions);
         }
     }
 
@@ -147,7 +222,20 @@ public class SessionManager : IDisposable
         
         var sessionId = Guid.NewGuid();
         var sessionTitle = title ?? GenerateSessionTitle();
-        var terminal = new TerminalEmulator(80, 25); // Default terminal size
+
+        // Ensure the terminal emulator and PTY process start with the same dimensions.
+        // If launchOptions is null, use the last-known/default size (updated via resize handlers).
+        ProcessLaunchOptions effectiveLaunchOptions = launchOptions != null
+            ? CloneLaunchOptions(launchOptions)
+            : GetDefaultLaunchOptionsSnapshot();
+
+        // Always start new sessions at the last-known UI size.
+        // This prevents shell changes (WSL/PowerShell/Cmd) from reverting to 80x24/80x25 defaults.
+        var lastKnown = LastKnownTerminalDimensions;
+        effectiveLaunchOptions.InitialWidth = lastKnown.cols;
+        effectiveLaunchOptions.InitialHeight = lastKnown.rows;
+
+        var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight);
         var processManager = new ProcessManager();
         
         var session = new TerminalSession(sessionId, sessionTitle, terminal, processManager);
@@ -176,7 +264,7 @@ public class SessionManager : IDisposable
         
         try
         {
-            await session.InitializeAsync(launchOptions ?? _defaultLaunchOptions, cancellationToken);
+            await session.InitializeAsync(effectiveLaunchOptions, cancellationToken);
             session.Activate();
             
             // Update session settings with process information after successful initialization

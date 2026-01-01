@@ -127,7 +127,7 @@ public class ProcessManagerTests
         // Assert
         Assert.That(options, Is.Not.Null);
         Assert.That(options.InitialWidth, Is.EqualTo(80));
-        Assert.That(options.InitialHeight, Is.EqualTo(25));
+        Assert.That(options.InitialHeight, Is.EqualTo(24));
         Assert.That(options.CreateWindow, Is.False);
         Assert.That(options.UseShellExecute, Is.False);
         Assert.That(options.EnvironmentVariables, Contains.Key("TERM"));

@@ -76,7 +76,7 @@ public class ProcessLaunchOptions
     /// <summary>
     ///     Gets or sets the initial terminal height in rows.
     /// </summary>
-    public int InitialHeight { get; set; } = 25;
+    public int InitialHeight { get; set; } = 24;
 
     /// <summary>
     ///     Gets or sets whether to create a window for the process.

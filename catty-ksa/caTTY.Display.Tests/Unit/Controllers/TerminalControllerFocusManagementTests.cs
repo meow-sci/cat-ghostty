@@ -175,7 +175,7 @@ public class TerminalControllerFocusManagementTests
 
         // Assert
         Assert.That(width, Is.EqualTo(80), "Width should match terminal width");
-        Assert.That(height, Is.EqualTo(25), "Height should match terminal height");
+        Assert.That(height, Is.EqualTo(24), "Height should match terminal height");
     }
 
     [Test]

@@ -1284,6 +1284,10 @@ public class TerminalController : ITerminalController
       // Resize the headless terminal emulator (matches TypeScript StatefulTerminal behavior)
       activeSession.Terminal.Resize(newCols, newRows);
 
+      // Persist dimensions for session metadata + future sessions
+      activeSession.UpdateTerminalDimensions(newCols, newRows);
+      _sessionManager.UpdateLastKnownTerminalDimensions(newCols, newRows);
+
       // Resize the PTY process (matches TypeScript BackendServer behavior)
       if (activeSession.ProcessManager.IsRunning)
       {
@@ -1487,6 +1491,10 @@ public class TerminalController : ITerminalController
       // Resize the headless terminal emulator
       activeSession.Terminal.Resize(newCols, newRows);
 
+      // Persist dimensions for session metadata + future sessions
+      activeSession.UpdateTerminalDimensions(newCols, newRows);
+      _sessionManager.UpdateLastKnownTerminalDimensions(newCols, newRows);
+
       // Resize the PTY process if running
       if (activeSession.ProcessManager.IsRunning)
       {
@@ -1596,6 +1604,14 @@ public class TerminalController : ITerminalController
         }
       }
 
+      // Ensure newly created sessions start at the latest calculated dimensions.
+      // All sessions share the same UI-space-derived size here, so updating once is sufficient.
+      var active = _sessionManager.ActiveSession;
+      if (active != null)
+      {
+        _sessionManager.UpdateLastKnownTerminalDimensions(active.Terminal.Width, active.Terminal.Height);
+      }
+
       Console.WriteLine($"TerminalController: Font-triggered resize completed for all sessions");
     }
     catch (Exception ex)
@@ -1663,6 +1679,10 @@ public class TerminalController : ITerminalController
 
       // Resize the headless terminal emulator
       activeSession.Terminal.Resize(cols, rows);
+
+      // Persist dimensions for session metadata + future sessions
+      activeSession.UpdateTerminalDimensions(cols, rows);
+      _sessionManager.UpdateLastKnownTerminalDimensions(cols, rows);
 
       // Resize the PTY process if running
       if (activeSession.ProcessManager.IsRunning)
