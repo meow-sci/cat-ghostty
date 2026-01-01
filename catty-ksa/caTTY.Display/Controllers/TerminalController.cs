@@ -448,14 +448,15 @@ public class TerminalController : ITerminalController
 
     try
     {
-      // Create terminal window with menu bar and transparent background
-      // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-      // const ImGuiWindowFlags window_flags = auto_resize ? ImGuiWindowFlags_AlwaysAutoResize : 0;
+      // Create terminal window with menu bar and theme background
+      // Set window background to theme background color with opacity
+      float4 themeBg = ThemeManager.GetDefaultBackground();
+      themeBg = OpacityManager.ApplyBackgroundOpacity(themeBg);
+      ImGui.PushStyleColor(ImGuiCol.WindowBg, themeBg);
 
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
-      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar |
-                  ImGuiWindowFlags.NoBackground ;
+      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar;
       ImGui.Begin("Terminal", ref _isVisible, windowFlags);
       ImGui.PopStyleVar();
       ImGui.PopStyleVar();
@@ -506,6 +507,9 @@ public class TerminalController : ITerminalController
       }
 
       ImGui.End();
+
+      // Pop the window background color style
+      ImGui.PopStyleColor();
     }
     finally
     {
@@ -1772,12 +1776,8 @@ public class TerminalController : ITerminalController
       // Get the draw position after the invisible button
       float2 terminalDrawPos = windowPos;
 
-      // Draw terminal background using theme
-      float4 terminalBg = ThemeManager.GetDefaultBackground();
-      terminalBg = OpacityManager.ApplyBackgroundOpacity(terminalBg);
-      uint bgColor = ImGui.ColorConvertFloat4ToU32(terminalBg);
-      var terminalRect = new float2(terminalDrawPos.X + terminalWidth, terminalDrawPos.Y + terminalHeight);
-      drawList.AddRectFilled(terminalDrawPos, terminalRect, bgColor);
+      // Note: Terminal background is now handled by ImGui window background color
+      // No need to draw a separate terminal background rectangle
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
       var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
@@ -1851,7 +1851,7 @@ public class TerminalController : ITerminalController
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
     bgColor = OpacityManager.ApplyBackgroundOpacity(bgColor);
 
-    // Apply selection highlighting
+    // Apply selection highlighting or draw background only when needed
     if (isSelected)
     {
       // Use selection colors - invert foreground and background for selected text
@@ -1861,11 +1861,20 @@ public class TerminalController : ITerminalController
       // Apply appropriate opacity to selection colors
       bgColor = OpacityManager.ApplyBackgroundOpacity(selectionBg);
       fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
-    }
 
-    // Always draw background
-    var bgRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
-    drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+      // Always draw background for selected cells
+      var bgRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
+      drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+    }
+    else if (cell.Attributes.BackgroundColor.HasValue)
+    {
+      // Only draw background when SGR sequences have set a specific background color
+      // This allows the theme background to show through for cells without explicit background colors
+      var bgRect = new float2(x + CurrentCharacterWidth, y + CurrentLineHeight);
+      drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+    }
+    // Note: When no SGR background color is set and cell is not selected,
+    // the ImGui window background (theme background) will show through
 
     // Draw character if not space or null
     if (cell.Character != ' ' && cell.Character != '\0')
