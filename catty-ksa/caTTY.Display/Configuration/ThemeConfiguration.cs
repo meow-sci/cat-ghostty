@@ -15,7 +15,7 @@ public class ThemeConfiguration
     /// <summary>
     /// Name of the currently selected theme.
     /// </summary>
-    public string? SelectedThemeName { get; set; } = "Firefly Traditional";
+    public string? SelectedThemeName { get; set; }
 
     /// <summary>
     /// Background opacity setting for terminal background colors (0.0 to 1.0).

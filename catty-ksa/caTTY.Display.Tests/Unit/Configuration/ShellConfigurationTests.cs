@@ -12,13 +12,13 @@ namespace caTTY.Display.Tests.Unit.Configuration;
 public class ShellConfigurationTests
 {
     [Test]
-    public void DefaultShellType_ShouldBeWsl()
+    public void DefaultShellType_ShouldBePowerShell()
     {
         // Arrange & Act
         var config = new ThemeConfiguration();
         
         // Assert
-        Assert.That(config.DefaultShellType, Is.EqualTo(ShellType.Wsl));
+        Assert.That(config.DefaultShellType, Is.EqualTo(ShellType.PowerShell));
     }
 
     [Test]

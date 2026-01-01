@@ -103,7 +103,6 @@ public class ThemeConfigurationSerializationTests
         Assert.That(config, Is.Not.Null);
         Assert.That(config!.DefaultShellType, Is.EqualTo(ShellType.Wsl));
         
-        Console.WriteLine("Unknown shell type \"FutureShellType\" fell back to WSL");
     }
 
     [Test]
@@ -113,8 +112,8 @@ public class ThemeConfigurationSerializationTests
         var testCases = new[]
         {
             (0, ShellType.Auto),
-            (1, ShellType.Wsl),
-            (2, ShellType.PowerShell),
+            (1, ShellType.PowerShell),
+            (2, ShellType.Wsl),
             (3, ShellType.PowerShellCore),
             (4, ShellType.Cmd),
             (5, ShellType.Custom)
@@ -163,7 +162,6 @@ public class ThemeConfigurationSerializationTests
         Assert.That(config, Is.Not.Null);
         Assert.That(config!.DefaultShellType, Is.EqualTo(ShellType.Wsl));
         
-        Console.WriteLine($"Invalid numeric shell type 999 fell back to: {config.DefaultShellType}");
     }
 
     [Test]
@@ -193,7 +191,6 @@ public class ThemeConfigurationSerializationTests
         Assert.That(deserializedConfig.CustomShellPath, Is.EqualTo(originalConfig.CustomShellPath));
         Assert.That(deserializedConfig.WslDistribution, Is.EqualTo(originalConfig.WslDistribution));
         
-        Console.WriteLine($"Round-trip preserved shell type: {deserializedConfig.DefaultShellType}");
     }
 
     [Test]
@@ -213,10 +210,6 @@ public class ThemeConfigurationSerializationTests
         // Act
         var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
 
-        // Assert
-        Console.WriteLine("Generated JSON:");
-        Console.WriteLine(json);
-        
         // Verify it contains human-readable shell type
         Assert.That(json, Contains.Substring("\"DefaultShellType\": \"PowerShellCore\""));
         Assert.That(json, Contains.Substring("\"SelectedThemeName\": \"MonokaiPro\""));

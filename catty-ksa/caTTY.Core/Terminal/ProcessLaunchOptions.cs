@@ -11,14 +11,14 @@ public enum ShellType
     Auto,
 
     /// <summary>
-    ///     Windows Subsystem for Linux (wsl.exe) - Default for Windows.
-    /// </summary>
-    Wsl,
-
-    /// <summary>
     ///     Windows PowerShell (powershell.exe).
     /// </summary>
     PowerShell,
+
+    /// <summary>
+    ///     Windows Subsystem for Linux (wsl.exe) - Default for Windows.
+    /// </summary>
+    Wsl,
 
     /// <summary>
     ///     PowerShell Core (pwsh.exe).

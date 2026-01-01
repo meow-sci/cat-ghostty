@@ -59,7 +59,6 @@ public class ShellConfigurationIntegrationTests
         // Assert - New controller should have loaded the PowerShell configuration
         var loadedLaunchOptions = newSessionManager.DefaultLaunchOptions;
         Assert.That(loadedLaunchOptions.ShellType, Is.EqualTo(ShellType.PowerShell));
-        Console.WriteLine($"Persisted shell configuration: {loadedLaunchOptions.ShellType}");
     }
 
     [Test]
@@ -102,7 +101,6 @@ public class ShellConfigurationIntegrationTests
         // Assert
         Assert.That(launchOptions.ShellType, Is.EqualTo(ShellType.Custom));
         Assert.That(launchOptions.CustomShellPath, Is.EqualTo(customPath));
-        Console.WriteLine($"Custom shell configuration: {launchOptions.CustomShellPath}");
     }
 
     [Test]
@@ -123,6 +121,5 @@ public class ShellConfigurationIntegrationTests
         Assert.That(launchOptions.ShellType, Is.EqualTo(ShellType.Wsl));
         Assert.That(launchOptions.Arguments, Contains.Item("--distribution"));
         Assert.That(launchOptions.Arguments, Contains.Item(distribution));
-        Console.WriteLine($"WSL distribution configuration: {string.Join(" ", launchOptions.Arguments)}");
     }
 }

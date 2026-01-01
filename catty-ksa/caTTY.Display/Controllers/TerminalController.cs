@@ -4381,7 +4381,6 @@ public class TerminalController : ITerminalController
             fallbackShell = availableShells[0];
           }
           
-          Console.WriteLine($"Configured shell {_themeConfig.DefaultShellType} not available, falling back to {fallbackShell}");
           _themeConfig.DefaultShellType = fallbackShell;
           _themeConfig.Save(); // Save the fallback choice
         }

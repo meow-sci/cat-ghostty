@@ -73,7 +73,6 @@ public class ShellAvailabilityIntegrationTests
         Assert.That(availableShells, Contains.Item(ShellType.Custom), "Custom shell should always be available");
         Assert.That(availableShells, Contains.Item(ShellType.Cmd), "Command Prompt should be available on Windows");
         
-        Console.WriteLine($"Found {availableShells.Count} available shells: {string.Join(", ", availableShells)}");
     }
 
     [Test]
@@ -91,11 +90,6 @@ public class ShellAvailabilityIntegrationTests
             Assert.That(displayName.Length, Is.GreaterThan(5), $"Display name '{displayName}' should be descriptive");
         }
         
-        Console.WriteLine("Available shells with display names:");
-        foreach (var (shellType, displayName) in availableShells)
-        {
-            Console.WriteLine($"  {shellType}: {displayName}");
-        }
     }
 
     [Test]
@@ -120,8 +114,6 @@ public class ShellAvailabilityIntegrationTests
                 "If PowerShell Core is available individually, it should be in the available shells list");
         }
         
-        Console.WriteLine($"PowerShell available: {powerShellAvailable}");
-        Console.WriteLine($"PowerShell Core available: {powerShellCoreAvailable}");
     }
 
     [Test]
@@ -143,7 +135,6 @@ public class ShellAvailabilityIntegrationTests
                 "If WSL is not available individually, it should not be in the available shells list");
         }
         
-        Console.WriteLine($"WSL available: {wslAvailable}");
     }
 
     [Test]
@@ -188,7 +179,6 @@ public class ShellAvailabilityIntegrationTests
                 "Should not use PowerShell Core when it's not available");
         }
         
-        Console.WriteLine($"Configured: PowerShellCore, Available: {powerShellCoreAvailable}, Actual: {defaultOptions.ShellType}");
     }
 
     [Test]
@@ -213,6 +203,5 @@ public class ShellAvailabilityIntegrationTests
         Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(1000), 
             "Shell availability checking should be reasonably fast");
         
-        Console.WriteLine($"Shell availability checking took {stopwatch.ElapsedMilliseconds}ms for 10 iterations");
     }
 }

@@ -62,7 +62,6 @@ public class TracingOutputInspectionTest
     public void InspectUnknownSequenceTracing()
     {
         // Send various unknown sequences
-        Console.WriteLine("Sending unknown sequences to terminal...");
         
         _terminal.Write("\x1b[99z");           // Unknown CSI
         _terminal.Write("\x1b]999;test\x07");  // Unknown OSC
