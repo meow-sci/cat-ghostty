@@ -4139,35 +4139,57 @@ public class TerminalController : ITerminalController
   /// <summary>
   /// Renders the shell configuration section in the Settings menu.
   /// Allows users to select default shell type and configure shell-specific options.
+  /// Only shows shells that are available on the current system.
   /// </summary>
   private void RenderShellConfigurationSection()
   {
     var config = _themeConfig;
     bool configChanged = false;
 
-    // Current shell display
-    ImGui.Text($"Current Default Shell: {config.GetShellDisplayName()}");
+    // Check if current shell is available
+    bool currentShellAvailable = ShellAvailabilityChecker.IsShellAvailable(config.DefaultShellType);
     
-    if (ImGui.IsItemHovered())
+    // Current shell display with availability indicator
+    if (currentShellAvailable)
+    {
+      ImGui.Text($"Current Default Shell: {config.GetShellDisplayName()}");
+    }
+    else
+    {
+      ImGui.TextColored(new float4(1.0f, 0.6f, 0.0f, 1.0f), $"Current Default Shell: {config.GetShellDisplayName()} (Not Available)");
+      if (ImGui.IsItemHovered())
+      {
+        ImGui.SetTooltip("The currently configured shell is not available on this system. Please select an available shell below.");
+      }
+    }
+    
+    if (ImGui.IsItemHovered() && currentShellAvailable)
     {
       ImGui.SetTooltip("This shell will be used for new terminal sessions");
     }
 
     ImGui.Spacing();
 
-    // Shell type selection
+    // Shell type selection - only show available shells
     ImGui.Text("Select Default Shell:");
     
-    var shellTypes = new[]
+    var availableShells = ShellAvailabilityChecker.GetAvailableShellsWithNames();
+    
+    // Show message if no shells are available (shouldn't happen, but defensive programming)
+    if (availableShells.Count == 0)
     {
-      (ShellType.Wsl, "WSL2 (Windows Subsystem for Linux)"),
-      (ShellType.PowerShell, "Windows PowerShell"),
-      (ShellType.PowerShellCore, "PowerShell Core (pwsh)"),
-      (ShellType.Cmd, "Command Prompt"),
-      (ShellType.Custom, "Custom Shell")
-    };
+      ImGui.TextColored(new float4(1.0f, 0.5f, 0.5f, 1.0f), "No shells available on this system");
+      return;
+    }
 
-    foreach (var (shellType, displayName) in shellTypes)
+    // If current shell is not available, show warning (fallback is handled during initialization)
+    if (!currentShellAvailable)
+    {
+      ImGui.TextColored(new float4(1.0f, 0.6f, 0.0f, 1.0f), "Note: Shell availability changed since last configuration");
+      ImGui.Spacing();
+    }
+
+    foreach (var (shellType, displayName) in availableShells)
     {
       bool isSelected = config.DefaultShellType == shellType;
       
@@ -4197,6 +4219,15 @@ public class TerminalController : ITerminalController
         };
         ImGui.SetTooltip(tooltip);
       }
+    }
+
+    // Show count of available shells for debugging
+    ImGui.Spacing();
+    ImGui.TextColored(new float4(0.7f, 0.7f, 0.7f, 1.0f), $"Showing {availableShells.Count} available shell(s)");
+    if (ImGui.IsItemHovered())
+    {
+      var shellNames = string.Join(", ", availableShells.Select(s => s.ShellType.ToString()));
+      ImGui.SetTooltip($"Available shells: {shellNames}");
     }
 
     ImGui.Spacing();
@@ -4297,6 +4328,26 @@ public class TerminalController : ITerminalController
   {
     try
     {
+      // Check if the configured shell is available
+      if (!ShellAvailabilityChecker.IsShellAvailable(_themeConfig.DefaultShellType))
+      {
+        // Fall back to the first available shell
+        var availableShells = ShellAvailabilityChecker.GetAvailableShells();
+        if (availableShells.Count > 0)
+        {
+          // Prefer concrete shells over Auto/Custom for fallback
+          var fallbackShell = availableShells.FirstOrDefault(s => s != ShellType.Auto && s != ShellType.Custom);
+          if (fallbackShell == default(ShellType))
+          {
+            fallbackShell = availableShells[0];
+          }
+          
+          Console.WriteLine($"Configured shell {_themeConfig.DefaultShellType} not available, falling back to {fallbackShell}");
+          _themeConfig.DefaultShellType = fallbackShell;
+          _themeConfig.Save(); // Save the fallback choice
+        }
+      }
+
       // Create launch options from loaded configuration
       var launchOptions = _themeConfig.CreateLaunchOptions();
       

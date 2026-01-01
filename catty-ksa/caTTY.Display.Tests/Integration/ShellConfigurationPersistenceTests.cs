@@ -76,14 +76,35 @@ public class ShellConfigurationPersistenceTests
         using var sessionManager = new SessionManager();
         using var controller = new TerminalController(sessionManager);
 
-        // The session manager should now have PowerShellCore as default
+        // The session manager should now have the configured shell or a fallback if not available
         var defaultOptions = sessionManager.DefaultLaunchOptions;
         
         // Assert
-        Assert.That(defaultOptions.ShellType, Is.EqualTo(ShellType.PowerShellCore));
+        Assert.That(defaultOptions, Is.Not.Null);
+        
+        // Check if PowerShellCore is available on this system
+        bool powerShellCoreAvailable = ShellAvailabilityChecker.IsShellAvailable(ShellType.PowerShellCore);
+        
+        if (powerShellCoreAvailable)
+        {
+            // If PowerShellCore is available, it should be used
+            Assert.That(defaultOptions.ShellType, Is.EqualTo(ShellType.PowerShellCore));
+        }
+        else
+        {
+            // If PowerShellCore is not available, should fall back to an available shell
+            var availableShells = ShellAvailabilityChecker.GetAvailableShells();
+            Assert.That(availableShells, Contains.Item(defaultOptions.ShellType), 
+                "Should fall back to an available shell when configured shell is not available");
+            Assert.That(defaultOptions.ShellType, Is.Not.EqualTo(ShellType.PowerShellCore), 
+                "Should not use PowerShellCore when it's not available");
+        }
+        
         Assert.That(defaultOptions.InitialWidth, Is.EqualTo(80));
         Assert.That(defaultOptions.InitialHeight, Is.EqualTo(24));
         Assert.That(defaultOptions.WorkingDirectory, Is.Not.Null.And.Not.Empty);
+        
+        Console.WriteLine($"PowerShellCore available: {powerShellCoreAvailable}, Actual shell: {defaultOptions.ShellType}");
     }
 
     [Test]
