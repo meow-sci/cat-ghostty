@@ -1951,9 +1951,9 @@ public class TerminalController : ITerminalController
     // Apply SGR attributes to colors
     var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
-    // Apply separate opacity to foreground and background colors
+    // Apply foreground opacity to foreground colors and cell background opacity to background colors
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
-    bgColor = OpacityManager.ApplyBackgroundOpacity(bgColor);
+    bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
 
     // Apply selection highlighting or draw background only when needed
     if (isSelected)
@@ -1962,8 +1962,8 @@ public class TerminalController : ITerminalController
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
-      // Apply appropriate opacity to selection colors
-      bgColor = OpacityManager.ApplyBackgroundOpacity(selectionBg);
+      // Apply foreground opacity to selection foreground and cell background opacity to selection background
+      bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
       fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
 
       // Always draw background for selected cells
@@ -4224,6 +4224,46 @@ public class TerminalController : ITerminalController
           ImGui.SetTooltip("Reset background opacity to 100% (fully opaque)");
         }
 
+        // Cell Background Opacity Section
+        ImGui.Text("Cell Background Opacity:");
+        int currentCellBgOpacityPercent = OpacityManager.GetCellBackgroundOpacityPercentage();
+        int newCellBgOpacityPercent = currentCellBgOpacityPercent;
+
+        if (ImGui.SliderInt("##CellBackgroundOpacitySlider", ref newCellBgOpacityPercent, 0, 100, $"{newCellBgOpacityPercent}%%"))
+        {
+          // Apply cell background opacity change immediately
+          if (OpacityManager.SetCellBackgroundOpacityFromPercentage(newCellBgOpacityPercent))
+          {
+            // Console.WriteLine($"TerminalController: Cell background opacity set to {newCellBgOpacityPercent}%");
+          }
+          else
+          {
+            Console.WriteLine($"TerminalController: Failed to set cell background opacity to {newCellBgOpacityPercent}%");
+          }
+        }
+
+        // Show tooltip for cell background opacity
+        if (ImGui.IsItemHovered())
+        {
+          var currentCellBgOpacity = OpacityManager.CurrentCellBackgroundOpacity;
+          ImGui.SetTooltip($"Cell background opacity: {currentCellBgOpacity:F2} ({currentCellBgOpacityPercent}%)\nAdjust terminal cell background transparency\nRange: 0% (transparent) to 100% (opaque)");
+        }
+
+        // Reset cell background opacity button
+        ImGui.SameLine();
+        if (ImGui.Button("Reset##CellBackgroundOpacityReset"))
+        {
+          if (OpacityManager.ResetCellBackgroundOpacity())
+          {
+            Console.WriteLine("TerminalController: Cell background opacity reset to default");
+          }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          ImGui.SetTooltip("Reset cell background opacity to 100% (fully opaque)");
+        }
+
         // Foreground Opacity Section
         ImGui.Text("Foreground Opacity:");
         int currentFgOpacityPercent = OpacityManager.GetForegroundOpacityPercentage();
@@ -4264,32 +4304,36 @@ public class TerminalController : ITerminalController
           ImGui.SetTooltip("Reset foreground opacity to 100% (fully opaque)");
         }
 
-        // Reset both button
+        // Reset all button
         ImGui.Separator();
-        if (ImGui.Button("Reset Both##ResetBothOpacity"))
+        if (ImGui.Button("Reset All##ResetAllOpacity"))
         {
           if (OpacityManager.ResetOpacity())
           {
-            Console.WriteLine("TerminalController: Both opacity values reset to default");
+            Console.WriteLine("TerminalController: All opacity values reset to default");
           }
         }
 
         if (ImGui.IsItemHovered())
         {
-          ImGui.SetTooltip("Reset both background and foreground opacity to 100%");
+          ImGui.SetTooltip("Reset background, foreground, and cell background opacity to 100%");
         }
 
         // Show current opacity status
         ImGui.Separator();
         var bgOpacity = OpacityManager.CurrentBackgroundOpacity;
         var fgOpacity = OpacityManager.CurrentForegroundOpacity;
+        var cellBgOpacity = OpacityManager.CurrentCellBackgroundOpacity;
         var bgIsDefault = OpacityManager.IsDefaultBackgroundOpacity();
         var fgIsDefault = OpacityManager.IsDefaultForegroundOpacity();
+        var cellBgIsDefault = OpacityManager.IsDefaultCellBackgroundOpacity();
 
         var bgStatusText = bgIsDefault ? "Default (100%)" : $"{bgOpacity:F2} ({currentBgOpacityPercent}%)";
         var fgStatusText = fgIsDefault ? "Default (100%)" : $"{fgOpacity:F2} ({currentFgOpacityPercent}%)";
+        var cellBgStatusText = cellBgIsDefault ? "Default (100%)" : $"{cellBgOpacity:F2} ({currentCellBgOpacityPercent}%)";
 
-        ImGui.Text($"Background: {bgStatusText}");
+        ImGui.Text($"Window Background: {bgStatusText}");
+        ImGui.Text($"Cell Background: {cellBgStatusText}");
         ImGui.Text($"Foreground: {fgStatusText}");
 
         // Shell Configuration Section

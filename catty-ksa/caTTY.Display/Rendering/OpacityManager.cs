@@ -20,6 +20,11 @@ public static class OpacityManager
     public static event Action<float>? ForegroundOpacityChanged;
 
     /// <summary>
+    /// Event fired when the cell background opacity changes.
+    /// </summary>
+    public static event Action<float>? CellBackgroundOpacityChanged;
+
+    /// <summary>
     /// Current background opacity value (0.0 to 1.0).
     /// </summary>
     private static float _currentBackgroundOpacity = 1.0f;
@@ -28,6 +33,11 @@ public static class OpacityManager
     /// Current foreground opacity value (0.0 to 1.0).
     /// </summary>
     private static float _currentForegroundOpacity = 1.0f;
+
+    /// <summary>
+    /// Current cell background opacity value (0.0 to 1.0).
+    /// </summary>
+    private static float _currentCellBackgroundOpacity = 1.0f;
 
     /// <summary>
     /// Minimum allowed opacity value.
@@ -55,6 +65,11 @@ public static class OpacityManager
     public static float CurrentForegroundOpacity => _currentForegroundOpacity;
 
     /// <summary>
+    /// Gets the current cell background opacity value.
+    /// </summary>
+    public static float CurrentCellBackgroundOpacity => _currentCellBackgroundOpacity;
+
+    /// <summary>
     /// Gets the current global opacity value (for backward compatibility).
     /// Returns the background opacity as the primary opacity value.
     /// </summary>
@@ -72,6 +87,7 @@ public static class OpacityManager
             // Use the separate values
             _currentBackgroundOpacity = ValidateOpacity(config.BackgroundOpacity);
             _currentForegroundOpacity = ValidateOpacity(config.ForegroundOpacity);
+            _currentCellBackgroundOpacity = ValidateOpacity(config.CellBackgroundOpacity);
 
 #pragma warning restore CS0618 // Type or member is obsolete
         }
@@ -80,6 +96,7 @@ public static class OpacityManager
             Console.WriteLine($"Error initializing opacity manager: {ex.Message}");
             _currentBackgroundOpacity = DefaultOpacity;
             _currentForegroundOpacity = DefaultOpacity;
+            _currentCellBackgroundOpacity = DefaultOpacity;
         }
     }
 
@@ -160,8 +177,46 @@ public static class OpacityManager
     }
 
     /// <summary>
+    /// Set the cell background opacity value with validation and persistence.
+    /// </summary>
+    /// <param name="opacity">New cell background opacity value (0.0 to 1.0)</param>
+    /// <returns>True if opacity was successfully set, false if invalid</returns>
+    public static bool SetCellBackgroundOpacity(float opacity)
+    {
+        var validatedOpacity = ValidateOpacity(opacity);
+
+        // Only update if the value actually changed
+        if (Math.Abs(_currentCellBackgroundOpacity - validatedOpacity) < 0.001f)
+        {
+            return true; // No change needed
+        }
+
+        var previousOpacity = _currentCellBackgroundOpacity;
+        _currentCellBackgroundOpacity = validatedOpacity;
+
+        try
+        {
+            // Persist the change
+            SaveOpacityToConfiguration();
+
+            // Notify listeners of the change
+            CellBackgroundOpacityChanged?.Invoke(_currentCellBackgroundOpacity);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error setting cell background opacity: {ex.Message}");
+
+            // Revert on failure
+            _currentCellBackgroundOpacity = previousOpacity;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Set the global opacity value (for backward compatibility).
-    /// Sets both background and foreground opacity to the same value.
+    /// Sets background, foreground, and cell background opacity to the same value.
     /// </summary>
     /// <param name="opacity">New opacity value (0.0 to 1.0)</param>
     /// <returns>True if opacity was successfully set, false if invalid</returns>
@@ -169,7 +224,8 @@ public static class OpacityManager
     {
         var backgroundResult = SetBackgroundOpacity(opacity);
         var foregroundResult = SetForegroundOpacity(opacity);
-        return backgroundResult && foregroundResult;
+        var cellBackgroundResult = SetCellBackgroundOpacity(opacity);
+        return backgroundResult && foregroundResult && cellBackgroundResult;
     }
 
     /// <summary>
@@ -197,7 +253,8 @@ public static class OpacityManager
     {
         var backgroundResult = SetBackgroundOpacity(DefaultOpacity);
         var foregroundResult = SetForegroundOpacity(DefaultOpacity);
-        return backgroundResult && foregroundResult;
+        var cellBackgroundResult = SetCellBackgroundOpacity(DefaultOpacity);
+        return backgroundResult && foregroundResult && cellBackgroundResult;
     }
 
     /// <summary>
@@ -219,6 +276,15 @@ public static class OpacityManager
     }
 
     /// <summary>
+    /// Reset cell background opacity to default value.
+    /// </summary>
+    /// <returns>True if reset was successful</returns>
+    public static bool ResetCellBackgroundOpacity()
+    {
+        return SetCellBackgroundOpacity(DefaultOpacity);
+    }
+
+    /// <summary>
     /// Check if the current background opacity is at the default value.
     /// </summary>
     /// <returns>True if background opacity is at default value</returns>
@@ -237,12 +303,21 @@ public static class OpacityManager
     }
 
     /// <summary>
+    /// Check if the current cell background opacity is at the default value.
+    /// </summary>
+    /// <returns>True if cell background opacity is at default value</returns>
+    public static bool IsDefaultCellBackgroundOpacity()
+    {
+        return Math.Abs(_currentCellBackgroundOpacity - DefaultOpacity) < 0.001f;
+    }
+
+    /// <summary>
     /// Check if both opacity values are at default (for backward compatibility).
     /// </summary>
     /// <returns>True if both opacity values are at default</returns>
     public static bool IsDefaultOpacity()
     {
-        return IsDefaultBackgroundOpacity() && IsDefaultForegroundOpacity();
+        return IsDefaultBackgroundOpacity() && IsDefaultForegroundOpacity() && IsDefaultCellBackgroundOpacity();
     }
 
     /// <summary>
@@ -261,6 +336,15 @@ public static class OpacityManager
     public static int GetForegroundOpacityPercentage()
     {
         return (int)Math.Round(_currentForegroundOpacity * 100.0f);
+    }
+
+    /// <summary>
+    /// Get cell background opacity as a percentage (0-100).
+    /// </summary>
+    /// <returns>Cell background opacity as percentage</returns>
+    public static int GetCellBackgroundOpacityPercentage()
+    {
+        return (int)Math.Round(_currentCellBackgroundOpacity * 100.0f);
     }
 
     /// <summary>
@@ -296,8 +380,19 @@ public static class OpacityManager
     }
 
     /// <summary>
+    /// Set cell background opacity from percentage (0-100).
+    /// </summary>
+    /// <param name="percentage">Percentage value (0-100)</param>
+    /// <returns>True if opacity was successfully set</returns>
+    public static bool SetCellBackgroundOpacityFromPercentage(int percentage)
+    {
+        var opacity = Math.Clamp(percentage, 0, 100) / 100.0f;
+        return SetCellBackgroundOpacity(opacity);
+    }
+
+    /// <summary>
     /// Set opacity from percentage (0-100) - backward compatibility.
-    /// Sets both background and foreground opacity.
+    /// Sets background, foreground, and cell background opacity.
     /// </summary>
     /// <param name="percentage">Percentage value (0-100)</param>
     /// <returns>True if opacity was successfully set</returns>
@@ -315,6 +410,7 @@ public static class OpacityManager
         var config = ThemeConfiguration.Load();
         config.BackgroundOpacity = _currentBackgroundOpacity;
         config.ForegroundOpacity = _currentForegroundOpacity;
+        config.CellBackgroundOpacity = _currentCellBackgroundOpacity;
         config.Save();
     }
 
@@ -336,6 +432,16 @@ public static class OpacityManager
     public static Brutal.Numerics.float4 ApplyForegroundOpacity(Brutal.Numerics.float4 color)
     {
         return new Brutal.Numerics.float4(color.X, color.Y, color.Z, color.W * _currentForegroundOpacity);
+    }
+
+    /// <summary>
+    /// Apply cell background opacity to a color value.
+    /// </summary>
+    /// <param name="color">Original color</param>
+    /// <returns>Color with cell background opacity applied</returns>
+    public static Brutal.Numerics.float4 ApplyCellBackgroundOpacity(Brutal.Numerics.float4 color)
+    {
+        return new Brutal.Numerics.float4(color.X, color.Y, color.Z, color.W * _currentCellBackgroundOpacity);
     }
 
     /// <summary>
@@ -367,6 +473,16 @@ public static class OpacityManager
     public static float ApplyForegroundOpacity(float alpha)
     {
         return alpha * _currentForegroundOpacity;
+    }
+
+    /// <summary>
+    /// Apply cell background opacity to an alpha value.
+    /// </summary>
+    /// <param name="alpha">Original alpha value</param>
+    /// <returns>Alpha with cell background opacity applied</returns>
+    public static float ApplyCellBackgroundOpacity(float alpha)
+    {
+        return alpha * _currentCellBackgroundOpacity;
     }
 
     /// <summary>

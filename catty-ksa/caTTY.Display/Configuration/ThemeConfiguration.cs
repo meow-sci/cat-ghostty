@@ -28,6 +28,11 @@ public class ThemeConfiguration
     public float ForegroundOpacity { get; set; } = 1.0f;
 
     /// <summary>
+    /// Cell background opacity setting for terminal cell background colors (0.0 to 1.0).
+    /// </summary>
+    public float CellBackgroundOpacity { get; set; } = 1.0f;
+
+    /// <summary>
     /// Font family name for terminal text rendering.
     /// </summary>
     public string? FontFamily { get; set; }
