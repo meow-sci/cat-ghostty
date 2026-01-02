@@ -59,11 +59,12 @@ public class Parser
         _dcsParser = options.DcsParser ?? new DcsParser(_logger, options.CursorPositionProvider);
         _oscParser = options.OscParser ?? new OscParser(_logger, options.CursorPositionProvider);
         _sgrParser = options.SgrParser ?? new SgrParser(_logger, options.CursorPositionProvider);
-        
+
         // RPC components are optional
         _rpcSequenceDetector = options.RpcSequenceDetector;
         _rpcSequenceParser = options.RpcSequenceParser;
         _rpcHandler = options.RpcHandler;
+        // Console.WriteLine($"Parser: RPC enabled={IsRpcHandlingEnabled()}");
     }
 
     /// <summary>
@@ -621,9 +622,9 @@ public class Parser
     /// <returns>True if RPC handling is enabled</returns>
     private bool IsRpcHandlingEnabled()
     {
-        return _rpcSequenceDetector != null && 
-               _rpcSequenceParser != null && 
-               _rpcHandler != null && 
+        return _rpcSequenceDetector != null &&
+               _rpcSequenceParser != null &&
+               _rpcHandler != null &&
                _rpcHandler.IsEnabled;
     }
 
@@ -650,6 +651,7 @@ public class Parser
         // Get the sequence type for more detailed validation
         RpcSequenceType sequenceType = _rpcSequenceDetector.GetSequenceType(sequenceSpan);
 
+
         // Handle malformed sequences
         if (sequenceType != RpcSequenceType.Valid)
         {
@@ -660,9 +662,14 @@ public class Parser
         // Try to parse the valid RPC sequence
         if (_rpcSequenceParser!.TryParseRpcSequence(sequenceSpan, out RpcMessage? message) && message != null)
         {
+            // Console.WriteLine($"!!! GOT VALID RPC SEQUENCE sequenceType={sequenceType} message={message}");
+
             _rpcHandler!.HandleRpcMessage(message);
             return true;
         }
+
+        // Console.WriteLine($"!!! GOT INVALID RPC SEQUENCE");
+
 
         // Parsing failed for a supposedly valid sequence
         _rpcHandler!.HandleMalformedRpcSequence(sequenceSpan, RpcSequenceType.Malformed);

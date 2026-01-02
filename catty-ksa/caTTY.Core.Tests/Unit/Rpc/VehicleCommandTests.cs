@@ -204,18 +204,18 @@ public class VehicleCommandTests
 
         // Assert
         Assert.That(result, Is.Not.Null, "Query should return data");
-        
+
         // Verify the structure of the returned data
         var resultDict = result as Dictionary<string, object?>;
         Assert.That(resultDict, Is.Not.Null, "Result should be a dictionary");
         Assert.That(resultDict!.ContainsKey("status"), Is.True, "Result should contain status");
         Assert.That(resultDict.ContainsKey("value"), Is.True, "Result should contain value");
         Assert.That(resultDict.ContainsKey("data"), Is.True, "Result should contain additional data");
-        
+
         // Verify the mock data values
         Assert.That(resultDict["status"], Is.EqualTo("enabled"), "Status should be 'enabled'");
         Assert.That(resultDict["value"], Is.EqualTo(75), "Value should be 75 (mock throttle level)");
-        
+
         // Verify the additional data structure
         var additionalData = resultDict["data"];
         Assert.That(additionalData, Is.Not.Null, "Additional data should not be null");
@@ -271,10 +271,10 @@ public class VehicleCommandTests
         // Assert - Results should be consistent (same mock data)
         Assert.That(result1, Is.Not.Null);
         Assert.That(result2, Is.Not.Null);
-        
+
         var dict1 = result1 as Dictionary<string, object?>;
         var dict2 = result2 as Dictionary<string, object?>;
-        
+
         Assert.That(dict1!["status"], Is.EqualTo(dict2!["status"]), "Status should be consistent");
         Assert.That(dict1["value"], Is.EqualTo(dict2["value"]), "Value should be consistent");
     }
@@ -291,7 +291,7 @@ public class VehicleCommandTests
         var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
             .GetTypes()
             .First(t => t.Name == "IgniteMainThrottleCommand");
-        
+
         return (IRpcCommandHandler)Activator.CreateInstance(type)!;
     }
 
@@ -303,7 +303,7 @@ public class VehicleCommandTests
         var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
             .GetTypes()
             .First(t => t.Name == "ShutdownMainEngineCommand");
-        
+
         return (IRpcCommandHandler)Activator.CreateInstance(type)!;
     }
 
@@ -315,7 +315,7 @@ public class VehicleCommandTests
         var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
             .GetTypes()
             .First(t => t.Name == "GetThrottleStatusQuery");
-        
+
         return (IRpcCommandHandler)Activator.CreateInstance(type)!;
     }
 
@@ -324,9 +324,9 @@ public class VehicleCommandTests
     /// </summary>
     private static bool InvokeValidateParameters(IRpcCommandHandler handler, RpcParameters parameters)
     {
-        var method = handler.GetType().GetMethod("ValidateParameters", 
+        var method = handler.GetType().GetMethod("ValidateParameters",
             BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         return (bool)method!.Invoke(handler, new object[] { parameters })!;
     }
 

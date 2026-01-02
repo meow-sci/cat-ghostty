@@ -25,10 +25,10 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly IScrollbackBuffer _scrollbackBuffer;
     private readonly IAlternateScreenManager _alternateScreenManager;
     private readonly ICharacterSetManager _characterSetManager;
-    
+
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
-    
+
     private bool _disposed;
 
     /// <summary>
@@ -113,11 +113,11 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             // Note: These would typically be injected, but for clean integration we create them here
             var rpcSequenceDetector = new RpcSequenceDetector();
             var rpcSequenceParser = new RpcSequenceParser();
-            
+
             parserOptions.RpcSequenceDetector = rpcSequenceDetector;
             parserOptions.RpcSequenceParser = rpcSequenceParser;
             parserOptions.RpcHandler = _rpcHandler;
-            
+
             _logger.LogDebug("RPC functionality enabled for terminal emulator");
         }
         else
@@ -320,7 +320,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             // Calculate how many rows need to be moved to scrollback
             int excessRows = oldHeight - height;
-            
+
             // Push the top rows to scrollback to preserve content
             for (int row = 0; row < excessRows; row++)
             {
@@ -368,7 +368,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             // Clamp existing scroll region to new dimensions
             State.ScrollTop = Math.Min(State.ScrollTop, height - 1);
             State.ScrollBottom = Math.Min(State.ScrollBottom, height - 1);
-            
+
             // Ensure scroll region is still valid
             if (State.ScrollTop >= State.ScrollBottom)
             {
@@ -481,7 +481,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public bool SetRpcEnabled(bool enabled)
     {
         ThrowIfDisposed();
-        
+
         if (_rpcHandler == null)
         {
             _logger.LogWarning("Cannot set RPC enabled state - no RPC handler available");
@@ -490,11 +490,11 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
         bool previousState = _rpcHandler.IsEnabled;
         _rpcHandler.IsEnabled = enabled;
-        
-        _logger.LogDebug("RPC functionality {Action} (was {PreviousState})", 
-            enabled ? "enabled" : "disabled", 
+
+        _logger.LogDebug("RPC functionality {Action} (was {PreviousState})",
+            enabled ? "enabled" : "disabled",
             previousState ? "enabled" : "disabled");
-            
+
         return true;
     }
 
@@ -507,7 +507,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Clear wrap pending and move cursor down
         _cursorManager.SetWrapPending(false);
-        
+
         // Move cursor down one line
         if (_cursorManager.Row + 1 > State.ScrollBottom)
         {
@@ -558,7 +558,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         _cursorManager.MoveTo(_cursorManager.Row, 0);
         _cursorManager.SetWrapPending(false);
-        
+
         // Sync state with cursor manager
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
@@ -637,7 +637,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal (byte Red, byte Green, byte Blue) GetCurrentForegroundColor()
     {
         var currentAttributes = _attributeManager.CurrentAttributes;
-        
+
         // If a specific foreground color is set in SGR attributes, use it
         if (currentAttributes.ForegroundColor.HasValue)
         {
@@ -650,7 +650,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
                 _ => GetDefaultForegroundColor()
             };
         }
-        
+
         // Return default terminal foreground color
         return GetDefaultForegroundColor();
     }
@@ -663,7 +663,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal (byte Red, byte Green, byte Blue) GetCurrentBackgroundColor()
     {
         var currentAttributes = _attributeManager.CurrentAttributes;
-        
+
         // If a specific background color is set in SGR attributes, use it
         if (currentAttributes.BackgroundColor.HasValue)
         {
@@ -676,7 +676,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
                 _ => GetDefaultBackgroundColor()
             };
         }
-        
+
         // Return default terminal background color
         return GetDefaultBackgroundColor();
     }
@@ -737,7 +737,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             var namedColor = (NamedColor)index;
             return GetNamedColorRgb(namedColor, isBackground);
         }
-        
+
         // 216 color cube (16-231): 6x6x6 RGB cube
         if (index >= 16 && index <= 231)
         {
@@ -745,15 +745,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             int r = (cubeIndex / 36) % 6;
             int g = (cubeIndex / 6) % 6;
             int b = cubeIndex % 6;
-            
+
             // Convert 0-5 range to 0-255 range
             byte red = (byte)(r == 0 ? 0 : 55 + r * 40);
             byte green = (byte)(g == 0 ? 0 : 55 + g * 40);
             byte blue = (byte)(b == 0 ? 0 : 55 + b * 40);
-            
+
             return (red, green, blue);
         }
-        
+
         // Grayscale ramp (232-255): 24 shades of gray
         if (index >= 232 && index <= 255)
         {
@@ -761,7 +761,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             byte gray = (byte)Math.Min(255, grayLevel);
             return (gray, gray, gray);
         }
-        
+
         // Invalid index - return default
         return isBackground ? GetDefaultBackgroundColor() : GetDefaultForegroundColor();
     }
@@ -910,29 +910,29 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             const int MaxBase64Length = 4096; // ~3KB decoded data
             if (data.Length > MaxBase64Length)
             {
-                _logger.LogWarning("OSC 52 base64 data too long ({Length} > {Max}), ignoring", 
+                _logger.LogWarning("OSC 52 base64 data too long ({Length} > {Max}), ignoring",
                     data.Length, MaxBase64Length);
                 return;
             }
 
             // Decode base64 data
             byte[] decodedBytes = Convert.FromBase64String(data);
-            
+
             // Apply safety limit: cap decoded data size
             const int MaxDecodedSize = 2048; // 2KB max decoded size
             if (decodedBytes.Length > MaxDecodedSize)
             {
-                _logger.LogWarning("OSC 52 decoded data too large ({Size} > {Max}), ignoring", 
+                _logger.LogWarning("OSC 52 decoded data too large ({Size} > {Max}), ignoring",
                     decodedBytes.Length, MaxDecodedSize);
                 return;
             }
 
             // Convert to UTF-8 string
             string decodedText = System.Text.Encoding.UTF8.GetString(decodedBytes);
-            
+
             // Emit clipboard event
             OnClipboardRequest(selectionTarget, decodedText, isQuery: false);
-            _logger.LogDebug("Clipboard data for selection {Selection}: {Length} bytes", 
+            _logger.LogDebug("Clipboard data for selection {Selection}: {Length} bytes",
                 selectionTarget, decodedBytes.Length);
         }
         catch (FormatException)
@@ -958,7 +958,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // OSC 8 format: ESC ] 8 ; [params] ; [url] BEL/ST
         // where params can include id=<id> and other key=value pairs
         // For now, we only handle the URL part and ignore parameters
-        
+
         if (string.IsNullOrEmpty(url))
         {
             // Clear hyperlink state - OSC 8 ;; ST
@@ -982,7 +982,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void HandleBackspace()
     {
         _cursorManager.SetWrapPending(false);
-        
+
         if (_cursorManager.Column > 0)
         {
             _cursorManager.MoveLeft(1);
@@ -1066,7 +1066,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         if (_modeManager.AutoWrapMode && _cursorManager.WrapPending)
         {
             _cursorManager.MoveTo(_cursorManager.Row, 0);
-            
+
             // Move to next line
             if (_cursorManager.Row + 1 >= Height)
             {
@@ -1078,7 +1078,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             {
                 _cursorManager.MoveTo(_cursorManager.Row + 1, 0);
             }
-            
+
             _cursorManager.SetWrapPending(false);
         }
 
@@ -1091,7 +1091,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // Write the character to the screen buffer with current SGR attributes, protection status, and hyperlink URL
         // Determine if this is a wide character for proper cell marking
         bool isWide = IsWideCharacter(character);
-        
+
         // Handle insert mode - shift existing characters right if insert mode is enabled
         if (_modeManager.InsertMode)
         {
@@ -1099,7 +1099,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             int charactersToShift = isWide ? 2 : 1;
             ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
         }
-        
+
         var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
         _screenBufferManager.SetCell(_cursorManager.Row, _cursorManager.Column, cell);
 
@@ -1139,7 +1139,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
                 // Note: We don't overwrite the next cell, just advance the cursor
                 // The rendering system should handle wide character display
             }
-            
+
             _cursorManager.MoveTo(_cursorManager.Row, _cursorManager.Column + advanceAmount);
         }
 
@@ -1160,35 +1160,35 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Check for common wide character ranges (CJK, emoji, etc.)
         // Based on Unicode East Asian Width property
-        
+
         // CJK Unified Ideographs
         if (character >= 0x4E00 && character <= 0x9FFF) return true;
-        
+
         // CJK Unified Ideographs Extension A
         if (character >= 0x3400 && character <= 0x4DBF) return true;
-        
+
         // Hangul Syllables
         if (character >= 0xAC00 && character <= 0xD7AF) return true;
-        
+
         // Hiragana
         if (character >= 0x3040 && character <= 0x309F) return true;
-        
+
         // Katakana
         if (character >= 0x30A0 && character <= 0x30FF) return true;
-        
+
         // Halfwidth and Fullwidth Forms (fullwidth only)
         if (character >= 0xFF01 && character <= 0xFF60) return true;
-        
+
         // CJK Symbols and Punctuation
         if (character >= 0x3000 && character <= 0x303F) return true;
-        
+
         // Emoji ranges (basic)
         if (character >= 0x1F600 && character <= 0x1F64F) return true; // Emoticons
         if (character >= 0x1F300 && character <= 0x1F5FF) return true; // Misc Symbols
         if (character >= 0x1F680 && character <= 0x1F6FF) return true; // Transport
         if (character >= 0x2600 && character <= 0x26FF) return true;   // Misc symbols
         if (character >= 0x2700 && character <= 0x27BF) return true;   // Dingbats
-        
+
         return false;
     }
 
@@ -1288,7 +1288,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             return; // Do nothing for zero or negative lines
         }
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -1312,7 +1312,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             return; // Do nothing for zero or negative lines
         }
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -1373,7 +1373,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Update the mode manager first
         _modeManager.SetPrivateMode(mode, enabled);
-        
+
         switch (mode)
         {
             case 6: // DECOM - Origin Mode
@@ -1455,7 +1455,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             // Store whether we were in alternate screen before deactivation
             bool wasAlternate = State.IsAlternateScreenActive;
-            
+
             switch (mode)
             {
                 case 47: // Basic alternate screen
@@ -1466,7 +1466,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
                     _alternateScreenManager.DeactivateAlternateWithCursorRestore();
                     break;
             }
-            
+
             // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
             // (matches catty-web controller behavior).
             if (wasAlternate)
@@ -1474,7 +1474,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
                 _scrollbackManager.ScrollToBottom();
             }
         }
-        
+
         // Sync cursor manager with terminal state after buffer switching
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
@@ -1489,15 +1489,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         count = Math.Max(1, count);
         _cursorManager.MoveUp(count);
-        
+
         // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Use terminal state clamping to respect scroll regions and origin mode
         State.ClampCursor();
-        
+
         // Sync back to cursor manager after clamping
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.SetWrapPending(State.WrapPending);
@@ -1511,15 +1511,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         count = Math.Max(1, count);
         _cursorManager.MoveDown(count);
-        
+
         // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Use terminal state clamping to respect scroll regions and origin mode
         State.ClampCursor();
-        
+
         // Sync back to cursor manager after clamping
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.SetWrapPending(State.WrapPending);
@@ -1533,15 +1533,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         count = Math.Max(1, count);
         _cursorManager.MoveRight(count);
-        
+
         // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Use terminal state clamping to respect scroll regions and origin mode
         State.ClampCursor();
-        
+
         // Sync back to cursor manager after clamping
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.SetWrapPending(State.WrapPending);
@@ -1555,15 +1555,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         count = Math.Max(1, count);
         _cursorManager.MoveLeft(count);
-        
+
         // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Use terminal state clamping to respect scroll regions and origin mode
         State.ClampCursor();
-        
+
         // Sync back to cursor manager after clamping
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.SetWrapPending(State.WrapPending);
@@ -1579,20 +1579,20 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // Map row parameter based on origin mode (following TypeScript mapRowParamToCursorY)
         int baseRow = State.OriginMode ? State.ScrollTop : 0;
         int targetRow = baseRow + (row - 1);
-        
+
         // Convert column from 1-based to 0-based
         int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
 
         _cursorManager.MoveTo(targetRow, targetCol);
-        
+
         // Sync cursor manager position to terminal state
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Clamp cursor to respect scroll region and origin mode
         State.ClampCursor();
-        
+
         // Sync back to cursor manager after clamping
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.SetWrapPending(State.WrapPending);
@@ -1875,7 +1875,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void SaveCursorPosition()
     {
         _cursorManager.SavePosition();
-        
+
         // Also save in terminal state for compatibility
         State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
     }
@@ -1892,7 +1892,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         State.CursorX = _cursorManager.Column;
         State.CursorY = _cursorManager.Row;
         State.WrapPending = _cursorManager.WrapPending;
-        
+
         // Update saved cursor in state for compatibility
         if (State.SavedCursor.HasValue)
         {
@@ -1909,7 +1909,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Save current cursor position in ANSI saved cursor field
         State.AnsiSavedCursor = (_cursorManager.Column, _cursorManager.Row);
-        
+
         _logger.LogDebug("ANSI cursor saved at position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
     }
 
@@ -1923,20 +1923,20 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         if (State.AnsiSavedCursor.HasValue)
         {
             var (savedX, savedY) = State.AnsiSavedCursor.Value;
-            
+
             // Validate and clamp the saved position to current buffer dimensions
             int clampedX = Math.Max(0, Math.Min(savedX, Width - 1));
             int clampedY = Math.Max(0, Math.Min(savedY, Height - 1));
-            
+
             // Move cursor to the saved position
             _cursorManager.MoveTo(clampedY, clampedX);
             _cursorManager.SetWrapPending(false);
-            
+
             // Sync state with cursor manager
             State.CursorX = _cursorManager.Column;
             State.CursorY = _cursorManager.Row;
             State.WrapPending = _cursorManager.WrapPending;
-            
+
             _logger.LogDebug("ANSI cursor restored to position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
         }
         else
@@ -2116,7 +2116,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void InsertLinesInRegion(int count)
     {
         count = Math.Max(1, count);
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -2139,7 +2139,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void DeleteLinesInRegion(int count)
     {
         count = Math.Max(1, count);
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -2162,7 +2162,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void InsertCharactersInLine(int count)
     {
         count = Math.Max(1, count);
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -2185,7 +2185,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void DeleteCharactersInLine(int count)
     {
         count = Math.Max(1, count);
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -2208,7 +2208,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal void EraseCharactersInLine(int count)
     {
         count = Math.Max(1, count);
-        
+
         // Clear wrap pending state
         _cursorManager.SetWrapPending(false);
 
@@ -2235,7 +2235,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
         // Update cursor to match reset state
         Cursor.SetPosition(State.CursorY, State.CursorX);
-        
+
         // Reset cursor manager style to match state
         _cursorManager.Style = State.CursorStyle;
     }
@@ -2250,55 +2250,55 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // Reset cursor position to home (0,0)
         State.CursorX = 0;
         State.CursorY = 0;
-        
+
         // Clear saved cursor positions
         State.SavedCursor = null;
         State.AnsiSavedCursor = null;
-        
+
         // Reset wrap pending state
         State.WrapPending = false;
-        
+
         // Reset cursor style and visibility to defaults
         State.CursorStyle = CursorStyle.BlinkingBlock;
         State.CursorVisible = true;
-        
+
         // Reset terminal modes to defaults
         State.ApplicationCursorKeys = false;
         State.OriginMode = false;
         State.AutoWrapMode = true;
-        
+
         // Reset scroll region to full screen
         State.ScrollTop = 0;
         State.ScrollBottom = Height - 1;
-        
+
         // Reset character protection to unprotected
         State.CurrentCharacterProtection = false;
         _attributeManager.CurrentCharacterProtection = false;
-        
+
         // Reset SGR attributes to defaults
         State.CurrentSgrState = SgrAttributes.Default;
         _attributeManager.ResetAttributes();
-        
+
         // Reset character sets to defaults (ASCII)
         State.CharacterSets = new CharacterSetState();
-        
+
         // Reset UTF-8 mode to enabled
         State.Utf8Mode = true;
-        
+
         // Reset tab stops to default (every 8 columns)
         State.InitializeTabStops(Width);
-        
+
         // Update cursor manager to match reset state
         _cursorManager.MoveTo(State.CursorY, State.CursorX);
         _cursorManager.Visible = State.CursorVisible;
         _cursorManager.Style = State.CursorStyle;
-        
+
         // Update mode manager to match reset state
         _modeManager.AutoWrapMode = State.AutoWrapMode;
         _modeManager.ApplicationCursorKeys = State.ApplicationCursorKeys;
         _modeManager.CursorVisible = State.CursorVisible;
         _modeManager.OriginMode = State.OriginMode;
-        
+
         _logger.LogDebug("Soft reset completed - modes and state reset without clearing screen");
     }
 
@@ -2436,10 +2436,10 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Validate and normalize cursor style using the new enum system
         CursorStyle validatedStyle = CursorStyleExtensions.ValidateStyle(style);
-        
+
         // Update cursor manager
         _cursorManager.Style = validatedStyle;
-        
+
         // Update terminal state
         State.CursorStyle = validatedStyle;
     }
@@ -2452,7 +2452,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Update cursor manager
         _cursorManager.Style = style;
-        
+
         // Update terminal state
         State.CursorStyle = style;
     }
@@ -2466,7 +2466,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         // Update mode manager
         _modeManager.InsertMode = enabled;
-        
+
         // Update terminal state for compatibility
         _modeManager.SetMode(4, enabled);
     }

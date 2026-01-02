@@ -11,10 +11,10 @@ public class RpcSequenceDetector : IRpcSequenceDetector
     private const byte EscapeByte = 0x1B;
     private const byte LeftBracketByte = 0x5B;
     private const byte GreaterThanByte = 0x3E;
-    
+
     private const int MinCommandId = 1000;
     private const int MaxCommandId = 9999;
-    
+
     private const byte MinFinalCharacter = 0x40;
     private const byte MaxFinalCharacter = 0x7E;
 
@@ -33,9 +33,10 @@ public class RpcSequenceDetector : IRpcSequenceDetector
         }
 
         // Check for ESC [ > prefix
-        return sequence[0] == EscapeByte && 
-               sequence[1] == LeftBracketByte && 
+        var matched = sequence[0] == EscapeByte &&
+               sequence[1] == LeftBracketByte &&
                sequence[2] == GreaterThanByte;
+        return matched;
     }
 
     /// <summary>
@@ -54,7 +55,7 @@ public class RpcSequenceDetector : IRpcSequenceDetector
 
         // Extract the parameter portion (skip ESC [ >)
         var parameterSpan = sequence[3..];
-        
+
         // Convert to string for parsing
         string parameterString;
         try
@@ -129,13 +130,13 @@ public class RpcSequenceDetector : IRpcSequenceDetector
 
         // Find the final character (last character in the sequence)
         finalChar = parameterString[^1];
-        
+
         // Remove the final character to get the parameter portion
         string paramPortion = parameterString[..^1];
-        
+
         // Split by semicolon to get Pn and Pv
         string[] parts = paramPortion.Split(';');
-        
+
         // We need at least Pn ; Pv
         if (parts.Length < 2)
         {

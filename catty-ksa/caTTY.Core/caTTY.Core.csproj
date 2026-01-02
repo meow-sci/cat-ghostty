@@ -10,6 +10,9 @@
         <Company>caTTY Project</Company>
         <Copyright>Copyright © caTTY Project</Copyright>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <!-- TODO: FIXME: Core should not need a KSA ref, RPC command handlers for KSA game integration need to be moved out -->
+        <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
+
     </PropertyGroup>
 
     <ItemGroup>
@@ -30,6 +33,31 @@
         <Folder Include="Types\"/>
         <Folder Include="Utils\"/>
         <Folder Include="Tracing\"/>
+    </ItemGroup>
+
+    <!-- TODO: FIXME: Core should not need a KSA ref, RPC command handlers for KSA game integration need to be moved out -->
+    <ItemGroup>
+        <!-- KSA DLL references -->
+        <!-- <Reference Include="Brutal.Core.Common" Condition="Exists('$(KSAFolder)/Brutal.Core.Common.dll')">
+            <HintPath>$(KSAFolder)/Brutal.Core.Common.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Brutal.Core.Numerics" Condition="Exists('$(KSAFolder)/Brutal.Core.Numerics.dll')">
+            <HintPath>$(KSAFolder)/Brutal.Core.Numerics.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Brutal.ImGui" Condition="Exists('$(KSAFolder)/Brutal.ImGui.dll')">
+            <HintPath>$(KSAFolder)/Brutal.ImGui.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Brutal.Glfw" Condition="Exists('$(KSAFolder)/Brutal.Glfw.dll')">
+            <HintPath>$(KSAFolder)/Brutal.Glfw.dll</HintPath>
+            <Private>false</Private>
+        </Reference> -->
+        <Reference Include="KSA" Condition="Exists('$(KSAFolder)/KSA.dll')">
+            <HintPath>$(KSAFolder)/KSA.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
     </ItemGroup>
 
 </Project>

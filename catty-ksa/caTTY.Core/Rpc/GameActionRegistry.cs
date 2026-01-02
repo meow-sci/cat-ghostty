@@ -1,3 +1,4 @@
+using KSA;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Rpc;
@@ -9,7 +10,7 @@ namespace caTTY.Core.Rpc;
 public class GameActionRegistry : IGameActionRegistry
 {
     private readonly IRpcCommandRouter _commandRouter;
-    private readonly ILogger<GameActionRegistry> _logger;
+    private readonly ILogger _logger;
     private readonly IRpcParameterValidator? _parameterValidator;
 
     /// <summary>
@@ -18,7 +19,7 @@ public class GameActionRegistry : IGameActionRegistry
     /// <param name="commandRouter">The command router for registering handlers</param>
     /// <param name="logger">Logger for debugging and error reporting</param>
     /// <param name="parameterValidator">Optional parameter validator for security validation</param>
-    public GameActionRegistry(IRpcCommandRouter commandRouter, ILogger<GameActionRegistry> logger, IRpcParameterValidator? parameterValidator = null)
+    public GameActionRegistry(IRpcCommandRouter commandRouter, ILogger logger, IRpcParameterValidator? parameterValidator = null)
     {
         _commandRouter = commandRouter ?? throw new ArgumentNullException(nameof(commandRouter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -66,7 +67,7 @@ public class GameActionRegistry : IGameActionRegistry
 
         // System commands would be registered here
         // Currently no default system commands are defined
-        
+
         _logger.LogInformation("Registered system commands");
     }
 
@@ -198,7 +199,7 @@ public class GameActionRegistry : IGameActionRegistry
         });
 
         // Example validation rules for future commands:
-        
+
         // SetThrottle (1012) - Would require throttle percentage (0-100)
         // _parameterValidator.RegisterValidationRules(1012, new RpcParameterValidationRules
         // {
@@ -231,9 +232,14 @@ internal class IgniteMainThrottleCommand : FireAndForgetCommandHandler
 
     protected override void ExecuteAction(RpcParameters parameters)
     {
+        Console.WriteLine($"Ignite Main Throttle: {parameters}");
+        var rocket = Program.ControlledVehicle;
+
+        rocket?.SetEnum(VehicleEngine.MainIgnite);
+
         // TODO: Integrate with KSA game engine
         // rocket.SetEnum(VehicleEngine.MainIgnite);
-        
+
         // For now, this is a placeholder implementation
         // The actual game integration will be implemented when KSA APIs are available
     }
@@ -257,9 +263,14 @@ internal class ShutdownMainEngineCommand : FireAndForgetCommandHandler
 
     protected override void ExecuteAction(RpcParameters parameters)
     {
+        Console.WriteLine($"Ignite Main Throttle: {parameters}");
+
+        var rocket = Program.ControlledVehicle;
+
+        rocket?.SetEnum(VehicleEngine.MainShutdown);
         // TODO: Integrate with KSA game engine
         // rocket.SetEnum(VehicleEngine.MainShutdown);
-        
+
         // For now, this is a placeholder implementation
         // The actual game integration will be implemented when KSA APIs are available
     }
@@ -286,12 +297,12 @@ internal class GetThrottleStatusQuery : QueryCommandHandler
         // TODO: Integrate with KSA game engine to get actual throttle status
         // var throttleEnabled = rocket.GetBool(VehicleEngine.MainThrottleEnabled);
         // var throttleLevel = rocket.GetFloat(VehicleEngine.MainThrottleLevel);
-        
+
         // For now, return mock data
         var throttleEnabled = true; // Mock: engine is enabled
         var throttleLevel = 75; // Mock: 75% throttle
-        
-        return CreateResponse("enabled", throttleLevel, new { 
+
+        return CreateResponse("enabled", throttleLevel, new {
             enabled = throttleEnabled,
             level = throttleLevel,
             unit = "percent"

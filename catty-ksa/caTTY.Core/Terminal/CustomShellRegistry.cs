@@ -237,9 +237,8 @@ public class CustomShellRegistry
                     RegisterShell(shellId, factory);
                     discoveredCount++;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"CustomShellRegistry: Warning - Failed to register discovered shell '{shellType.FullName}': {ex.Message}");
                     // Continue with other types
                 }
             }

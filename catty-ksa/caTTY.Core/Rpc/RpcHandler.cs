@@ -40,18 +40,17 @@ public class RpcHandler : IRpcHandler
     {
         if (!IsEnabled)
         {
-            _logger.LogDebug("RPC handling is disabled, ignoring message: {Raw}", message.Raw);
+            // Console.WriteLine($"RPC handling is disabled, ignoring message: {message.Raw}");
             return;
         }
 
-        _logger.LogDebug("Processing RPC message: CommandId={CommandId}, Type={CommandType}, Raw={Raw}", 
-            message.CommandId, message.CommandType, message.Raw);
+        // Console.WriteLine($"Processing RPC message: CommandId={message.CommandId}, Type={message.CommandType}, Raw={message.Raw}");
 
         // Validate command ID range for the command type
         if (!message.IsValidCommandIdRange())
         {
             _logger.LogWarning("Invalid command ID {CommandId} for command type {CommandType}", 
-                message.CommandId, message.CommandType);
+                            message.CommandId, message.CommandType);
             _ = Task.Run(async () => await HandleInvalidCommand(message));
             return;
         }
@@ -67,6 +66,8 @@ public class RpcHandler : IRpcHandler
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception while processing RPC command {CommandId}", message.CommandId);
+              //  Console.WriteLine($"Unhandled exception while processing RPC command {message.CommandId}");
+
                 await HandleCommandException(message, ex);
             }
         });
@@ -81,8 +82,8 @@ public class RpcHandler : IRpcHandler
         }
 
         string sequenceString = System.Text.Encoding.ASCII.GetString(rawSequence);
-        
-        _logger.LogWarning("Malformed RPC sequence detected: Type={SequenceType}, Raw={Raw}", 
+
+        _logger.LogWarning("Malformed RPC sequence detected: Type={SequenceType}, Raw={Raw}",
             sequenceType, sequenceString);
 
         // Optionally trace malformed sequences for debugging
@@ -109,7 +110,7 @@ public class RpcHandler : IRpcHandler
     {
         if (result.Success)
         {
-            _logger.LogDebug("RPC command {CommandId} executed successfully in {ExecutionTime}ms", 
+            _logger.LogDebug("RPC command {CommandId} executed successfully in {ExecutionTime}ms",
                 message.CommandId, result.ExecutionTime.TotalMilliseconds);
 
             // For query commands, send response back to terminal
@@ -134,7 +135,7 @@ public class RpcHandler : IRpcHandler
             // Handle different types of failures
             if (result.IsTimeout)
             {
-                _logger.LogWarning("RPC command {CommandId} timed out after {ExecutionTime}ms: {ErrorMessage}", 
+                _logger.LogWarning("RPC command {CommandId} timed out after {ExecutionTime}ms: {ErrorMessage}",
                     message.CommandId, result.ExecutionTime.TotalMilliseconds, result.ErrorMessage);
 
                 // Send timeout error response for query commands
@@ -154,7 +155,7 @@ public class RpcHandler : IRpcHandler
             }
             else
             {
-                _logger.LogWarning("RPC command {CommandId} failed in {ExecutionTime}ms: {ErrorMessage}", 
+                _logger.LogWarning("RPC command {CommandId} failed in {ExecutionTime}ms: {ErrorMessage}",
                     message.CommandId, result.ExecutionTime.TotalMilliseconds, result.ErrorMessage);
 
                 // Send error response for query commands
@@ -174,9 +175,9 @@ public class RpcHandler : IRpcHandler
     private async Task HandleCommandException(RpcMessage message, Exception exception)
     {
         string errorMessage = $"Command execution failed: {exception.Message}";
-        _logger.LogError(exception, "Unhandled exception in RPC command {CommandId}: {ErrorMessage}", 
+        _logger.LogError(exception, "Unhandled exception in RPC command {CommandId}: {ErrorMessage}",
             message.CommandId, exception.Message);
-        
+
         // Send error response for query commands
         if (message.IsQuery)
         {
@@ -202,9 +203,9 @@ public class RpcHandler : IRpcHandler
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to generate or send error response for command {CommandId}. Original error: {OriginalError}", 
+                _logger.LogError(ex, "Failed to generate or send error response for command {CommandId}. Original error: {OriginalError}",
                     commandId, errorMessage);
-                
+
                 if (exception != null)
                 {
                     _logger.LogError(exception, "Original exception details for command {CommandId}", commandId);
@@ -220,7 +221,7 @@ public class RpcHandler : IRpcHandler
     private async Task HandleInvalidCommand(RpcMessage message)
     {
         string errorMessage = $"Invalid command ID {message.CommandId} for command type {message.CommandType}";
-        _logger.LogWarning("Invalid RPC command: {ErrorMessage}. Expected ranges: 1000-1999 (fire-and-forget), 2000-2999 (queries). Raw: {Raw}", 
+        _logger.LogWarning("Invalid RPC command: {ErrorMessage}. Expected ranges: 1000-1999 (fire-and-forget), 2000-2999 (queries). Raw: {Raw}",
             errorMessage, message.Raw);
 
         // Send error response for query commands with invalid command IDs

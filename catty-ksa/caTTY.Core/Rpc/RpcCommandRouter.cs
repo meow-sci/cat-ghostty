@@ -11,7 +11,7 @@ namespace caTTY.Core.Rpc;
 public class RpcCommandRouter : IRpcCommandRouter
 {
     private readonly ConcurrentDictionary<int, IRpcCommandHandler> _handlers = new();
-    private readonly ILogger<RpcCommandRouter> _logger;
+    private readonly ILogger _logger;
     private readonly IRpcParameterValidator? _parameterValidator;
 
     /// <summary>
@@ -19,7 +19,7 @@ public class RpcCommandRouter : IRpcCommandRouter
     /// </summary>
     /// <param name="logger">Logger for debugging and error reporting</param>
     /// <param name="parameterValidator">Optional parameter validator for security validation</param>
-    public RpcCommandRouter(ILogger<RpcCommandRouter> logger, IRpcParameterValidator? parameterValidator = null)
+    public RpcCommandRouter(ILogger logger, IRpcParameterValidator? parameterValidator = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _parameterValidator = parameterValidator;
@@ -31,7 +31,7 @@ public class RpcCommandRouter : IRpcCommandRouter
         if (message == null)
         {
             const string error = "RPC message cannot be null";
-            _logger.LogError(error);
+            Console.WriteLine(error);
             return RpcResult.CreateFailure(error);
         }
 
@@ -39,7 +39,7 @@ public class RpcCommandRouter : IRpcCommandRouter
         if (!message.IsValidCommandIdRange())
         {
             var error = $"Invalid command ID {message.CommandId} for command type {message.CommandType}";
-            _logger.LogWarning($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
+            // Console.WriteLine($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
             return RpcResult.CreateFailure(error);
         }
 
@@ -47,7 +47,7 @@ public class RpcCommandRouter : IRpcCommandRouter
         if (!_handlers.TryGetValue(message.CommandId, out var handler))
         {
             var error = $"No handler registered for command ID {message.CommandId}";
-            _logger.LogWarning($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
+            // Console.WriteLine($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
             return RpcResult.CreateFailure(error);
         }
 
@@ -55,14 +55,14 @@ public class RpcCommandRouter : IRpcCommandRouter
         if (message.IsFireAndForget && !handler.IsFireAndForget)
         {
             var error = $"Command {message.CommandId} is fire-and-forget but handler expects response";
-            _logger.LogWarning($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
+            // Console.WriteLine($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
             return RpcResult.CreateFailure(error);
         }
 
         if (message.IsQuery && handler.IsFireAndForget)
         {
             var error = $"Command {message.CommandId} is query but handler is fire-and-forget";
-            _logger.LogWarning($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
+            // Console.WriteLine($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
             return RpcResult.CreateFailure(error);
         }
 
@@ -73,7 +73,7 @@ public class RpcCommandRouter : IRpcCommandRouter
             if (!validationResult.IsValid)
             {
                 var error = $"Parameter validation failed for command {message.CommandId}: {validationResult.ErrorMessage}";
-                
+
                 if (validationResult.IsSecurityViolation)
                 {
                     _logger.LogWarning($"RPC security violation: {error}. Raw sequence: {message.Raw}");
@@ -82,7 +82,7 @@ public class RpcCommandRouter : IRpcCommandRouter
                 {
                     _logger.LogWarning($"RPC parameter validation failed: {error}. Raw sequence: {message.Raw}");
                 }
-                
+
                 return RpcResult.CreateFailure(error);
             }
         }
@@ -91,7 +91,7 @@ public class RpcCommandRouter : IRpcCommandRouter
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            _logger.LogDebug($"Executing RPC command {message.CommandId} ({handler.Description})");
+            // Console.WriteLine($"Executing RPC command {message.CommandId} ({handler.Description})");
 
             object? result;
             if (handler.IsFireAndForget)
@@ -106,7 +106,7 @@ public class RpcCommandRouter : IRpcCommandRouter
                     // Parameter validation errors
                     stopwatch.Stop();
                     var error = $"Invalid parameters for command {message.CommandId}: {argEx.Message}";
-                    _logger.LogWarning($"RPC parameter validation failed: {error}. Raw sequence: {message.Raw}");
+                    // Console.WriteLine($"RPC parameter validation failed: {error}. Raw sequence: {message.Raw}");
                     return RpcResult.CreateFailure(error, stopwatch.Elapsed);
                 }
                 catch (InvalidOperationException opEx)
@@ -114,7 +114,7 @@ public class RpcCommandRouter : IRpcCommandRouter
                     // Operation state errors
                     stopwatch.Stop();
                     var error = $"Invalid operation for command {message.CommandId}: {opEx.Message}";
-                    _logger.LogWarning($"RPC operation failed: {error}. Raw sequence: {message.Raw}");
+                    // Console.WriteLine($"RPC operation failed: {error}. Raw sequence: {message.Raw}");
                     return RpcResult.CreateFailure(error, stopwatch.Elapsed);
                 }
             }
@@ -122,7 +122,7 @@ public class RpcCommandRouter : IRpcCommandRouter
             {
                 // Query commands need comprehensive timeout and exception handling
                 using var cts = new CancellationTokenSource(handler.Timeout);
-                
+
                 try
                 {
                     var task = handler.ExecuteAsync(message.Parameters);
@@ -149,7 +149,7 @@ public class RpcCommandRouter : IRpcCommandRouter
                     // Parameter validation errors for queries
                     stopwatch.Stop();
                     var error = $"Invalid parameters for query {message.CommandId}: {argEx.Message}";
-                    _logger.LogWarning($"RPC query parameter validation failed: {error}. Raw sequence: {message.Raw}");
+                    // Console.WriteLine($"RPC query parameter validation failed: {error}. Raw sequence: {message.Raw}");
                     return RpcResult.CreateFailure(error, stopwatch.Elapsed);
                 }
                 catch (InvalidOperationException opEx)
@@ -157,13 +157,13 @@ public class RpcCommandRouter : IRpcCommandRouter
                     // Operation state errors for queries
                     stopwatch.Stop();
                     var error = $"Invalid operation for query {message.CommandId}: {opEx.Message}";
-                    _logger.LogWarning($"RPC query operation failed: {error}. Raw sequence: {message.Raw}");
+                    // Console.WriteLine($"RPC query operation failed: {error}. Raw sequence: {message.Raw}");
                     return RpcResult.CreateFailure(error, stopwatch.Elapsed);
                 }
             }
 
             stopwatch.Stop();
-            _logger.LogDebug($"RPC command {message.CommandId} completed successfully in {stopwatch.ElapsedMilliseconds}ms");
+            // Console.WriteLine($"RPC command {message.CommandId} completed successfully in {stopwatch.ElapsedMilliseconds}ms");
             return RpcResult.CreateSuccess(result, stopwatch.Elapsed);
         }
         catch (Exception ex)
