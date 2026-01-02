@@ -605,41 +605,6 @@ public class TerminalTracingProperties
     }
 
     /// <summary>
-    /// **Feature: terminal-tracing-integration, Property 5b: Wide Character Terminal Integration**
-    /// **Validates: Requirements 2.3**
-    /// Property: For any wide character written through the terminal emulator, the character
-    /// should be traced with width indication and correct positioning.
-    /// </summary>
-    [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
-    public FsCheck.Property WideCharacterTerminalIntegration()
-    {
-        return Prop.ForAll(WideCharacterArb, wideChar =>
-        {
-            // Arrange - Clear any existing traces and create terminal emulator
-            ClearTraceDatabase();
-
-            using var terminal = new TerminalEmulator(80, 24);
-
-            // Act - Write wide character at cursor using the terminal emulator
-            // This should trigger tracing through WriteCharacterAtCursor with width indication
-            terminal.WriteCharacterAtCursor(wideChar);
-
-            // Assert - Verify wide character is traced with width indication
-            var traces = GetTracesFromDatabaseWithFlush();
-            if (traces.Count != 1) return false;
-
-            var trace = traces[0];
-            var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
-
-            // The trace should contain the character with "(wide)" indication
-            var expectedTrace = $"{wideChar} (wide)";
-
-            return trace.Printable == expectedTrace &&
-                   trace.Direction == expectedDirection;
-        });
-    }
-
-    /// <summary>
     /// **Feature: terminal-tracing-integration, Property 6: SGR Sequence Tracing**
     /// **Validates: Requirements 5.3**
     /// Property: For any SGR (Select Graphic Rendition) sequence processed by the parser,

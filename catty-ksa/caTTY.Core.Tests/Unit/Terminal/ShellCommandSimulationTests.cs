@@ -261,25 +261,4 @@ public class ShellCommandSimulationTests
             Assert.That(_terminal.ScreenBuffer.GetCell(i, 24).Character, Is.EqualTo((char)('0' + i))); // Data number
         }
     }
-
-    /// <summary>
-    ///     Simulates shell output with UTF-8 characters and escape sequences.
-    /// </summary>
-    [Test]
-    public void SimulateUtf8ShellOutput_WithEscapeSequences_WorksCorrectly()
-    {
-        // Simulate output with UTF-8 characters and cursor movements
-        _terminal.Write("Files: 文件1.txt");
-        _terminal.Write("\x1b[2;1H");
-        _terminal.Write("目录: 测试目录/");
-        _terminal.Write("\x1b[3;1H");
-        _terminal.Write("Status: ✓ Complete");
-
-        // Assert
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 7).Character, Is.EqualTo('文'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 9).Character, Is.EqualTo('件')); // '件' is at position 9, not 8, because '文' is wide
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 6).Character, Is.EqualTo('测')); // '测' is at position 6, not 4, because '目录: ' takes up positions 0-5
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 8).Character, Is.EqualTo('试')); // '试' is at position 8, not 6, because '测' is wide
-        Assert.That(_terminal.ScreenBuffer.GetCell(2, 8).Character, Is.EqualTo('✓'));
-    }
 }

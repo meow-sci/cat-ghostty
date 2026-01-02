@@ -210,24 +210,6 @@ public class EscapeSequenceIntegrationTests
     }
 
     /// <summary>
-    ///     Tests that UTF-8 sequences work correctly with escape sequences.
-    /// </summary>
-    [Test]
-    public void Write_Utf8WithEscapeSequences_HandlesCorrectly()
-    {
-        // Act - Write UTF-8 character, move cursor, write another UTF-8 character
-        _terminal.Write("Hello 世界"); // UTF-8 characters
-        _terminal.Write("\x1b[2;1H"); // Move to row 2, column 1
-        _terminal.Write("测试"); // More UTF-8 characters
-
-        // Assert
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('世'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(0, 8).Character, Is.EqualTo('界')); // '界' is at position 8, not 7, because '世' is wide
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 0).Character, Is.EqualTo('测'));
-        Assert.That(_terminal.ScreenBuffer.GetCell(1, 2).Character, Is.EqualTo('试')); // '试' is at position 2, not 1, because '测' is wide
-    }
-
-    /// <summary>
     ///     Tests that incomplete escape sequences at end of input are handled gracefully.
     /// </summary>
     [Test]

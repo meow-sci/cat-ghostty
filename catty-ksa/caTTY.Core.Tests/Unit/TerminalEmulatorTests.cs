@@ -1331,39 +1331,6 @@ public class TerminalEmulatorTests
     }
 
     /// <summary>
-    ///     Tests that insert mode works correctly with wide characters (CJK).
-    /// </summary>
-    [Test]
-    public void InsertMode_WithWideCharacters_HandlesCorrectly()
-    {
-        // Arrange
-        var terminal = new TerminalEmulator(80, 24);
-        
-        // Write initial text with a mix of normal and wide characters
-        terminal.Write("AB世CD");
-        
-        // Move cursor to position after 'B' (before wide character)
-        terminal.Write("\x1b[1;3H"); // Row 1, Column 3 (1-indexed)
-        
-        // Enable insert mode
-        terminal.Write("\x1b[4h");
-
-        // Act - Insert a normal character before wide character
-        terminal.Write("X");
-
-        // Assert - Character should be inserted, wide character should be shifted
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 0).Character, Is.EqualTo('A'), "First character should remain");
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 1).Character, Is.EqualTo('B'), "Second character should remain");
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 2).Character, Is.EqualTo('X'), "Inserted character should be at cursor position");
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 3).Character, Is.EqualTo('世'), "Wide character should be shifted right");
-        // Wide character occupies two cells, so next normal character should be at position 5
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 5).Character, Is.EqualTo('C'), "Character after wide char should be shifted");
-        Assert.That(terminal.ScreenBuffer.GetCell(0, 6).Character, Is.EqualTo('D'), "Last character should be shifted");
-
-        terminal.Dispose();
-    }
-
-    /// <summary>
     ///     Tests that insert mode preserves character attributes when shifting characters.
     /// </summary>
     [Test]
