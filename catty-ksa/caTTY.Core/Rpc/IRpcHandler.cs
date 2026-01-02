@@ -25,5 +25,5 @@ public interface IRpcHandler
     /// Indicates whether RPC handling is currently enabled.
     /// When false, RPC sequences should be ignored and processed as standard terminal sequences.
     /// </summary>
-    bool IsEnabled { get; }
+    bool IsEnabled { get; set; }
 }

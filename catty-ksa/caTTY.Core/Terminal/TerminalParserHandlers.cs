@@ -1,4 +1,5 @@
 using caTTY.Core.Parsing;
+using caTTY.Core.Rpc;
 using caTTY.Core.Types;
 using caTTY.Core.Tracing;
 using Microsoft.Extensions.Logging;
@@ -7,18 +8,25 @@ namespace caTTY.Core.Terminal;
 
 /// <summary>
 ///     Parser handlers implementation for the terminal emulator.
-///     Bridges parsed sequences to terminal operations.
+///     Bridges parsed sequences to terminal operations and optionally delegates RPC sequences.
 /// </summary>
 internal class TerminalParserHandlers : IParserHandlers
 {
     private readonly ILogger _logger;
     private readonly TerminalEmulator _terminal;
+    private readonly IRpcHandler? _rpcHandler;
 
-    public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger)
+    public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null)
     {
         _terminal = terminal;
         _logger = logger;
+        _rpcHandler = rpcHandler;
     }
+
+    /// <summary>
+    /// Gets whether RPC handling is currently enabled.
+    /// </summary>
+    public bool IsRpcEnabled => _rpcHandler?.IsEnabled ?? false;
 
     public void HandleBell()
     {

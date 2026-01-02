@@ -12,14 +12,17 @@ public class RpcCommandRouter : IRpcCommandRouter
 {
     private readonly ConcurrentDictionary<int, IRpcCommandHandler> _handlers = new();
     private readonly ILogger<RpcCommandRouter> _logger;
+    private readonly IRpcParameterValidator? _parameterValidator;
 
     /// <summary>
     /// Initializes a new instance of the RpcCommandRouter.
     /// </summary>
     /// <param name="logger">Logger for debugging and error reporting</param>
-    public RpcCommandRouter(ILogger<RpcCommandRouter> logger)
+    /// <param name="parameterValidator">Optional parameter validator for security validation</param>
+    public RpcCommandRouter(ILogger<RpcCommandRouter> logger, IRpcParameterValidator? parameterValidator = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _parameterValidator = parameterValidator;
     }
 
     /// <inheritdoc />
@@ -61,6 +64,27 @@ public class RpcCommandRouter : IRpcCommandRouter
             var error = $"Command {message.CommandId} is query but handler is fire-and-forget";
             _logger.LogWarning($"RPC routing failed: {error}. Raw sequence: {message.Raw}");
             return RpcResult.CreateFailure(error);
+        }
+
+        // Validate parameters if validator is available
+        if (_parameterValidator != null)
+        {
+            var validationResult = _parameterValidator.ValidateParameters(message.CommandId, message.Parameters);
+            if (!validationResult.IsValid)
+            {
+                var error = $"Parameter validation failed for command {message.CommandId}: {validationResult.ErrorMessage}";
+                
+                if (validationResult.IsSecurityViolation)
+                {
+                    _logger.LogWarning($"RPC security violation: {error}. Raw sequence: {message.Raw}");
+                }
+                else
+                {
+                    _logger.LogWarning($"RPC parameter validation failed: {error}. Raw sequence: {message.Raw}");
+                }
+                
+                return RpcResult.CreateFailure(error);
+            }
         }
 
         // Execute the command with comprehensive error handling

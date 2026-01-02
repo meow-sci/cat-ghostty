@@ -3,6 +3,7 @@ using caTTY.Core.Parsing;
 using caTTY.Core.Types;
 using caTTY.Core.Managers;
 using caTTY.Core.Tracing;
+using caTTY.Core.Rpc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -24,6 +25,10 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly IScrollbackBuffer _scrollbackBuffer;
     private readonly IAlternateScreenManager _alternateScreenManager;
     private readonly ICharacterSetManager _characterSetManager;
+    
+    // Optional RPC components for game integration
+    private readonly IRpcHandler? _rpcHandler;
+    
     private bool _disposed;
 
     /// <summary>
@@ -33,19 +38,20 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="height">Height in rows</param>
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, ILogger? logger = null) : this(width, height, 1000, logger)
+    public TerminalEmulator(int width, int height, ILogger? logger = null) : this(width, height, 1000, logger, null)
     {
     }
 
     /// <summary>
-    ///     Creates a new terminal emulator with the specified dimensions and scrollback.
+    ///     Creates a new terminal emulator with the specified dimensions, scrollback, and optional RPC handler.
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
     /// <param name="scrollbackLines">Maximum number of scrollback lines (default: 1000)</param>
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
+    /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, int scrollbackLines, ILogger? logger = null)
+    public TerminalEmulator(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
     {
         if (width < 1 || width > 1000)
         {
@@ -69,6 +75,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // don't corrupt primary screen content and scrollback behavior.
         ScreenBuffer = new DualScreenBuffer(width, height, () => State.IsAlternateScreenActive);
         _logger = logger ?? NullLogger.Instance;
+        _rpcHandler = rpcHandler;
 
         // Initialize scrollback infrastructure
         _scrollbackBuffer = new ScrollbackBuffer(scrollbackLines, width);
@@ -88,8 +95,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             () => State.IsAlternateScreenActive
         );
 
-        // Initialize parser with terminal handlers
-        var handlers = new TerminalParserHandlers(this, _logger);
+        // Initialize parser with terminal handlers and optional RPC components
+        var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
         var parserOptions = new ParserOptions
         {
             Handlers = handlers,
@@ -98,6 +105,26 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             ProcessC0ControlsDuringEscapeSequence = true,
             CursorPositionProvider = this
         };
+
+        // Wire RPC components if RPC handler is provided
+        if (_rpcHandler != null)
+        {
+            // Create RPC components for integration
+            // Note: These would typically be injected, but for clean integration we create them here
+            var rpcSequenceDetector = new RpcSequenceDetector();
+            var rpcSequenceParser = new RpcSequenceParser();
+            
+            parserOptions.RpcSequenceDetector = rpcSequenceDetector;
+            parserOptions.RpcSequenceParser = rpcSequenceParser;
+            parserOptions.RpcHandler = _rpcHandler;
+            
+            _logger.LogDebug("RPC functionality enabled for terminal emulator");
+        }
+        else
+        {
+            _logger.LogDebug("RPC functionality disabled - no RPC handler provided");
+        }
+
         _parser = new Parser(parserOptions);
 
         _disposed = false;
@@ -172,6 +199,16 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Gets the scrollback manager for viewport and scrollback operations.
     /// </summary>
     public IScrollbackManager ScrollbackManager => _scrollbackManager;
+
+    /// <summary>
+    ///     Gets whether RPC functionality is enabled for this terminal emulator.
+    /// </summary>
+    public bool IsRpcEnabled => _rpcHandler != null && _rpcHandler.IsEnabled;
+
+    /// <summary>
+    ///     Gets the RPC handler if RPC functionality is enabled, null otherwise.
+    /// </summary>
+    public IRpcHandler? RpcHandler => _rpcHandler;
 
     /// <summary>
     ///     Event raised when the screen content has been updated and needs refresh.
@@ -433,6 +470,32 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         ThrowIfDisposed();
         _parser.FlushIncompleteSequences();
         OnScreenUpdated();
+    }
+
+    /// <summary>
+    ///     Enables or disables RPC functionality at runtime.
+    ///     This allows dynamic control over RPC processing without recreating the terminal.
+    /// </summary>
+    /// <param name="enabled">True to enable RPC processing, false to disable</param>
+    /// <returns>True if the setting was applied, false if RPC handler is not available</returns>
+    public bool SetRpcEnabled(bool enabled)
+    {
+        ThrowIfDisposed();
+        
+        if (_rpcHandler == null)
+        {
+            _logger.LogWarning("Cannot set RPC enabled state - no RPC handler available");
+            return false;
+        }
+
+        bool previousState = _rpcHandler.IsEnabled;
+        _rpcHandler.IsEnabled = enabled;
+        
+        _logger.LogDebug("RPC functionality {Action} (was {PreviousState})", 
+            enabled ? "enabled" : "disabled", 
+            previousState ? "enabled" : "disabled");
+            
+        return true;
     }
 
     /// <summary>

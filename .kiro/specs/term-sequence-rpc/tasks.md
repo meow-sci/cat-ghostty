@@ -108,32 +108,32 @@ This implementation plan converts the RPC design into discrete C# coding tasks t
     - **Validates: Requirements 3.4**
 
 - [ ] 7. Implement game action handlers and registry
-  - [ ] 7.1 Create IGameActionRegistry interface and implementation
+  - [x] 7.1 Create IGameActionRegistry interface and implementation
     - Register default vehicle control commands
     - Support custom command registration
     - Manage command lifecycle and validation
     - _Requirements: 5.5, 2.3, 2.4_
 
-  - [ ] 7.2 Implement vehicle control command handlers
+  - [x] 7.2 Implement vehicle control command handlers
     - IgniteMainThrottle command (ID 1001)
     - ShutdownMainEngine command (ID 1002)
     - GetThrottleStatus query (ID 2001)
     - _Requirements: 2.3, 2.4, 3.2_
 
-  - [ ] 7.3 Write unit tests for specific vehicle commands
+  - [x] 7.3 Write unit tests for specific vehicle commands
     - Test IgniteMainThrottle command execution
     - Test ShutdownMainEngine command execution
     - Test GetThrottleStatus query response
     - _Requirements: 2.3, 2.4, 3.2_
 
 - [ ] 8. Implement security and validation features
-  - [ ] 8.1 Implement parameter validation system
+  - [x] 8.1 Implement parameter validation system
     - Validate all command parameters before execution
     - Reject commands with invalid or unsafe parameters
     - Log security warnings for rejected commands
     - _Requirements: 8.1, 8.2_
 
-  - [ ] 8.2 Write property test for parameter validation
+  - [x] 8.2 Write property test for parameter validation
     - **Property 14: Parameter Validation and Security**
     - **Validates: Requirements 8.1, 8.2**
 
@@ -169,42 +169,42 @@ This implementation plan converts the RPC design into discrete C# coding tasks t
     - **Validates: Requirements 6.1, 6.3, 6.4, 6.5**
 
 - [ ] 10. Integration and dependency injection setup
-  - [ ] 10.1 Integrate RPC system with TerminalEmulator
+  - [x] 10.1 Integrate RPC system with TerminalEmulator
     - Add optional RPC dependency injection
     - Wire RPC handlers into parser options
     - Ensure clean separation from core functionality
     - _Requirements: 4.3, 4.4, 4.5_
 
-  - [ ] 10.2 Write property test for system modularity
+  - [x] 10.2 Write property test for system modularity
     - **Property 10: RPC System Modularity**
     - **Validates: Requirements 4.4, 4.5**
 
-  - [ ] 10.3 Update TerminalParserHandlers to support RPC
+  - [x] 10.3 Update TerminalParserHandlers to support RPC
     - Add RPC handler delegation
     - Maintain existing handler behavior
     - Support RPC enable/disable configuration
     - _Requirements: 1.4, 4.1, 4.2_
 
 - [ ] 11. Create JavaScript client application
-  - [ ] 11.1 Implement RPC command builder module
+  - [x] 11.1 Implement RPC command builder module
     - Create functions to format ESC [ > Pn ; Pv ; Pc sequences
     - Validate command IDs and parameter ranges
     - Support fire-and-forget and query command types
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [ ] 11.2 Implement terminal interface module
+  - [x] 11.2 Implement terminal interface module
     - Write escape sequences to process.stdout
     - Read responses from process.stdin
     - Handle command-line argument parsing
     - _Requirements: 7.4, 7.5_
 
-  - [ ] 11.3 Create main client application
+  - [x] 11.3 Create main client application
     - Implement ignite, shutdown, and query commands
     - Provide usage instructions and help text
     - Support custom command ID sending
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 11.4 Write unit tests for client application
+  - [x] 11.4 Write unit tests for client application
     - Test command sequence generation
     - Test argument parsing and validation
     - Test terminal output formatting
