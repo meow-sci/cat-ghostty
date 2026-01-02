@@ -481,8 +481,8 @@ public class TerminalTracingProperties
     /// <summary>
     /// **Feature: terminal-tracing-integration, Property 3: Printable Character Tracing**
     /// **Validates: Requirements 2.1, 2.4**
-    /// Property: For any printable character written to the screen buffer, the character should appear
-    /// in the trace database with correct position and direction information.
+    /// Property: For any printable character processed by the parser, the character should appear
+    /// in the trace database with correct direction information.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
     public FsCheck.Property PrintableCharacterTracing()
@@ -496,18 +496,19 @@ public class TerminalTracingProperties
 
             using var terminal = new TerminalEmulator(80, 24);
 
-            // Act - Write character at cursor using the terminal emulator
-            // This should trigger tracing through WriteCharacterAtCursor
-            terminal.WriteCharacterAtCursor(character);
+            // Act - Write character through the parser (which triggers tracing)
+            // Convert character to bytes and process through Write method
+            var characterBytes = System.Text.Encoding.UTF8.GetBytes(character.ToString());
+            terminal.Write(characterBytes.AsSpan());
 
             // Assert - Verify character is traced with correct information
             var traces = GetTracesFromDatabaseWithFlush();
             if (traces.Count != 1) return false;
 
             var trace = traces[0];
-            var expectedDirection = "output"; // WriteCharacterAtCursor always uses Output direction
+            var expectedDirection = "output"; // Parser processing uses Output direction by default
 
-            // The trace should contain just the character (no width indication for regular chars)
+            // The trace should contain just the character
             var expectedTrace = character.ToString();
 
             return trace.Printable == expectedTrace &&
