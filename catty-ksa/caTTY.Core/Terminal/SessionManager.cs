@@ -253,7 +253,7 @@ public class SessionManager : IDisposable
         registry.RegisterVehicleCommands();
 
 
-        var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight, 0, NullLogger.Instance, rpcHandler);
+        var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight, 2500, NullLogger.Instance, rpcHandler);
 
 
 
