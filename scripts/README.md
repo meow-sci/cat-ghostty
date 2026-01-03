@@ -79,6 +79,12 @@ The client sends escape sequences in the format: `ESC [ > Pn ; Pv ; Pc`
 
 ## Examples
 
+### Basic unix shell echo
+
+```bash
+echo -ne '\e[>1001;1F'
+```
+
 ### Fire-and-Forget Commands
 
 ```bash
