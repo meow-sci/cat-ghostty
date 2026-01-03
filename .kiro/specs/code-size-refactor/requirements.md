@@ -2,111 +2,135 @@
 
 ## Introduction
 
-The caTTY C# codebase has grown to contain several large files that exceed maintainable size limits and create challenges for AI/LLM tooling. This refactoring project aims to decompose oversized files into smaller, focused components while preserving all existing functionality and test compatibility.
+This specification defines the requirements for refactoring the caTTY terminal emulator codebase to achieve smaller, more maintainable files without using partial classes. The refactor aims to decompose large monolithic classes into focused, single-responsibility components while preserving all existing functionality and test coverage.
 
 ## Glossary
 
-- **Core_Library**: The caTTY.Core headless terminal emulation library
-- **Display_Library**: The caTTY.Display ImGui integration library  
-- **File_Size_Target**: Ideal ≤200 lines, acceptable ≤500 lines, maximum ≤1000 lines
-- **Refactoring_Agent**: AI/LLM tools that need to navigate and understand the codebase
-- **Test_Compatibility**: All existing tests must continue to pass without logical changes
-- **Logical_Preservation**: No changes to public APIs, behavior, or functionality
+- **Façade_Class**: A class that maintains the original public API and delegates to smaller implementation classes
+- **Ops_Class**: A focused class that handles a specific set of related operations
+- **Context_Object**: A lightweight object that holds shared dependencies for feature classes
+- **Hot_Path**: Critical performance code paths like rendering loops and input processing
+- **Feature_Class**: A class responsible for a specific terminal emulation feature (e.g., cursor movement, scrolling)
+- **Parser_Engine**: The core parsing state machine that processes terminal escape sequences
+- **Terminal_Emulator**: The main terminal emulation façade class
+- **Process_Manager**: The class responsible for managing ConPTY processes
+- **Session_Manager**: The class responsible for managing multiple terminal sessions
 
 ## Requirements
 
-### Requirement 1: File Size Optimization
+### Requirement 1: File Size Constraints
 
-**User Story:** As a developer, I want reasonably-sized source files, so that I can navigate and understand the codebase efficiently.
-
-#### Acceptance Criteria
-
-1. WHEN analyzing file sizes THEN the system SHALL identify files exceeding 500 lines as refactoring candidates
-2. WHEN refactoring large files THEN the system SHALL decompose them into components of ≤200 lines (ideal) or ≤500 lines (acceptable)
-3. WHEN file decomposition is not feasible THEN the system SHALL ensure no file exceeds 1000 lines
-4. WHEN creating new files THEN the system SHALL follow established naming conventions and namespace organization
-5. WHEN splitting classes THEN the system SHALL maintain clear separation of concerns and single responsibility principle
-
-### Requirement 2: AI/LLM Tooling Optimization
-
-**User Story:** As an AI/LLM tool, I want clear entry points and focused file organization, so that I can efficiently analyze and work with the codebase.
+**User Story:** As a developer, I want to work with small, focused files, so that I can easily understand and maintain specific functionality.
 
 #### Acceptance Criteria
 
-1. WHEN navigating the codebase THEN the system SHALL provide clear entry points through well-defined interfaces
-2. WHEN following code execution paths THEN the system SHALL enable inspection of only relevant files for specific tasks
-3. WHEN analyzing dependencies THEN the system SHALL maintain clear separation between Core and Display libraries
-4. WHEN examining functionality THEN the system SHALL group related code into cohesive modules
-5. WHEN exploring the architecture THEN the system SHALL preserve the existing headless design pattern
+1. WHEN any class file is created or modified, THE System SHALL ensure the file contains no more than 400 lines of code
+2. WHEN any method is created or modified, THE System SHALL ensure the method contains no more than 50 lines of code
+3. WHEN any class is created or modified, THE System SHALL ensure the class has no more than 10 public methods
+4. WHEN any file is created or modified, THE System SHALL ensure the file contains no more than 5 classes
+5. WHERE granular refactoring is applied, THE System SHALL target files of 150-350 lines of code with a hard cap of 500 lines
 
-### Requirement 3: Logical Preservation
+### Requirement 2: No Partial Classes
 
-**User Story:** As a system maintainer, I want all existing functionality preserved, so that no regressions are introduced during refactoring.
-
-#### Acceptance Criteria
-
-1. WHEN refactoring code THEN the system SHALL preserve all public APIs without modification
-2. WHEN splitting classes THEN the system SHALL maintain identical behavior and state management
-3. WHEN reorganizing methods THEN the system SHALL preserve all existing method signatures
-4. WHEN moving code THEN the system SHALL maintain all existing dependencies and relationships
-5. WHEN completing refactoring THEN the system SHALL ensure no logical changes to business logic
-
-### Requirement 4: Test Compatibility
-
-**User Story:** As a quality assurance engineer, I want all existing tests to continue passing, so that I can verify no functionality was broken.
+**User Story:** As a developer, I want to avoid partial classes, so that all class logic is contained in a single file for better maintainability.
 
 #### Acceptance Criteria
 
-1. WHEN running existing unit tests THEN the system SHALL ensure 100% pass rate without test logic changes
-2. WHEN running existing property tests THEN the system SHALL ensure 100% pass rate without test logic changes  
-3. WHEN running existing integration tests THEN the system SHALL ensure 100% pass rate without test logic changes
-4. WHEN tests reference refactored code THEN the system SHALL update only import/using statements as needed
-5. WHEN test compilation fails THEN the system SHALL update only namespace references without changing test logic
+1. THE System SHALL NOT use partial class declarations in any refactored code
+2. WHEN splitting large classes, THE System SHALL use composition and delegation patterns instead of partial classes
+3. WHEN creating new classes, THE System SHALL ensure each class is fully contained in a single file
 
-### Requirement 5: Priority File Refactoring
+### Requirement 3: Business Logic Preservation
 
-**User Story:** As a developer, I want the largest files refactored first, so that the most impactful improvements are delivered early.
+**User Story:** As a developer, I want all existing functionality to remain unchanged, so that the refactor does not introduce bugs or behavioral changes.
 
 #### Acceptance Criteria
 
-1. WHEN prioritizing refactoring THEN the system SHALL target TerminalController.cs (4979 lines) as highest priority
-2. WHEN prioritizing refactoring THEN the system SHALL target TerminalEmulator.cs (2465 lines) as second priority
-3. WHEN prioritizing refactoring THEN the system SHALL target ProcessManager.cs (947 lines) as third priority
-4. WHEN prioritizing refactoring THEN the system SHALL target TerminalParserHandlers.cs (917 lines) as fourth priority
-5. WHEN prioritizing refactoring THEN the system SHALL target SgrParser.cs (879 lines) as fifth priority
+1. WHEN any code is moved or extracted, THE System SHALL preserve the exact order of operations
+2. WHEN any code is moved or extracted, THE System SHALL preserve all conditional logic and side effects
+3. WHEN method signatures are changed, THE System SHALL ensure changes are strictly mechanical transformations
+4. WHEN refactoring is complete, THE System SHALL pass all existing unit tests without modification
+5. WHEN refactoring is complete, THE System SHALL pass all existing property-based tests without modification
+6. WHEN refactoring is complete, THE System SHALL pass all existing integration tests without modification
 
-### Requirement 6: Architecture Preservation
+### Requirement 4: Execution Flow Clarity
 
-**User Story:** As a system architect, I want the existing architecture patterns maintained, so that the system remains consistent and predictable.
-
-#### Acceptance Criteria
-
-1. WHEN refactoring Core library THEN the system SHALL maintain headless design with no UI dependencies
-2. WHEN refactoring Display library THEN the system SHALL maintain ImGui integration patterns
-3. WHEN splitting managers THEN the system SHALL preserve the manager pattern and interface contracts
-4. WHEN decomposing parsers THEN the system SHALL maintain parser state machine integrity
-5. WHEN reorganizing types THEN the system SHALL preserve immutable data patterns and Result<T> usage
-
-### Requirement 7: Namespace Organization
-
-**User Story:** As a developer, I want clear namespace organization, so that I can easily locate and understand code organization.
+**User Story:** As a developer, I want to easily trace code execution, so that I can debug and understand the system behavior.
 
 #### Acceptance Criteria
 
-1. WHEN creating new files THEN the system SHALL follow existing namespace conventions (caTTY.Core.*, caTTY.Display.*)
-2. WHEN splitting large classes THEN the system SHALL create appropriate sub-namespaces for related components
-3. WHEN moving functionality THEN the system SHALL update all namespace references consistently
-4. WHEN organizing code THEN the system SHALL group related functionality in logical namespace hierarchies
-5. WHEN refactoring is complete THEN the system SHALL ensure no orphaned or inconsistent namespace references
+1. WHEN a public method is called on a façade class, THE System SHALL delegate to exactly one implementation method
+2. WHEN implementation logic is extracted, THE System SHALL maintain clear call hierarchies
+3. WHEN feature classes are created, THE System SHALL avoid cross-calling between feature classes
+4. WHERE feature classes need shared functionality, THE System SHALL route calls through the façade or shared context
 
-### Requirement 8: Documentation Preservation
+### Requirement 5: Granular Class Organization
 
-**User Story:** As a developer, I want existing documentation preserved and enhanced, so that code understanding is maintained.
+**User Story:** As a developer, I want classes organized by specific operations, so that I can quickly locate relevant code.
 
 #### Acceptance Criteria
 
-1. WHEN splitting classes THEN the system SHALL preserve all existing XML documentation comments
-2. WHEN creating new files THEN the system SHALL add appropriate class-level documentation
-3. WHEN moving methods THEN the system SHALL preserve all method-level documentation
-4. WHEN refactoring is complete THEN the system SHALL ensure documentation accurately reflects new organization
-5. WHEN updating references THEN the system SHALL maintain documentation links and cross-references
+1. WHEN creating operation classes, THE System SHALL prefer operation-group classes over god feature classes
+2. WHEN naming classes, THE System SHALL use names that reflect what developers would search for
+3. WHEN organizing terminal operations, THE System SHALL separate cursor movement from cursor save/restore operations
+4. WHEN organizing parsing operations, THE System SHALL separate CSI parsing from SGR parsing operations
+5. WHEN organizing UI operations, THE System SHALL separate font management from input handling operations
+
+### Requirement 6: Context Object Usage
+
+**User Story:** As a developer, I want minimal context objects, so that dependencies are explicit and manageable.
+
+#### Acceptance Criteria
+
+1. WHEN feature classes need many shared dependencies, THE System SHALL create focused context objects
+2. WHEN creating context objects, THE System SHALL hold existing objects, not new behavior
+3. WHEN using context objects, THE System SHALL limit their scope to Terminal_Emulator_Context, Process_Manager_Context, or Parser_Engine_Context
+4. WHEN context objects are created, THE System SHALL avoid adding business logic to context classes
+
+### Requirement 7: Performance Preservation
+
+**User Story:** As a developer, I want refactored code to maintain performance characteristics, so that terminal responsiveness is not degraded.
+
+#### Acceptance Criteria
+
+1. WHEN refactoring hot path code, THE System SHALL avoid introducing new allocations
+2. WHEN refactoring rendering loops, THE System SHALL maintain pre-allocated buffer usage
+3. WHEN refactoring input processing, THE System SHALL preserve span-based APIs
+4. WHEN refactoring parser state machines, THE System SHALL maintain struct optimization patterns
+5. WHEN refactoring is complete, THE System SHALL demonstrate no performance regression in benchmark tests
+
+### Requirement 8: Build System Compliance
+
+**User Story:** As a developer, I want the refactored code to build cleanly, so that development workflow is not disrupted.
+
+#### Acceptance Criteria
+
+1. WHEN any refactoring task is completed, THE System SHALL compile with zero warnings
+2. WHEN any refactoring task is completed, THE System SHALL compile with zero errors
+3. WHEN building the solution, THE System SHALL respect TreatWarningsAsErrors configuration
+4. WHEN building the solution, THE System SHALL respect nullable reference type annotations
+5. WHEN refactoring is complete, THE System SHALL generate XML documentation for all public APIs
+
+### Requirement 9: Incremental Validation
+
+**User Story:** As a developer, I want to validate changes incrementally, so that issues are caught early in the refactoring process.
+
+#### Acceptance Criteria
+
+1. WHEN each refactoring task is completed, THE System SHALL successfully build caTTY.Core project
+2. WHEN each refactoring task is completed, THE System SHALL pass all caTTY.Core.Tests
+3. WHEN display-related code is modified, THE System SHALL pass all caTTY.Display.Tests
+4. WHEN any task fails validation, THE System SHALL halt further refactoring until issues are resolved
+
+### Requirement 10: Specific Component Refactoring
+
+**User Story:** As a developer, I want specific large components broken down systematically, so that the most problematic files are addressed first.
+
+#### Acceptance Criteria
+
+1. WHEN refactoring Process_Manager, THE System SHALL extract ConPTY native interop into separate classes
+2. WHEN refactoring Session_Manager, THE System SHALL extract session lifecycle operations into focused classes
+3. WHEN refactoring Terminal_Emulator, THE System SHALL extract terminal operations into granular ops classes
+4. WHEN refactoring Parser_Engine, THE System SHALL extract state handlers into separate classes
+5. WHEN refactoring Terminal_Controller, THE System SHALL extract UI subsystems into focused classes
+6. WHEN refactoring parser components, THE System SHALL extract SGR and CSI parsing into granular sub-parsers
