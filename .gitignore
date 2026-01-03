@@ -9,3 +9,4 @@ dist/
 imgui.ini
 *.log
 *.db
+*.trx
