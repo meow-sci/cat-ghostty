@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Managers;
 ///     Tests character set designation, switching, and DEC Special Graphics mapping.
 /// </summary>
 [TestFixture]
+
+[Category("only_CharacterSetManagerTests")]
+
 public class CharacterSetManagerTests
 {
     private CharacterSetManager _manager = null!;

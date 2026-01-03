@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Integration;
 ///     Tests the complete flow from CSI L/M sequences to screen buffer modifications.
 /// </summary>
 [TestFixture]
+
+[Category("only_LineOperationIntegrationTests")]
+
 public class LineOperationIntegrationTests
 {
     private TerminalEmulator _terminal = null!;

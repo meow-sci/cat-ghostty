@@ -8,6 +8,9 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Tests for CSI parser SGR command handling.
 /// </summary>
 [TestFixture]
+
+[Category("only_CsiParserSgrTests")]
+
 public class CsiParserSgrTests
 {
     private CsiParser _parser = null!;

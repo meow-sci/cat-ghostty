@@ -6,7 +6,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TerminalEmulatorRpcIntegrationTests")]
+
 public class TerminalEmulatorRpcIntegrationTests
 {
     private TerminalEmulator _terminal = null!;
@@ -145,6 +149,9 @@ public class TerminalEmulatorRpcIntegrationTests
         Assert.That(_mockRpcHandler.MalformedSequences, Has.Count.EqualTo(0));
     }
 
+    [Category("only_MockRpcHandler")]
+
+
     private class MockRpcHandler : IRpcHandler
     {
         public List<RpcMessage> ReceivedMessages { get; } = new();
@@ -161,6 +168,9 @@ public class TerminalEmulatorRpcIntegrationTests
             MalformedSequences.Add((rawSequence.ToArray(), sequenceType));
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger
     {

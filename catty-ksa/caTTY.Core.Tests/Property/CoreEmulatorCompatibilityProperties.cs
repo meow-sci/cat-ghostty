@@ -13,7 +13,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify that RPC integration does not affect standard terminal emulation.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CoreEmulatorCompatibilityProperties")]
+
 public class CoreEmulatorCompatibilityProperties
 {
     /// <summary>
@@ -292,6 +296,8 @@ public class CoreEmulatorCompatibilityProperties
     /// <summary>
     /// Test implementation of IParserHandlers for capturing parser events.
     /// </summary>
+    [Category("only_TestParserHandlers")]
+
     private class TestParserHandlers : IParserHandlers
     {
         public bool BellCalled { get; private set; }
@@ -331,6 +337,8 @@ public class CoreEmulatorCompatibilityProperties
     /// <summary>
     /// Test implementation of IRpcHandler for capturing RPC events.
     /// </summary>
+    [Category("only_TestRpcHandler")]
+
     private class TestRpcHandler : IRpcHandler
     {
         public List<RpcMessage> ReceivedMessages { get; } = new();
@@ -351,6 +359,8 @@ public class CoreEmulatorCompatibilityProperties
     /// <summary>
     /// Test implementation of ILogger for testing purposes.
     /// </summary>
+    [Category("only_TestLogger")]
+
     private class TestLogger : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

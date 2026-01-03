@@ -4,7 +4,11 @@ using caTTY.Core.Rpc;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_FireAndForgetCommandHandlerTests")]
+
 public class FireAndForgetCommandHandlerTests
 {
     [Test]
@@ -76,6 +80,8 @@ public class FireAndForgetCommandHandlerTests
     }
 
     // Test helper classes
+    [Category("only_TestFireAndForgetHandler")]
+
     private class TestFireAndForgetHandler : FireAndForgetCommandHandler
     {
         public bool ExecuteActionAsyncCalled { get; private set; }
@@ -92,6 +98,9 @@ public class FireAndForgetCommandHandlerTests
             return Task.CompletedTask;
         }
     }
+
+    [Category("only_TestSynchronousFireAndForgetHandler")]
+
 
     private class TestSynchronousFireAndForgetHandler : FireAndForgetCommandHandler
     {

@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Integration;
 ///     Tests the complete flow from SGR sequences to character attribute application.
 /// </summary>
 [TestFixture]
+
+[Category("only_SgrIntegrationTests")]
+
 public class SgrIntegrationTests
 {
     private TerminalEmulator _terminal = null!;

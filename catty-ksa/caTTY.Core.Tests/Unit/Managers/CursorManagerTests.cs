@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Managers;
 ///     Tests cursor positioning and state management in isolation.
 /// </summary>
 [TestFixture]
+
+[Category("only_CursorManagerTests")]
+
 public class CursorManagerTests
 {
     private ICursor _mockCursor = null!;

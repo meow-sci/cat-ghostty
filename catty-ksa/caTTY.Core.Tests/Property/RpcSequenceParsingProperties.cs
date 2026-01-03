@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for all RPC sequence parsing operations.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcSequenceParsingProperties")]
+
 public class RpcSequenceParsingProperties
 {
     private RpcSequenceParser _parser = null!;

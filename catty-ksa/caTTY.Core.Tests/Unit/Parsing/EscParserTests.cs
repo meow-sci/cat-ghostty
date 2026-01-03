@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Unit tests for the ESC sequence parser.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_EscParserTests")]
+
 public class EscParserTests
 {
     private EscParser _parser = null!;
@@ -302,6 +306,8 @@ public class EscParserTests
 /// <summary>
 ///     Test implementation of ILogger for capturing log messages.
 /// </summary>
+[Category("only_TestLogger")]
+
 public class TestLogger : ILogger
 {
     public List<string> LogMessages { get; } = new();

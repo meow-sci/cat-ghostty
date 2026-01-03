@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Tests DECSCA (Select Character Protection Attribute) and selective erase sequences.
 /// </summary>
 [TestFixture]
+
+[Category("only_SelectiveEraseTests")]
+
 public class SelectiveEraseTests
 {
     [SetUp]

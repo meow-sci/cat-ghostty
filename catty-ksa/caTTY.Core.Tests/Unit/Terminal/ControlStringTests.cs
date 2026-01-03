@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Ensures these sequences are safely skipped until ST terminator.
 /// </summary>
 [TestFixture]
+
+[Category("only_ControlStringTests")]
+
 public class ControlStringTests
 {
     [SetUp]

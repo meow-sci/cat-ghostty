@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 /// Unit tests for ShellAvailabilityChecker functionality.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_ShellAvailabilityCheckerTests")]
+
 public class ShellAvailabilityCheckerTests
 {
   [Test]

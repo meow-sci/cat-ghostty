@@ -4,6 +4,9 @@ using caTTY.Core.Types;
 namespace caTTY.Core.Tests.Unit.Types;
 
 [TestFixture]
+
+[Category("only_ScrollbackBufferTests")]
+
 public class ScrollbackBufferTests
 {
     private ScrollbackBuffer _scrollbackBuffer = null!;

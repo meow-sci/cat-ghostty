@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 22.1, 22.2, 22.3, 22.4, 22.5.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_LineCharacterOperationProperties")]
+
 public class LineCharacterOperationProperties
 {
     /// <summary>

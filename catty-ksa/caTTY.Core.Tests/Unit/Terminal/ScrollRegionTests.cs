@@ -7,6 +7,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Tests for scroll region management functionality.
 /// </summary>
 [TestFixture]
+
+[Category("only_ScrollRegionTests")]
+
 public class ScrollRegionTests
 {
     private TerminalEmulator _terminal = null!;

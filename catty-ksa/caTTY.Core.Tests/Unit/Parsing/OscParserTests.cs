@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Unit tests for the OSC sequence parser.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_OscParserTests")]
+
 public class OscParserTests
 {
     private OscParser _parser = null!;

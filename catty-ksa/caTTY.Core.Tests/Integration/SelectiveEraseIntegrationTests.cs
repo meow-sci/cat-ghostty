@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Integration;
 ///     Tests the complete flow from escape sequence parsing to terminal operations.
 /// </summary>
 [TestFixture]
+
+[Category("only_SelectiveEraseIntegrationTests")]
+
 public class SelectiveEraseIntegrationTests
 {
     [SetUp]

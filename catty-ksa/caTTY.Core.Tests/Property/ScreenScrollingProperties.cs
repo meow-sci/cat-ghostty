@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 11.8, 11.9.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ScreenScrollingProperties")]
+
 public class ScreenScrollingProperties
 {
     /// <summary>

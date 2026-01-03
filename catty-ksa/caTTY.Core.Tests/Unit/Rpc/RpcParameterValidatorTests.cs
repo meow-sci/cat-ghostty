@@ -5,7 +5,11 @@ using caTTY.Core.Rpc;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcParameterValidatorTests")]
+
 public class RpcParameterValidatorTests
 {
     private RpcParameterValidator _validator = null!;
@@ -298,6 +302,8 @@ public class RpcParameterValidatorTests
 /// <summary>
 /// Test implementation of ILogger for capturing log messages.
 /// </summary>
+[Category("only_TestLogger")]
+
 internal class TestLogger<T> : ILogger<T>
 {
     public List<string> LoggedMessages { get; } = new();

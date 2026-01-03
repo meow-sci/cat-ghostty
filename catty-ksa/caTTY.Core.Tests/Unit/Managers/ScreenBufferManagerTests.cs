@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Managers;
 ///     Tests screen buffer operations in isolation.
 /// </summary>
 [TestFixture]
+
+[Category("only_ScreenBufferManagerTests")]
+
 public class ScreenBufferManagerTests
 {
     private IScreenBuffer _mockScreenBuffer = null!;

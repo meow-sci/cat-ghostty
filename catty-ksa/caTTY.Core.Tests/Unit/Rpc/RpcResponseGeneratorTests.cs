@@ -5,7 +5,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcResponseGeneratorTests")]
+
 public class RpcResponseGeneratorTests
 {
     private RpcResponseGenerator _generator = null!;

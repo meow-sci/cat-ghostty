@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for all valid RPC sequences.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcDataModelProperties")]
+
 public class RpcDataModelProperties
 {
     /// <summary>

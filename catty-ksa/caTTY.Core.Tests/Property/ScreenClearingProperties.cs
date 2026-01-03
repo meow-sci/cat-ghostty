@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 11.6, 11.7.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ScreenClearingProperties")]
+
 public class ScreenClearingProperties
 {
     /// <summary>

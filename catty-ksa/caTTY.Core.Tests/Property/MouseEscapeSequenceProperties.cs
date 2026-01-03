@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties for mouse event encoding.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_MouseEscapeSequenceProperties")]
+
 public class MouseEscapeSequenceProperties
 {
     /// <summary>

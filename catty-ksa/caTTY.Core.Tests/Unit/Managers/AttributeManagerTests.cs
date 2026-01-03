@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Managers;
 ///     Tests SGR attribute state management in isolation.
 /// </summary>
 [TestFixture]
+
+[Category("only_AttributeManagerTests")]
+
 public class AttributeManagerTests
 {
     private AttributeManager _manager = null!;

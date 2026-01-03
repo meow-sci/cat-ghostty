@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Integration;
 ///     Tests end-to-end character set designation, switching, and translation.
 /// </summary>
 [TestFixture]
+
+[Category("only_CharacterSetIntegrationTests")]
+
 public class CharacterSetIntegrationTests
 {
     private TerminalEmulator _terminal = null!;

@@ -8,6 +8,8 @@ namespace caTTY.Core.Tests.Property;
 ///     Lightweight mock terminal session for performance-optimized testing.
 ///     Avoids the overhead of creating real terminal emulators and process managers.
 /// </summary>
+[Category("only_MockTerminalSession")]
+
 public class MockTerminalSession : IDisposable
 {
     public Guid Id { get; }
@@ -44,7 +46,11 @@ public class MockTerminalSession : IDisposable
 ///     **Validates: Requirements 7.1, 7.2, 7.4, 7.5**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_SessionSpecificSettingsProperties")]
+
 public class SessionSpecificSettingsProperties
 {
     /// <summary>

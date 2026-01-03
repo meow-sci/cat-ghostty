@@ -13,7 +13,11 @@ namespace caTTY.Core.Tests.Unit.Tracing;
 ///     Verifies that unknown/unhandled sequences are properly traced for debugging.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_UnknownSequenceTracingTests")]
+
 public class UnknownSequenceTracingTests
 {
     private string _testDatabasePath = null!;

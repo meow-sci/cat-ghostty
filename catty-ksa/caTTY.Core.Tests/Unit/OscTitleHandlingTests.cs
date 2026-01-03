@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit;
 ///     Validates OSC 0, OSC 1, and OSC 2 sequences for window title management.
 /// </summary>
 [TestFixture]
+
+[Category("only_OscTitleHandlingTests")]
+
 public class OscTitleHandlingTests
 {
     private TerminalEmulator _terminal = null!;

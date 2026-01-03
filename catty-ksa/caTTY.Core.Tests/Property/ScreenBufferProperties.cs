@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 7.2.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ScreenBufferProperties")]
+
 public class ScreenBufferProperties
 {
     /// <summary>

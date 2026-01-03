@@ -8,6 +8,9 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Unit tests for SGR state processor functionality.
 /// </summary>
 [TestFixture]
+
+[Category("only_SgrStateProcessorTests")]
+
 public class SgrStateProcessorTests
 {
     [Test]

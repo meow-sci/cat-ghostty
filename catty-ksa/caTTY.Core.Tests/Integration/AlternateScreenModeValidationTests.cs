@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Integration;
 ///     Validates Requirements 15.1-15.5, 20.1-20.5, 8.3, 8.5.
 /// </summary>
 [TestFixture]
+
 [Category("Integration")]
+
+[Category("only_AlternateScreenModeValidationTests")]
+
 public class AlternateScreenModeValidationTests
 {
     private TerminalEmulator _terminal = null!;

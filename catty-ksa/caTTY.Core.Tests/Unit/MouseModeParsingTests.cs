@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit;
 ///     Verifies that mouse reporting mode sequences are correctly parsed.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_MouseModeParsingTests")]
+
 public class MouseModeParsingTests
 {
     private CsiParser _parser = null!;

@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates the implementation of task 2.11 - essential ESC sequences.
 /// </summary>
 [TestFixture]
+
+[Category("only_EscSequenceTests")]
+
 public class EscSequenceTests
 {
     [SetUp]

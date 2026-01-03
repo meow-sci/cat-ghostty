@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 /// Tests UTF-8 decoding, validation, error handling, and multi-byte sequences.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_Utf8ProcessingComprehensiveTests")]
+
 public class Utf8ProcessingComprehensiveTests
 {
     private Utf8Decoder _decoder = null!;

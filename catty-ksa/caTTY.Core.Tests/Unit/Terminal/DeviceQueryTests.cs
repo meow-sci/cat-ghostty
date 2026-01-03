@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 11.1, 11.2, 27.1, 27.2.
 /// </summary>
 [TestFixture]
+
+[Category("only_DeviceQueryTests")]
+
 public class DeviceQueryTests
 {
     [SetUp]

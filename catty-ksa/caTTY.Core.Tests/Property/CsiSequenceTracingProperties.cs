@@ -11,6 +11,8 @@ namespace caTTY.Core.Tests.Property;
 ///     In-memory tracer for performance-optimized testing.
 ///     Avoids SQLite database operations for faster test execution.
 /// </summary>
+[Category("only_InMemoryTracer")]
+
 public class InMemoryTracer
 {
     private readonly List<InMemoryTraceEntry> _traces = new();
@@ -47,6 +49,8 @@ public class InMemoryTracer
 /// <summary>
 ///     In-memory trace entry for testing.
 /// </summary>
+[Category("only_InMemoryTraceEntry")]
+
 public class InMemoryTraceEntry
 {
     public string? EscapeSequence { get; set; }
@@ -63,7 +67,11 @@ public class InMemoryTraceEntry
 ///     Validates Requirements 1.1, 5.1.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CsiSequenceTracingProperties")]
+
 public class CsiSequenceTracingProperties
 {
     private string _testDbPath = null!;
@@ -380,6 +388,8 @@ public class CsiSequenceTracingProperties
     /// <summary>
     ///     Helper class for trace entries.
     /// </summary>
+    [Category("only_TraceEntry")]
+
     private class TraceEntry
     {
         public string? EscapeSequence { get; set; }

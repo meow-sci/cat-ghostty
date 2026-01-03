@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit.Rpc;
 /// Tests the IgniteMainThrottle, ShutdownMainEngine, and GetThrottleStatus commands.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_VehicleCommandTests")]
+
 public class VehicleCommandTests
 {
     private RpcParameters _emptyParameters = null!;

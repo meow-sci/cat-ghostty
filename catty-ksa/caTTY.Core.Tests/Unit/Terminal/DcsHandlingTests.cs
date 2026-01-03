@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Based on the TypeScript DcsHandling.test.ts implementation.
 /// </summary>
 [TestFixture]
+
+[Category("only_DcsHandlingTests")]
+
 public class DcsHandlingTests
 {
     [SetUp]

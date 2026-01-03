@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for fire-and-forget RPC commands.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_FireAndForgetCommandProperties")]
+
 public class FireAndForgetCommandProperties
 {
     /// <summary>
@@ -254,6 +258,8 @@ public class FireAndForgetCommandProperties
     }
 
     // Test helper classes
+    [Category("only_TestFireAndForgetHandler")]
+
     private class TestFireAndForgetHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -270,6 +276,9 @@ public class FireAndForgetCommandProperties
         }
     }
 
+    [Category("only_ThrowingFireAndForgetHandler")]
+
+
     private class ThrowingFireAndForgetHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -283,6 +292,9 @@ public class FireAndForgetCommandProperties
             throw new InvalidOperationException("Test exception from fire-and-forget handler");
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

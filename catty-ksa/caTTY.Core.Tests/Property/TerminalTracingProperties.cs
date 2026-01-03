@@ -15,7 +15,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for all valid inputs.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_TerminalTracingProperties")]
+
 public class TerminalTracingProperties
 {
     private bool _originalEnabled;
@@ -915,6 +919,8 @@ public class TerminalTracingProperties
     /// <summary>
     /// Test data structure for different escape sequence types.
     /// </summary>
+    [Category("only_EscapeSequenceTestData")]
+
     public class EscapeSequenceTestData
     {
         public string Type { get; set; } = "";
@@ -1021,6 +1027,7 @@ public class TerminalTracingProperties
     /// **Validates: Requirements 13.1-13.9**
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
+
     [Category("Property")]
     public FsCheck.Property TypeClassification_ShouldAccuratelyClassifyTraceEntries()
     {
@@ -1212,6 +1219,8 @@ public class TerminalTracingProperties
     /// <summary>
     /// Test data structure for type classification testing.
     /// </summary>
+    [Category("only_TypeClassificationTestData")]
+
     public class TypeClassificationTestData
     {
         public string ExpectedType { get; set; } = "";
@@ -1246,6 +1255,13 @@ public class TerminalTracingProperties
         // Wide character data
         public char WideChar { get; set; }
     }
+
+    [Category("only_TraceEntryWithType")]
+
+
+
+    [Category("only_TraceEntry")]
+
 
     private class TraceEntryWithType
     {

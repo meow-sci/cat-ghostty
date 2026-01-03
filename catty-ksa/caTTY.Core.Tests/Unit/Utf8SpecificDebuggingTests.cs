@@ -6,6 +6,9 @@ using NUnit.Framework;
 
 namespace caTTY.Core.Tests.Unit;
 
+[Category("only_LocalTestLogger")]
+
+
 internal static class LocalTestLogger
 {
     // Set TEST_VERBOSE=1 in environment to enable debug output.
@@ -36,7 +39,11 @@ internal static class LocalTestLogger
 ///     Debugging tests for specific UTF-8 failure cases.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_Utf8SpecificDebuggingTests")]
+
 public class Utf8SpecificDebuggingTests
 {
     [Test]

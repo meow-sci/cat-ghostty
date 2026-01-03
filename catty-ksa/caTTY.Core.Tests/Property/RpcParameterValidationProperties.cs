@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 /// **Validates: Requirements 8.1, 8.2**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcParameterValidationProperties")]
+
 public class RpcParameterValidationProperties
 {
     private RpcParameterValidator _validator = null!;
@@ -188,6 +192,8 @@ public class RpcParameterValidationProperties
 /// <summary>
 /// Generators for RPC parameter validation property tests.
 /// </summary>
+[Category("only_RpcParameterGenerators")]
+
 public static class RpcParameterGenerators
 {
     /// <summary>
@@ -380,6 +386,8 @@ public static class RpcParameterGenerators
 /// <summary>
 /// Represents RPC parameters with potentially unsafe values.
 /// </summary>
+[Category("only_UnsafeRpcParameters")]
+
 public class UnsafeRpcParameters
 {
     public int[] NumericValues { get; set; } = Array.Empty<int>();
@@ -400,6 +408,8 @@ public class UnsafeRpcParameters
 /// <summary>
 /// Represents a command with validation rules and test parameters.
 /// </summary>
+[Category("only_ValidatedRpcCommand")]
+
 public class ValidatedRpcCommand
 {
     public RpcParameterValidationRules Rules { get; set; } = new();
@@ -410,6 +420,8 @@ public class ValidatedRpcCommand
 /// <summary>
 /// Represents a security-sensitive command with rules that can be violated.
 /// </summary>
+[Category("only_SecuritySensitiveCommand")]
+
 public class SecuritySensitiveCommand
 {
     public RpcParameterValidationRules Rules { get; set; } = new();
@@ -419,6 +431,8 @@ public class SecuritySensitiveCommand
 /// <summary>
 /// Represents edge case parameters for testing robustness.
 /// </summary>
+[Category("only_EdgeCaseRpcParameters")]
+
 public class EdgeCaseRpcParameters
 {
     public int[] NumericValues { get; set; } = Array.Empty<int>();
@@ -439,6 +453,8 @@ public class EdgeCaseRpcParameters
 /// <summary>
 /// Test implementation of ILogger for capturing log messages.
 /// </summary>
+[Category("only_TestLogger")]
+
 internal class TestLogger<T> : ILogger<T>
 {
     public List<string> LoggedMessages { get; } = new();

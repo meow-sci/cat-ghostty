@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Integration;
 ///     Tests the complete flow from CSI parsing to terminal state changes.
 /// </summary>
 [TestFixture]
+
 [Category("Integration")]
+
+[Category("only_MouseReportingModeIntegrationTests")]
+
 public class MouseReportingModeIntegrationTests
 {
     private TerminalEmulator _terminal = null!;

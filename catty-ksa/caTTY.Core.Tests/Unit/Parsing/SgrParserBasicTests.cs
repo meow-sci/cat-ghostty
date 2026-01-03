@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Tests the core requirements for task 3.2: basic colors and styles.
 /// </summary>
 [TestFixture]
+
+[Category("only_SgrParserBasicTests")]
+
 public class SgrParserBasicTests
 {
     private SgrParser _parser = null!;

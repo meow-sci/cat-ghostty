@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Unit;
 /// Tests to verify that tracing includes cursor position information.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TracingPositionTests")]
+
 public class TracingPositionTests
 {
     private string? _testDbPath;

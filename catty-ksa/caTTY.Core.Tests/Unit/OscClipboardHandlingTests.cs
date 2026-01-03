@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Unit;
 ///     Validates clipboard operations, base64 decoding, and safety limits.
 /// </summary>
 [TestFixture]
+
+[Category("only_OscClipboardHandlingTests")]
+
 public class OscClipboardHandlingTests
 {
     private TerminalEmulator _terminal = null!;

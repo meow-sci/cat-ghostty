@@ -7,7 +7,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcHandlerTests")]
+
 public class RpcHandlerTests
 {
     private TestCommandRouter _commandRouter = null!;
@@ -306,6 +310,8 @@ public class RpcHandlerTests
     }
 
     // Test helper classes
+    [Category("only_TestCommandRouter")]
+
     private class TestCommandRouter : IRpcCommandRouter
     {
         public int RouteCallCount { get; private set; }
@@ -343,6 +349,9 @@ public class RpcHandlerTests
         public IEnumerable<int> GetRegisteredCommands() => Array.Empty<int>();
         public void ClearAllCommands() { }
     }
+
+    [Category("only_TestResponseGenerator")]
+
 
     private class TestResponseGenerator : IRpcResponseGenerator
     {
@@ -398,6 +407,9 @@ public class RpcHandlerTests
 
         public byte[] GenerateSystemError(string errorMessage) => _errorBytes;
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger
     {

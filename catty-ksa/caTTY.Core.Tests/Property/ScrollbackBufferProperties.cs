@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 14.1, 14.2.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ScrollbackBufferProperties")]
+
 public class ScrollbackBufferProperties
 {
     /// <summary>

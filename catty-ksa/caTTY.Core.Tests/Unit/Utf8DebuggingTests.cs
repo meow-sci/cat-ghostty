@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit;
 ///     Debugging tests to understand UTF-8 handling issues.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_Utf8DebuggingTests")]
+
 public class Utf8DebuggingTests
 {
     private static void WriteMinimalSummary(string testName, params (string Key, object Value)[] items)

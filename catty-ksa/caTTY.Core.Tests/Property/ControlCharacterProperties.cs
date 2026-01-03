@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties that should hold for all valid inputs.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ControlCharacterProperties")]
+
 public class ControlCharacterProperties
 {
     /// <summary>

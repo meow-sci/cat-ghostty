@@ -13,7 +13,11 @@ namespace caTTY.Core.Tests.Property;
 ///     **Validates: Requirements 1.2, 1.4, 3.3**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_PtyBridgeIntegrationProperties")]
+
 public class PtyBridgeIntegrationProperties
 {
     private static readonly object SharedLock = new();
@@ -445,6 +449,8 @@ public class PtyBridgeIntegrationProperties
 /// <summary>
 ///     Mock implementation of ICustomShell for testing.
 /// </summary>
+[Category("only_MockCustomShell")]
+
 internal class MockCustomShell : ICustomShell
 {
     private bool _isRunning;
@@ -538,6 +544,8 @@ internal class MockCustomShell : ICustomShell
 /// <summary>
 ///     Mock implementation that fails operations for error testing.
 /// </summary>
+[Category("only_FailingMockCustomShell")]
+
 internal class FailingMockCustomShell : ICustomShell
 {
     public CustomShellMetadata Metadata { get; } = CustomShellMetadata.Create("FailingShell", "Shell that fails operations");

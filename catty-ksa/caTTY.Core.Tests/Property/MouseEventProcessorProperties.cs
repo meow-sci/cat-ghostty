@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties for event routing between application and local handlers.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_MouseEventProcessorProperties")]
+
 public class MouseEventProcessorProperties
 {
     /// <summary>

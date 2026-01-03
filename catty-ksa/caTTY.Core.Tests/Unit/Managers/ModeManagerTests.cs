@@ -8,6 +8,9 @@ namespace caTTY.Core.Tests.Unit.Managers;
 ///     Tests terminal mode state tracking in isolation.
 /// </summary>
 [TestFixture]
+
+[Category("only_ModeManagerTests")]
+
 public class ModeManagerTests
 {
     private ModeManager _manager = null!;

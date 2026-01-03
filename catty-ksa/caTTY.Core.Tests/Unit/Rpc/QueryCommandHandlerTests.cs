@@ -4,7 +4,11 @@ using caTTY.Core.Rpc;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_QueryCommandHandlerTests")]
+
 public class QueryCommandHandlerTests
 {
     [Test]
@@ -124,6 +128,8 @@ public class QueryCommandHandlerTests
     }
 
     // Test helper classes
+    [Category("only_TestQueryHandler")]
+
     private class TestQueryHandler : QueryCommandHandler
     {
         private readonly object? _result;
@@ -159,6 +165,9 @@ public class QueryCommandHandlerTests
             return CreateErrorResponse(errorMessage, errorCode);
         }
     }
+
+    [Category("only_TestSynchronousQueryHandler")]
+
 
     private class TestSynchronousQueryHandler : QueryCommandHandler
     {

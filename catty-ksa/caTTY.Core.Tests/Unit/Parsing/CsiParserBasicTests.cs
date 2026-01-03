@@ -6,7 +6,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Parsing;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_CsiParserBasicTests")]
+
 public class CsiParserBasicTests
 {
     [SetUp]

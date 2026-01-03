@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit.Rpc;
 /// Tests specific examples and edge cases for RPC sequence detection.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcSequenceDetectorTests")]
+
 public class RpcSequenceDetectorTests
 {
     private RpcSequenceDetector _detector = null!;

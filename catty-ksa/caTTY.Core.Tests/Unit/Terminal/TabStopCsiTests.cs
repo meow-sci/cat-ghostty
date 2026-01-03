@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 10.4, 11.1, 19.1, 19.2.
 /// </summary>
 [TestFixture]
+
+[Category("only_TabStopCsiTests")]
+
 public class TabStopCsiTests
 {
     [SetUp]

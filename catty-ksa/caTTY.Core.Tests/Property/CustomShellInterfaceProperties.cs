@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     **Validates: Requirements 1.1, 5.1, 7.3**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CustomShellInterfaceProperties")]
+
 public class CustomShellInterfaceProperties
 {
     /// <summary>

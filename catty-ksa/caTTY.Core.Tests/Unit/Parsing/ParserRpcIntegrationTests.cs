@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 /// Validates that RPC sequences are properly detected and delegated without affecting core terminal functionality.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_ParserRpcIntegrationTests")]
+
 public class ParserRpcIntegrationTests
 {
     private TestParserHandlers _handlers = null!;
@@ -118,6 +122,9 @@ public class ParserRpcIntegrationTests
         Assert.That(_handlers.CsiMessages.Count, Is.EqualTo(0));
     }
 
+    [Category("only_TestRpcHandler")]
+
+
     private class TestRpcHandler : IRpcHandler
     {
         public List<RpcMessage> ReceivedMessages { get; } = new();
@@ -134,6 +141,9 @@ public class ParserRpcIntegrationTests
             MalformedSequences.Add((rawSequence.ToArray(), sequenceType));
         }
     }
+
+    [Category("only_TestParserHandlers")]
+
 
     private class TestParserHandlers : IParserHandlers
     {
@@ -156,6 +166,9 @@ public class ParserRpcIntegrationTests
         public void HandleSgr(SgrSequence sequence) => SgrSequences.Add(sequence);
         public void HandleXtermOsc(XtermOscMessage message) { }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger
     {

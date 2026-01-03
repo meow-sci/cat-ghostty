@@ -13,7 +13,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties that should hold for all valid OSC sequences.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_OscParsingProperties")]
+
 public class OscParsingProperties
 {
     /// <summary>

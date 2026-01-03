@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Integration;
 ///     These tests verify that device queries work correctly in a realistic scenario.
 /// </summary>
 [TestFixture]
+
+[Category("only_DeviceQueryIntegrationTests")]
+
 public class DeviceQueryIntegrationTests
 {
     [SetUp]

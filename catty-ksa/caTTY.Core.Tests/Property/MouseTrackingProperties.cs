@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties for mouse tracking behavior.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_MouseTrackingProperties")]
+
 public class MouseTrackingProperties
 {
     /// <summary>

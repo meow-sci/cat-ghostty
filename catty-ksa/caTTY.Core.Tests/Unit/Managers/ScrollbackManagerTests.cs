@@ -5,6 +5,9 @@ using caTTY.Core.Types;
 namespace caTTY.Core.Tests.Unit.Managers;
 
 [TestFixture]
+
+[Category("only_ScrollbackManagerTests")]
+
 public class ScrollbackManagerTests
 {
     private ScrollbackManager _scrollbackManager = null!;

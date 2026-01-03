@@ -4,7 +4,11 @@ using caTTY.Core.Rpc;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcCommandHandlerTests")]
+
 public class RpcCommandHandlerTests
 {
     [Test]
@@ -89,6 +93,8 @@ public class RpcCommandHandlerTests
     }
 
     // Test helper class to expose protected members
+    [Category("only_TestRpcCommandHandler")]
+
     private class TestRpcCommandHandler : RpcCommandHandler
     {
         public TestRpcCommandHandler(string description, bool isFireAndForget, TimeSpan timeout = default)

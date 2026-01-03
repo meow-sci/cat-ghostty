@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 11.6, 11.7.
 /// </summary>
 [TestFixture]
+
+[Category("only_ScreenClearingTests")]
+
 public class ScreenClearingTests
 {
     [SetUp]

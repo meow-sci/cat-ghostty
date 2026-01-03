@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties that should hold for all valid mouse events.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_MouseEventProperties")]
+
 public class MouseEventProperties
 {
     /// <summary>

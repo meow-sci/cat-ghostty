@@ -7,6 +7,9 @@ namespace caTTY.Core.Tests.Unit.Types;
 ///     Unit tests for SGR state functionality.
 /// </summary>
 [TestFixture]
+
+[Category("only_SgrStateTests")]
+
 public class SgrStateTests
 {
     [Test]

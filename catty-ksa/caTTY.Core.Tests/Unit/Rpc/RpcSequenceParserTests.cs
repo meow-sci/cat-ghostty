@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit.Rpc;
 /// Tests specific examples and edge cases for RPC sequence parsing.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcSequenceParserTests")]
+
 public class RpcSequenceParserTests
 {
     private RpcSequenceParser _parser = null!;

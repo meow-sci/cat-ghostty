@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Integration;
 ///     Validates Requirements 15.3 and 15.5 - scrollback isolation and state preservation.
 /// </summary>
 [TestFixture]
+
 [Category("Integration")]
+
+[Category("only_AlternateScreenIsolationTests")]
+
 public class AlternateScreenIsolationTests
 {
     private TerminalEmulator _terminal = null!;

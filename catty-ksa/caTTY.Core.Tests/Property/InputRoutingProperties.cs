@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     **Validates: Requirements 5.5, 8.1, 8.2, 8.4, 8.5**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_InputRoutingProperties")]
+
 public class InputRoutingProperties
 {
     /// <summary>
@@ -381,6 +385,8 @@ public class InputRoutingProperties
 /// <summary>
 ///     Mock ProcessManager for testing input routing without actual process creation.
 /// </summary>
+[Category("only_MockProcessManager")]
+
 public class MockProcessManager : IProcessManager
 {
     public event Action<string>? InputReceived;
@@ -448,6 +454,9 @@ public enum MockSessionState
     Disposed
 }
 
+[Category("only_MockSession")]
+
+
 public class MockSession : IDisposable
 {
     public Guid Id { get; }
@@ -481,6 +490,8 @@ public class MockSession : IDisposable
 /// <summary>
 ///     Lightweight mock session manager for performance-optimized testing.
 /// </summary>
+[Category("only_MockSessionManager")]
+
 public class MockSessionManager
 {
     private readonly Dictionary<Guid, MockSession> _sessions = new();
@@ -522,7 +533,11 @@ public class MockSessionManager
 ///     **Validates: Requirements 5.1, 5.2, 5.3, 5.4**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_SessionStateIsolationProperties")]
+
 public class SessionStateIsolationProperties
 {
     /// <summary>

@@ -7,7 +7,11 @@ namespace caTTY.Core.Tests.Unit;
 /// Unit tests for TerminalTracer Reset functionality.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TerminalTracerResetTests")]
+
 public class TerminalTracerResetTests
 {
     private bool _originalEnabled;

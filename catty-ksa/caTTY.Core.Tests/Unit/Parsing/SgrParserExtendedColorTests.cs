@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Tests the requirements for task 3.3: 256-color, RGB, colon-separated formats, and bright colors.
 /// </summary>
 [TestFixture]
+
+[Category("only_SgrParserExtendedColorTests")]
+
 public class SgrParserExtendedColorTests
 {
     private SgrParser _parser = null!;

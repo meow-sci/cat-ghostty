@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit;
 /// Demonstrates the performance improvement of the batched tracing system.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_PerformanceDemoTests")]
+
 public class PerformanceDemoTests
 {
     [Test]

@@ -8,6 +8,9 @@ namespace caTTY.Core.Tests.Unit.Types;
 ///     Tests screen buffer operations including resize functionality.
 /// </summary>
 [TestFixture]
+
+[Category("only_ScreenBufferTests")]
+
 public class ScreenBufferTests
 {
     private ScreenBuffer _buffer = null!;

@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Tests for ECH (Erase Character) sequence handling.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_EraseCharacterTest")]
+
 public class EraseCharacterTest
 {
     private TerminalEmulator _terminal = null!;

@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for query RPC commands.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_QueryResponseCommandProperties")]
+
 public class QueryResponseCommandProperties
 {
     /// <summary>
@@ -328,6 +332,8 @@ public class QueryResponseCommandProperties
     }
 
     // Test helper classes
+    [Category("only_TestQueryHandler")]
+
     private class TestQueryHandler : IRpcCommandHandler
     {
         private readonly object _responseData;
@@ -351,6 +357,9 @@ public class QueryResponseCommandProperties
         }
     }
 
+    [Category("only_ThrowingQueryHandler")]
+
+
     private class ThrowingQueryHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -364,6 +373,9 @@ public class QueryResponseCommandProperties
             throw new InvalidOperationException("Test exception from query handler");
         }
     }
+
+    [Category("only_DelayedQueryHandler")]
+
 
     private class DelayedQueryHandler : IRpcCommandHandler
     {
@@ -385,6 +397,9 @@ public class QueryResponseCommandProperties
             return "delayed-response";
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

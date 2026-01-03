@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 8.4, 11.1, 11.2, 11.3, 11.4, 11.5.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CursorMovementProperties")]
+
 public class CursorMovementProperties
 {
     /// <summary>

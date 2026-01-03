@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for all RPC sequence detection operations.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcSequenceDetectionProperties")]
+
 public class RpcSequenceDetectionProperties
 {
     private RpcSequenceDetector _detector = null!;

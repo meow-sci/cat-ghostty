@@ -7,7 +7,11 @@ namespace caTTY.Core.Tests.Unit;
 /// Tests for the new batched tracing system to verify it works correctly.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_BatchedTracingTests")]
+
 public class BatchedTracingTests
 {
     private bool _originalEnabled;

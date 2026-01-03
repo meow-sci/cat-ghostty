@@ -5,7 +5,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcCommandRouterTests")]
+
 public class RpcCommandRouterTests
 {
     private RpcCommandRouter _router = null!;
@@ -355,6 +359,8 @@ public class RpcCommandRouterTests
     }
 
     // Test helper classes
+    [Category("only_TestFireAndForgetHandler")]
+
     private class TestFireAndForgetHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -369,6 +375,9 @@ public class RpcCommandRouterTests
         }
     }
 
+    [Category("only_TestQueryHandler")]
+
+
     private class TestQueryHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -382,6 +391,9 @@ public class RpcCommandRouterTests
             return Task.FromResult<object?>("test-response");
         }
     }
+
+    [Category("only_ThrowingHandler")]
+
 
     private class ThrowingHandler : IRpcCommandHandler
     {
@@ -404,6 +416,9 @@ public class RpcCommandRouterTests
         }
     }
 
+    [Category("only_SlowQueryHandler")]
+
+
     private class SlowQueryHandler : IRpcCommandHandler
     {
         private readonly TimeSpan _timeout;
@@ -424,6 +439,9 @@ public class RpcCommandRouterTests
             return "slow-response";
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

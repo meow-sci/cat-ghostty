@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties that should hold for all valid UTF-8 inputs.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_Utf8Properties")]
+
 public class Utf8Properties
 {
     /// <summary>

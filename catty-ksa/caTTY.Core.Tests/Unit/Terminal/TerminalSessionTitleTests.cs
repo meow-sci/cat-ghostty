@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates that session titles update when terminal emits title change events.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TerminalSessionTitleTests")]
+
 public class TerminalSessionTitleTests
 {
     private TerminalEmulator _terminal = null!;

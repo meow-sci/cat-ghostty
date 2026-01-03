@@ -8,6 +8,8 @@ namespace caTTY.Core.Tests;
 /// Helper class for managing test-specific trace databases with UUID-based filenames
 /// and automatic cleanup mechanisms. Provides isolation between test runs.
 /// </summary>
+[Category("only_TestTraceDatabase")]
+
 public class TestTraceDatabase : IDisposable
 {
     private readonly string _testDbFilename;
@@ -193,6 +195,8 @@ public class TestTraceDatabase : IDisposable
 /// <summary>
 /// Represents a trace entry retrieved from the test database.
 /// </summary>
+[Category("only_TraceEntry")]
+
 public class TraceEntry
 {
     /// <summary>

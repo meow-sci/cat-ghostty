@@ -5,6 +5,9 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 [TestFixture]
+
+[Category("only_AlternateScreenTests")]
+
 public class AlternateScreenTests
 {
     private TerminalEmulator _terminal = null!;

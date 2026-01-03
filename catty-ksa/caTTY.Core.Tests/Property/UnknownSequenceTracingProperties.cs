@@ -15,7 +15,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Verifies that all unknown/unhandled sequences are properly traced for debugging.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_UnknownSequenceTracingProperties")]
+
 public class UnknownSequenceTracingProperties
 {
     private string _testDatabasePath = null!;

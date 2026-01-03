@@ -13,7 +13,11 @@ namespace caTTY.Core.Tests.Unit.Tracing;
 ///     This test is designed to show what gets traced when unknown sequences are processed.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TracingOutputInspectionTest")]
+
 public class TracingOutputInspectionTest
 {
     private string _testDatabasePath = null!;

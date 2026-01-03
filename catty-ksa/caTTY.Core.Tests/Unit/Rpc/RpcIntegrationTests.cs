@@ -7,7 +7,11 @@ namespace caTTY.Core.Tests.Unit.Rpc;
 /// Tests for RPC component integration.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcIntegrationTests")]
+
 public class RpcIntegrationTests
 {
     private RpcSequenceDetector _detector = null!;

@@ -7,7 +7,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 /// Unit tests for ShellConfiguration helper methods.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_ShellConfigurationTests")]
+
 public class ShellConfigurationTests
 {
     [Test]

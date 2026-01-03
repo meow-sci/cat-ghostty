@@ -4,6 +4,9 @@ using caTTY.Core.Utils;
 namespace caTTY.Core.Tests.Unit.Utils;
 
 [TestFixture]
+
+[Category("only_KeyboardInputEncoderTests")]
+
 public class KeyboardInputEncoderTests
 {
     [Test]

@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for command registration and routing.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcCommandRegistrationProperties")]
+
 public class RpcCommandRegistrationProperties
 {
     /// <summary>
@@ -281,6 +285,8 @@ public class RpcCommandRegistrationProperties
     }
 
     // Test helper classes
+    [Category("only_TestFireAndForgetHandler")]
+
     private class TestFireAndForgetHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -297,6 +303,9 @@ public class RpcCommandRegistrationProperties
         }
     }
 
+    [Category("only_TestQueryHandler")]
+
+
     private class TestQueryHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -312,6 +321,9 @@ public class RpcCommandRegistrationProperties
             return Task.FromResult<object?>("test-response");
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

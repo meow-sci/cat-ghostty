@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Unit tests for the DCS sequence parser.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_DcsParserTests")]
+
 public class DcsParserTests
 {
     private DcsParser _parser = null!;

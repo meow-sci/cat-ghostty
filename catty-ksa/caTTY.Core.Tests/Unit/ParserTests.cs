@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit;
 ///     Unit tests for the escape sequence parser state machine.
 /// </summary>
 [TestFixture]
+
+[Category("only_ParserTests")]
+
 public class ParserTests
 {
     [SetUp]
@@ -241,6 +244,8 @@ public class ParserTests
 /// <summary>
 ///     Test implementation of IParserHandlers for capturing parser events.
 /// </summary>
+[Category("only_TestParserHandlers")]
+
 public class TestParserHandlers : IParserHandlers
 {
     public bool BellCalled { get; private set; }
@@ -339,6 +344,8 @@ public class TestParserHandlers : IParserHandlers
 /// <summary>
 ///     Test implementation of ILogger for capturing log messages.
 /// </summary>
+[Category("only_TestLogger")]
+
 public class TestLogger : ILogger
 {
     public List<string> LogMessages { get; } = new();

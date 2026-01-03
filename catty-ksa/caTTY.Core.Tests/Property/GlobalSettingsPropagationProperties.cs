@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     **Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_GlobalSettingsPropagationProperties")]
+
 public class GlobalSettingsPropagationProperties
 {
     /// <summary>

@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Covers title stack operations, size queries, and graceful handling of unsupported operations.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_WindowManipulationTests")]
+
 public class WindowManipulationTests
 {
     [SetUp]

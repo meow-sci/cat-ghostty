@@ -11,8 +11,12 @@ namespace caTTY.Core.Tests.Property;
 ///     **Validates: Requirements 1.1, 1.2, 1.3, 1.5, 2.1, 2.4**
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
 [Ignore(reason:"wsl2 too slow to do this regularly")]
+
+[Category("only_SessionLifecycleProperties")]
+
 public class SessionLifecycleProperties
 {
     /// <summary>

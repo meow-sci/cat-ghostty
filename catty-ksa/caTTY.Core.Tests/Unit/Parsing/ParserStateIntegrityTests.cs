@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 /// Tests that parser state remains consistent during complex sequence processing.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_ParserStateIntegrityTests")]
+
 public class ParserStateIntegrityTests
 {
     private Parser _parser = null!;

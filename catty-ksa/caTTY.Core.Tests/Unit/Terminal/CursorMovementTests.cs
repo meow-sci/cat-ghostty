@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 11.1, 11.2, 11.3, 11.4, 11.5.
 /// </summary>
 [TestFixture]
+
+[Category("only_CursorMovementTests")]
+
 public class CursorMovementTests
 {
     [SetUp]

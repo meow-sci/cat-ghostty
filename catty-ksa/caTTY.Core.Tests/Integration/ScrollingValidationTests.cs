@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Integration;
 ///     These tests verify that scrolling works correctly in realistic scenarios.
 /// </summary>
 [TestFixture]
+
 [Category("Integration")]
+
+[Category("only_ScrollingValidationTests")]
+
 public class ScrollingValidationTests
 {
     /// <summary>

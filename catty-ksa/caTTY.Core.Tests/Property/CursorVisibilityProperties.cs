@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 ///     Validates Requirements 8.5.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CursorVisibilityProperties")]
+
 public class CursorVisibilityProperties
 {
     /// <summary>

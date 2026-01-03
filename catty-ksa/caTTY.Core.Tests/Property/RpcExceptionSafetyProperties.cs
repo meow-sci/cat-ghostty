@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify that the RPC system handles exceptions gracefully without crashing.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_RpcExceptionSafetyProperties")]
+
 public class RpcExceptionSafetyProperties
 {
     /// <summary>
@@ -259,6 +263,8 @@ public class RpcExceptionSafetyProperties
     }
 
     // Test helper classes
+    [Category("only_ThrowingFireAndForgetHandler")]
+
     private class ThrowingFireAndForgetHandler : IRpcCommandHandler
     {
         private readonly Exception _exceptionToThrow;
@@ -279,6 +285,9 @@ public class RpcExceptionSafetyProperties
             throw _exceptionToThrow;
         }
     }
+
+    [Category("only_ThrowingQueryHandler")]
+
 
     private class ThrowingQueryHandler : IRpcCommandHandler
     {
@@ -301,6 +310,9 @@ public class RpcExceptionSafetyProperties
         }
     }
 
+    [Category("only_TestFireAndForgetHandler")]
+
+
     private class TestFireAndForgetHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -315,6 +327,9 @@ public class RpcExceptionSafetyProperties
         }
     }
 
+    [Category("only_TestQueryHandler")]
+
+
     private class TestQueryHandler : IRpcCommandHandler
     {
         public int ExecuteCallCount { get; private set; }
@@ -328,6 +343,9 @@ public class RpcExceptionSafetyProperties
             return Task.FromResult<object?>("test-response");
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

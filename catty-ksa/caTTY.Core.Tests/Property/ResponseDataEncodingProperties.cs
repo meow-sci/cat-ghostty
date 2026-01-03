@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for response data encoding.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_ResponseDataEncodingProperties")]
+
 public class ResponseDataEncodingProperties
 {
     /// <summary>

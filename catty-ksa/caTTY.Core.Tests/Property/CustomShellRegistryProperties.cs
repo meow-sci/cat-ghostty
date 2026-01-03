@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify shell discovery, registration, and validation behaviors.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_CustomShellRegistryProperties")]
+
 public class CustomShellRegistryProperties
 {
     private CustomShellRegistry? _testRegistry;
@@ -424,6 +428,8 @@ public class CustomShellRegistryProperties
 /// <summary>
 ///     Mock implementation of ICustomShell for registry testing purposes.
 /// </summary>
+[Category("only_RegistryMockCustomShell")]
+
 internal class RegistryMockCustomShell : ICustomShell
 {
     private readonly string _shellId;
@@ -519,6 +525,8 @@ internal class RegistryMockCustomShell : ICustomShell
 /// <summary>
 ///     Invalid mock shell that fails validation for testing error handling.
 /// </summary>
+[Category("only_InvalidRegistryMockCustomShell")]
+
 internal class InvalidRegistryMockCustomShell : ICustomShell
 {
     public CustomShellMetadata Metadata => null!; // Invalid - null metadata

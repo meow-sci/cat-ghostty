@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 11.1, 12.1, 13.1.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_ShellCommandSimulationTests")]
+
 public class ShellCommandSimulationTests
 {
     [SetUp]

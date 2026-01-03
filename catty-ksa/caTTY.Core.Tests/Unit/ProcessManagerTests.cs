@@ -11,6 +11,9 @@ namespace caTTY.Core.Tests.Unit;
 ///     Unit tests for ProcessManager class.
 /// </summary>
 [TestFixture]
+
+[Category("only_ProcessManagerTests")]
+
 public class ProcessManagerTests
 {
     /// <summary>
@@ -625,6 +628,8 @@ public class ProcessManagerTests
 ///     Ultra-fast mock implementation of IProcessManager for performance testing.
 ///     Provides instant responses without real process overhead.
 /// </summary>
+[Category("only_FastMockProcessManager")]
+
 internal class FastMockProcessManager : IProcessManager
 {
     private bool _isRunning;

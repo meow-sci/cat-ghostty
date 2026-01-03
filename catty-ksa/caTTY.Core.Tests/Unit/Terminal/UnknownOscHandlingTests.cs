@@ -9,7 +9,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Verifies that unknown OSC sequences are handled gracefully without errors.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_UnknownOscHandlingTests")]
+
 public class UnknownOscHandlingTests
 {
     private TerminalEmulator _terminal = null!;

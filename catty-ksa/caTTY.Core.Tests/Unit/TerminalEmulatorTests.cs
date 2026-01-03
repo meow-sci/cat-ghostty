@@ -8,7 +8,11 @@ namespace caTTY.Core.Tests.Unit;
 ///     Unit tests for the TerminalEmulator class.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_TerminalEmulatorTests")]
+
 public class TerminalEmulatorTests
 {
     /// <summary>

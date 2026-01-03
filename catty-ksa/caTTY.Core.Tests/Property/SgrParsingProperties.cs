@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 ///     These tests verify universal properties that should hold for all valid SGR sequences.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_SgrParsingProperties")]
+
 public class SgrParsingProperties
 {
     /// <summary>

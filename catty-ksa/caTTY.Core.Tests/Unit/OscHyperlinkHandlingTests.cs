@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit;
 ///     Validates hyperlink URL association with character ranges and state management.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_OscHyperlinkHandlingTests")]
+
 public class OscHyperlinkHandlingTests
 {
     private TerminalEmulator _terminal = null!;

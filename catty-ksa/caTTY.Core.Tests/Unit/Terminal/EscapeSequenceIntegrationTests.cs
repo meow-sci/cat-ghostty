@@ -12,7 +12,11 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 11.1, 12.1, 13.1.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_EscapeSequenceIntegrationTests")]
+
 public class EscapeSequenceIntegrationTests
 {
     [SetUp]

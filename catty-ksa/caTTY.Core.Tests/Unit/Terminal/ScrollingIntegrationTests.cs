@@ -10,6 +10,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates that scrolling properly moves content to scrollback buffer.
 /// </summary>
 [TestFixture]
+
+[Category("only_ScrollingIntegrationTests")]
+
 public class ScrollingIntegrationTests
 {
     private TerminalEmulator _terminal = null!;

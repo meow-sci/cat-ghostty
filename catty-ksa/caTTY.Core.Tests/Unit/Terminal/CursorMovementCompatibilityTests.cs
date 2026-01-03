@@ -9,6 +9,9 @@ namespace caTTY.Core.Tests.Unit.Terminal;
 ///     Validates Requirements 3.3 (TypeScript compatibility for cursor operations).
 /// </summary>
 [TestFixture]
+
+[Category("only_CursorMovementCompatibilityTests")]
+
 public class CursorMovementCompatibilityTests
 {
     [SetUp]

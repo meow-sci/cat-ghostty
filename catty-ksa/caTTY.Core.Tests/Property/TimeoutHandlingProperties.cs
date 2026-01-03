@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Property;
 /// These tests verify universal properties that should hold for RPC command timeouts.
 /// </summary>
 [TestFixture]
+
 [Category("Property")]
+
+[Category("only_TimeoutHandlingProperties")]
+
 public class TimeoutHandlingProperties
 {
     /// <summary>
@@ -243,6 +247,8 @@ public class TimeoutHandlingProperties
     }
 
     // Test helper classes
+    [Category("only_TimeoutTestHandler")]
+
     private class TimeoutTestHandler : IRpcCommandHandler
     {
         public TimeoutTestHandler(TimeSpan timeout)
@@ -263,6 +269,9 @@ public class TimeoutHandlingProperties
             return "should-not-return";
         }
     }
+
+    [Category("only_TestLogger")]
+
 
     private class TestLogger : ILogger<RpcCommandRouter>
     {

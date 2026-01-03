@@ -5,7 +5,11 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Terminal;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_CsiCursorSaveRestoreTests")]
+
 public class CsiCursorSaveRestoreTests
 {
     private TerminalEmulator _terminal = null!;

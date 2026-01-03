@@ -5,7 +5,11 @@ using caTTY.Core.Rpc;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_RpcParameterValidationIntegrationTests")]
+
 public class RpcParameterValidationIntegrationTests
 {
     private RpcCommandRouter _router = null!;
@@ -198,6 +202,8 @@ public class RpcParameterValidationIntegrationTests
 /// <summary>
 /// Test fire-and-forget command handler.
 /// </summary>
+[Category("only_TestFireAndForgetHandler")]
+
 internal class TestFireAndForgetHandler : FireAndForgetCommandHandler
 {
     public TestFireAndForgetHandler() : base("Test Fire-and-Forget Command")
@@ -213,6 +219,8 @@ internal class TestFireAndForgetHandler : FireAndForgetCommandHandler
 /// <summary>
 /// Test query command handler.
 /// </summary>
+[Category("only_TestQueryHandler")]
+
 internal class TestQueryHandler : QueryCommandHandler
 {
     public TestQueryHandler() : base("Test Query Command")

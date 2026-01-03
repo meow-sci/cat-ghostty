@@ -11,7 +11,11 @@ namespace caTTY.Core.Tests.Unit;
 ///     Verifies that mouse reporting modes are correctly tracked and managed.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_MouseModeStateTrackingTests")]
+
 public class MouseModeStateTrackingTests
 {
     private TerminalEmulator _terminal = null!;

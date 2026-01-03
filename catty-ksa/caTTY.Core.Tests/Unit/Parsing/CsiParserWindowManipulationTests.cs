@@ -10,7 +10,11 @@ namespace caTTY.Core.Tests.Unit.Parsing;
 ///     Covers title stack operations, size queries, and graceful handling of unsupported operations.
 /// </summary>
 [TestFixture]
+
 [Category("Unit")]
+
+[Category("only_CsiParserWindowManipulationTests")]
+
 public class CsiParserWindowManipulationTests
 {
     [SetUp]
