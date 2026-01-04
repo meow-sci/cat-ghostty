@@ -33,6 +33,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
     private readonly EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
     private readonly EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
+    private readonly EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -110,6 +111,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
         _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
         _eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLine, _logger);
+        _eraseInLineOps = new EmulatorOps.TerminalEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1349,46 +1351,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
     internal void ClearLine(int mode)
     {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Bounds check
-        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
-        {
-            return;
-        }
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of line
-                for (int col = _cursorManager.Column; col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-
-            case 1: // From start of line to cursor
-                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-
-            case 2: // Entire line
-                for (int col = 0; col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _eraseInLineOps.ClearLine(mode);
     }
 
     /// <summary>
