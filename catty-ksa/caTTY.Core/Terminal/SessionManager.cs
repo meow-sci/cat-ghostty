@@ -482,23 +482,7 @@ public class SessionManager : IDisposable
     /// <param name="exception">Optional exception to log</param>
     private void LogSessionLifecycleEvent(string message, Exception? exception = null)
     {
-        // Follow quiet operation requirements - only log errors or when debug is enabled
-        // Normal session operations should produce no output
-        if (exception != null)
-        {
-            // Always log errors for debugging
-            Console.WriteLine($"SessionManager Error: {message}");
-            if (exception != null)
-            {
-                Console.WriteLine($"SessionManager Exception: {exception.Message}");
-            }
-        }
-        // For non-error events, only log if debug mode is enabled
-        // This could be controlled by a configuration setting in the future
-        else if (IsDebugLoggingEnabled())
-        {
-            Console.WriteLine($"SessionManager: {message}");
-        }
+        SessionLogging.LogSessionLifecycleEvent(message, exception);
     }
 
     /// <summary>
@@ -509,9 +493,7 @@ public class SessionManager : IDisposable
     /// <returns>True if debug logging should be enabled</returns>
     private bool IsDebugLoggingEnabled()
     {
-        // For now, maintain quiet operation by default
-        // This could be controlled by environment variables or configuration
-        return false;
+        return SessionLogging.IsDebugLoggingEnabled();
     }
 
     /// <summary>
