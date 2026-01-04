@@ -15,14 +15,16 @@ internal class CsiDispatcher
     private readonly SgrHandler _sgrHandler;
     private readonly CsiCursorHandler _cursorHandler;
     private readonly CsiEraseHandler _eraseHandler;
+    private readonly CsiScrollHandler _scrollHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler)
     {
         _terminal = terminal;
         _logger = logger;
         _sgrHandler = sgrHandler;
         _cursorHandler = cursorHandler;
         _eraseHandler = eraseHandler;
+        _scrollHandler = scrollHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -102,15 +104,15 @@ internal class CsiDispatcher
                 break;
 
             case "csi.scrollUp":
-                _terminal.ScrollScreenUp(message.Lines ?? 1);
+                _scrollHandler.HandleScrollUp(message);
                 break;
 
             case "csi.scrollDown":
-                _terminal.ScrollScreenDown(message.Lines ?? 1);
+                _scrollHandler.HandleScrollDown(message);
                 break;
 
             case "csi.setScrollRegion":
-                _terminal.SetScrollRegion(message.Top, message.Bottom);
+                _scrollHandler.HandleSetScrollRegion(message);
                 break;
 
             case "csi.selectiveEraseInDisplay":
