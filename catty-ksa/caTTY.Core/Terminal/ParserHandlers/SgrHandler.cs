@@ -93,6 +93,7 @@ internal class SgrHandler
         if (beforeAttributes.Font != afterAttributes.Font)
             changes.Add($"font:{beforeAttributes.Font}->{afterAttributes.Font}");
 
+        // TODO: FIXME: tracing cleanup 
         traceMessage += string.Join(", ", changes);
         traceMessage += "";
 
