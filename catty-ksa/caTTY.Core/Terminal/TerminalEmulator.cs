@@ -30,6 +30,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalViewportOps _viewportOps;
     private readonly EmulatorOps.TerminalResizeOps _resizeOps;
     private readonly EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
+    private readonly EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -104,6 +105,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, OnScreenUpdated);
         _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, OnScreenUpdated);
         _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
+        _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1584,10 +1586,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void SaveCursorPosition()
     {
-        _cursorManager.SavePosition();
-
-        // Also save in terminal state for compatibility
-        State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
+        _cursorSaveRestoreOps.SaveCursorPosition();
     }
 
     /// <summary>
@@ -1596,18 +1595,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void RestoreCursorPosition()
     {
-        _cursorManager.RestorePosition();
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Update saved cursor in state for compatibility
-        if (State.SavedCursor.HasValue)
-        {
-            State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
-        }
+        _cursorSaveRestoreOps.RestoreCursorPosition();
     }
 
     /// <summary>
@@ -1617,10 +1605,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void SaveCursorPositionAnsi()
     {
-        // Save current cursor position in ANSI saved cursor field
-        State.AnsiSavedCursor = (_cursorManager.Column, _cursorManager.Row);
-
-        _logger.LogDebug("ANSI cursor saved at position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
+        _cursorSaveRestoreOps.SaveCursorPositionAnsi();
     }
 
     /// <summary>
@@ -1630,30 +1615,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void RestoreCursorPositionAnsi()
     {
-        if (State.AnsiSavedCursor.HasValue)
-        {
-            var (savedX, savedY) = State.AnsiSavedCursor.Value;
-
-            // Validate and clamp the saved position to current buffer dimensions
-            int clampedX = Math.Max(0, Math.Min(savedX, Width - 1));
-            int clampedY = Math.Max(0, Math.Min(savedY, Height - 1));
-
-            // Move cursor to the saved position
-            _cursorManager.MoveTo(clampedY, clampedX);
-            _cursorManager.SetWrapPending(false);
-
-            // Sync state with cursor manager
-            State.CursorX = _cursorManager.Column;
-            State.CursorY = _cursorManager.Row;
-            State.WrapPending = _cursorManager.WrapPending;
-
-            _logger.LogDebug("ANSI cursor restored to position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
-        }
-        else
-        {
-            // No saved position - this is a no-op (following xterm behavior)
-            _logger.LogDebug("ANSI cursor restore called but no saved position available");
-        }
+        _cursorSaveRestoreOps.RestoreCursorPositionAnsi();
     }
 
     /// <summary>
