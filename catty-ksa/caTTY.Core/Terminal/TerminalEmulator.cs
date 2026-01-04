@@ -29,6 +29,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     // Operation classes
     private readonly EmulatorOps.TerminalViewportOps _viewportOps;
     private readonly EmulatorOps.TerminalResizeOps _resizeOps;
+    private readonly EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -102,6 +103,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // Initialize operation classes
         _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, OnScreenUpdated);
         _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, OnScreenUpdated);
+        _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1274,20 +1276,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of lines to move up (minimum 1)</param>
     internal void MoveCursorUp(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveUp(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorUp(count);
     }
 
     /// <summary>
@@ -1296,20 +1285,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of lines to move down (minimum 1)</param>
     internal void MoveCursorDown(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveDown(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorDown(count);
     }
 
     /// <summary>
@@ -1318,20 +1294,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of columns to move forward (minimum 1)</param>
     internal void MoveCursorForward(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveRight(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorForward(count);
     }
 
     /// <summary>
@@ -1340,20 +1303,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of columns to move backward (minimum 1)</param>
     internal void MoveCursorBackward(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveLeft(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorBackward(count);
     }
 
     /// <summary>
@@ -1363,26 +1313,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
     internal void SetCursorPosition(int row, int column)
     {
-        // Map row parameter based on origin mode (following TypeScript mapRowParamToCursorY)
-        int baseRow = State.OriginMode ? State.ScrollTop : 0;
-        int targetRow = baseRow + (row - 1);
-
-        // Convert column from 1-based to 0-based
-        int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
-
-        _cursorManager.MoveTo(targetRow, targetCol);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Clamp cursor to respect scroll region and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.SetCursorPosition(row, column);
     }
 
     /// <summary>
@@ -1392,15 +1323,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
     internal void SetCursorColumn(int column)
     {
-        // Convert from 1-based to 0-based coordinates and clamp to bounds
-        int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
-
-        _cursorManager.MoveTo(_cursorManager.Row, targetCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _cursorMovementOps.SetCursorColumn(column);
     }
 
     /// <summary>
