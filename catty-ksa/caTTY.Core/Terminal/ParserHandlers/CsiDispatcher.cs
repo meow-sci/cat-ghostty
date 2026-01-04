@@ -17,8 +17,9 @@ internal class CsiDispatcher
     private readonly CsiEraseHandler _eraseHandler;
     private readonly CsiScrollHandler _scrollHandler;
     private readonly CsiInsertDeleteHandler _insertDeleteHandler;
+    private readonly CsiDecModeHandler _decModeHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler, CsiDecModeHandler decModeHandler)
     {
         _terminal = terminal;
         _logger = logger;
@@ -27,6 +28,7 @@ internal class CsiDispatcher
         _eraseHandler = eraseHandler;
         _scrollHandler = scrollHandler;
         _insertDeleteHandler = insertDeleteHandler;
+        _decModeHandler = decModeHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -199,25 +201,11 @@ internal class CsiDispatcher
                 break;
 
             case "csi.decModeSet":
-                // DEC private mode set (CSI ? Pm h)
-                if (message.DecModes != null)
-                {
-                    foreach (int mode in message.DecModes)
-                    {
-                        _terminal.SetDecMode(mode, true);
-                    }
-                }
+                _decModeHandler.HandleDecModeSet(message);
                 break;
 
             case "csi.decModeReset":
-                // DEC private mode reset (CSI ? Pm l)
-                if (message.DecModes != null)
-                {
-                    foreach (int mode in message.DecModes)
-                    {
-                        _terminal.SetDecMode(mode, false);
-                    }
-                }
+                _decModeHandler.HandleDecModeReset(message);
                 break;
 
             case "csi.insertLines":
@@ -242,19 +230,11 @@ internal class CsiDispatcher
                 break;
 
             case "csi.savePrivateMode":
-                // Save private modes (CSI ? Pm s)
-                if (message.DecModes != null)
-                {
-                    _terminal.SavePrivateModes(message.DecModes);
-                }
+                _decModeHandler.HandleSavePrivateMode(message);
                 break;
 
             case "csi.restorePrivateMode":
-                // Restore private modes (CSI ? Pm r)
-                if (message.DecModes != null)
-                {
-                    _terminal.RestorePrivateModes(message.DecModes);
-                }
+                _decModeHandler.HandleRestorePrivateMode(message);
                 break;
 
             case "csi.setCursorStyle":
