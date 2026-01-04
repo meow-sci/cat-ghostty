@@ -27,6 +27,8 @@ internal class TerminalParserHandlers : IParserHandlers
     private readonly CsiDeviceQueryHandler _csiDeviceQueryHandler;
     private readonly CsiWindowManipulationHandler _csiWindowManipulationHandler;
     private readonly CsiDispatcher _csiDispatcher;
+    private readonly C0Handler _c0Handler;
+    private readonly EscHandler _escHandler;
 
     public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null)
     {
@@ -44,6 +46,8 @@ internal class TerminalParserHandlers : IParserHandlers
         _csiDeviceQueryHandler = new CsiDeviceQueryHandler(terminal, logger);
         _csiWindowManipulationHandler = new CsiWindowManipulationHandler(terminal, logger);
         _csiDispatcher = new CsiDispatcher(terminal, logger, _sgrHandler, _csiCursorHandler, _csiEraseHandler, _csiScrollHandler, _csiInsertDeleteHandler, _csiDecModeHandler, _csiDeviceQueryHandler, _csiWindowManipulationHandler);
+        _c0Handler = new C0Handler(terminal);
+        _escHandler = new EscHandler(terminal, logger);
     }
 
     /// <summary>
@@ -53,122 +57,52 @@ internal class TerminalParserHandlers : IParserHandlers
 
     public void HandleBell()
     {
-        _terminal.HandleBell();
+        _c0Handler.HandleBell();
     }
 
     public void HandleBackspace()
     {
-        _terminal.HandleBackspace();
+        _c0Handler.HandleBackspace();
     }
 
     public void HandleTab()
     {
-        _terminal.HandleTab();
+        _c0Handler.HandleTab();
     }
 
     public void HandleLineFeed()
     {
-        _terminal.HandleLineFeed();
+        _c0Handler.HandleLineFeed();
     }
 
     public void HandleFormFeed()
     {
-        // Form feed is typically treated as line feed in modern terminals
-        _terminal.HandleLineFeed();
+        _c0Handler.HandleFormFeed();
     }
 
     public void HandleCarriageReturn()
     {
-        _terminal.HandleCarriageReturn();
+        _c0Handler.HandleCarriageReturn();
     }
 
     public void HandleShiftIn()
     {
-        _terminal.HandleShiftIn();
+        _c0Handler.HandleShiftIn();
     }
 
     public void HandleShiftOut()
     {
-        _terminal.HandleShiftOut();
+        _c0Handler.HandleShiftOut();
     }
 
     public void HandleNormalByte(int codePoint)
     {
-        // Convert Unicode code point to character and apply character set translation
-        if (codePoint <= 0xFFFF)
-        {
-            // Basic Multilingual Plane - single char
-            char character = (char)codePoint;
-            string translatedChar = _terminal.TranslateCharacter(character);
-
-            // Write each character in the translated string
-            foreach (char c in translatedChar)
-            {
-                _terminal.WriteCharacterAtCursor(c);
-            }
-        }
-        else
-        {
-            // Supplementary planes - surrogate pair
-            // For supplementary planes, we don't apply character set translation
-            // as they are already Unicode and not subject to legacy character set mapping
-            string characters = char.ConvertFromUtf32(codePoint);
-            foreach (char c in characters)
-            {
-                _terminal.WriteCharacterAtCursor(c);
-            }
-        }
+        _c0Handler.HandleNormalByte(codePoint);
     }
 
     public void HandleEsc(EscMessage message)
     {
-        switch (message.Type)
-        {
-            case "esc.saveCursor":
-                _terminal.SaveCursorPosition();
-                break;
-
-            case "esc.restoreCursor":
-                _terminal.RestoreCursorPosition();
-                break;
-
-            case "esc.index":
-                _terminal.HandleIndex();
-                break;
-
-            case "esc.reverseIndex":
-                _terminal.HandleReverseIndex();
-                break;
-
-            case "esc.nextLine":
-                _terminal.HandleCarriageReturn();
-                _terminal.HandleLineFeed();
-                break;
-
-            case "esc.horizontalTabSet":
-                _terminal.SetTabStopAtCursor();
-                break;
-
-            case "esc.resetToInitialState":
-                _terminal.ResetToInitialState();
-                break;
-
-            case "esc.designateCharacterSet":
-                if (message.Slot != null && message.Charset != null)
-                {
-                    _terminal.DesignateCharacterSet(message.Slot, message.Charset);
-                }
-                else
-                {
-                    _logger.LogWarning("Character set designation missing slot or charset: {Raw}", message.Raw);
-                }
-
-                break;
-
-            default:
-                _logger.LogDebug("ESC sequence: {Type} - {Raw}", message.Type, message.Raw);
-                break;
-        }
+        _escHandler.HandleEsc(message);
     }
 
     public void HandleCsi(CsiMessage message)
