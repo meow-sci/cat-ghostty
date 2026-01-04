@@ -5,6 +5,7 @@ using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
 using ProcessCleanup = caTTY.Core.Terminal.Process.ProcessCleanup;
+using ProcessEvents = caTTY.Core.Terminal.Process.ProcessEvents;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
 using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
 using SysProcess = System.Diagnostics.Process;
@@ -459,17 +460,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnProcessExited(object? sender, EventArgs e)
     {
-        if (sender is SysProcess process)
-        {
-            int exitCode = process.ExitCode;
-            int processId = process.Id;
-
-            // Clean up resources
-            CleanupProcess();
-
-            // Raise the ProcessExited event
-            ProcessExited?.Invoke(this, new ProcessExitedEventArgs(exitCode, processId));
-        }
+        ProcessEvents.HandleProcessExited(sender, e, CleanupProcess, ProcessExited, this);
     }
 
     /// <summary>
@@ -477,7 +468,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnDataReceived(DataReceivedEventArgs args)
     {
-        DataReceived?.Invoke(this, args);
+        ProcessEvents.RaiseDataReceived(DataReceived, this, args);
     }
 
     /// <summary>
@@ -485,7 +476,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnProcessError(ProcessErrorEventArgs args)
     {
-        ProcessError?.Invoke(this, args);
+        ProcessEvents.RaiseProcessError(ProcessError, this, args);
     }
 
     /// <summary>
