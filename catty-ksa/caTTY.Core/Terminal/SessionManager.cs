@@ -275,28 +275,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out var targetSession))
-            {
-                throw new ArgumentException($"Session {sessionId} not found", nameof(sessionId));
-            }
-
-            if (_activeSessionId == sessionId)
-            {
-                return; // Already active
-            }
-
-            var previousSession = _activeSessionId.HasValue && _sessions.TryGetValue(_activeSessionId.Value, out var prev)
-                ? prev
-                : null;
-
-            // Deactivate current session
-            previousSession?.Deactivate();
-
-            // Activate target session
-            _activeSessionId = sessionId;
-            targetSession.Activate();
-
-            ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(previousSession, targetSession));
+            SessionSwitcher.SwitchToSession(sessionId, _sessions, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
@@ -406,16 +385,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (_sessions.Count <= 1 || !_activeSessionId.HasValue)
-            {
-                return;
-            }
-
-            var currentIndex = _sessionOrder.IndexOf(_activeSessionId.Value);
-            var nextIndex = (currentIndex + 1) % _sessionOrder.Count;
-            var nextSessionId = _sessionOrder[nextIndex];
-
-            SwitchToSession(nextSessionId);
+            SessionSwitcher.SwitchToNextSession(_sessions, _sessionOrder, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
@@ -429,16 +399,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (_sessions.Count <= 1 || !_activeSessionId.HasValue)
-            {
-                return;
-            }
-
-            var currentIndex = _sessionOrder.IndexOf(_activeSessionId.Value);
-            var prevIndex = currentIndex == 0 ? _sessionOrder.Count - 1 : currentIndex - 1;
-            var prevSessionId = _sessionOrder[prevIndex];
-
-            SwitchToSession(prevSessionId);
+            SessionSwitcher.SwitchToPreviousSession(_sessions, _sessionOrder, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
