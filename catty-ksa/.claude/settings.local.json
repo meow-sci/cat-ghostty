@@ -5,7 +5,9 @@
       "Bash(head:*)",
       "Bash(dotnet build:*)",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File ./scripts/dotnet-test.ps1)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }

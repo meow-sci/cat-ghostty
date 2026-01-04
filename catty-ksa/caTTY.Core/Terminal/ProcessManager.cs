@@ -1,6 +1,7 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
+using SysProcess = System.Diagnostics.Process;
 
 namespace caTTY.Core.Terminal;
 
@@ -11,17 +12,15 @@ namespace caTTY.Core.Terminal;
 /// </summary>
 public class ProcessManager : IProcessManager
 {
-    private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
-    private const IntPtr PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
     private readonly object _processLock = new();
-    private COORD _currentSize;
+    private Process.ConPtyNative.COORD _currentSize;
     private bool _disposed;
     private IntPtr _inputReadHandle = IntPtr.Zero;
     private IntPtr _inputWriteHandle = IntPtr.Zero;
     private IntPtr _outputReadHandle = IntPtr.Zero;
     private Task? _outputReadTask;
     private IntPtr _outputWriteHandle = IntPtr.Zero;
-    private Process? _process;
+    private SysProcess? _process;
 
     private IntPtr _pseudoConsole = IntPtr.Zero;
     private CancellationTokenSource? _readCancellationSource;
@@ -126,22 +125,22 @@ public class ProcessManager : IProcessManager
         try
         {
             // Store terminal size
-            _currentSize = new COORD((short)options.InitialWidth, (short)options.InitialHeight);
+            _currentSize = new ConPtyNative.COORD((short)options.InitialWidth, (short)options.InitialHeight);
 
             // Create communication pipes
-            if (!CreatePipe(out _inputReadHandle, out _inputWriteHandle, IntPtr.Zero, 0))
+            if (!ConPtyNative.CreatePipe(out _inputReadHandle, out _inputWriteHandle, IntPtr.Zero, 0))
             {
                 throw new ProcessStartException($"Failed to create input pipe: {Marshal.GetLastWin32Error()}");
             }
 
-            if (!CreatePipe(out _outputReadHandle, out _outputWriteHandle, IntPtr.Zero, 0))
+            if (!ConPtyNative.CreatePipe(out _outputReadHandle, out _outputWriteHandle, IntPtr.Zero, 0))
             {
                 CleanupHandles();
                 throw new ProcessStartException($"Failed to create output pipe: {Marshal.GetLastWin32Error()}");
             }
 
             // Create pseudoconsole
-            int result = CreatePseudoConsole(_currentSize, _inputReadHandle, _outputWriteHandle, 0, out _pseudoConsole);
+            int result = ConPtyNative.CreatePseudoConsole(_currentSize, _inputReadHandle, _outputWriteHandle, 0, out _pseudoConsole);
             if (result != 0)
             {
                 CleanupHandles();
@@ -149,21 +148,21 @@ public class ProcessManager : IProcessManager
             }
 
             // Close the handles that were passed to the pseudoconsole (as per Microsoft docs)
-            CloseHandle(_inputReadHandle);
-            CloseHandle(_outputWriteHandle);
+            ConPtyNative.CloseHandle(_inputReadHandle);
+            ConPtyNative.CloseHandle(_outputWriteHandle);
             _inputReadHandle = IntPtr.Zero;
             _outputWriteHandle = IntPtr.Zero;
 
             // Prepare startup information
-            var startupInfo = new STARTUPINFOEX();
-            startupInfo.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
+            var startupInfo = new ConPtyNative.STARTUPINFOEX();
+            startupInfo.StartupInfo.cb = Marshal.SizeOf<ConPtyNative.STARTUPINFOEX>();
 
             // Initialize process thread attribute list
             IntPtr attributeListSize = IntPtr.Zero;
-            InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
+            ConPtyNative.InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
 
             startupInfo.lpAttributeList = Marshal.AllocHGlobal(attributeListSize);
-            if (!InitializeProcThreadAttributeList(startupInfo.lpAttributeList, 1, 0, ref attributeListSize))
+            if (!ConPtyNative.InitializeProcThreadAttributeList(startupInfo.lpAttributeList, 1, 0, ref attributeListSize))
             {
                 Marshal.FreeHGlobal(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
@@ -171,16 +170,16 @@ public class ProcessManager : IProcessManager
             }
 
             // Set pseudoconsole attribute
-            if (!UpdateProcThreadAttribute(
+            if (!ConPtyNative.UpdateProcThreadAttribute(
                     startupInfo.lpAttributeList,
                     0,
-                    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
+                    ConPtyNative.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
                     _pseudoConsole,
                     IntPtr.Size,
                     IntPtr.Zero,
                     IntPtr.Zero))
             {
-                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+                ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
                 Marshal.FreeHGlobal(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
                 throw new ProcessStartException(
@@ -192,38 +191,38 @@ public class ProcessManager : IProcessManager
             string commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
 
             // Create the process
-            var processInfo = new PROCESS_INFORMATION();
-            if (!CreateProcessW(
+            var processInfo = new ConPtyNative.PROCESS_INFORMATION();
+            if (!ConPtyNative.CreateProcessW(
                     null,
                     commandLine,
                     IntPtr.Zero,
                     IntPtr.Zero,
                     false,
-                    EXTENDED_STARTUPINFO_PRESENT,
+                    ConPtyNative.EXTENDED_STARTUPINFO_PRESENT,
                     IntPtr.Zero,
                     options.WorkingDirectory ?? Environment.CurrentDirectory,
                     ref startupInfo,
                     out processInfo))
             {
                 int error = Marshal.GetLastWin32Error();
-                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+                ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
                 Marshal.FreeHGlobal(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
                 throw new ProcessStartException($"Failed to create process: {error}");
             }
 
             // Clean up startup info
-            DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
+            ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
             Marshal.FreeHGlobal(startupInfo.lpAttributeList);
 
             // Wrap the process handle in a Process object for lifecycle management
-            var process = Process.GetProcessById(processInfo.dwProcessId);
+            var process = SysProcess.GetProcessById(processInfo.dwProcessId);
             process.EnableRaisingEvents = true;
             process.Exited += OnProcessExited;
 
             // Close process and thread handles (we have the Process object now)
-            CloseHandle(processInfo.hProcess);
-            CloseHandle(processInfo.hThread);
+            ConPtyNative.CloseHandle(processInfo.hProcess);
+            ConPtyNative.CloseHandle(processInfo.hThread);
 
             lock (_processLock)
             {
@@ -270,7 +269,7 @@ public class ProcessManager : IProcessManager
     {
         ThrowIfDisposed();
 
-        Process? processToStop = null;
+        SysProcess? processToStop = null;
         CancellationTokenSource? cancellationSource = null;
 
         lock (_processLock)
@@ -338,7 +337,7 @@ public class ProcessManager : IProcessManager
     {
         ThrowIfDisposed();
 
-        Process? currentProcess;
+        SysProcess? currentProcess;
         lock (_processLock)
         {
             currentProcess = _process;
@@ -357,7 +356,7 @@ public class ProcessManager : IProcessManager
         try
         {
             byte[] buffer = data.ToArray();
-            if (!WriteFile(_inputWriteHandle, buffer, (uint)buffer.Length, out uint bytesWritten, IntPtr.Zero))
+            if (!ConPtyNative.WriteFile(_inputWriteHandle, buffer, (uint)buffer.Length, out uint bytesWritten, IntPtr.Zero))
             {
                 int error = Marshal.GetLastWin32Error();
                 int processId = currentProcess.Id;
@@ -411,7 +410,7 @@ public class ProcessManager : IProcessManager
             throw new PlatformNotSupportedException("ConPTY resizing is only supported on Windows");
         }
 
-        Process? currentProcess;
+        SysProcess? currentProcess;
         lock (_processLock)
         {
             currentProcess = _process;
@@ -427,8 +426,8 @@ public class ProcessManager : IProcessManager
             throw new InvalidOperationException("Pseudoconsole is not available");
         }
 
-        var newSize = new COORD((short)width, (short)height);
-        int result = ResizePseudoConsole(_pseudoConsole, newSize);
+        var newSize = new ConPtyNative.COORD((short)width, (short)height);
+        int result = ConPtyNative.ResizePseudoConsole(_pseudoConsole, newSize);
 
         if (result != 0)
         {
@@ -458,56 +457,6 @@ public class ProcessManager : IProcessManager
             _disposed = true;
         }
     }
-
-    // Windows ConPTY P/Invoke declarations
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags,
-        out IntPtr phPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int ResizePseudoConsole(IntPtr hPC, COORD size);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern void ClosePseudoConsole(IntPtr hPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CreatePipe(out IntPtr hReadPipe, out IntPtr hWritePipe, IntPtr lpPipeAttributes,
-        uint nSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool InitializeProcThreadAttributeList(IntPtr lpAttributeList, int dwAttributeCount,
-        int dwFlags, ref IntPtr lpSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool UpdateProcThreadAttribute(IntPtr lpAttributeList, uint dwFlags, IntPtr Attribute,
-        IntPtr lpValue, IntPtr cbSize, IntPtr lpPreviousValue, IntPtr lpReturnSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool DeleteProcThreadAttributeList(IntPtr lpAttributeList);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CreateProcessW(
-        string? lpApplicationName,
-        string lpCommandLine,
-        IntPtr lpProcessAttributes,
-        IntPtr lpThreadAttributes,
-        bool bInheritHandles,
-        uint dwCreationFlags,
-        IntPtr lpEnvironment,
-        string? lpCurrentDirectory,
-        ref STARTUPINFOEX lpStartupInfo,
-        out PROCESS_INFORMATION lpProcessInformation);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool ReadFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToRead,
-        out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool WriteFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToWrite,
-        out uint lpNumberOfBytesWritten, IntPtr lpOverlapped);
 
     /// <summary>
     ///     Resolves the shell command and arguments based on the launch options.
@@ -735,7 +684,7 @@ public class ProcessManager : IProcessManager
         {
             while (!cancellationToken.IsCancellationRequested && _outputReadHandle != IntPtr.Zero)
             {
-                if (ReadFile(_outputReadHandle, buffer, bufferSize, out uint bytesRead, IntPtr.Zero))
+                if (ConPtyNative.ReadFile(_outputReadHandle, buffer, bufferSize, out uint bytesRead, IntPtr.Zero))
                 {
                     if (bytesRead == 0)
                     {
@@ -785,7 +734,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnProcessExited(object? sender, EventArgs e)
     {
-        if (sender is Process process)
+        if (sender is SysProcess process)
         {
             int exitCode = process.ExitCode;
             int processId = process.Id;
@@ -845,7 +794,7 @@ public class ProcessManager : IProcessManager
     {
         if (_pseudoConsole != IntPtr.Zero)
         {
-            ClosePseudoConsole(_pseudoConsole);
+            ConPtyNative.ClosePseudoConsole(_pseudoConsole);
             _pseudoConsole = IntPtr.Zero;
         }
 
@@ -859,25 +808,25 @@ public class ProcessManager : IProcessManager
     {
         if (_inputWriteHandle != IntPtr.Zero)
         {
-            CloseHandle(_inputWriteHandle);
+            ConPtyNative.CloseHandle(_inputWriteHandle);
             _inputWriteHandle = IntPtr.Zero;
         }
 
         if (_outputReadHandle != IntPtr.Zero)
         {
-            CloseHandle(_outputReadHandle);
+            ConPtyNative.CloseHandle(_outputReadHandle);
             _outputReadHandle = IntPtr.Zero;
         }
 
         if (_inputReadHandle != IntPtr.Zero)
         {
-            CloseHandle(_inputReadHandle);
+            ConPtyNative.CloseHandle(_inputReadHandle);
             _inputReadHandle = IntPtr.Zero;
         }
 
         if (_outputWriteHandle != IntPtr.Zero)
         {
-            CloseHandle(_outputWriteHandle);
+            ConPtyNative.CloseHandle(_outputWriteHandle);
             _outputWriteHandle = IntPtr.Zero;
         }
     }
@@ -891,57 +840,5 @@ public class ProcessManager : IProcessManager
         {
             throw new ObjectDisposedException(nameof(ProcessManager));
         }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct COORD
-    {
-        public short X;
-        public short Y;
-
-        public COORD(short x, short y)
-        {
-            X = x;
-            Y = y;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct STARTUPINFOEX
-    {
-        public STARTUPINFO StartupInfo;
-        public IntPtr lpAttributeList;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct STARTUPINFO
-    {
-        public int cb;
-        public string lpReserved;
-        public string lpDesktop;
-        public string lpTitle;
-        public int dwX;
-        public int dwY;
-        public int dwXSize;
-        public int dwYSize;
-        public int dwXCountChars;
-        public int dwYCountChars;
-        public int dwFillAttribute;
-        public int dwFlags;
-        public short wShowWindow;
-        public short cbReserved2;
-        public IntPtr lpReserved2;
-        public IntPtr hStdInput;
-        public IntPtr hStdOutput;
-        public IntPtr hStdError;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PROCESS_INFORMATION
-    {
-        public IntPtr hProcess;
-        public IntPtr hThread;
-        public int dwProcessId;
-        public int dwThreadId;
     }
 }
