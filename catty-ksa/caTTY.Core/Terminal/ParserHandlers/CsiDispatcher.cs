@@ -16,8 +16,9 @@ internal class CsiDispatcher
     private readonly CsiCursorHandler _cursorHandler;
     private readonly CsiEraseHandler _eraseHandler;
     private readonly CsiScrollHandler _scrollHandler;
+    private readonly CsiInsertDeleteHandler _insertDeleteHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler)
     {
         _terminal = terminal;
         _logger = logger;
@@ -25,6 +26,7 @@ internal class CsiDispatcher
         _cursorHandler = cursorHandler;
         _eraseHandler = eraseHandler;
         _scrollHandler = scrollHandler;
+        _insertDeleteHandler = insertDeleteHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -219,23 +221,19 @@ internal class CsiDispatcher
                 break;
 
             case "csi.insertLines":
-                // Insert Lines (CSI L) - insert blank lines at cursor position
-                _terminal.InsertLinesInRegion(message.Count ?? 1);
+                _insertDeleteHandler.HandleInsertLines(message);
                 break;
 
             case "csi.deleteLines":
-                // Delete Lines (CSI M) - delete lines at cursor position
-                _terminal.DeleteLinesInRegion(message.Count ?? 1);
+                _insertDeleteHandler.HandleDeleteLines(message);
                 break;
 
             case "csi.insertChars":
-                // Insert Characters (CSI @) - insert blank characters at cursor position
-                _terminal.InsertCharactersInLine(message.Count ?? 1);
+                _insertDeleteHandler.HandleInsertChars(message);
                 break;
 
             case "csi.deleteChars":
-                // Delete Characters (CSI P) - delete characters at cursor position
-                _terminal.DeleteCharactersInLine(message.Count ?? 1);
+                _insertDeleteHandler.HandleDeleteChars(message);
                 break;
 
             case "csi.eraseCharacter":

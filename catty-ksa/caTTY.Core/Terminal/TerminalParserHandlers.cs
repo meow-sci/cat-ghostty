@@ -22,6 +22,7 @@ internal class TerminalParserHandlers : IParserHandlers
     private readonly CsiCursorHandler _csiCursorHandler;
     private readonly CsiEraseHandler _csiEraseHandler;
     private readonly CsiScrollHandler _csiScrollHandler;
+    private readonly CsiInsertDeleteHandler _csiInsertDeleteHandler;
     private readonly CsiDispatcher _csiDispatcher;
 
     public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null)
@@ -35,7 +36,8 @@ internal class TerminalParserHandlers : IParserHandlers
         _csiCursorHandler = new CsiCursorHandler(terminal, logger);
         _csiEraseHandler = new CsiEraseHandler(terminal);
         _csiScrollHandler = new CsiScrollHandler(terminal);
-        _csiDispatcher = new CsiDispatcher(terminal, logger, _sgrHandler, _csiCursorHandler, _csiEraseHandler, _csiScrollHandler);
+        _csiInsertDeleteHandler = new CsiInsertDeleteHandler(terminal, logger);
+        _csiDispatcher = new CsiDispatcher(terminal, logger, _sgrHandler, _csiCursorHandler, _csiEraseHandler, _csiScrollHandler, _csiInsertDeleteHandler);
     }
 
     /// <summary>
