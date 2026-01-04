@@ -4,6 +4,7 @@ using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
+using ProcessCleanup = caTTY.Core.Terminal.Process.ProcessCleanup;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
 using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
 using SysProcess = System.Diagnostics.Process;
@@ -498,12 +499,8 @@ public class ProcessManager : IProcessManager
             _readCancellationSource?.Dispose();
             _readCancellationSource = null;
 
-            if (_process != null)
-            {
-                _process.Exited -= OnProcessExited;
-                _process.Dispose();
-                _process = null;
-            }
+            ProcessCleanup.CleanupProcess(_process, OnProcessExited);
+            _process = null;
 
             _outputReadTask = null;
 
@@ -516,13 +513,13 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void CleanupPseudoConsole()
     {
-        if (_pseudoConsole != IntPtr.Zero)
-        {
-            ConPtyNative.ClosePseudoConsole(_pseudoConsole);
-            _pseudoConsole = IntPtr.Zero;
-        }
+        ProcessCleanup.CleanupPseudoConsole(_pseudoConsole, _inputReadHandle, _inputWriteHandle, _outputReadHandle, _outputWriteHandle);
 
-        CleanupHandles();
+        _pseudoConsole = IntPtr.Zero;
+        _inputWriteHandle = IntPtr.Zero;
+        _outputReadHandle = IntPtr.Zero;
+        _inputReadHandle = IntPtr.Zero;
+        _outputWriteHandle = IntPtr.Zero;
     }
 
     /// <summary>
@@ -530,29 +527,12 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void CleanupHandles()
     {
-        if (_inputWriteHandle != IntPtr.Zero)
-        {
-            ConPtyNative.CloseHandle(_inputWriteHandle);
-            _inputWriteHandle = IntPtr.Zero;
-        }
+        ProcessCleanup.CleanupHandles(_inputReadHandle, _inputWriteHandle, _outputReadHandle, _outputWriteHandle);
 
-        if (_outputReadHandle != IntPtr.Zero)
-        {
-            ConPtyNative.CloseHandle(_outputReadHandle);
-            _outputReadHandle = IntPtr.Zero;
-        }
-
-        if (_inputReadHandle != IntPtr.Zero)
-        {
-            ConPtyNative.CloseHandle(_inputReadHandle);
-            _inputReadHandle = IntPtr.Zero;
-        }
-
-        if (_outputWriteHandle != IntPtr.Zero)
-        {
-            ConPtyNative.CloseHandle(_outputWriteHandle);
-            _outputWriteHandle = IntPtr.Zero;
-        }
+        _inputWriteHandle = IntPtr.Zero;
+        _outputReadHandle = IntPtr.Zero;
+        _inputReadHandle = IntPtr.Zero;
+        _outputWriteHandle = IntPtr.Zero;
     }
 
     /// <summary>
