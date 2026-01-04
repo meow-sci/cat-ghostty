@@ -291,87 +291,25 @@ public class SessionManager : IDisposable
     {
         ThrowIfDisposed();
 
-        TerminalSession? sessionToClose = null;
-        TerminalSession? newActiveSession = null;
+        SessionCloser.CloseSessionState? state;
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out sessionToClose))
-            {
-                return; // Session doesn't exist
-            }
-
-            // Prevent closing the last session
-            if (_sessions.Count == 1)
-            {
-                throw new InvalidOperationException("Cannot close the last remaining session");
-            }
-
-            _sessions.Remove(sessionId);
-            _sessionOrder.Remove(sessionId);
-
-            // If this was the active session, find a new active session
-            if (_activeSessionId == sessionId)
-            {
-                _activeSessionId = null;
-
-                // Find the next session in order, or the previous one
-                var remainingIds = _sessionOrder.Where(id => _sessions.ContainsKey(id)).ToList();
-                if (remainingIds.Any())
-                {
-                    var newActiveId = remainingIds.First();
-                    _activeSessionId = newActiveId;
-                    newActiveSession = _sessions[newActiveId];
-                }
-            }
+            state = SessionCloser.PrepareClose(sessionId, _sessions, _sessionOrder, ref _activeSessionId);
         }
 
-        // Perform cleanup outside the lock
-        try
+        if (state != null)
         {
-            LogSessionLifecycleEvent($"Closing session {sessionId}");
-
-            // Unsubscribe from events
-            sessionToClose.StateChanged -= OnSessionStateChanged;
-            sessionToClose.TitleChanged -= OnSessionTitleChanged;
-            sessionToClose.ProcessExited -= OnSessionProcessExited;
-
-            await sessionToClose.CloseAsync(cancellationToken);
-
-            LogSessionLifecycleEvent($"Successfully closed session {sessionId}");
-            SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
-
-            if (newActiveSession != null)
-            {
-                newActiveSession.Activate();
-                LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after closing {sessionId}");
-                ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
-            }
-        }
-        catch (Exception ex)
-        {
-            LogSessionLifecycleEvent($"Error closing session {sessionId}", ex);
-
-            // Even if closing failed, the session has been removed from the manager
-            // Still notify about the closure and active session change
-            try
-            {
-                SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
-
-                if (newActiveSession != null)
-                {
-                    newActiveSession.Activate();
-                    LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after failed close of {sessionId}");
-                    ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
-                }
-            }
-            catch (Exception eventEx)
-            {
-                LogSessionLifecycleEvent($"Error raising events after failed session {sessionId} close", eventEx);
-            }
-
-            // Don't re-throw - session cleanup errors should not prevent operation
-            // The session has been removed from the manager regardless
+            await SessionCloser.PerformCleanupAsync(
+                sessionId,
+                state,
+                OnSessionStateChanged,
+                OnSessionTitleChanged,
+                OnSessionProcessExited,
+                SessionClosed,
+                ActiveSessionChanged,
+                LogSessionLifecycleEvent,
+                cancellationToken);
         }
     }
 
