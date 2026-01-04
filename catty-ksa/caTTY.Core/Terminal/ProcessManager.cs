@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
+using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
@@ -336,27 +337,7 @@ public class ProcessManager : IProcessManager
             throw new InvalidOperationException("Input handle is not available");
         }
 
-        try
-        {
-            byte[] buffer = data.ToArray();
-            if (!ConPtyNative.WriteFile(_inputWriteHandle, buffer, (uint)buffer.Length, out uint bytesWritten, IntPtr.Zero))
-            {
-                int error = Marshal.GetLastWin32Error();
-                int processId = currentProcess.Id;
-                var writeException =
-                    new ProcessWriteException($"Failed to write to ConPTY input: Win32 error {error}", processId);
-                OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
-                throw writeException;
-            }
-        }
-        catch (Exception ex) when (!(ex is ProcessWriteException))
-        {
-            int processId = currentProcess.Id;
-            var writeException =
-                new ProcessWriteException($"Failed to write to ConPTY input: {ex.Message}", ex, processId);
-            OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
-            throw writeException;
-        }
+        ConPtyInputWriter.Write(data, _inputWriteHandle, currentProcess, args => OnProcessError(args));
     }
 
     /// <summary>
@@ -372,8 +353,25 @@ public class ProcessManager : IProcessManager
             return;
         }
 
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        Write(bytes.AsSpan());
+        ThrowIfDisposed();
+
+        SysProcess? currentProcess;
+        lock (_processLock)
+        {
+            currentProcess = _process;
+        }
+
+        if (currentProcess == null || currentProcess.HasExited)
+        {
+            throw new InvalidOperationException("No process is currently running");
+        }
+
+        if (_inputWriteHandle == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Input handle is not available");
+        }
+
+        ConPtyInputWriter.Write(text, _inputWriteHandle, currentProcess, args => OnProcessError(args));
     }
 
     /// <summary>
