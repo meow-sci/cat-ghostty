@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
+using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
 using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
 using SysProcess = System.Diagnostics.Process;
@@ -446,56 +447,12 @@ public class ProcessManager : IProcessManager
     /// <param name="cancellationToken">Cancellation token</param>
     private async Task ReadOutputAsync(CancellationToken cancellationToken)
     {
-        const int bufferSize = 4096;
-        byte[] buffer = new byte[bufferSize];
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _outputReadHandle != IntPtr.Zero)
-            {
-                if (ConPtyNative.ReadFile(_outputReadHandle, buffer, bufferSize, out uint bytesRead, IntPtr.Zero))
-                {
-                    if (bytesRead == 0)
-                    {
-                        // End of stream
-                        break;
-                    }
-
-                    // Create a copy of the data to avoid buffer reuse issues
-                    byte[] data = new byte[bytesRead];
-                    Array.Copy(buffer, 0, data, 0, (int)bytesRead);
-
-                    // Raise the DataReceived event (ConPTY output is never "error" stream)
-                    OnDataReceived(new DataReceivedEventArgs(data));
-                }
-                else
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    if (error == 109) // ERROR_BROKEN_PIPE
-                    {
-                        // Process has exited
-                        break;
-                    }
-
-                    OnProcessError(new ProcessErrorEventArgs(
-                        new InvalidOperationException($"ReadFile failed with error {error}"),
-                        $"Error reading from ConPTY output: Win32 error {error}",
-                        ProcessId));
-                    break;
-                }
-
-                // Small delay to prevent tight loop
-                await Task.Delay(1, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when cancellation is requested
-        }
-        catch (Exception ex)
-        {
-            OnProcessError(new ProcessErrorEventArgs(ex, $"Error reading from ConPTY output: {ex.Message}", ProcessId));
-        }
+        await ConPtyOutputPump.ReadOutputAsync(
+            _outputReadHandle,
+            () => ProcessId,
+            data => OnDataReceived(new DataReceivedEventArgs(data)),
+            (exception, message) => OnProcessError(new ProcessErrorEventArgs(exception, message, ProcessId)),
+            cancellationToken);
     }
 
     /// <summary>
