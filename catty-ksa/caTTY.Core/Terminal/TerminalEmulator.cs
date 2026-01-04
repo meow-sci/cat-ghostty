@@ -32,6 +32,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
     private readonly EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
     private readonly EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
+    private readonly EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -108,6 +109,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
         _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
         _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
+        _eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLine, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1337,52 +1339,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
     internal void ClearDisplay(int mode)
     {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of display
-                ClearLine(0); // Clear from cursor to end of current line
-                // Clear all lines below cursor
-                for (int row = _cursorManager.Row + 1; row < Height; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        _screenBufferManager.SetCell(row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 1: // From start of display to cursor
-                // Clear all lines above cursor
-                for (int row = 0; row < _cursorManager.Row; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        _screenBufferManager.SetCell(row, col, emptyCell);
-                    }
-                }
-                ClearLine(1); // Clear from start of current line to cursor
-                break;
-
-            case 2: // Entire display
-                _screenBufferManager.Clear();
-                break;
-
-            case 3: // Entire display and scrollback (xterm extension)
-                // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
-                _screenBufferManager.Clear();
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _eraseInDisplayOps.ClearDisplay(mode);
     }
 
     /// <summary>
