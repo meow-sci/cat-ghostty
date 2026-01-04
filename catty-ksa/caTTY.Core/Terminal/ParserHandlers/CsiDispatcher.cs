@@ -14,13 +14,15 @@ internal class CsiDispatcher
     private readonly ILogger _logger;
     private readonly SgrHandler _sgrHandler;
     private readonly CsiCursorHandler _cursorHandler;
+    private readonly CsiEraseHandler _eraseHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler)
     {
         _terminal = terminal;
         _logger = logger;
         _sgrHandler = sgrHandler;
         _cursorHandler = cursorHandler;
+        _eraseHandler = eraseHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -72,11 +74,11 @@ internal class CsiDispatcher
                 break;
 
             case "csi.eraseInDisplay":
-                _terminal.ClearDisplay(message.Mode ?? 0);
+                _eraseHandler.HandleEraseInDisplay(message);
                 break;
 
             case "csi.eraseInLine":
-                _terminal.ClearLine(message.Mode ?? 0);
+                _eraseHandler.HandleEraseInLine(message);
                 break;
 
             case "csi.cursorForwardTab":
@@ -112,11 +114,11 @@ internal class CsiDispatcher
                 break;
 
             case "csi.selectiveEraseInDisplay":
-                _terminal.ClearDisplaySelective(message.Mode ?? 0);
+                _eraseHandler.HandleSelectiveEraseInDisplay(message);
                 break;
 
             case "csi.selectiveEraseInLine":
-                _terminal.ClearLineSelective(message.Mode ?? 0);
+                _eraseHandler.HandleSelectiveEraseInLine(message);
                 break;
 
             case "csi.selectCharacterProtection":
@@ -236,7 +238,7 @@ internal class CsiDispatcher
 
             case "csi.eraseCharacter":
                 // Erase Character (CSI X) - erase characters at cursor position
-                _terminal.EraseCharactersInLine(message.Count ?? 1);
+                _eraseHandler.HandleEraseCharacter(message);
                 break;
 
             case "csi.savePrivateMode":
