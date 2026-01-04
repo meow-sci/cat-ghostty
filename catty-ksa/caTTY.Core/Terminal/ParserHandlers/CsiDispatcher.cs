@@ -19,8 +19,9 @@ internal class CsiDispatcher
     private readonly CsiInsertDeleteHandler _insertDeleteHandler;
     private readonly CsiDecModeHandler _decModeHandler;
     private readonly CsiDeviceQueryHandler _deviceQueryHandler;
+    private readonly CsiWindowManipulationHandler _windowManipulationHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler, CsiDecModeHandler decModeHandler, CsiDeviceQueryHandler deviceQueryHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler, CsiDecModeHandler decModeHandler, CsiDeviceQueryHandler deviceQueryHandler, CsiWindowManipulationHandler windowManipulationHandler)
     {
         _terminal = terminal;
         _logger = logger;
@@ -31,6 +32,7 @@ internal class CsiDispatcher
         _insertDeleteHandler = insertDeleteHandler;
         _decModeHandler = decModeHandler;
         _deviceQueryHandler = deviceQueryHandler;
+        _windowManipulationHandler = windowManipulationHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -251,7 +253,7 @@ internal class CsiDispatcher
                 if (message.Operation.HasValue)
                 {
                     int[] windowParams = message.WindowParams ?? Array.Empty<int>();
-                    _terminal.HandleWindowManipulation(message.Operation.Value, windowParams);
+                    _windowManipulationHandler.HandleWindowManipulation(message.Operation.Value, windowParams);
                 }
                 break;
 
