@@ -24,10 +24,9 @@ The test suite contains ~1500 tests that produce massive stdout output from subs
 ```bash
 .\scripts\dotnet-test.ps1                            # Run all tests (REQUIRED METHOD)
 .\scripts\dotnet-test.ps1 -Filter "Category=Unit"    # Run filtered tests
-bun scripts/test-errors.ts                           # Check latest .trx results for errors
 ```
 
-The script outputs results to `.testresults/results.trx` and minimizes console output. Check the exit code for pass/fail status, or use `test-errors.ts` to parse failures.
+The script runs dotnet test, saves results to `.testresults/results.trx`, then automatically parses failures with `test-errors.ts`. It outputs YAML-formatted results showing test counts on success or detailed failure information on error. Exit code 0 = all tests passed, 1 = failures detected.
 
 ### Running
 ```bash
@@ -150,5 +149,5 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 - `REAFCATOR_PLAN_WITHOUT_PARTIALS_SMALLER_FILES.md`: Detailed refactoring plan
 - `caTTY.Core/Tracing/README.md`: Tracing system documentation
 - `caTTY.GameMod/README.md`: Game mod installation and usage guide
-- `scripts/dotnet-test.ps1`: Test runner that suppresses verbose output (MUST USE THIS)
-- `scripts/test-errors.ts`: Parse .trx file for test failures
+- `scripts/dotnet-test.ps1`: Test runner that suppresses verbose output and auto-parses results (MUST USE THIS)
+- `scripts/test-errors.ts`: TRX parser (automatically invoked by dotnet-test.ps1)

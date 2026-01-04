@@ -48,7 +48,15 @@ if ($Filter) {
 # Run dotnet test
 try {
     Push-Location $solutionDir
+
+    # Run dotnet test (ignore exit code, we'll check .trx instead)
     & dotnet @testArgs
+
+    # Always run test-errors.ts to parse results
+    # Use -SummaryOnly because dotnet test stdout already shows error details
+    $testErrorsScript = Join-Path $scriptDir "test-errors.ts"
+    & bun $testErrorsScript --SummaryOnly
+
     exit $LASTEXITCODE
 }
 finally {
