@@ -12,6 +12,7 @@ namespace caTTY.Core.Terminal;
 public class ProcessManager : IProcessManager
 {
     private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+    private const uint CREATE_NO_WINDOW = 0x08000000;
     private const IntPtr PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
     private readonly object _processLock = new();
     private COORD _currentSize;
