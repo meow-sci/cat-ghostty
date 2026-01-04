@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(dotnet build:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File ./scripts/dotnet-test.ps1)",
+      "Bash(git add:*)"
     ]
   }
 }
