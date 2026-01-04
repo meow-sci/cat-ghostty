@@ -15,11 +15,10 @@ public class SessionManager : IDisposable
     private Guid? _activeSessionId;
     private readonly object _lock = new();
     private bool _disposed = false;
-    private (int cols, int rows) _lastKnownTerminalDimensions;
 
     // Configuration
     private readonly int _maxSessions;
-    private ProcessLaunchOptions _defaultLaunchOptions;
+    private readonly SessionDimensionTracker _dimensionTracker;
 
     /// <summary>
     ///     Creates a new session manager with the specified configuration.
@@ -34,8 +33,7 @@ public class SessionManager : IDisposable
         }
 
         _maxSessions = maxSessions;
-        _defaultLaunchOptions = defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault();
-        _lastKnownTerminalDimensions = (_defaultLaunchOptions.InitialWidth, _defaultLaunchOptions.InitialHeight);
+        _dimensionTracker = new SessionDimensionTracker(defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault());
     }
 
     /// <summary>
@@ -44,18 +42,7 @@ public class SessionManager : IDisposable
     /// <param name="launchOptions">New default launch options</param>
     public void UpdateDefaultLaunchOptions(ProcessLaunchOptions launchOptions)
     {
-        ArgumentNullException.ThrowIfNull(launchOptions);
-
-        lock (_lock)
-        {
-            // Preserve the last-known terminal dimensions when switching shell configuration.
-            // Shell switching should not reset the terminal size back to the options' defaults.
-            var lastKnown = _lastKnownTerminalDimensions;
-
-            _defaultLaunchOptions = launchOptions;
-            _defaultLaunchOptions.InitialWidth = lastKnown.cols;
-            _defaultLaunchOptions.InitialHeight = lastKnown.rows;
-        }
+        _dimensionTracker.UpdateDefaultLaunchOptions(launchOptions);
     }
 
     /// <summary>
@@ -66,10 +53,7 @@ public class SessionManager : IDisposable
     {
         get
         {
-            lock (_lock)
-            {
-                return _lastKnownTerminalDimensions;
-            }
+            return _dimensionTracker.LastKnownTerminalDimensions;
         }
     }
 
@@ -81,24 +65,23 @@ public class SessionManager : IDisposable
     /// <param name="rows">Terminal height in rows</param>
     public void UpdateLastKnownTerminalDimensions(int cols, int rows)
     {
-        if (cols < 1 || cols > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(cols), "Width must be between 1 and 1000");
-        }
+        _dimensionTracker.UpdateLastKnownTerminalDimensions(cols, rows);
+    }
 
-        if (rows < 1 || rows > 1000)
+    /// <summary>
+    ///     Gets the current default launch options.
+    /// </summary>
+    public ProcessLaunchOptions DefaultLaunchOptions
+    {
+        get
         {
-            throw new ArgumentOutOfRangeException(nameof(rows), "Height must be between 1 and 1000");
-        }
-
-        lock (_lock)
-        {
-            _lastKnownTerminalDimensions = (cols, rows);
-            _defaultLaunchOptions.InitialWidth = cols;
-            _defaultLaunchOptions.InitialHeight = rows;
+            return _dimensionTracker.DefaultLaunchOptions;
         }
     }
 
+    /// <summary>
+    ///     Creates a deep clone of the specified launch options.
+    /// </summary>
     private static ProcessLaunchOptions CloneLaunchOptions(ProcessLaunchOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -115,28 +98,6 @@ public class SessionManager : IDisposable
             CreateWindow = options.CreateWindow,
             UseShellExecute = options.UseShellExecute
         };
-    }
-
-    private ProcessLaunchOptions GetDefaultLaunchOptionsSnapshot()
-    {
-        lock (_lock)
-        {
-            return CloneLaunchOptions(_defaultLaunchOptions);
-        }
-    }
-
-    /// <summary>
-    ///     Gets the current default launch options.
-    /// </summary>
-    public ProcessLaunchOptions DefaultLaunchOptions
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return _defaultLaunchOptions;
-            }
-        }
     }
 
     /// <summary>
@@ -229,7 +190,7 @@ public class SessionManager : IDisposable
         // If launchOptions is null, use the last-known/default size (updated via resize handlers).
         ProcessLaunchOptions effectiveLaunchOptions = launchOptions != null
             ? CloneLaunchOptions(launchOptions)
-            : GetDefaultLaunchOptionsSnapshot();
+            : _dimensionTracker.GetDefaultLaunchOptionsSnapshot();
 
         // Always start new sessions at the last-known UI size.
         // This prevents shell changes (WSL/PowerShell/Cmd) from reverting to 80x24/80x25 defaults.
@@ -569,7 +530,7 @@ public class SessionManager : IDisposable
             session.Terminal.ScreenBuffer.Clear();
 
             // Start a new process with the same or provided launch options
-            await session.ProcessManager.StartAsync(launchOptions ?? _defaultLaunchOptions, cancellationToken);
+            await session.ProcessManager.StartAsync(launchOptions ?? _dimensionTracker.DefaultLaunchOptions, cancellationToken);
 
             // Update session state and settings
             session.UpdateProcessState(session.ProcessManager.ProcessId, session.ProcessManager.IsRunning);
