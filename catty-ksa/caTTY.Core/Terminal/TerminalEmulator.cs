@@ -28,6 +28,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
     // Operation classes
     private readonly EmulatorOps.TerminalViewportOps _viewportOps;
+    private readonly EmulatorOps.TerminalResizeOps _resizeOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -100,6 +101,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
         // Initialize operation classes
         _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, OnScreenUpdated);
+        _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, OnScreenUpdated);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -296,103 +298,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void Resize(int width, int height)
     {
         ThrowIfDisposed();
-
-        if (width < 1 || width > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be between 1 and 1000");
-        }
-
-        if (height < 1 || height > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height), "Height must be between 1 and 1000");
-        }
-
-        // If dimensions are the same, no work needed
-        if (width == Width && height == Height)
-        {
-            return;
-        }
-
-        // Save current cursor position for preservation
-        int oldCursorX = _cursorManager.Column;
-        int oldCursorY = _cursorManager.Row;
-        int oldWidth = Width;
-        int oldHeight = Height;
-
-        // Handle scrollback updates during resize
-        // If height is decreasing and cursor is below the new height,
-        // we need to push the excess rows to scrollback
-        if (height < oldHeight && oldCursorY >= height)
-        {
-            // Calculate how many rows need to be moved to scrollback
-            int excessRows = oldHeight - height;
-
-            // Push the top rows to scrollback to preserve content
-            for (int row = 0; row < excessRows; row++)
-            {
-                var rowSpan = _screenBufferManager.GetRow(row);
-                if (!rowSpan.IsEmpty)
-                {
-                    _scrollbackManager.AddLine(rowSpan);
-                }
-            }
-        }
-
-        // Resize the screen buffer (this preserves content according to the simple policy)
-        _screenBufferManager.Resize(width, height);
-
-        // Update terminal state dimensions
-        State.Resize(width, height);
-
-        // Preserve cursor position with intelligent clamping
-        int newCursorX = Math.Min(oldCursorX, width - 1);
-        int newCursorY;
-
-        if (height < oldHeight)
-        {
-            // Height decreased - adjust cursor position
-            int rowsLost = oldHeight - height;
-            newCursorY = Math.Max(0, oldCursorY - rowsLost);
-        }
-        else
-        {
-            // Height increased or same - keep cursor position
-            newCursorY = Math.Min(oldCursorY, height - 1);
-        }
-
-        // Update cursor position
-        _cursorManager.MoveTo(newCursorY, newCursorX);
-
-        // Update scroll region to match new dimensions if it was full-screen
-        if (State.ScrollTop == 0 && State.ScrollBottom == oldHeight - 1)
-        {
-            State.ScrollTop = 0;
-            State.ScrollBottom = height - 1;
-        }
-        else
-        {
-            // Clamp existing scroll region to new dimensions
-            State.ScrollTop = Math.Min(State.ScrollTop, height - 1);
-            State.ScrollBottom = Math.Min(State.ScrollBottom, height - 1);
-
-            // Ensure scroll region is still valid
-            if (State.ScrollTop >= State.ScrollBottom)
-            {
-                State.ScrollTop = 0;
-                State.ScrollBottom = height - 1;
-            }
-        }
-
-        // Update tab stops array to match new width
-        State.ResizeTabStops(width);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Notify that the screen has been updated
-        OnScreenUpdated();
+        _resizeOps.Resize(width, height);
     }
 
     /// <summary>
