@@ -198,34 +198,14 @@ public class SessionManager : IDisposable
         effectiveLaunchOptions.InitialWidth = lastKnown.cols;
         effectiveLaunchOptions.InitialHeight = lastKnown.rows;
 
-        // var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight);
-
-        var router = new RpcCommandRouter(NullLogger.Instance);
-        var responseGenerator = new RpcResponseGenerator();
-        var _outputBuffer = new List<byte[]>();
-
-        var rpcHandler = new RpcHandler(
-            router,
-            responseGenerator,
-            bytes => _outputBuffer.Add(bytes),
-            NullLogger.Instance);
-
-        var registry = new GameActionRegistry(router, NullLogger.Instance, null);
-        registry.RegisterVehicleCommands();
-
-
-        var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight, 2500, NullLogger.Instance, rpcHandler);
-
-
-
-        var processManager = new ProcessManager();
-
-        var session = new TerminalSession(sessionId, sessionTitle, terminal, processManager);
-
-        // Wire up session events
-        session.StateChanged += OnSessionStateChanged;
-        session.TitleChanged += OnSessionTitleChanged;
-        session.ProcessExited += OnSessionProcessExited;
+        var session = TerminalSessionFactory.CreateSession(
+            sessionId,
+            sessionTitle,
+            effectiveLaunchOptions.InitialWidth,
+            effectiveLaunchOptions.InitialHeight,
+            OnSessionStateChanged,
+            OnSessionTitleChanged,
+            OnSessionProcessExited);
 
         TerminalSession? previousActiveSession = null;
 
