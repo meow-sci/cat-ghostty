@@ -355,48 +355,19 @@ public class SessionManager : IDisposable
     {
         ThrowIfDisposed();
 
-        TerminalSession? session;
+        SessionRestarter.RestartSessionState state;
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out session))
-            {
-                throw new ArgumentException($"Session {sessionId} not found", nameof(sessionId));
-            }
-
-            // Can only restart sessions that have terminated processes
-            if (session.ProcessManager.IsRunning)
-            {
-                throw new InvalidOperationException("Cannot restart a session with a running process");
-            }
+            state = SessionRestarter.PrepareRestart(sessionId, _sessions);
         }
 
-        try
-        {
-            LogSessionLifecycleEvent($"Restarting session {sessionId}");
-
-            // Clear the terminal screen for the restart
-            session.Terminal.ScreenBuffer.Clear();
-
-            // Start a new process with the same or provided launch options
-            await session.ProcessManager.StartAsync(launchOptions ?? _dimensionTracker.DefaultLaunchOptions, cancellationToken);
-
-            // Update session state and settings
-            session.UpdateProcessState(session.ProcessManager.ProcessId, session.ProcessManager.IsRunning);
-
-            LogSessionLifecycleEvent($"Successfully restarted session {sessionId}");
-
-            // If this session was not active, we don't need to change its state
-            // The session will remain in its current state (Active/Inactive)
-        }
-        catch (Exception ex)
-        {
-            LogSessionLifecycleEvent($"Failed to restart session {sessionId}", ex);
-
-            // Update session settings to reflect restart failure
-            session.UpdateProcessState(null, false, null);
-            throw new InvalidOperationException($"Failed to restart session {sessionId}: {ex.Message}", ex);
-        }
+        await SessionRestarter.PerformRestartAsync(
+            sessionId,
+            state,
+            launchOptions ?? _dimensionTracker.DefaultLaunchOptions,
+            LogSessionLifecycleEvent,
+            cancellationToken);
     }
 
     /// <summary>
