@@ -3,6 +3,7 @@ using System.Text;
 using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
+using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
 using SysProcess = System.Diagnostics.Process;
 
 namespace caTTY.Core.Terminal;
@@ -156,8 +157,7 @@ public class ProcessManager : IProcessManager
             _outputWriteHandle = IntPtr.Zero;
 
             // Prepare startup information
-            var startupInfo = new ConPtyNative.STARTUPINFOEX();
-            startupInfo.StartupInfo.cb = Marshal.SizeOf<ConPtyNative.STARTUPINFOEX>();
+            var startupInfo = StartupInfoBuilder.Create();
 
             // Initialize process thread attribute list with pseudoconsole
             try
