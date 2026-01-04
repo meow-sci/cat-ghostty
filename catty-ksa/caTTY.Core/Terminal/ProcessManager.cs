@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
 using SysProcess = System.Diagnostics.Process;
@@ -158,33 +159,15 @@ public class ProcessManager : IProcessManager
             var startupInfo = new ConPtyNative.STARTUPINFOEX();
             startupInfo.StartupInfo.cb = Marshal.SizeOf<ConPtyNative.STARTUPINFOEX>();
 
-            // Initialize process thread attribute list
-            IntPtr attributeListSize = IntPtr.Zero;
-            ConPtyNative.InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
-
-            startupInfo.lpAttributeList = Marshal.AllocHGlobal(attributeListSize);
-            if (!ConPtyNative.InitializeProcThreadAttributeList(startupInfo.lpAttributeList, 1, 0, ref attributeListSize))
+            // Initialize process thread attribute list with pseudoconsole
+            try
             {
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
-                CleanupPseudoConsole();
-                throw new ProcessStartException($"Failed to initialize attribute list: {Marshal.GetLastWin32Error()}");
+                startupInfo.lpAttributeList = AttributeListBuilder.CreateAttributeListWithPseudoConsole(_pseudoConsole);
             }
-
-            // Set pseudoconsole attribute
-            if (!ConPtyNative.UpdateProcThreadAttribute(
-                    startupInfo.lpAttributeList,
-                    0,
-                    ConPtyNative.PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                    _pseudoConsole,
-                    IntPtr.Size,
-                    IntPtr.Zero,
-                    IntPtr.Zero))
+            catch (ProcessStartException)
             {
-                ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
-                throw new ProcessStartException(
-                    $"Failed to set pseudoconsole attribute: {Marshal.GetLastWin32Error()}");
+                throw;
             }
 
             // Resolve shell command
@@ -206,15 +189,13 @@ public class ProcessManager : IProcessManager
                     out processInfo))
             {
                 int error = Marshal.GetLastWin32Error();
-                ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+                AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
                 throw new ProcessStartException($"Failed to create process: {error}");
             }
 
             // Clean up startup info
-            ConPtyNative.DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-            Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+            AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
 
             // Wrap the process handle in a Process object for lifecycle management
             var process = SysProcess.GetProcessById(processInfo.dwProcessId);
