@@ -198,44 +198,36 @@ public class SessionManager : IDisposable
         effectiveLaunchOptions.InitialWidth = lastKnown.cols;
         effectiveLaunchOptions.InitialHeight = lastKnown.rows;
 
-        var session = TerminalSessionFactory.CreateSession(
-            sessionId,
-            sessionTitle,
-            effectiveLaunchOptions.InitialWidth,
-            effectiveLaunchOptions.InitialHeight,
-            OnSessionStateChanged,
-            OnSessionTitleChanged,
-            OnSessionProcessExited);
-
+        TerminalSession session;
         TerminalSession? previousActiveSession = null;
-
-        lock (_lock)
-        {
-            _sessions[sessionId] = session;
-            _sessionOrder.Add(sessionId);
-
-            // Deactivate current session
-            if (_activeSessionId.HasValue && _sessions.TryGetValue(_activeSessionId.Value, out var currentSession))
-            {
-                previousActiveSession = currentSession;
-                currentSession.Deactivate();
-            }
-
-            _activeSessionId = sessionId;
-        }
 
         try
         {
-            await session.InitializeAsync(effectiveLaunchOptions, cancellationToken);
-            session.Activate();
+            // Create and initialize session
+            session = await SessionCreator.CreateSessionAsync(
+                sessionId,
+                sessionTitle,
+                effectiveLaunchOptions,
+                OnSessionStateChanged,
+                OnSessionTitleChanged,
+                OnSessionProcessExited,
+                cancellationToken);
 
-            // Update session settings with process information after successful initialization
-            var processId = session.ProcessManager.ProcessId;
-            var isRunning = session.ProcessManager.IsRunning;
-            session.UpdateProcessState(processId, isRunning);
+            // Add session to manager and switch active session
+            lock (_lock)
+            {
+                _sessions[sessionId] = session;
+                _sessionOrder.Add(sessionId);
 
-            // Update session settings with terminal dimensions
-            session.UpdateTerminalDimensions(session.Terminal.Width, session.Terminal.Height);
+                // Deactivate current session
+                if (_activeSessionId.HasValue && _sessions.TryGetValue(_activeSessionId.Value, out var currentSession))
+                {
+                    previousActiveSession = currentSession;
+                    currentSession.Deactivate();
+                }
+
+                _activeSessionId = sessionId;
+            }
 
             LogSessionLifecycleEvent($"Successfully created session {sessionId} with title '{sessionTitle}'");
 
@@ -264,28 +256,6 @@ public class SessionManager : IDisposable
                         LogSessionLifecycleEvent($"Restored previous active session {previousActiveSession.Id} after creation failure");
                     }
                 }
-            }
-
-            // Unsubscribe from events to prevent memory leaks
-            try
-            {
-                session.StateChanged -= OnSessionStateChanged;
-                session.TitleChanged -= OnSessionTitleChanged;
-                session.ProcessExited -= OnSessionProcessExited;
-            }
-            catch (Exception unsubscribeEx)
-            {
-                LogSessionLifecycleEvent($"Error unsubscribing from session {sessionId} events during cleanup", unsubscribeEx);
-            }
-
-            // Dispose session resources safely
-            try
-            {
-                session.Dispose();
-            }
-            catch (Exception disposeEx)
-            {
-                LogSessionLifecycleEvent($"Error disposing session {sessionId} during cleanup", disposeEx);
             }
 
             // Re-throw with more context for the caller
