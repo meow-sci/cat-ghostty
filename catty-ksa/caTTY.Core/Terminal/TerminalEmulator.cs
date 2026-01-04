@@ -31,6 +31,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalResizeOps _resizeOps;
     private readonly EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
     private readonly EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
+    private readonly EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -106,6 +107,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, OnScreenUpdated);
         _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
         _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
+        _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -2106,14 +2108,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="style">Cursor style parameter from DECSCUSR sequence (0-6)</param>
     public void SetCursorStyle(int style)
     {
-        // Validate and normalize cursor style using the new enum system
-        CursorStyle validatedStyle = CursorStyleExtensions.ValidateStyle(style);
-
-        // Update cursor manager
-        _cursorManager.Style = validatedStyle;
-
-        // Update terminal state
-        State.CursorStyle = validatedStyle;
+        _cursorStyleOps.SetCursorStyle(style);
     }
 
     /// <summary>
@@ -2122,11 +2117,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="style">The cursor style to set</param>
     public void SetCursorStyle(CursorStyle style)
     {
-        // Update cursor manager
-        _cursorManager.Style = style;
-
-        // Update terminal state
-        State.CursorStyle = style;
+        _cursorStyleOps.SetCursorStyle(style);
     }
 
     /// <summary>
