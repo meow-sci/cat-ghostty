@@ -26,6 +26,9 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly IAlternateScreenManager _alternateScreenManager;
     private readonly ICharacterSetManager _characterSetManager;
 
+    // Operation classes
+    private readonly EmulatorOps.TerminalViewportOps _viewportOps;
+
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
 
@@ -94,6 +97,9 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             row => _scrollbackManager.AddLine(row),
             () => State.IsAlternateScreenActive
         );
+
+        // Initialize operation classes
+        _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, OnScreenUpdated);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -410,8 +416,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportUp(int lines)
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollUp(lines);
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportUp(lines);
     }
 
     /// <summary>
@@ -422,8 +427,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportDown(int lines)
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollDown(lines);
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportDown(lines);
     }
 
     /// <summary>
@@ -433,8 +437,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportToTop()
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollToTop();
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportToTop();
     }
 
     /// <summary>
@@ -444,8 +447,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportToBottom()
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollToBottom();
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportToBottom();
     }
 
     /// <summary>
