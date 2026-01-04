@@ -71,24 +71,24 @@ git commit -m "Task 0.1: Establish refactoring baseline
 
 ---
 
-# Phase 2: SessionManager Refactoring
+# Phase 3: TerminalParserHandlers Refactoring
 
-**Target:** `caTTY.Core/Terminal/SessionManager.cs`
-**Strategy:** Extract session lifecycle, switching, and dimension tracking
+**Target:** `caTTY.Core/Terminal/TerminalParserHandlers.cs`
+**Strategy:** Extract message type handlers
 
-## Task 2.1: Extract Dimension Tracker
+## Task 3.1: Extract SGR Handler
 
-**Goal:** Isolate terminal dimension management
+**Goal:** Isolate SGR handling
 
 **Steps:**
-1. Create folder: `caTTY.Core/Terminal/Sessions/`
-2. Create file: `caTTY.Core/Terminal/Sessions/SessionDimensionTracker.cs`
-3. Move these methods (preserve exact logic):
-   - `UpdateLastKnownTerminalDimensions(int cols, int rows)`
-   - `GetDefaultLaunchOptionsSnapshot()`
-   - `UpdateDefaultLaunchOptions(ProcessLaunchOptions launchOptions)`
-   - `CloneLaunchOptions(ProcessLaunchOptions options)`
-4. Create instance in `SessionManager`, delegate calls
+1. Create folder: `caTTY.Core/Terminal/ParserHandlers/`
+2. Create file: `caTTY.Core/Terminal/ParserHandlers/SgrHandler.cs`
+3. Move methods:
+   - `HandleSgrSequence(SgrSequence sequence)`
+   - `TraceSgrSequence(...)`
+   - `FormatColor(Color? color)`
+   - `ExtractSgrParameters(string rawSequence)`
+4. Keep `TerminalParserHandlers.HandleSgr` as delegator
 
 **Validation:**
 ```bash
@@ -99,92 +99,29 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.1: Extract session dimension tracker
+git commit -m "Task 3.1: Extract SGR handler
 
-- Created caTTY.Core/Terminal/Sessions/ folder
-- Created SessionDimensionTracker.cs
-- Extracted UpdateLastKnownTerminalDimensions method
-- Extracted GetDefaultLaunchOptionsSnapshot method
-- Extracted UpdateDefaultLaunchOptions method
-- Extracted CloneLaunchOptions method
-- SessionManager delegates to tracker
+- Created caTTY.Core/Terminal/ParserHandlers/ folder
+- Created SgrHandler.cs
+- Extracted HandleSgrSequence method
+- Extracted TraceSgrSequence method
+- Extracted FormatColor method
+- Extracted ExtractSgrParameters method
+- TerminalParserHandlers.HandleSgr delegates to handler
 - All tests pass"
 ```
 
-## Task 2.2: Extract Terminal Session Factory
+## Task 3.2: Extract DCS Handler
 
-**Goal:** Isolate TerminalSession creation and wiring
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/TerminalSessionFactory.cs`
-2. Extract session creation logic from `CreateSessionAsync`:
-   - `TerminalEmulator` instantiation
-   - `ProcessManager` creation
-   - Event subscription
-   - `TerminalSession` construction
-3. Keep exact event subscription order
-4. Update `CreateSessionAsync` to call factory
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 2.2: Extract terminal session factory
-
-- Created TerminalSessionFactory.cs
-- Extracted TerminalEmulator instantiation logic
-- Extracted ProcessManager creation logic
-- Extracted event subscription logic
-- Extracted TerminalSession construction
-- Preserved exact event subscription order
-- All tests pass"
-```
-
-## Task 2.3: Extract Session Creator
-
-**Goal:** Move session creation logic
+**Goal:** Isolate DCS handling
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionCreator.cs`
-2. Move `CreateSessionAsync` body into `SessionCreator.CreateSessionAsync`
-3. Keep lock acquisition in `SessionManager`
-4. Pass locked state as parameters
-5. Preserve exact validation and error handling
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 2.3: Extract session creator
-
-- Created SessionCreator.cs
-- Extracted CreateSessionAsync logic
-- Lock acquisition remains in SessionManager
-- Preserved exact validation and error handling
-- All tests pass"
-```
-
-## Task 2.4: Extract Session Switcher
-
-**Goal:** Move session switching logic
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionSwitcher.cs`
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/DcsHandler.cs`
 2. Move methods:
-   - `SwitchToSession(Guid sessionId)`
-   - `SwitchToNextSession()`
-   - `SwitchToPreviousSession()`
-3. Preserve exact active session tracking and event raising
+   - `HandleDecrqss(DcsMessage message)`
+   - `ExtractDecrqssPayload(string raw)`
+   - `GenerateSgrStateResponse()`
+3. Keep `HandleDcs` as delegator
 
 **Validation:**
 ```bash
@@ -195,24 +132,25 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.4: Extract session switcher
+git commit -m "Task 3.2: Extract DCS handler
 
-- Created SessionSwitcher.cs
-- Extracted SwitchToSession method
-- Extracted SwitchToNextSession method
-- Extracted SwitchToPreviousSession method
-- Preserved active session tracking and events
+- Created DcsHandler.cs
+- Extracted HandleDecrqss method
+- Extracted ExtractDecrqssPayload method
+- Extracted GenerateSgrStateResponse method
+- HandleDcs delegates to handler
 - All tests pass"
 ```
 
-## Task 2.5: Extract Session Closer
+## Task 3.3: Extract OSC Handler
 
-**Goal:** Move session closing logic
+**Goal:** Isolate OSC handling
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionCloser.cs`
-2. Move `CloseSessionAsync(Guid sessionId, CancellationToken cancellationToken)`
-3. Preserve exact cleanup order and active session switching logic
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/OscHandler.cs`
+2. Move methods:
+   - `HandleOsc(OscMessage message)`
+   - `HandleXtermOsc(XtermOscMessage message)`
 
 **Validation:**
 ```bash
@@ -223,22 +161,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.5: Extract session closer
+git commit -m "Task 3.3: Extract OSC handler
 
-- Created SessionCloser.cs
-- Extracted CloseSessionAsync method
-- Preserved cleanup order and session switching
+- Created OscHandler.cs
+- Extracted HandleOsc method
+- Extracted HandleXtermOsc method
 - All tests pass"
 ```
 
-## Task 2.6: Extract Session Restarter
+## Task 3.4: Extract CSI Dispatcher
 
-**Goal:** Move session restart logic
+**Goal:** Create CSI routing infrastructure
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionRestarter.cs`
-2. Move `RestartSessionAsync(Guid sessionId, ProcessLaunchOptions?, CancellationToken)`
-3. Preserve exact restart sequence
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiDispatcher.cs`
+2. Move `HandleCsi(CsiMessage message)` switch statement
+3. Keep case bodies inline initially (will extract in next tasks)
 
 **Validation:**
 ```bash
@@ -249,25 +187,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.6: Extract session restarter
+git commit -m "Task 3.4: Extract CSI dispatcher
 
-- Created SessionRestarter.cs
-- Extracted RestartSessionAsync method
-- Preserved exact restart sequence
+- Created CsiDispatcher.cs
+- Extracted HandleCsi switch statement
+- Case bodies remain inline for now
 - All tests pass"
 ```
 
-## Task 2.7: Extract Session Event Bridge
+## Task 3.5: Extract CSI Cursor Handler
 
-**Goal:** Move event handlers
+**Goal:** Extract cursor-related CSI cases
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionEventBridge.cs`
-2. Move event handler methods:
-   - `OnSessionStateChanged`
-   - `OnSessionTitleChanged`
-   - `OnSessionProcessExited`
-3. Keep subscription points unchanged
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiCursorHandler.cs`
+2. Extract cursor movement cases from CSI switch
+3. Update dispatcher to delegate cursor cases
 
 **Validation:**
 ```bash
@@ -278,26 +213,21 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.7: Extract session event bridge
+git commit -m "Task 3.5: Extract CSI cursor handler
 
-- Created SessionEventBridge.cs
-- Extracted OnSessionStateChanged handler
-- Extracted OnSessionTitleChanged handler
-- Extracted OnSessionProcessExited handler
-- Subscription points unchanged
+- Created CsiCursorHandler.cs
+- Extracted cursor movement CSI cases
+- Updated CsiDispatcher to delegate cursor cases
 - All tests pass"
 ```
 
-## Task 2.8: Extract Session Logging
+## Task 3.6: Extract CSI Erase Handler
 
-**Goal:** Move logging helpers
+**Goal:** Extract erase-related CSI cases
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/Sessions/SessionLogging.cs`
-2. Move:
-   - `LogSessionLifecycleEvent`
-   - `IsDebugLoggingEnabled`
-3. Keep format strings identical
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiEraseHandler.cs`
+2. Extract erase cases (ED, EL, etc.)
 
 **Validation:**
 ```bash
@@ -308,16 +238,160 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 2.8: Extract session logging
+git commit -m "Task 3.6: Extract CSI erase handler
 
-- Created SessionLogging.cs
-- Extracted LogSessionLifecycleEvent method
-- Extracted IsDebugLoggingEnabled method
-- Format strings preserved identically
+- Created CsiEraseHandler.cs
+- Extracted erase-related CSI cases (ED, EL, etc.)
+- Updated CsiDispatcher to delegate erase cases
 - All tests pass"
 ```
 
-**Phase 2 Complete:** `SessionManager.cs` should be facade ~200-300 LOC
+## Task 3.7: Extract CSI Scroll Handler
+
+**Goal:** Extract scroll-related CSI cases
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiScrollHandler.cs`
+2. Extract scroll region, scroll up/down cases
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.7: Extract CSI scroll handler
+
+- Created CsiScrollHandler.cs
+- Extracted scroll region CSI cases
+- Extracted scroll up/down CSI cases
+- All tests pass"
+```
+
+## Task 3.8: Extract CSI Insert/Delete Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiInsertDeleteHandler.cs`
+2. Extract insert/delete lines/chars cases
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.8: Extract CSI insert/delete handler
+
+- Created CsiInsertDeleteHandler.cs
+- Extracted insert/delete lines CSI cases
+- Extracted insert/delete chars CSI cases
+- All tests pass"
+```
+
+## Task 3.9: Extract CSI DEC Mode Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiDecModeHandler.cs`
+2. Extract DEC mode setting cases
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.9: Extract CSI DEC mode handler
+
+- Created CsiDecModeHandler.cs
+- Extracted DEC mode setting CSI cases
+- All tests pass"
+```
+
+## Task 3.10: Extract CSI Device Query Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiDeviceQueryHandler.cs`
+2. Extract device status, cursor position query cases
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.10: Extract CSI device query handler
+
+- Created CsiDeviceQueryHandler.cs
+- Extracted device status CSI cases
+- Extracted cursor position query cases
+- All tests pass"
+```
+
+## Task 3.11: Extract CSI Window Manipulation Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/CsiWindowManipulationHandler.cs`
+2. Extract window ops cases
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.11: Extract CSI window manipulation handler
+
+- Created CsiWindowManipulationHandler.cs
+- Extracted window manipulation CSI cases
+- All tests pass"
+```
+
+## Task 3.12: Extract C0 and ESC Handlers
+
+**Goal:** Extract simple control handlers
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/ParserHandlers/C0Handler.cs`
+2. Move: `HandleBell`, `HandleBackspace`, `HandleTab`, `HandleLineFeed`, `HandleFormFeed`, `HandleCarriageReturn`, `HandleShiftIn`, `HandleShiftOut`, `HandleNormalByte`
+3. Create file: `caTTY.Core/Terminal/ParserHandlers/EscHandler.cs`
+4. Move: `HandleEsc(EscMessage message)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 3.12: Extract C0 and ESC handlers
+
+- Created C0Handler.cs
+- Extracted HandleBell, HandleBackspace, HandleTab
+- Extracted HandleLineFeed, HandleFormFeed, HandleCarriageReturn
+- Extracted HandleShiftIn, HandleShiftOut, HandleNormalByte
+- Created EscHandler.cs
+- Extracted HandleEsc method
+- All tests pass"
+```
+
+**Phase 3 Complete:** `TerminalParserHandlers.cs` should be facade ~100-150 LOC
 
 
 ---
