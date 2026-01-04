@@ -13,6 +13,7 @@ namespace caTTY.Core.Tests.Property;
 /// </summary>
 [TestFixture]
 [Category("Property")]
+[Category("only_InputRoutingProperties")]
 public class InputRoutingProperties
 {
     /// <summary>
@@ -45,6 +46,11 @@ public class InputRoutingProperties
         return Prop.ForAll(SessionCountArb, InputTextArb, SessionIndexArb,
             (sessionCount, inputText, targetSessionIndex) =>
             {
+
+                var x = "abc";
+                Assert.That(x, Is.EqualTo("xyz"), "Should have scrollback from primary screen");
+
+
                 // Bound the target session index to valid range
                 var actualTargetIndex = targetSessionIndex % sessionCount;
 
