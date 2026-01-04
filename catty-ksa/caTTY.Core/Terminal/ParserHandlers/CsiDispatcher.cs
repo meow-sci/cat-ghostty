@@ -18,8 +18,9 @@ internal class CsiDispatcher
     private readonly CsiScrollHandler _scrollHandler;
     private readonly CsiInsertDeleteHandler _insertDeleteHandler;
     private readonly CsiDecModeHandler _decModeHandler;
+    private readonly CsiDeviceQueryHandler _deviceQueryHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler, CsiDecModeHandler decModeHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler, CsiEraseHandler eraseHandler, CsiScrollHandler scrollHandler, CsiInsertDeleteHandler insertDeleteHandler, CsiDecModeHandler decModeHandler, CsiDeviceQueryHandler deviceQueryHandler)
     {
         _terminal = terminal;
         _logger = logger;
@@ -29,6 +30,7 @@ internal class CsiDispatcher
         _scrollHandler = scrollHandler;
         _insertDeleteHandler = insertDeleteHandler;
         _decModeHandler = decModeHandler;
+        _deviceQueryHandler = deviceQueryHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -164,40 +166,27 @@ internal class CsiDispatcher
 
             // Device query sequences
             case "csi.deviceAttributesPrimary":
-                // Primary DA query: respond with device attributes
-                string primaryResponse = DeviceResponses.GenerateDeviceAttributesPrimaryResponse();
-                _terminal.EmitResponse(primaryResponse);
+                _deviceQueryHandler.HandleDeviceAttributesPrimary();
                 break;
 
             case "csi.deviceAttributesSecondary":
-                // Secondary DA query: respond with terminal version
-                string secondaryResponse = DeviceResponses.GenerateDeviceAttributesSecondaryResponse();
-                _terminal.EmitResponse(secondaryResponse);
+                _deviceQueryHandler.HandleDeviceAttributesSecondary();
                 break;
 
             case "csi.cursorPositionReport":
-                // CPR query: respond with current cursor position
-                string cprResponse =
-                    DeviceResponses.GenerateCursorPositionReport(_terminal.Cursor.Col, _terminal.Cursor.Row);
-                _terminal.EmitResponse(cprResponse);
+                _deviceQueryHandler.HandleCursorPositionReport();
                 break;
 
             case "csi.deviceStatusReport":
-                // DSR ready query: respond with CSI 0 n
-                string dsrResponse = DeviceResponses.GenerateDeviceStatusReportResponse();
-                _terminal.EmitResponse(dsrResponse);
+                _deviceQueryHandler.HandleDeviceStatusReport();
                 break;
 
             case "csi.terminalSizeQuery":
-                // Terminal size query: respond with dimensions
-                string sizeResponse = DeviceResponses.GenerateTerminalSizeResponse(_terminal.Height, _terminal.Width);
-                _terminal.EmitResponse(sizeResponse);
+                _deviceQueryHandler.HandleTerminalSizeQuery();
                 break;
 
             case "csi.characterSetQuery":
-                // Character set query: respond with current character set
-                string charsetResponse = _terminal.GenerateCharacterSetQueryResponse();
-                _terminal.EmitResponse(charsetResponse);
+                _deviceQueryHandler.HandleCharacterSetQuery();
                 break;
 
             case "csi.decModeSet":
