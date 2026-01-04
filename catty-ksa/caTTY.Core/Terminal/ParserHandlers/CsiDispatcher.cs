@@ -13,12 +13,14 @@ internal class CsiDispatcher
     private readonly TerminalEmulator _terminal;
     private readonly ILogger _logger;
     private readonly SgrHandler _sgrHandler;
+    private readonly CsiCursorHandler _cursorHandler;
 
-    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler)
+    public CsiDispatcher(TerminalEmulator terminal, ILogger logger, SgrHandler sgrHandler, CsiCursorHandler cursorHandler)
     {
         _terminal = terminal;
         _logger = logger;
         _sgrHandler = sgrHandler;
+        _cursorHandler = cursorHandler;
     }
 
     public void HandleCsi(CsiMessage message)
@@ -26,51 +28,47 @@ internal class CsiDispatcher
         switch (message.Type)
         {
             case "csi.cursorUp":
-                _terminal.MoveCursorUp(message.Count ?? 1);
+                _cursorHandler.HandleCursorUp(message);
                 break;
 
             case "csi.cursorDown":
-                _terminal.MoveCursorDown(message.Count ?? 1);
+                _cursorHandler.HandleCursorDown(message);
                 break;
 
             case "csi.cursorForward":
-                _terminal.MoveCursorForward(message.Count ?? 1);
+                _cursorHandler.HandleCursorForward(message);
                 break;
 
             case "csi.cursorBackward":
-                _terminal.MoveCursorBackward(message.Count ?? 1);
+                _cursorHandler.HandleCursorBackward(message);
                 break;
 
             case "csi.cursorPosition":
-                _terminal.SetCursorPosition(message.Row ?? 1, message.Column ?? 1);
+                _cursorHandler.HandleCursorPosition(message);
                 break;
 
             case "csi.cursorHorizontalAbsolute":
-                _terminal.SetCursorColumn(message.Count ?? 1);
+                _cursorHandler.HandleCursorHorizontalAbsolute(message);
                 break;
 
             case "csi.cursorNextLine":
-                _terminal.MoveCursorDown(message.Count ?? 1);
-                _terminal.SetCursorColumn(1); // Move to beginning of line
+                _cursorHandler.HandleCursorNextLine(message);
                 break;
 
             case "csi.cursorPrevLine":
-                _terminal.MoveCursorUp(message.Count ?? 1);
-                _terminal.SetCursorColumn(1); // Move to beginning of line
+                _cursorHandler.HandleCursorPrevLine(message);
                 break;
 
             case "csi.verticalPositionAbsolute":
-                _terminal.SetCursorPosition(message.Count ?? 1, _terminal.Cursor.Col + 1);
+                _cursorHandler.HandleVerticalPositionAbsolute(message);
                 break;
 
             case "csi.saveCursorPosition":
-                // ANSI cursor save (CSI s) - separate from DEC save (ESC 7)
-                _terminal.SaveCursorPositionAnsi();
+                _cursorHandler.HandleSaveCursorPosition();
                 break;
 
             case "csi.restoreCursorPosition":
-                // ANSI cursor restore (CSI u) - separate from DEC restore (ESC 8)
-                _terminal.RestoreCursorPositionAnsi();
+                _cursorHandler.HandleRestoreCursorPosition();
                 break;
 
             case "csi.eraseInDisplay":
@@ -82,11 +80,11 @@ internal class CsiDispatcher
                 break;
 
             case "csi.cursorForwardTab":
-                _terminal.CursorForwardTab(message.Count ?? 1);
+                _cursorHandler.HandleCursorForwardTab(message);
                 break;
 
             case "csi.cursorBackwardTab":
-                _terminal.CursorBackwardTab(message.Count ?? 1);
+                _cursorHandler.HandleCursorBackwardTab(message);
                 break;
 
             case "csi.tabClear":
@@ -258,11 +256,7 @@ internal class CsiDispatcher
                 break;
 
             case "csi.setCursorStyle":
-                // Set cursor style (CSI Ps SP q) - DECSCUSR
-                if (message.CursorStyle.HasValue)
-                {
-                    _terminal.SetCursorStyle(message.CursorStyle.Value);
-                }
+                _cursorHandler.HandleSetCursorStyle(message);
                 break;
 
             case "csi.decSoftReset":
