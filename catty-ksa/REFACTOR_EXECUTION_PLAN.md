@@ -69,11 +69,20 @@ git commit -m "Task 0.1: Establish refactoring baseline
 - Baseline established
 
 
-## Task 4.31: Extract Index Operations
+
+---
+
+# Phase 5: Parser Engine Refactoring
+
+**Target:** `caTTY.Core/Parsing/Parser.cs`
+**Strategy:** Extract state machine into engine with state handlers
+
+## Task 5.1: Create Parser Engine Context
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalIndexOps.cs`
-2. Move: `HandleIndex()`
+1. Create folder: `caTTY.Core/Parsing/Engine/`
+2. Create file: `caTTY.Core/Parsing/Engine/ParserEngineContext.cs`
+3. Move parser state fields (buffers, state enum, etc.)
 
 **Validation:**
 ```bash
@@ -84,18 +93,21 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.31: Extract index operations
+git commit -m "Task 5.1: Create parser engine context
 
-- Created TerminalIndexOps.cs
-- Extracted HandleIndex method
+- Created caTTY.Core/Parsing/Engine/ folder
+- Created ParserEngineContext.cs
+- Extracted parser state fields
+- Extracted buffers and state enum
 - All tests pass"
 ```
 
-## Task 4.32: Extract Carriage Return Operations
+## Task 5.2: Create Parser Engine
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCarriageReturnOps.cs`
-2. Move: `HandleCarriageReturn()`
+1. Create file: `caTTY.Core/Parsing/Engine/ParserEngine.cs`
+2. Move `ProcessByte(byte b)` logic
+3. Keep `Parser.cs` as facade delegating to engine
 
 **Validation:**
 ```bash
@@ -106,20 +118,66 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.32: Extract carriage return operations
+git commit -m "Task 5.2: Create parser engine
 
-- Created TerminalCarriageReturnOps.cs
-- Extracted HandleCarriageReturn method
+- Created ParserEngine.cs
+- Extracted ProcessByte logic
+- Parser.cs delegates to engine
 - All tests pass"
 ```
 
-## Task 4.33: Extract Bell Operations
+## Task 5.3: Extract Normal State Handler
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalBellOps.cs`
+1. Create file: `caTTY.Core/Parsing/Engine/NormalStateHandler.cs`
+2. Move: `HandleNormalState(byte b)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 5.3: Extract normal state handler
+
+- Created NormalStateHandler.cs
+- Extracted HandleNormalState method
+- All tests pass"
+```
+
+## Task 5.4: Extract Escape State Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Parsing/Engine/EscapeStateHandler.cs`
+2. Move: `HandleEscapeState(byte b)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 5.4: Extract escape state handler
+
+- Created EscapeStateHandler.cs
+- Extracted HandleEscapeState method
+- All tests pass"
+```
+
+## Task 5.5: Extract CSI State Handler
+
+**Steps:**
+1. Create file: `caTTY.Core/Parsing/Engine/CsiStateHandler.cs`
 2. Move:
-   - `HandleBell()`
-   - `OnBell()`
+   - `HandleCsiState(byte b)`
+   - `HandleCsiByte(byte b)`
+   - `FinishCsiSequence()`
 
 **Validation:**
 ```bash
@@ -130,47 +188,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.33: Extract bell operations
+git commit -m "Task 5.5: Extract CSI state handler
 
-- Created TerminalBellOps.cs
-- Extracted HandleBell method
-- Extracted OnBell event raiser
+- Created CsiStateHandler.cs
+- Extracted HandleCsiState method
+- Extracted HandleCsiByte method
+- Extracted FinishCsiSequence method
 - All tests pass"
 ```
 
-## Task 4.34: Extract Backspace Operations
+## Task 5.6: Extract OSC State Handler
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalBackspaceOps.cs`
-2. Move: `HandleBackspace()`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.34: Extract backspace operations
-
-- Created TerminalBackspaceOps.cs
-- Extracted HandleBackspace method
-- All tests pass"
-```
-
-## Task 4.35: Extract Tab Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalTabOps.cs`
+1. Create file: `caTTY.Core/Parsing/Engine/OscStateHandler.cs`
 2. Move:
-   - `HandleTab()`
-   - `SetTabStopAtCursor()`
-   - `CursorForwardTab(int count)`
-   - `CursorBackwardTab(int count)`
-   - `ClearTabStopAtCursor()`
-   - `ClearAllTabStops()`
+   - `HandleOscState(byte b)`
+   - `HandleOscEscapeState(byte b)`
 
 **Validation:**
 ```bash
@@ -181,23 +214,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.35: Extract tab operations
+git commit -m "Task 5.6: Extract OSC state handler
 
-- Created TerminalTabOps.cs
-- Extracted HandleTab method
-- Extracted tab stop management methods
-- Extracted cursor tab navigation methods
+- Created OscStateHandler.cs
+- Extracted HandleOscState method
+- Extracted HandleOscEscapeState method
 - All tests pass"
 ```
 
-## Task 4.36: Extract Response Operations
+## Task 5.7: Extract DCS State Handler
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalResponseOps.cs`
+1. Create file: `caTTY.Core/Parsing/Engine/DcsStateHandler.cs`
 2. Move:
-   - `EmitResponse(string response)`
-   - `OnResponseEmitted(ResponseEmittedEventArgs e)`
-   - `OnResponseEmitted(string response)`
+   - `HandleDcsState(byte b)`
+   - `HandleDcsEscapeState(byte b)`
+   - `FinishDcsSequence(string terminator)`
 
 **Validation:**
 ```bash
@@ -208,43 +240,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.36: Extract response operations
+git commit -m "Task 5.7: Extract DCS state handler
 
-- Created TerminalResponseOps.cs
-- Extracted EmitResponse method
-- Extracted OnResponseEmitted overloads
+- Created DcsStateHandler.cs
+- Extracted HandleDcsState method
+- Extracted HandleDcsEscapeState method
+- Extracted FinishDcsSequence method
 - All tests pass"
 ```
 
-## Task 4.37: Extract Screen Update Operations
+## Task 5.8: Extract Control String State Handler
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalScreenUpdateOps.cs`
-2. Move: `OnScreenUpdated()`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.37: Extract screen update operations
-
-- Created TerminalScreenUpdateOps.cs
-- Extracted OnScreenUpdated method
-- All tests pass"
-```
-
-## Task 4.38: Extract Title/Icon Event Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalTitleIconEventsOps.cs`
+1. Create file: `caTTY.Core/Parsing/Engine/ControlStringStateHandler.cs`
 2. Move:
-   - `OnTitleChanged(string title)`
-   - `OnIconNameChanged(string name)`
+   - `HandleControlStringState(byte b)`
+   - `HandleControlStringEscapeState(byte b)`
 
 **Validation:**
 ```bash
@@ -255,22 +266,21 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.38: Extract title/icon event operations
+git commit -m "Task 5.8: Extract control string state handler
 
-- Created TerminalTitleIconEventsOps.cs
-- Extracted OnTitleChanged method
-- Extracted OnIconNameChanged method
+- Created ControlStringStateHandler.cs
+- Extracted HandleControlStringState method
+- Extracted HandleControlStringEscapeState method
 - All tests pass"
 ```
 
-## Task 4.39: Extract Input Operations
+## Task 5.9: Extract RPC Sequence Handler
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInputOps.cs`
+1. Create file: `caTTY.Core/Parsing/Engine/RpcSequenceHandler.cs`
 2. Move:
-   - `Write(ReadOnlySpan<byte>)`
-   - `Write(string)`
-   - `FlushIncompleteSequences()`
+   - `IsRpcHandlingEnabled()`
+   - `TryHandleRpcSequence()`
 
 **Validation:**
 ```bash
@@ -281,42 +291,26 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.39: Extract input operations
+git commit -m "Task 5.9: Extract RPC sequence handler
 
-- Created TerminalInputOps.cs
-- Extracted Write(ReadOnlySpan<byte>) method
-- Extracted Write(string) method
-- Extracted FlushIncompleteSequences method
+- Created RpcSequenceHandler.cs
+- Extracted IsRpcHandlingEnabled method
+- Extracted TryHandleRpcSequence method
 - All tests pass"
 ```
 
-## Task 4.40: Extract Reset Operations
+**Phase 5 Complete:** `Parser.cs` should be facade ~100-150 LOC
 
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalResetOps.cs`
-2. Move:
-   - `ResetToInitialState()`
-   - `SoftReset()`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
+**Git Commit (Phase Completion):**
 ```bash
 git add .
-git commit -m "Task 4.40: Extract reset operations
+git commit -m "Phase 5 Complete: Parser engine refactored
 
-- Created TerminalResetOps.cs
-- Extracted ResetToInitialState method
-- Extracted SoftReset method
+- Parser.cs reduced to ~100-150 LOC facade
+- Created 9 focused state handlers in Engine/
+- State machine logic properly separated
 - All tests pass"
 ```
-
-**Phase 4 Complete:** `TerminalEmulator.cs` should be facade ~200-400 LOC with EmulatorOps/ containing ~40 focused classes
-
 
 
 ---
