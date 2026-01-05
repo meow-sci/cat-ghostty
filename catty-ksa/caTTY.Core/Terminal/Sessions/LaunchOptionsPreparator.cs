@@ -1,0 +1,32 @@
+namespace caTTY.Core.Terminal;
+
+/// <summary>
+///     Prepares launch options for new session creation.
+/// </summary>
+internal class LaunchOptionsPreparator
+{
+    /// <summary>
+    ///     Prepares effective launch options for a new session by applying current terminal dimensions.
+    /// </summary>
+    /// <param name="providedOptions">User-provided launch options (or null to use defaults)</param>
+    /// <param name="dimensionTracker">Dimension tracker to get defaults and current dimensions</param>
+    /// <returns>Launch options with current terminal dimensions applied</returns>
+    public static ProcessLaunchOptions PrepareEffectiveLaunchOptions(
+        ProcessLaunchOptions? providedOptions,
+        SessionDimensionTracker dimensionTracker)
+    {
+        // Ensure the terminal emulator and PTY process start with the same dimensions.
+        // If launchOptions is null, use the last-known/default size (updated via resize handlers).
+        ProcessLaunchOptions effectiveLaunchOptions = providedOptions != null
+            ? SessionDimensionTracker.CloneLaunchOptions(providedOptions)
+            : dimensionTracker.GetDefaultLaunchOptionsSnapshot();
+
+        // Always start new sessions at the last-known UI size.
+        // This prevents shell changes (WSL/PowerShell/Cmd) from reverting to 80x24/80x25 defaults.
+        var lastKnown = dimensionTracker.LastKnownTerminalDimensions;
+        effectiveLaunchOptions.InitialWidth = lastKnown.cols;
+        effectiveLaunchOptions.InitialHeight = lastKnown.rows;
+
+        return effectiveLaunchOptions;
+    }
+}

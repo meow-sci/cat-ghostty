@@ -113,7 +113,7 @@ internal class SessionDimensionTracker
     /// </summary>
     /// <param name="options">The launch options to clone</param>
     /// <returns>A new instance with copied values</returns>
-    private static ProcessLaunchOptions CloneLaunchOptions(ProcessLaunchOptions options)
+    public static ProcessLaunchOptions CloneLaunchOptions(ProcessLaunchOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
