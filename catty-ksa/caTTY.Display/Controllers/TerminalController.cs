@@ -987,94 +987,6 @@ public class TerminalController : ITerminalController
     }
   }
 
-  #region Layout Helper Methods
-
-  /// <summary>
-  /// Calculates the current tab area height based on the number of terminal instances.
-  /// Uses constrained sizing to prevent excessive height growth.
-  /// </summary>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1 for current single terminal)</param>
-  /// <returns>Tab area height in pixels</returns>
-  private static float CalculateTabAreaHeight(int tabCount = 1) => TerminalUiTabs.CalculateTabAreaHeight(tabCount);
-
-  /// <summary>
-  /// Calculates the current settings area height based on the number of control rows.
-  /// Uses constrained sizing to prevent excessive height growth.
-  /// </summary>
-  /// <param name="controlRows">Number of control rows (defaults to 1 for basic settings)</param>
-  /// <returns>Settings area height in pixels</returns>
-  private static float CalculateSettingsAreaHeight(int controlRows = 1) => TerminalUiResize.CalculateSettingsAreaHeight(controlRows);
-
-  /// <summary>
-  /// Calculates the total height of all header areas (menu bar, tab area, settings area).
-  /// Uses current terminal state to determine variable area heights.
-  /// </summary>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
-  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
-  /// <returns>Total height of header areas in pixels</returns>
-  private static float CalculateHeaderHeight(int tabCount = 1, int settingsControlRows = 1) => TerminalUiResize.CalculateHeaderHeight(tabCount, settingsControlRows);
-
-  /// <summary>
-  /// Calculates the minimum possible header height (all areas at minimum size).
-  /// Used for minimum window size calculations and initial estimates.
-  /// </summary>
-  /// <returns>Minimum header height in pixels</returns>
-  private static float CalculateMinHeaderHeight() => TerminalUiResize.CalculateMinHeaderHeight();
-
-  /// <summary>
-  /// Calculates the maximum possible header height (all areas at maximum size).
-  /// Used for layout validation and bounds checking.
-  /// </summary>
-  /// <returns>Maximum header height in pixels</returns>
-  private static float CalculateMaxHeaderHeight() => TerminalUiResize.CalculateMaxHeaderHeight();
-
-  /// <summary>
-  /// Calculates the available space for the terminal canvas after accounting for header areas.
-  /// Uses current header configuration for accurate space calculation.
-  /// </summary>
-  /// <param name="windowSize">Total window size</param>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
-  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
-  /// <returns>Available size for terminal canvas</returns>
-  private static float2 CalculateTerminalCanvasSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1) => TerminalUiResize.CalculateTerminalCanvasSize(windowSize, tabCount, settingsControlRows);
-
-  /// <summary>
-  /// Validates that window dimensions are sufficient for the layout with current configuration.
-  /// Accounts for variable header heights in validation.
-  /// </summary>
-  /// <param name="windowSize">Window size to validate</param>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
-  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
-  /// <returns>True if window size is valid for layout</returns>
-  private static bool ValidateWindowSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1) => TerminalUiResize.ValidateWindowSize(windowSize, tabCount, settingsControlRows);
-
-  /// <summary>
-  /// Calculates the position for the terminal canvas area.
-  /// Accounts for current header height configuration.
-  /// </summary>
-  /// <param name="windowPos">Window position</param>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
-  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
-  /// <returns>Position where terminal canvas should be rendered</returns>
-  private static float2 CalculateTerminalCanvasPosition(float2 windowPos, int tabCount = 1, int settingsControlRows = 1) => TerminalUiResize.CalculateTerminalCanvasPosition(windowPos, tabCount, settingsControlRows);
-
-  /// <summary>
-  /// Calculates optimal terminal dimensions using two-pass approach for stability.
-  /// Prevents sizing oscillation by using conservative estimates.
-  /// </summary>
-  /// <param name="windowSize">Current window size</param>
-  /// <param name="charWidth">Character width in pixels</param>
-  /// <param name="lineHeight">Line height in pixels</param>
-  /// <param name="tabCount">Number of terminal tabs (defaults to 1)</param>
-  /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
-  /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
-  private static (int cols, int rows)? CalculateOptimalTerminalDimensions(
-    float2 windowSize,
-    float charWidth,
-    float lineHeight,
-    int tabCount = 1,
-    int settingsControlRows = 1) => TerminalUiResize.CalculateOptimalTerminalDimensions(windowSize, charWidth, lineHeight, tabCount, settingsControlRows);
-
   /// <summary>
   /// Gets the current terminal settings instance.
   /// </summary>
@@ -1087,7 +999,6 @@ public class TerminalController : ITerminalController
   /// <summary>
   /// Updates the current terminal settings and applies changes.
   /// </summary>
-  #endregion
 
   /// <summary>
   /// Renders the tab area using real ImGui tabs for session management.
