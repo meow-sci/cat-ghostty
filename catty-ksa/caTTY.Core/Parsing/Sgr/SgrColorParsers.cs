@@ -20,10 +20,10 @@ public class SgrColorParsers
         if (color != null)
         {
             context.Index += consumed;
-            return CreateSgrMessage("sgr.foregroundColor", true, color);
+            return SgrMessageFactory.CreateSgrMessage("sgr.foregroundColor", true, color);
         }
         // If parsing failed, create unknown message for just the 38 parameter
-        return CreateSgrMessage("sgr.unknown", false, 38);
+        return SgrMessageFactory.CreateSgrMessage("sgr.unknown", false, 38);
     }
 
     /// <summary>
@@ -38,10 +38,10 @@ public class SgrColorParsers
         if (color != null)
         {
             context.Index += consumed;
-            return CreateSgrMessage("sgr.backgroundColor", true, color);
+            return SgrMessageFactory.CreateSgrMessage("sgr.backgroundColor", true, color);
         }
         // If parsing failed, create unknown message for just the 48 parameter
-        return CreateSgrMessage("sgr.unknown", false, 48);
+        return SgrMessageFactory.CreateSgrMessage("sgr.unknown", false, 48);
     }
 
     /// <summary>
@@ -56,10 +56,10 @@ public class SgrColorParsers
         if (color != null)
         {
             context.Index += consumed;
-            return CreateSgrMessage("sgr.underlineColor", true, color);
+            return SgrMessageFactory.CreateSgrMessage("sgr.underlineColor", true, color);
         }
         // If parsing failed, create unknown message for just the 58 parameter
-        return CreateSgrMessage("sgr.unknown", false, 58);
+        return SgrMessageFactory.CreateSgrMessage("sgr.unknown", false, 58);
     }
 
     /// <summary>
@@ -132,18 +132,5 @@ public class SgrColorParsers
 
         // Unknown color type
         return null;
-    }
-
-    /// <summary>
-    ///     Creates an SGR message with the specified properties.
-    /// </summary>
-    private static SgrMessage CreateSgrMessage(string type, bool implemented, object? data = null)
-    {
-        return new SgrMessage
-        {
-            Type = type,
-            Implemented = implemented,
-            Data = data
-        };
     }
 }

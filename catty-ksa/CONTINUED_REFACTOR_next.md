@@ -26,7 +26,7 @@
    - Call `_fileMenuRenderer.Render()` from appropriate location
 9. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 10. Commit with message:
@@ -57,7 +57,7 @@
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -87,7 +87,7 @@
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -117,7 +117,7 @@
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -147,7 +147,7 @@
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -177,7 +177,7 @@
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -208,7 +208,7 @@
 4. Remove any remaining complex rendering logic
 5. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -252,7 +252,7 @@
    - Delegate loading operations
 9. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 10. Commit with message:
@@ -282,7 +282,7 @@
 6. Update `TerminalUiFonts.cs` to delegate metrics calculations
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -311,7 +311,7 @@
 6. Update `TerminalUiFonts.cs` to delegate selection UI
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -340,7 +340,7 @@
 6. Update `TerminalUiFonts.cs` to delegate persistence operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -367,7 +367,7 @@
 4. Keep only high-level font management API
 5. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -404,7 +404,7 @@
 7. Update `TerminalUiResize.cs` to delegate window resize detection
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -434,7 +434,7 @@
 6. Update `TerminalUiResize.cs` to delegate dimension calculations
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -463,7 +463,7 @@
 6. Update `TerminalUiResize.cs` to delegate font-driven resizes
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -490,7 +490,7 @@
 4. Keep only high-level resize coordination
 5. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -527,7 +527,7 @@
 7. Update `TerminalUiInput.cs` to delegate keyboard operations
 8. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -557,7 +557,7 @@
 6. Update `TerminalUiInput.cs` to delegate special key operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -586,7 +586,7 @@
 6. Update `TerminalUiInput.cs` to delegate focus operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -613,7 +613,7 @@
 4. Keep only high-level input API
 5. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -655,7 +655,7 @@
 6. Update all instantiation sites to use `TerminalEmulator.Create(...)`
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -689,7 +689,7 @@
 3. Call sub-methods from `BuildOperations()`
 4. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 5. Commit with message:
@@ -721,7 +721,7 @@
 4. Remove any remaining initialization complexity
 5. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -763,7 +763,7 @@
 6. Update instantiation sites to use factory
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -790,7 +790,7 @@
 2. If any build method >150 LOC, split into subcategories
 3. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 4. Commit with message:
@@ -816,7 +816,7 @@
 3. Ensure only delegation and essential coordination
 4. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 5. Commit with message:
@@ -853,7 +853,7 @@
 5. Update SessionManager to delegate additional operations
 6. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -883,7 +883,7 @@
 5. Update ProcessManager to delegate additional operations
 6. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -921,7 +921,7 @@
 6. If split is not clean, skip this phase and document reasoning
 7. Run tests: `.\scripts\dotnet-test.ps1`
    - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
