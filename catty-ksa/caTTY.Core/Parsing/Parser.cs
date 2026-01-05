@@ -39,6 +39,7 @@ public class Parser
     // State handlers
     private readonly NormalStateHandler _normalStateHandler;
     private readonly EscapeStateHandler _escapeStateHandler;
+    private readonly CsiStateHandler _csiStateHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -78,6 +79,18 @@ public class Parser
             _processC0ControlsDuringEscapeSequence,
             HandleC0ExceptEscape,
             HandleEscapeByte);
+
+        _csiStateHandler = new CsiStateHandler(
+            _logger,
+            _processC0ControlsDuringEscapeSequence,
+            _csiParser,
+            _sgrParser,
+            _handlers,
+            HandleC0ExceptEscape,
+            MaybeEmitNormalByteDuringEscapeSequence,
+            IsRpcHandlingEnabled,
+            TryHandleRpcSequence,
+            ResetEscapeState);
 
         // Initialize parser engine with state handlers
         _engine = new ParserEngine(
@@ -161,16 +174,11 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in CSI sequence state.
+    ///     Delegates to CsiStateHandler.
     /// </summary>
     private void HandleCsiState(byte b)
     {
-        // Optional: still execute C0 controls while parsing CSI (common terminal behavior)
-        if (b < 0x20 && b != 0x1b && _processC0ControlsDuringEscapeSequence && HandleC0ExceptEscape(b))
-        {
-            return;
-        }
-
-        HandleCsiByte(b);
+        _csiStateHandler.HandleCsiState(b, _context);
     }
 
     /// <summary>
@@ -331,29 +339,6 @@ public class Parser
         _context.State = ParserState.ControlString;
     }
 
-    /// <summary>
-    ///     Handles bytes in CSI sequence, building the sequence until final byte.
-    /// </summary>
-    private void HandleCsiByte(byte b)
-    {
-        // Guard against bytes outside the allowed CSI byte range (0x20 - 0x7E)
-        if (b < 0x20 || b > 0x7e)
-        {
-            _logger.LogWarning("CSI: byte out of range 0x{Byte:X2}", b);
-            MaybeEmitNormalByteDuringEscapeSequence(b);
-            return;
-        }
-
-        // Always add byte to the escape sequence and csi sequence
-        _context.CsiSequence.Append((char)b);
-        _context.EscapeSequence.Add(b);
-
-        // CSI final bytes are 0x40-0x7E
-        if (b >= 0x40 && b <= 0x7e)
-        {
-            FinishCsiSequence();
-        }
-    }
 
     /// <summary>
     ///     Handles ESC byte, accumulating into escape sequence and determining next state.
@@ -508,36 +493,6 @@ public class Parser
         _context.EscapeSequence.Add(b);
     }
 
-    /// <summary>
-    ///     Finishes a CSI sequence and sends it to the handler.
-    /// </summary>
-    private void FinishCsiSequence()
-    {
-        string raw = BytesToString(_context.EscapeSequence);
-        byte finalByte = _context.EscapeSequence[^1];
-
-        // Check for RPC sequences first (ESC [ > format) if RPC handling is enabled
-        if (IsRpcHandlingEnabled() && TryHandleRpcSequence())
-        {
-            ResetEscapeState();
-            return;
-        }
-
-        // CSI SGR: parse using the dedicated SGR parser
-        if (finalByte == 0x6d) // 'm'
-        {
-            SgrSequence sgrSequence = _sgrParser.ParseSgrSequence(_context.EscapeSequence.ToArray(), raw);
-            _handlers.HandleSgr(sgrSequence);
-        }
-        else
-        {
-            // Parse CSI sequence using the dedicated CSI parser
-            CsiMessage message = _csiParser.ParseCsiSequence(_context.EscapeSequence.ToArray(), raw);
-            _handlers.HandleCsi(message);
-        }
-
-        ResetEscapeState();
-    }
 
     /// <summary>
     ///     Finishes a DCS sequence and sends it to the handler.
