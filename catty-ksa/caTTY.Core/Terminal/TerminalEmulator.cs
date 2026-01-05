@@ -47,6 +47,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
     private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
     private readonly EmulatorOps.TerminalPrivateModesOps _privateModesOps;
+    private readonly EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -138,6 +139,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _alternateScreenOps = new EmulatorOps.TerminalAlternateScreenOps(_cursorManager, _alternateScreenManager, _scrollbackManager, () => State);
         _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
         _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
+        _bracketedPasteOps = new EmulatorOps.TerminalBracketedPasteOps(() => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1673,20 +1675,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="pasteContent">The content to be pasted</param>
     /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
-    public string WrapPasteContent(string pasteContent)
-    {
-        if (string.IsNullOrEmpty(pasteContent))
-        {
-            return pasteContent;
-        }
-
-        if (State.BracketedPasteMode)
-        {
-            return $"\x1b[200~{pasteContent}\x1b[201~";
-        }
-
-        return pasteContent;
-    }
+    public string WrapPasteContent(string pasteContent) => _bracketedPasteOps.WrapPasteContent(pasteContent);
 
     /// <summary>
     ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
@@ -1694,29 +1683,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="pasteContent">The content to be pasted</param>
     /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
-    public string WrapPasteContent(ReadOnlySpan<char> pasteContent)
-    {
-        if (pasteContent.IsEmpty)
-        {
-            return string.Empty;
-        }
-
-        if (State.BracketedPasteMode)
-        {
-            return $"\x1b[200~{pasteContent.ToString()}\x1b[201~";
-        }
-
-        return pasteContent.ToString();
-    }
+    public string WrapPasteContent(ReadOnlySpan<char> pasteContent) => _bracketedPasteOps.WrapPasteContent(pasteContent);
 
     /// <summary>
     ///     Checks if bracketed paste mode is currently enabled.
     ///     This is a convenience method for external components that need to check paste mode state.
     /// </summary>
     /// <returns>True if bracketed paste mode is enabled, false otherwise</returns>
-    public bool IsBracketedPasteModeEnabled()
-    {
-        return State.BracketedPasteMode;
-    }
+    public bool IsBracketedPasteModeEnabled() => _bracketedPasteOps.IsBracketedPasteModeEnabled();
 
 }
