@@ -16,7 +16,8 @@
       "Bash(powershell:*)",
       "Bash(powershell.exe:*)",
       "Bash(./scripts/dotnet-test.ps1)",
-      "Bash(\".\\\\scripts\\\\dotnet-test.ps1\")"
+      "Bash(\".\\\\scripts\\\\dotnet-test.ps1\")",
+      "Bash(find:*)"
     ]
   }
 }
