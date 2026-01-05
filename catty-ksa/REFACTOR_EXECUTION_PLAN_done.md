@@ -890,3 +890,376 @@ git commit -m "Task 3.12: Extract C0 and ESC handlers
 ```
 
 **Phase 3 Complete:** `TerminalParserHandlers.cs` should be facade ~100-150 LOC
+
+
+
+---
+
+# Phase 4: TerminalEmulator Refactoring
+
+**Target:** `caTTY.Core/Terminal/TerminalEmulator.cs` (~2500 LOC)
+**Strategy:** Extract operation groups into EmulatorOps/ folder
+**CRITICAL:** This is the largest refactoring - proceed incrementally, test after EACH file
+
+## Task 4.1: Create Infrastructure
+
+**Goal:** Set up folder structure
+
+**Steps:**
+1. Create folder: `caTTY.Core/Terminal/EmulatorOps/`
+2. Plan facade structure (keep all public APIs in `TerminalEmulator.cs`)
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.1: Create EmulatorOps infrastructure
+
+- Created caTTY.Core/Terminal/EmulatorOps/ folder
+- Prepared for operation extraction
+- All tests pass"
+```
+
+## Task 4.2: Extract Viewport Operations
+
+**Goal:** First extraction - lowest risk area
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalViewportOps.cs`
+2. Move methods:
+   - `ScrollViewportUp(int lines)`
+   - `ScrollViewportDown(int lines)`
+   - `ScrollViewportToTop()`
+   - `ScrollViewportToBottom()`
+3. Create instance in `TerminalEmulator`, delegate public methods
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.2: Extract viewport operations
+
+- Created TerminalViewportOps.cs
+- Extracted ScrollViewportUp method
+- Extracted ScrollViewportDown method
+- Extracted ScrollViewportToTop method
+- Extracted ScrollViewportToBottom method
+- TerminalEmulator delegates to viewport ops
+- All tests pass"
+```
+
+## Task 4.3: Extract Resize Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalResizeOps.cs`
+2. Move: `Resize(int cols, int rows)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.3: Extract resize operations
+
+- Created TerminalResizeOps.cs
+- Extracted Resize method
+- All tests pass"
+```
+
+## Task 4.4: Extract Cursor Movement Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorMovementOps.cs`
+2. Move:
+   - `MoveCursorUp(int count)`
+   - `MoveCursorDown(int count)`
+   - `MoveCursorForward(int count)`
+   - `MoveCursorBackward(int count)`
+   - `SetCursorPosition(int row, int col)`
+   - `SetCursorColumn(int col)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.4: Extract cursor movement operations
+
+- Created TerminalCursorMovementOps.cs
+- Extracted MoveCursorUp, MoveCursorDown
+- Extracted MoveCursorForward, MoveCursorBackward
+- Extracted SetCursorPosition, SetCursorColumn
+- All tests pass"
+```
+
+## Task 4.5: Extract Cursor Save/Restore Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorSaveRestoreOps.cs`
+2. Move:
+   - `SaveCursorPosition()`
+   - `RestoreCursorPosition()`
+   - `SaveCursorPositionAnsi()`
+   - `RestoreCursorPositionAnsi()`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.5: Extract cursor save/restore operations
+
+- Created TerminalCursorSaveRestoreOps.cs
+- Extracted SaveCursorPosition, RestoreCursorPosition
+- Extracted SaveCursorPositionAnsi, RestoreCursorPositionAnsi
+- All tests pass"
+```
+
+## Task 4.6: Extract Cursor Style Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorStyleOps.cs`
+2. Move:
+   - `SetCursorStyle(int style)`
+   - `SetCursorStyle(CursorStyle style)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.6: Extract cursor style operations
+
+- Created TerminalCursorStyleOps.cs
+- Extracted SetCursorStyle(int) method
+- Extracted SetCursorStyle(CursorStyle) method
+- All tests pass"
+```
+
+## Task 4.7: Extract Erase In Display Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalEraseInDisplayOps.cs`
+2. Move: `ClearDisplay(int mode)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.7: Extract erase in display operations
+
+- Created TerminalEraseInDisplayOps.cs
+- Extracted ClearDisplay method
+- All tests pass"
+```
+
+## Task 4.8: Extract Erase In Line Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalEraseInLineOps.cs`
+2. Move: `ClearLine(int mode)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.8: Extract erase in line operations
+
+- Created TerminalEraseInLineOps.cs
+- Extracted ClearLine method
+- All tests pass"
+```
+
+## Task 4.9: Extract Selective Erase In Display Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalSelectiveEraseInDisplayOps.cs`
+2. Move: `ClearDisplaySelective(int mode)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.9: Extract selective erase in display operations
+
+- Created TerminalSelectiveEraseInDisplayOps.cs
+- Extracted ClearDisplaySelective method
+- All tests pass"
+```
+
+## Task 4.10: Extract Selective Erase In Line Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalSelectiveEraseInLineOps.cs`
+2. Move: `ClearLineSelective(int mode)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.10: Extract selective erase in line operations
+
+- Created TerminalSelectiveEraseInLineOps.cs
+- Extracted ClearLineSelective method
+- All tests pass"
+```
+
+## Task 4.11: Extract Scroll Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalScrollOps.cs`
+2. Move:
+   - `ScrollScreenUp(int lines)`
+   - `ScrollScreenDown(int lines)`
+   - `HandleReverseIndex()`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.11: Extract scroll operations
+
+- Created TerminalScrollOps.cs
+- Extracted ScrollScreenUp, ScrollScreenDown
+- Extracted HandleReverseIndex
+- All tests pass"
+```
+
+## Task 4.12: Extract Scroll Region Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalScrollRegionOps.cs`
+2. Move: `SetScrollRegion(int top, int bottom)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.12: Extract scroll region operations
+
+- Created TerminalScrollRegionOps.cs
+- Extracted SetScrollRegion method
+- All tests pass"
+```
+
+## Task 4.13: Extract Insert Lines Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInsertLinesOps.cs`
+2. Move: `InsertLinesInRegion(int count)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.13: Extract insert lines operations
+
+- Created TerminalInsertLinesOps.cs
+- Extracted InsertLinesInRegion method
+- All tests pass"
+```
+
+## Task 4.14: Extract Delete Lines Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalDeleteLinesOps.cs`
+2. Move: `DeleteLinesInRegion(int count)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.14: Extract delete lines operations
+
+- Created TerminalDeleteLinesOps.cs
+- Extracted DeleteLinesInRegion method
+- All tests pass"
+```
+
+## Task 4.15: Extract Insert Characters Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInsertCharsOps.cs`
+2. Move: `InsertCharactersInLine(int count)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.15: Extract insert characters operations
+
+- Created TerminalInsertCharsOps.cs
+- Extracted InsertCharactersInLine method
+- All tests pass"
+```

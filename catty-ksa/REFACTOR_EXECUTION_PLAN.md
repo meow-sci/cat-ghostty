@@ -69,21 +69,11 @@ git commit -m "Task 0.1: Establish refactoring baseline
 - Baseline established
 
 
----
-
-# Phase 4: TerminalEmulator Refactoring
-
-**Target:** `caTTY.Core/Terminal/TerminalEmulator.cs` (~2500 LOC)
-**Strategy:** Extract operation groups into EmulatorOps/ folder
-**CRITICAL:** This is the largest refactoring - proceed incrementally, test after EACH file
-
-## Task 4.1: Create Infrastructure
-
-**Goal:** Set up folder structure
+## Task 4.16: Extract Delete Characters Operations
 
 **Steps:**
-1. Create folder: `caTTY.Core/Terminal/EmulatorOps/`
-2. Plan facade structure (keep all public APIs in `TerminalEmulator.cs`)
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalDeleteCharsOps.cs`
+2. Move: `DeleteCharactersInLine(int count)`
 
 **Validation:**
 ```bash
@@ -94,25 +84,18 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.1: Create EmulatorOps infrastructure
+git commit -m "Task 4.16: Extract delete characters operations
 
-- Created caTTY.Core/Terminal/EmulatorOps/ folder
-- Prepared for operation extraction
+- Created TerminalDeleteCharsOps.cs
+- Extracted DeleteCharactersInLine method
 - All tests pass"
 ```
 
-## Task 4.2: Extract Viewport Operations
-
-**Goal:** First extraction - lowest risk area
+## Task 4.17: Extract Erase Characters Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalViewportOps.cs`
-2. Move methods:
-   - `ScrollViewportUp(int lines)`
-   - `ScrollViewportDown(int lines)`
-   - `ScrollViewportToTop()`
-   - `ScrollViewportToBottom()`
-3. Create instance in `TerminalEmulator`, delegate public methods
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalEraseCharsOps.cs`
+2. Move: `EraseCharactersInLine(int count)`
 
 **Validation:**
 ```bash
@@ -123,50 +106,20 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.2: Extract viewport operations
+git commit -m "Task 4.17: Extract erase characters operations
 
-- Created TerminalViewportOps.cs
-- Extracted ScrollViewportUp method
-- Extracted ScrollViewportDown method
-- Extracted ScrollViewportToTop method
-- Extracted ScrollViewportToBottom method
-- TerminalEmulator delegates to viewport ops
+- Created TerminalEraseCharsOps.cs
+- Extracted EraseCharactersInLine method
 - All tests pass"
 ```
 
-## Task 4.3: Extract Resize Operations
+## Task 4.18: Extract Insert Mode Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalResizeOps.cs`
-2. Move: `Resize(int cols, int rows)`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.3: Extract resize operations
-
-- Created TerminalResizeOps.cs
-- Extracted Resize method
-- All tests pass"
-```
-
-## Task 4.4: Extract Cursor Movement Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorMovementOps.cs`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInsertModeOps.cs`
 2. Move:
-   - `MoveCursorUp(int count)`
-   - `MoveCursorDown(int count)`
-   - `MoveCursorForward(int count)`
-   - `MoveCursorBackward(int count)`
-   - `SetCursorPosition(int row, int col)`
-   - `SetCursorColumn(int col)`
+   - `SetInsertMode(bool enabled)`
+   - `ShiftCharactersRight(int count)`
 
 **Validation:**
 ```bash
@@ -177,24 +130,65 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.4: Extract cursor movement operations
+git commit -m "Task 4.18: Extract insert mode operations
 
-- Created TerminalCursorMovementOps.cs
-- Extracted MoveCursorUp, MoveCursorDown
-- Extracted MoveCursorForward, MoveCursorBackward
-- Extracted SetCursorPosition, SetCursorColumn
+- Created TerminalInsertModeOps.cs
+- Extracted SetInsertMode method
+- Extracted ShiftCharactersRight method
 - All tests pass"
 ```
 
-## Task 4.5: Extract Cursor Save/Restore Operations
+## Task 4.19: Extract DEC Mode Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorSaveRestoreOps.cs`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalDecModeOps.cs`
+2. Move: `SetDecMode(int mode, bool enabled)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.19: Extract DEC mode operations
+
+- Created TerminalDecModeOps.cs
+- Extracted SetDecMode method
+- All tests pass"
+```
+
+## Task 4.20: Extract Alternate Screen Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalAlternateScreenOps.cs`
+2. Move: `HandleAlternateScreenMode(bool enabled)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.20: Extract alternate screen operations
+
+- Created TerminalAlternateScreenOps.cs
+- Extracted HandleAlternateScreenMode method
+- All tests pass"
+```
+
+## Task 4.21: Extract Private Modes Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalPrivateModesOps.cs`
 2. Move:
-   - `SaveCursorPosition()`
-   - `RestoreCursorPosition()`
-   - `SaveCursorPositionAnsi()`
-   - `RestoreCursorPositionAnsi()`
+   - `SavePrivateModes(int[] modes)`
+   - `RestorePrivateModes(int[] modes)`
 
 **Validation:**
 ```bash
@@ -205,21 +199,22 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.5: Extract cursor save/restore operations
+git commit -m "Task 4.21: Extract private modes operations
 
-- Created TerminalCursorSaveRestoreOps.cs
-- Extracted SaveCursorPosition, RestoreCursorPosition
-- Extracted SaveCursorPositionAnsi, RestoreCursorPositionAnsi
+- Created TerminalPrivateModesOps.cs
+- Extracted SavePrivateModes method
+- Extracted RestorePrivateModes method
 - All tests pass"
 ```
 
-## Task 4.6: Extract Cursor Style Operations
+## Task 4.22: Extract Bracketed Paste Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCursorStyleOps.cs`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalBracketedPasteOps.cs`
 2. Move:
-   - `SetCursorStyle(int style)`
-   - `SetCursorStyle(CursorStyle style)`
+   - `WrapPasteContent(string pasteContent)`
+   - `WrapPasteContent(ReadOnlySpan<char> pasteContent)`
+   - `IsBracketedPasteModeEnabled()`
 
 **Validation:**
 ```bash
@@ -230,110 +225,25 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.6: Extract cursor style operations
+git commit -m "Task 4.22: Extract bracketed paste operations
 
-- Created TerminalCursorStyleOps.cs
-- Extracted SetCursorStyle(int) method
-- Extracted SetCursorStyle(CursorStyle) method
+- Created TerminalBracketedPasteOps.cs
+- Extracted WrapPasteContent(string) method
+- Extracted WrapPasteContent(ReadOnlySpan<char>) method
+- Extracted IsBracketedPasteModeEnabled method
 - All tests pass"
 ```
 
-## Task 4.7: Extract Erase In Display Operations
+## Task 4.23: Extract OSC Title/Icon Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalEraseInDisplayOps.cs`
-2. Move: `ClearDisplay(int mode)`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.7: Extract erase in display operations
-
-- Created TerminalEraseInDisplayOps.cs
-- Extracted ClearDisplay method
-- All tests pass"
-```
-
-## Task 4.8: Extract Erase In Line Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalEraseInLineOps.cs`
-2. Move: `ClearLine(int mode)`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.8: Extract erase in line operations
-
-- Created TerminalEraseInLineOps.cs
-- Extracted ClearLine method
-- All tests pass"
-```
-
-## Task 4.9: Extract Selective Erase In Display Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalSelectiveEraseInDisplayOps.cs`
-2. Move: `ClearDisplaySelective(int mode)`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.9: Extract selective erase in display operations
-
-- Created TerminalSelectiveEraseInDisplayOps.cs
-- Extracted ClearDisplaySelective method
-- All tests pass"
-```
-
-## Task 4.10: Extract Selective Erase In Line Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalSelectiveEraseInLineOps.cs`
-2. Move: `ClearLineSelective(int mode)`
-
-**Validation:**
-```bash
-dotnet build caTTY.Core
-.\scripts\dotnet-test.ps1
-```
-
-**Git Commit:**
-```bash
-git add .
-git commit -m "Task 4.10: Extract selective erase in line operations
-
-- Created TerminalSelectiveEraseInLineOps.cs
-- Extracted ClearLineSelective method
-- All tests pass"
-```
-
-## Task 4.11: Extract Scroll Operations
-
-**Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalScrollOps.cs`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalOscTitleIconOps.cs`
 2. Move:
-   - `ScrollScreenUp(int lines)`
-   - `ScrollScreenDown(int lines)`
-   - `HandleReverseIndex()`
+   - `SetWindowTitle(string title)`
+   - `SetIconName(string name)`
+   - `SetTitleAndIcon(string text)`
+   - `GetWindowTitle()`
+   - `GetIconName()`
 
 **Validation:**
 ```bash
@@ -344,19 +254,19 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.11: Extract scroll operations
+git commit -m "Task 4.23: Extract OSC title/icon operations
 
-- Created TerminalScrollOps.cs
-- Extracted ScrollScreenUp, ScrollScreenDown
-- Extracted HandleReverseIndex
+- Created TerminalOscTitleIconOps.cs
+- Extracted SetWindowTitle, SetIconName, SetTitleAndIcon
+- Extracted GetWindowTitle, GetIconName
 - All tests pass"
 ```
 
-## Task 4.12: Extract Scroll Region Operations
+## Task 4.24: Extract OSC Window Manipulation Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalScrollRegionOps.cs`
-2. Move: `SetScrollRegion(int top, int bottom)`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalOscWindowManipulationOps.cs`
+2. Move: `HandleWindowManipulation(int operation, int[] params)`
 
 **Validation:**
 ```bash
@@ -367,18 +277,20 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.12: Extract scroll region operations
+git commit -m "Task 4.24: Extract OSC window manipulation operations
 
-- Created TerminalScrollRegionOps.cs
-- Extracted SetScrollRegion method
+- Created TerminalOscWindowManipulationOps.cs
+- Extracted HandleWindowManipulation method
 - All tests pass"
 ```
 
-## Task 4.13: Extract Insert Lines Operations
+## Task 4.25: Extract OSC Clipboard Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInsertLinesOps.cs`
-2. Move: `InsertLinesInRegion(int count)`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalOscClipboardOps.cs`
+2. Move:
+   - `HandleClipboard(string data)`
+   - `OnClipboardRequest()`
 
 **Validation:**
 ```bash
@@ -389,18 +301,19 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.13: Extract insert lines operations
+git commit -m "Task 4.25: Extract OSC clipboard operations
 
-- Created TerminalInsertLinesOps.cs
-- Extracted InsertLinesInRegion method
+- Created TerminalOscClipboardOps.cs
+- Extracted HandleClipboard method
+- Extracted OnClipboardRequest method
 - All tests pass"
 ```
 
-## Task 4.14: Extract Delete Lines Operations
+## Task 4.26: Extract OSC Hyperlink Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalDeleteLinesOps.cs`
-2. Move: `DeleteLinesInRegion(int count)`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalOscHyperlinkOps.cs`
+2. Move: `HandleHyperlink(string params, string uri)`
 
 **Validation:**
 ```bash
@@ -411,18 +324,24 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.14: Extract delete lines operations
+git commit -m "Task 4.26: Extract OSC hyperlink operations
 
-- Created TerminalDeleteLinesOps.cs
-- Extracted DeleteLinesInRegion method
+- Created TerminalOscHyperlinkOps.cs
+- Extracted HandleHyperlink method
 - All tests pass"
 ```
 
-## Task 4.15: Extract Insert Characters Operations
+## Task 4.27: Extract OSC Color Query Operations
 
 **Steps:**
-1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalInsertCharsOps.cs`
-2. Move: `InsertCharactersInLine(int count)`
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalOscColorQueryOps.cs`
+2. Move:
+   - `GetCurrentForegroundColor()`
+   - `GetCurrentBackgroundColor()`
+   - `GetDefaultForegroundColor()`
+   - `GetDefaultBackgroundColor()`
+   - `GetNamedColorRgb(int colorIndex)`
+   - `GetIndexedColorRgb(int index)`
 
 **Validation:**
 ```bash
@@ -433,12 +352,87 @@ dotnet build caTTY.Core
 **Git Commit:**
 ```bash
 git add .
-git commit -m "Task 4.15: Extract insert characters operations
+git commit -m "Task 4.27: Extract OSC color query operations
 
-- Created TerminalInsertCharsOps.cs
-- Extracted InsertCharactersInLine method
+- Created TerminalOscColorQueryOps.cs
+- Extracted color query methods
+- Extracted palette helper methods
 - All tests pass"
 ```
+
+## Task 4.28: Extract Charset Designation Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCharsetDesignationOps.cs`
+2. Move: `DesignateCharacterSet(char designator, char charset)`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.28: Extract charset designation operations
+
+- Created TerminalCharsetDesignationOps.cs
+- Extracted DesignateCharacterSet method
+- All tests pass"
+```
+
+## Task 4.29: Extract Charset Translation Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalCharsetTranslationOps.cs`
+2. Move:
+   - `HandleShiftIn()`
+   - `HandleShiftOut()`
+   - `TranslateCharacter(char c)`
+   - `GenerateCharacterSetQueryResponse()`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.29: Extract charset translation operations
+
+- Created TerminalCharsetTranslationOps.cs
+- Extracted HandleShiftIn, HandleShiftOut
+- Extracted TranslateCharacter
+- Extracted GenerateCharacterSetQueryResponse
+- All tests pass"
+```
+
+## Task 4.30: Extract Line Feed Operations
+
+**Steps:**
+1. Create file: `caTTY.Core/Terminal/EmulatorOps/TerminalLineFeedOps.cs`
+2. Move: `HandleLineFeed()`
+
+**Validation:**
+```bash
+dotnet build caTTY.Core
+.\scripts\dotnet-test.ps1
+```
+
+**Git Commit:**
+```bash
+git add .
+git commit -m "Task 4.30: Extract line feed operations
+
+- Created TerminalLineFeedOps.cs
+- Extracted HandleLineFeed method
+- All tests pass"
+```
+
+
 
 ---
 
