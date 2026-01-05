@@ -11,17 +11,13 @@ using caTTY.Display.Utils;
 namespace caTTY.Display.Controllers.TerminalUi;
 
 /// <summary>
-/// Handles settings panel UI rendering for the terminal controller.
-/// Includes menu bar, settings menus, shell configuration, and theme selection.
+/// Coordinates menu bar rendering and shell configuration initialization.
+/// Delegates all menu rendering to specialized renderer classes.
 /// </summary>
 internal class TerminalUiSettingsPanel
 {
-  private readonly TerminalController _controller;
   private readonly SessionManager _sessionManager;
   private readonly ThemeConfiguration _themeConfig;
-  private readonly TerminalUiFonts _fonts;
-  private readonly TerminalUiSelection _selection;
-  private readonly Action _triggerTerminalResizeForAllSessions;
   private readonly FileMenuRenderer _fileMenuRenderer;
   private readonly EditMenuRenderer _editMenuRenderer;
   private readonly SessionsMenuRenderer _sessionsMenuRenderer;
@@ -37,12 +33,13 @@ internal class TerminalUiSettingsPanel
     TerminalUiSelection selection,
     Action triggerTerminalResizeForAllSessions)
   {
-    _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+    if (controller == null) throw new ArgumentNullException(nameof(controller));
+    if (fonts == null) throw new ArgumentNullException(nameof(fonts));
+    if (selection == null) throw new ArgumentNullException(nameof(selection));
+    if (triggerTerminalResizeForAllSessions == null) throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
+
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _themeConfig = themeConfig ?? throw new ArgumentNullException(nameof(themeConfig));
-    _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
-    _selection = selection ?? throw new ArgumentNullException(nameof(selection));
-    _triggerTerminalResizeForAllSessions = triggerTerminalResizeForAllSessions ?? throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
     _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
     _editMenuRenderer = new EditMenuRenderer(controller, selection);
     _sessionsMenuRenderer = new SessionsMenuRenderer(sessionManager);
@@ -52,8 +49,8 @@ internal class TerminalUiSettingsPanel
   }
 
   /// <summary>
-  /// Renders the menu bar with File, Edit, and Font menus.
-  /// Uses ImGui menu widgets to provide standard menu functionality.
+  /// Renders the menu bar by coordinating all menu renderers.
+  /// Delegates to File, Edit, Sessions, Font, Theme, and Settings menu renderers.
   /// </summary>
   public void RenderMenuBar()
   {
@@ -118,71 +115,5 @@ internal class TerminalUiSettingsPanel
       Console.WriteLine($"Error loading shell configuration: {ex.Message}");
       // Continue with default shell configuration
     }
-  }
-
-  /// <summary>
-  /// Resets the font size to the default value.
-  /// </summary>
-  public void ResetFontSize()
-  {
-    try
-    {
-      var currentConfig = _fonts.CurrentFontConfig;
-      var newFontConfig = new TerminalFontConfig
-      {
-        FontSize = 32.0f, // Default font size
-        RegularFontName = currentConfig.RegularFontName,
-        BoldFontName = currentConfig.BoldFontName,
-        ItalicFontName = currentConfig.ItalicFontName,
-        BoldItalicFontName = currentConfig.BoldItalicFontName,
-        AutoDetectContext = currentConfig.AutoDetectContext
-      };
-      _controller.UpdateFontConfig(newFontConfig);
-
-      // Save font settings to persistent configuration
-      SaveFontSettings();
-
-      Console.WriteLine("TerminalController: Font size reset to default");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error resetting font size: {ex.Message}");
-    }
-  }
-
-  /// <summary>
-  /// Increases the font size by 1.0f.
-  /// </summary>
-  public void IncreaseFontSize()
-  {
-    _fonts.IncreaseFontSize(() =>
-    {
-      // Callback when font configuration changes
-      _sessionManager.ApplyFontConfigToAllSessions(_fonts.CurrentFontConfig);
-      _triggerTerminalResizeForAllSessions();
-    });
-    _fonts.SaveFontSettings();
-  }
-
-  /// <summary>
-  /// Decreases the font size by 1.0f.
-  /// </summary>
-  public void DecreaseFontSize()
-  {
-    _fonts.DecreaseFontSize(() =>
-    {
-      // Callback when font configuration changes
-      _sessionManager.ApplyFontConfigToAllSessions(_fonts.CurrentFontConfig);
-      _triggerTerminalResizeForAllSessions();
-    });
-    _fonts.SaveFontSettings();
-  }
-
-  /// <summary>
-  /// Saves current font settings to persistent configuration.
-  /// </summary>
-  private void SaveFontSettings()
-  {
-    _fonts.SaveFontSettings();
   }
 }
