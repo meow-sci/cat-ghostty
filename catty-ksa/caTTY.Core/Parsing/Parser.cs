@@ -38,6 +38,7 @@ public class Parser
 
     // State handlers
     private readonly NormalStateHandler _normalStateHandler;
+    private readonly EscapeStateHandler _escapeStateHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -72,6 +73,11 @@ public class Parser
             HandleC0ExceptEscape,
             StartEscapeSequence,
             HandleNormalByte);
+
+        _escapeStateHandler = new EscapeStateHandler(
+            _processC0ControlsDuringEscapeSequence,
+            HandleC0ExceptEscape,
+            HandleEscapeByte);
 
         // Initialize parser engine with state handlers
         _engine = new ParserEngine(
@@ -146,16 +152,11 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in escape sequence state.
+    ///     Delegates to EscapeStateHandler.
     /// </summary>
     private void HandleEscapeState(byte b)
     {
-        // Optional: still execute C0 controls while parsing ESC sequences (common terminal behavior)
-        if (b < 0x20 && b != 0x1b && _processC0ControlsDuringEscapeSequence && HandleC0ExceptEscape(b))
-        {
-            return;
-        }
-
-        HandleEscapeByte(b);
+        _escapeStateHandler.HandleEscapeState(b);
     }
 
     /// <summary>
