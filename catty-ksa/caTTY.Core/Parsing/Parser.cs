@@ -2,6 +2,7 @@ using System.Text;
 using caTTY.Core.Types;
 using caTTY.Core.Tracing;
 using caTTY.Core.Rpc;
+using caTTY.Core.Parsing.Engine;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Parsing;
@@ -18,10 +19,7 @@ public class Parser
     private readonly IDcsParser _dcsParser;
     private readonly IOscParser _oscParser;
     private readonly ISgrParser _sgrParser;
-    private readonly StringBuilder _csiSequence = new();
-    private readonly StringBuilder _dcsParamBuffer = new();
     private readonly bool _emitNormalBytesDuringEscapeSequence;
-    private readonly List<byte> _escapeSequence = new();
     private readonly IParserHandlers _handlers;
     private readonly ILogger _logger;
     private readonly bool _processC0ControlsDuringEscapeSequence;
@@ -35,12 +33,8 @@ public class Parser
     // UTF-8 decoding
     private readonly IUtf8Decoder _utf8Decoder;
 
-    // Control string state (DCS/SOS/PM/APC)
-    private ControlStringKind? _controlStringKind;
-    private string? _dcsCommand;
-    private string[] _dcsParameters = Array.Empty<string>();
-
-    private ParserState _state = ParserState.Normal;
+    // Parser engine context
+    private readonly ParserEngineContext _context = new();
 
     /// <summary>
     ///     Creates a new parser with the specified options.
@@ -116,7 +110,7 @@ public class Parser
             return;
         }
 
-        switch (_state)
+        switch (_context.State)
         {
             case ParserState.Normal:
                 HandleNormalState(b);
@@ -226,7 +220,7 @@ public class Parser
             return;
         }
 
-        if (_oscParser.ProcessOscByte(b, _escapeSequence, out OscMessage? message))
+        if (_oscParser.ProcessOscByte(b, _context.EscapeSequence, out OscMessage? message))
         {
             if (message != null)
             {
@@ -246,7 +240,7 @@ public class Parser
 
         if (b == 0x1b) // ESC
         {
-            _state = ParserState.OscEscape;
+            _context.State = ParserState.OscEscape;
         }
     }
 
@@ -255,7 +249,7 @@ public class Parser
     /// </summary>
     private void HandleOscEscapeState(byte b)
     {
-        if (_oscParser.ProcessOscEscapeByte(b, _escapeSequence, out OscMessage? message))
+        if (_oscParser.ProcessOscEscapeByte(b, _context.EscapeSequence, out OscMessage? message))
         {
             if (message != null)
             {
@@ -274,7 +268,7 @@ public class Parser
         }
 
         // Continue OSC payload
-        _state = ParserState.Osc;
+        _context.State = ParserState.Osc;
     }
 
     /// <summary>
@@ -282,7 +276,7 @@ public class Parser
     /// </summary>
     private void HandleDcsState(byte b)
     {
-        if (_dcsParser.ProcessDcsByte(b, _escapeSequence, ref _dcsCommand, _dcsParamBuffer, ref _dcsParameters, out DcsMessage? message))
+        if (_dcsParser.ProcessDcsByte(b, _context.EscapeSequence, ref _context.DcsCommand, _context.DcsParamBuffer, ref _context.DcsParameters, out DcsMessage? message))
         {
             // Sequence aborted (CAN/SUB)
             if (message == null)
@@ -294,7 +288,7 @@ public class Parser
 
         if (b == 0x1b) // ESC
         {
-            _state = ParserState.DcsEscape;
+            _context.State = ParserState.DcsEscape;
         }
     }
 
@@ -305,7 +299,7 @@ public class Parser
     {
         // We just saw an ESC while inside DCS. If next byte is "\" then it's ST terminator.
         // Otherwise, it was a literal ESC in the payload and we continue in DCS.
-        _escapeSequence.Add(b);
+        _context.EscapeSequence.Add(b);
 
         if (b == 0x5c) // \
         {
@@ -320,7 +314,7 @@ public class Parser
             return;
         }
 
-        _state = ParserState.Dcs;
+        _context.State = ParserState.Dcs;
     }
 
     /// <summary>
@@ -335,11 +329,11 @@ public class Parser
             return;
         }
 
-        _escapeSequence.Add(b);
+        _context.EscapeSequence.Add(b);
 
         if (b == 0x1b) // ESC
         {
-            _state = ParserState.ControlStringEscape;
+            _context.State = ParserState.ControlStringEscape;
         }
     }
 
@@ -348,13 +342,13 @@ public class Parser
     /// </summary>
     private void HandleControlStringEscapeState(byte b)
     {
-        _escapeSequence.Add(b);
+        _context.EscapeSequence.Add(b);
 
         if (b == 0x5c) // \
         {
             // ST terminator
-            string raw = BytesToString(_escapeSequence);
-            string kind = _controlStringKind?.ToString().ToUpperInvariant() ?? "STR";
+            string raw = BytesToString(_context.EscapeSequence);
+            string kind = _context.ControlStringKind?.ToString().ToUpperInvariant() ?? "STR";
             _logger.LogDebug("{Kind} (ST): {Raw}", kind, raw);
             ResetEscapeState();
             return;
@@ -366,7 +360,7 @@ public class Parser
             return;
         }
 
-        _state = ParserState.ControlString;
+        _context.State = ParserState.ControlString;
     }
 
     /// <summary>
@@ -383,8 +377,8 @@ public class Parser
         }
 
         // Always add byte to the escape sequence and csi sequence
-        _csiSequence.Append((char)b);
-        _escapeSequence.Add(b);
+        _context.CsiSequence.Append((char)b);
+        _context.EscapeSequence.Add(b);
 
         // CSI final bytes are 0x40-0x7E
         if (b >= 0x40 && b <= 0x7e)
@@ -408,53 +402,53 @@ public class Parser
         }
 
         // First byte after ESC decides the submode
-        if (_escapeSequence.Count == 1)
+        if (_context.EscapeSequence.Count == 1)
         {
             if (b == 0x5b) // [
             {
-                _escapeSequence.Add(b);
-                _csiSequence.Clear();
-                _state = ParserState.CsiEntry;
+                _context.EscapeSequence.Add(b);
+                _context.CsiSequence.Clear();
+                _context.State = ParserState.CsiEntry;
                 return;
             }
 
             if (b == 0x5d) // ]
             {
-                _escapeSequence.Add(b);
-                _state = ParserState.Osc;
+                _context.EscapeSequence.Add(b);
+                _context.State = ParserState.Osc;
                 return;
             }
 
             // DCS: ESC P ... ST
             if (b == 0x50) // P
             {
-                _escapeSequence.Add(b);
-                _dcsCommand = null;
-                _dcsParamBuffer.Clear();
-                _dcsParameters = Array.Empty<string>();
+                _context.EscapeSequence.Add(b);
+                _context.DcsCommand = null;
+                _context.DcsParamBuffer.Clear();
+                _context.DcsParameters = Array.Empty<string>();
                 _dcsParser.Reset();
-                _state = ParserState.Dcs;
+                _context.State = ParserState.Dcs;
                 return;
             }
 
             // SOS / PM / APC: ESC X / ESC ^ / ESC _ ... ST
             if (b == 0x58 || b == 0x5e || b == 0x5f) // X, ^, _
             {
-                _escapeSequence.Add(b);
-                _controlStringKind = b switch
+                _context.EscapeSequence.Add(b);
+                _context.ControlStringKind = b switch
                 {
-                    0x58 => ControlStringKind.Sos,
-                    0x5e => ControlStringKind.Pm,
-                    0x5f => ControlStringKind.Apc,
+                    0x58 => Parsing.ControlStringKind.Sos,
+                    0x5e => Parsing.ControlStringKind.Pm,
+                    0x5f => Parsing.ControlStringKind.Apc,
                     _ => null
                 };
-                _state = ParserState.ControlString;
+                _context.State = ParserState.ControlString;
                 return;
             }
         }
 
         // Use the specialized ESC parser for all other ESC sequences
-        if (_escParser.ProcessEscByte(b, _escapeSequence, out EscMessage? message))
+        if (_escParser.ProcessEscByte(b, _context.EscapeSequence, out EscMessage? message))
         {
             if (message != null)
             {
@@ -488,13 +482,7 @@ public class Parser
     /// </summary>
     private void ResetEscapeState()
     {
-        _state = ParserState.Normal;
-        _escapeSequence.Clear();
-        _csiSequence.Clear();
-        _controlStringKind = null;
-        _dcsCommand = null;
-        _dcsParamBuffer.Clear();
-        _dcsParameters = Array.Empty<string>();
+        _context.Reset();
         _dcsParser.Reset();
     }
 
@@ -547,9 +535,9 @@ public class Parser
     /// </summary>
     private void StartEscapeSequence(byte b)
     {
-        _state = ParserState.Escape;
-        _escapeSequence.Clear();
-        _escapeSequence.Add(b);
+        _context.State = ParserState.Escape;
+        _context.EscapeSequence.Clear();
+        _context.EscapeSequence.Add(b);
     }
 
     /// <summary>
@@ -557,8 +545,8 @@ public class Parser
     /// </summary>
     private void FinishCsiSequence()
     {
-        string raw = BytesToString(_escapeSequence);
-        byte finalByte = _escapeSequence[^1];
+        string raw = BytesToString(_context.EscapeSequence);
+        byte finalByte = _context.EscapeSequence[^1];
 
         // Check for RPC sequences first (ESC [ > format) if RPC handling is enabled
         if (IsRpcHandlingEnabled() && TryHandleRpcSequence())
@@ -570,13 +558,13 @@ public class Parser
         // CSI SGR: parse using the dedicated SGR parser
         if (finalByte == 0x6d) // 'm'
         {
-            SgrSequence sgrSequence = _sgrParser.ParseSgrSequence(_escapeSequence.ToArray(), raw);
+            SgrSequence sgrSequence = _sgrParser.ParseSgrSequence(_context.EscapeSequence.ToArray(), raw);
             _handlers.HandleSgr(sgrSequence);
         }
         else
         {
             // Parse CSI sequence using the dedicated CSI parser
-            CsiMessage message = _csiParser.ParseCsiSequence(_escapeSequence.ToArray(), raw);
+            CsiMessage message = _csiParser.ParseCsiSequence(_context.EscapeSequence.ToArray(), raw);
             _handlers.HandleCsi(message);
         }
 
@@ -588,11 +576,11 @@ public class Parser
     /// </summary>
     private void FinishDcsSequence(string terminator)
     {
-        DcsMessage message = _dcsParser.CreateDcsMessage(_escapeSequence, terminator, _dcsCommand, _dcsParameters);
+        DcsMessage message = _dcsParser.CreateDcsMessage(_context.EscapeSequence, terminator, _context.DcsCommand, _context.DcsParameters);
 
         // Trace the DCS sequence with command, parameters, and data payload
-        string? parametersString = _dcsParameters.Length > 0 ? string.Join(";", _dcsParameters) : null;
-        TraceHelper.TraceDcsSequence(_dcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
+        string? parametersString = _context.DcsParameters.Length > 0 ? string.Join(";", _context.DcsParameters) : null;
+        TraceHelper.TraceDcsSequence(_context.DcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
 
         _handlers.HandleDcs(message);
         ResetEscapeState();
@@ -641,7 +629,7 @@ public class Parser
             return false;
         }
 
-        ReadOnlySpan<byte> sequenceSpan = _escapeSequence.ToArray().AsSpan();
+        ReadOnlySpan<byte> sequenceSpan = _context.EscapeSequence.ToArray().AsSpan();
 
         // First check if this is an RPC sequence
         if (!_rpcSequenceDetector!.IsRpcSequence(sequenceSpan))
