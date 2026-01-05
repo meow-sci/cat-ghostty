@@ -61,7 +61,8 @@
       "Bash(touch:*)",
       "Bash(which:*)",
       "Bash(wc:*)",
-      "Bash(yarn:*)"
+      "Bash(yarn:*)",
+      "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

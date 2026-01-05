@@ -15,6 +15,7 @@ internal class TerminalUiResize
   private readonly SessionManager _sessionManager;
   private readonly TerminalUiFonts _fonts;
   private readonly WindowResizeHandler _windowResizeHandler;
+  private readonly TerminalDimensionCalculator _dimensionCalculator;
 
   // Font resize tracking
   private bool _fontResizePending = false; // Flag to trigger resize on next render frame
@@ -24,10 +25,13 @@ internal class TerminalUiResize
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
 
+    // Initialize dimension calculator
+    _dimensionCalculator = new TerminalDimensionCalculator(fonts);
+
     // Initialize window resize handler with dependencies
     _windowResizeHandler = new WindowResizeHandler(
       sessionManager,
-      CalculateTerminalDimensions,
+      _dimensionCalculator.CalculateTerminalDimensions,
       ApplyTerminalDimensionsToAllSessions
     );
   }
@@ -96,66 +100,6 @@ internal class TerminalUiResize
     }
   }
 
-  /// <summary>
-  ///     Calculates optimal terminal dimensions based on available window space.
-  ///     Uses character metrics to determine how many columns and rows can fit.
-  ///     Accounts for the complete UI layout structure: menu bar, tab area, terminal info, and padding.
-  ///     Matches the approach used in the TypeScript implementation and playground experiments.
-  /// </summary>
-  /// <param name="availableSize">The available window content area size</param>
-  /// <returns>Terminal dimensions (cols, rows) or null if invalid</returns>
-  private (int cols, int rows)? CalculateTerminalDimensions(float2 availableSize)
-  {
-    try
-    {
-      // Calculate UI overhead for multi-session UI layout
-      // Multi-session UI includes menu bar and tab area
-      float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
-      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
-      float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // Top and bottom padding
-
-      float totalUIOverheadHeight = menuBarHeight + tabAreaHeight + windowPadding;
-
-      // Debug logging for multi-session UI overhead calculation
-      // Console.WriteLine($"TerminalController: Multi-session UI Overhead - Menu: {menuBarHeight}, Tab: {tabAreaHeight}, Padding: {windowPadding}, Total: {totalUIOverheadHeight}");
-
-      float horizontalPadding = LayoutConstants.WINDOW_PADDING * 2; // Left and right padding
-
-      float availableWidth = availableSize.X - horizontalPadding;
-      float availableHeight = availableSize.Y - totalUIOverheadHeight;
-
-      // Ensure we have positive dimensions
-      if (availableWidth <= 0 || availableHeight <= 0)
-      {
-        return null;
-      }
-
-      // Calculate dimensions using current character metrics
-      if (_fonts.CurrentCharacterWidth <= 0 || _fonts.CurrentLineHeight <= 0)
-      {
-        Console.WriteLine($"TerminalController: Invalid character metrics: width={_fonts.CurrentCharacterWidth}, height={_fonts.CurrentLineHeight}");
-        return null;
-      }
-
-      int cols = (int)Math.Floor(availableWidth / _fonts.CurrentCharacterWidth);
-      int rows = (int)Math.Floor(availableHeight / _fonts.CurrentLineHeight);
-
-      // Apply reasonable bounds (matching TypeScript validation)
-      cols = Math.Max(10, Math.Min(1000, cols));
-      rows = Math.Max(3, Math.Min(1000, rows));
-
-      // Reduce rows by 1 to account for ImGui widget spacing that causes bottom clipping
-      // This prevents the bottom row from being cut off due to ImGui layout overhead
-      rows = Math.Max(3, rows - 1);
-
-      return (cols, rows);
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error calculating terminal dimensions: {ex.Message}");
-      return null;
-    }
-  }
 
   /// <summary>
   ///     Gets the current terminal dimensions for external access.
@@ -224,7 +168,7 @@ internal class TerminalUiResize
       }
 
       // Calculate new terminal dimensions with updated character metrics
-      var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+      var newDimensions = _dimensionCalculator.CalculateTerminalDimensions(currentWindowSize);
       if (!newDimensions.HasValue)
       {
         Console.WriteLine("TerminalController: Cannot process pending font resize - invalid dimensions calculated");
@@ -326,7 +270,7 @@ internal class TerminalUiResize
         try
         {
           // Calculate new terminal dimensions with updated character metrics
-          var newDimensions = CalculateTerminalDimensions(currentWindowSize);
+          var newDimensions = _dimensionCalculator.CalculateTerminalDimensions(currentWindowSize);
           if (!newDimensions.HasValue)
           {
             Console.WriteLine($"TerminalController: Cannot resize session {session.Id} - invalid dimensions calculated");
@@ -454,11 +398,7 @@ internal class TerminalUiResize
   /// <param name="tabCount">Number of terminal tabs (defaults to 1 for current single terminal)</param>
   /// <returns>Tab area height in pixels</returns>
   public static float CalculateTabAreaHeight(int tabCount = 1)
-  {
-    float baseHeight = LayoutConstants.MIN_TAB_AREA_HEIGHT;
-    float extraHeight = Math.Max(0, (tabCount - 1) * LayoutConstants.TAB_HEIGHT_PER_EXTRA_TAB);
-    return Math.Min(LayoutConstants.MAX_TAB_AREA_HEIGHT, baseHeight + extraHeight);
-  }
+    => TerminalDimensionCalculator.CalculateTabAreaHeight(tabCount);
 
   /// <summary>
   /// Calculates the current settings area height based on the number of control rows.
@@ -467,11 +407,7 @@ internal class TerminalUiResize
   /// <param name="controlRows">Number of control rows (defaults to 1 for basic settings)</param>
   /// <returns>Settings area height in pixels</returns>
   public static float CalculateSettingsAreaHeight(int controlRows = 1)
-  {
-    float baseHeight = LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
-    float extraHeight = Math.Max(0, (controlRows - 1) * LayoutConstants.SETTINGS_HEIGHT_PER_CONTROL_ROW);
-    return Math.Min(LayoutConstants.MAX_SETTINGS_AREA_HEIGHT, baseHeight + extraHeight);
-  }
+    => TerminalDimensionCalculator.CalculateSettingsAreaHeight(controlRows);
 
   /// <summary>
   /// Calculates the total height of all header areas (menu bar, tab area, settings area).
@@ -481,11 +417,7 @@ internal class TerminalUiResize
   /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
   /// <returns>Total height of header areas in pixels</returns>
   public static float CalculateHeaderHeight(int tabCount = 1, int settingsControlRows = 1)
-  {
-    return LayoutConstants.MENU_BAR_HEIGHT +
-           CalculateTabAreaHeight(tabCount) +
-           CalculateSettingsAreaHeight(settingsControlRows);
-  }
+    => TerminalDimensionCalculator.CalculateHeaderHeight(tabCount, settingsControlRows);
 
   /// <summary>
   /// Calculates the minimum possible header height (all areas at minimum size).
@@ -493,11 +425,7 @@ internal class TerminalUiResize
   /// </summary>
   /// <returns>Minimum header height in pixels</returns>
   public static float CalculateMinHeaderHeight()
-  {
-    return LayoutConstants.MENU_BAR_HEIGHT +
-           LayoutConstants.MIN_TAB_AREA_HEIGHT +
-           LayoutConstants.MIN_SETTINGS_AREA_HEIGHT;
-  }
+    => TerminalDimensionCalculator.CalculateMinHeaderHeight();
 
   /// <summary>
   /// Calculates the maximum possible header height (all areas at maximum size).
@@ -505,11 +433,7 @@ internal class TerminalUiResize
   /// </summary>
   /// <returns>Maximum header height in pixels</returns>
   public static float CalculateMaxHeaderHeight()
-  {
-    return LayoutConstants.MENU_BAR_HEIGHT +
-           LayoutConstants.MAX_TAB_AREA_HEIGHT +
-           LayoutConstants.MAX_SETTINGS_AREA_HEIGHT;
-  }
+    => TerminalDimensionCalculator.CalculateMaxHeaderHeight();
 
   /// <summary>
   /// Calculates the available space for the terminal canvas after accounting for header areas.
@@ -520,13 +444,7 @@ internal class TerminalUiResize
   /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
   /// <returns>Available size for terminal canvas</returns>
   public static float2 CalculateTerminalCanvasSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1)
-  {
-    float headerHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
-    float availableWidth = Math.Max(0, windowSize.X - LayoutConstants.WINDOW_PADDING * 2);
-    float availableHeight = Math.Max(0, windowSize.Y - headerHeight - LayoutConstants.WINDOW_PADDING * 2);
-
-    return new float2(availableWidth, availableHeight);
-  }
+    => TerminalDimensionCalculator.CalculateTerminalCanvasSize(windowSize, tabCount, settingsControlRows);
 
   /// <summary>
   /// Validates that window dimensions are sufficient for the layout with current configuration.
@@ -537,20 +455,7 @@ internal class TerminalUiResize
   /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
   /// <returns>True if window size is valid for layout</returns>
   public static bool ValidateWindowSize(float2 windowSize, int tabCount = 1, int settingsControlRows = 1)
-  {
-    // Check basic minimum dimensions
-    if (windowSize.X < LayoutConstants.MIN_WINDOW_WIDTH ||
-        windowSize.Y < LayoutConstants.MIN_WINDOW_HEIGHT)
-    {
-      return false;
-    }
-
-    // Check that window can accommodate current header configuration
-    float currentHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
-    float minRequiredHeight = currentHeaderHeight + LayoutConstants.WINDOW_PADDING * 2 + 50.0f; // 50px minimum for terminal content
-
-    return windowSize.Y >= minRequiredHeight;
-  }
+    => TerminalDimensionCalculator.ValidateWindowSize(windowSize, tabCount, settingsControlRows);
 
   /// <summary>
   /// Calculates the position for the terminal canvas area.
@@ -561,13 +466,7 @@ internal class TerminalUiResize
   /// <param name="settingsControlRows">Number of settings control rows (defaults to 1)</param>
   /// <returns>Position where terminal canvas should be rendered</returns>
   public static float2 CalculateTerminalCanvasPosition(float2 windowPos, int tabCount = 1, int settingsControlRows = 1)
-  {
-    float headerHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
-    return new float2(
-      windowPos.X + LayoutConstants.WINDOW_PADDING,
-      windowPos.Y + headerHeight + LayoutConstants.WINDOW_PADDING
-    );
-  }
+    => TerminalDimensionCalculator.CalculateTerminalCanvasPosition(windowPos, tabCount, settingsControlRows);
 
   /// <summary>
   /// Calculates optimal terminal dimensions using two-pass approach for stability.
@@ -585,55 +484,5 @@ internal class TerminalUiResize
     float lineHeight,
     int tabCount = 1,
     int settingsControlRows = 1)
-  {
-    try
-    {
-      // Validate inputs
-      if (charWidth <= 0 || lineHeight <= 0 || windowSize.X <= 0 || windowSize.Y <= 0)
-      {
-        return null;
-      }
-
-      // Pass 1: Estimate with minimum header height for conservative sizing
-      float minHeaderHeight = CalculateMinHeaderHeight();
-      float estimatedAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
-      float estimatedAvailableHeight = windowSize.Y - minHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
-
-      if (estimatedAvailableWidth <= 0 || estimatedAvailableHeight <= 0)
-      {
-        return null;
-      }
-
-      int estimatedCols = (int)Math.Floor(estimatedAvailableWidth / charWidth);
-      int estimatedRows = (int)Math.Floor(estimatedAvailableHeight / lineHeight);
-
-      // Pass 2: Calculate with actual header height
-      float actualHeaderHeight = CalculateHeaderHeight(tabCount, settingsControlRows);
-      float actualAvailableWidth = windowSize.X - LayoutConstants.WINDOW_PADDING * 2;
-      float actualAvailableHeight = windowSize.Y - actualHeaderHeight - LayoutConstants.WINDOW_PADDING * 2;
-
-      if (actualAvailableWidth <= 0 || actualAvailableHeight <= 0)
-      {
-        return null;
-      }
-
-      int actualCols = (int)Math.Floor(actualAvailableWidth / charWidth);
-      int actualRows = (int)Math.Floor(actualAvailableHeight / lineHeight);
-
-      // Use the more conservative (smaller) result to prevent oscillation
-      int finalCols = Math.Min(estimatedCols, actualCols);
-      int finalRows = Math.Min(estimatedRows, actualRows);
-
-      // Apply reasonable bounds
-      finalCols = Math.Max(10, Math.Min(1000, finalCols));
-      finalRows = Math.Max(3, Math.Min(1000, finalRows));
-
-      return (finalCols, finalRows);
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error calculating optimal terminal dimensions: {ex.Message}");
-      return null;
-    }
-  }
+    => TerminalDimensionCalculator.CalculateOptimalTerminalDimensions(windowSize, charWidth, lineHeight, tabCount, settingsControlRows);
 }
