@@ -40,6 +40,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
     private readonly EmulatorOps.TerminalInsertLinesOps _insertLinesOps;
     private readonly EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
+    private readonly EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -124,6 +125,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _scrollRegionOps = new EmulatorOps.TerminalScrollRegionOps(_cursorManager, () => State, () => Height);
         _insertLinesOps = new EmulatorOps.TerminalInsertLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _deleteLinesOps = new EmulatorOps.TerminalDeleteLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
+        _insertCharsOps = new EmulatorOps.TerminalInsertCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1546,21 +1548,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     that would go beyond the line end are lost.
     /// </summary>
     /// <param name="count">Number of characters to insert (minimum 1)</param>
-    internal void InsertCharactersInLine(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for character insertion within current line
-        _screenBufferManager.InsertCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void InsertCharactersInLine(int count) =>
+        _insertCharsOps.InsertCharactersInLine(count);
 
     /// <summary>
     ///     Deletes characters at the cursor position within the current line.
