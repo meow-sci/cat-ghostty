@@ -39,6 +39,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalScrollOps _scrollOps;
     private readonly EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
     private readonly EmulatorOps.TerminalInsertLinesOps _insertLinesOps;
+    private readonly EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -122,6 +123,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _scrollOps = new EmulatorOps.TerminalScrollOps(_cursorManager, _screenBufferManager, _attributeManager, () => State, () => Cursor);
         _scrollRegionOps = new EmulatorOps.TerminalScrollRegionOps(_cursorManager, () => State, () => Height);
         _insertLinesOps = new EmulatorOps.TerminalInsertLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
+        _deleteLinesOps = new EmulatorOps.TerminalDeleteLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1534,21 +1536,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     at the bottom of the scroll region.
     /// </summary>
     /// <param name="count">Number of lines to delete (minimum 1)</param>
-    internal void DeleteLinesInRegion(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for line deletion within scroll region
-        _screenBufferManager.DeleteLinesInRegion(count, _cursorManager.Row, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void DeleteLinesInRegion(int count) =>
+        _deleteLinesOps.DeleteLinesInRegion(count);
 
     /// <summary>
     ///     Inserts blank characters at the cursor position within the current line.
