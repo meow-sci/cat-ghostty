@@ -27,6 +27,7 @@ internal class TerminalUiSettingsPanel
   private readonly Action _triggerTerminalResizeForAllSessions;
   private readonly FileMenuRenderer _fileMenuRenderer;
   private readonly EditMenuRenderer _editMenuRenderer;
+  private readonly SessionsMenuRenderer _sessionsMenuRenderer;
 
   public TerminalUiSettingsPanel(
     TerminalController controller,
@@ -44,6 +45,7 @@ internal class TerminalUiSettingsPanel
     _triggerTerminalResizeForAllSessions = triggerTerminalResizeForAllSessions ?? throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
     _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
     _editMenuRenderer = new EditMenuRenderer(controller, selection);
+    _sessionsMenuRenderer = new SessionsMenuRenderer(sessionManager);
   }
 
   /// <summary>
@@ -58,7 +60,7 @@ internal class TerminalUiSettingsPanel
       {
         _fileMenuRenderer.Render();
         _editMenuRenderer.Render();
-        RenderSessionsMenu();
+        _sessionsMenuRenderer.Render();
         RenderFontMenu();
         RenderThemeMenu();
         RenderSettingsMenu();
@@ -66,76 +68,6 @@ internal class TerminalUiSettingsPanel
       finally
       {
         ImGui.EndMenuBar();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the Sessions menu with a list of all terminal sessions.
-  /// Shows a checkmark for the currently active session and allows clicking to switch sessions.
-  /// </summary>
-  private void RenderSessionsMenu()
-  {
-    if (ImGui.BeginMenu("Sessions"))
-    {
-      try
-      {
-        var sessions = _sessionManager.Sessions;
-        var activeSession = _sessionManager.ActiveSession;
-
-        if (sessions.Count == 0)
-        {
-          ImGui.Text("No sessions available");
-        }
-        else
-        {
-          foreach (var session in sessions)
-          {
-            bool isActive = session == activeSession;
-            string sessionLabel = session.Title;
-
-            // Add process exit code to label if process has exited
-            if (session.ProcessManager.ExitCode.HasValue)
-            {
-              sessionLabel += $" (Exit: {session.ProcessManager.ExitCode})";
-            }
-
-            // Create unique ImGui ID using session GUID to avoid conflicts
-            string menuItemId = $"{sessionLabel}##session_menu_item_{session.Id}";
-
-            if (ImGui.MenuItem(menuItemId, "", isActive))
-            {
-              if (!isActive)
-              {
-                _sessionManager.SwitchToSession(session.Id);
-              }
-            }
-
-            // Show tooltip with session information
-            if (ImGui.IsItemHovered())
-            {
-              var tooltip = $"Session: {session.Title}\nCreated: {session.CreatedAt:HH:mm:ss}";
-              if (session.LastActiveAt.HasValue)
-              {
-                tooltip += $"\nLast Active: {session.LastActiveAt.Value:HH:mm:ss}";
-              }
-              tooltip += $"\nState: {session.State}";
-              if (session.ProcessManager.IsRunning)
-              {
-                tooltip += "\nProcess: Running";
-              }
-              else if (session.ProcessManager.ExitCode.HasValue)
-              {
-                tooltip += $"\nProcess: Exited ({session.ProcessManager.ExitCode})";
-              }
-              ImGui.SetTooltip(tooltip);
-            }
-          }
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
       }
     }
   }

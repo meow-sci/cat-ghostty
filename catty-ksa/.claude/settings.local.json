@@ -25,7 +25,9 @@
       "Bash(PowerShell.exe -File ./scripts/dotnet-test.ps1)",
       "Bash(echo:*)",
       "Bash(git rev-parse:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pwsh.exe:*)",
+      "Bash(\"C:\\\\Users\\\\Alex\\\\repos\\\\meow-sci\\\\cat-ghostty\\\\catty-ksa\\\\scripts\\\\dotnet-test.ps1\")"
     ]
   }
 }
