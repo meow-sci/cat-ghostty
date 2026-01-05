@@ -1,6 +1,7 @@
 using System;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
+using caTTY.Display.Controllers.TerminalUi.Resize;
 using KSA;
 using float2 = Brutal.Numerics.float2;
 
@@ -13,18 +14,22 @@ internal class TerminalUiResize
 {
   private readonly SessionManager _sessionManager;
   private readonly TerminalUiFonts _fonts;
+  private readonly WindowResizeHandler _windowResizeHandler;
 
-  // Window resize detection
-  private float2 _lastWindowSize = new(0, 0);
-  private bool _windowSizeInitialized = false;
-  private DateTime _lastResizeTime = DateTime.MinValue;
+  // Font resize tracking
   private bool _fontResizePending = false; // Flag to trigger resize on next render frame
-  private const float RESIZE_DEBOUNCE_SECONDS = 0.1f; // Debounce rapid resize events
 
   public TerminalUiResize(SessionManager sessionManager, TerminalUiFonts fonts)
   {
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
+
+    // Initialize window resize handler with dependencies
+    _windowResizeHandler = new WindowResizeHandler(
+      sessionManager,
+      CalculateTerminalDimensions,
+      ApplyTerminalDimensionsToAllSessions
+    );
   }
 
   /// <summary>
@@ -41,76 +46,7 @@ internal class TerminalUiResize
   /// </summary>
   public void HandleWindowResize()
   {
-    try
-    {
-      // Get current window size (total window including title bar, borders, etc.)
-      float2 currentWindowSize = ImGui.GetWindowSize();
-
-      // Initialize window size tracking on first frame
-      if (!_windowSizeInitialized)
-      {
-        _lastWindowSize = currentWindowSize;
-        _windowSizeInitialized = true;
-        return;
-      }
-
-      // Check if window size has changed significantly (avoid floating point precision issues)
-      float deltaX = Math.Abs(currentWindowSize.X - _lastWindowSize.X);
-      float deltaY = Math.Abs(currentWindowSize.Y - _lastWindowSize.Y);
-
-      if (deltaX <= 1.0f && deltaY <= 1.0f)
-      {
-        return; // No significant size change
-      }
-
-      // Debounce rapid resize events to avoid excessive processing
-      DateTime now = DateTime.Now;
-      if ((now - _lastResizeTime).TotalSeconds < RESIZE_DEBOUNCE_SECONDS)
-      {
-        return;
-      }
-
-      // Calculate new terminal dimensions based on available space
-      var newDimensions = CalculateTerminalDimensions(currentWindowSize);
-      if (!newDimensions.HasValue)
-      {
-        return; // Invalid dimensions
-      }
-
-      var (newCols, newRows) = newDimensions.Value;
-
-      // Check if terminal dimensions would actually change
-      // IMPORTANT: window resize should apply to all sessions, not just the active one.
-      var (lastCols, lastRows) = _sessionManager.LastKnownTerminalDimensions;
-      if (newCols == lastCols && newRows == lastRows)
-      {
-        _lastWindowSize = currentWindowSize;
-        return; // No terminal dimension change needed
-      }
-
-      // Validate new dimensions are reasonable
-      if (newCols < 10 || newRows < 3 || newCols > 1000 || newRows > 1000)
-      {
-        Console.WriteLine($"TerminalController: Invalid terminal dimensions calculated: {newCols}x{newRows}, ignoring resize");
-        return;
-      }
-
-      ApplyTerminalDimensionsToAllSessions(newCols, newRows);
-
-      // Update tracking variables
-      _lastWindowSize = currentWindowSize;
-      _lastResizeTime = now;
-
-      // Console.WriteLine($"TerminalController: Terminal resize completed successfully");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error during window resize handling: {ex.Message}");
-
-#if DEBUG
-      Console.WriteLine($"TerminalController: Resize error stack trace: {ex.StackTrace}");
-#endif
-    }
+    _windowResizeHandler.HandleWindowResize();
   }
 
   /// <summary>
@@ -238,11 +174,7 @@ internal class TerminalUiResize
   /// <returns>Current window content area size</returns>
   public float2 GetCurrentWindowSize()
   {
-    if (!_windowSizeInitialized)
-    {
-      return new float2(0, 0);
-    }
-    return _lastWindowSize;
+    return _windowResizeHandler.GetCurrentWindowSize();
   }
 
   /// <summary>
@@ -284,7 +216,7 @@ internal class TerminalUiResize
       float2 currentWindowSize = ImGui.GetWindowSize();
 
       // Skip if window size is not initialized or invalid
-      if (!_windowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
+      if (!_windowResizeHandler.IsWindowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
       {
         Console.WriteLine("TerminalController: Cannot process pending font resize - window size not initialized or invalid");
         _fontResizePending = false; // Clear flag to avoid infinite retries
@@ -375,10 +307,10 @@ internal class TerminalUiResize
     {
       // Use the last known window size instead of trying to get current window size
       // This avoids ImGui context issues when called from font configuration updates
-      float2 currentWindowSize = _lastWindowSize;
+      float2 currentWindowSize = _windowResizeHandler.LastWindowSize;
 
       // Skip if window size is not initialized or invalid
-      if (!_windowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
+      if (!_windowResizeHandler.IsWindowSizeInitialized || currentWindowSize.X <= 0 || currentWindowSize.Y <= 0)
       {
         Console.WriteLine("TerminalController: Cannot trigger resize for all sessions - window size not initialized or invalid");
         // Set flag to trigger resize on next render frame instead
