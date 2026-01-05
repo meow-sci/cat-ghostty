@@ -27,25 +27,25 @@ namespace caTTY.Display.Controllers;
 /// </summary>
 public class TerminalController : ITerminalController
 {
-  private readonly TerminalRenderingConfig _config;
-  private TerminalFontConfig _fontConfig;
-  private MouseWheelScrollConfig _scrollConfig;
+  private TerminalRenderingConfig _config = null!;
+  private TerminalFontConfig _fontConfig = null!;
+  private MouseWheelScrollConfig _scrollConfig = null!;
 
   // Input handling
   private readonly StringBuilder _inputBuffer = new();
   private readonly SessionManager _sessionManager;
-  private readonly ThemeConfiguration _themeConfig;
+  private ThemeConfiguration _themeConfig = null!;
   private bool _disposed;
 
   // Mouse tracking infrastructure
-  private readonly MouseTrackingManager _mouseTrackingManager;
-  private readonly MouseStateManager _mouseStateManager;
-  private readonly CoordinateConverter _coordinateConverter;
-  private readonly MouseEventProcessor _mouseEventProcessor;
-  private readonly MouseInputHandler _mouseInputHandler;
+  private MouseTrackingManager _mouseTrackingManager = null!;
+  private MouseStateManager _mouseStateManager = null!;
+  private CoordinateConverter _coordinateConverter = null!;
+  private MouseEventProcessor _mouseEventProcessor = null!;
+  private MouseInputHandler _mouseInputHandler = null!;
 
   // Cursor rendering
-  private readonly CursorRenderer _cursorRenderer = new();
+  private CursorRenderer _cursorRenderer = null!;
 
   // Mouse wheel scrolling
   private float _wheelAccumulator = 0.0f;
@@ -55,31 +55,31 @@ public class TerminalController : ITerminalController
   internal float2 _lastTerminalSize;
 
   // Mouse tracking subsystem
-  private readonly TerminalUiMouseTracking _mouseTracking;
+  private TerminalUiMouseTracking _mouseTracking = null!;
 
   // Selection subsystem
-  private readonly TerminalUiSelection _selection;
+  private TerminalUiSelection _selection = null!;
 
   // Resize subsystem
-  private readonly TerminalUiResize _resize;
+  private TerminalUiResize _resize = null!;
 
   // Font subsystem
-  private readonly TerminalUiFonts _fonts;
+  private TerminalUiFonts _fonts = null!;
 
   // Render subsystem
-  private readonly TerminalUiRender _render;
+  private TerminalUiRender _render = null!;
 
   // Input subsystem
-  private readonly TerminalUiInput _input;
+  private TerminalUiInput _input = null!;
 
   // Tabs subsystem
-  private readonly TerminalUiTabs _tabs;
+  private TerminalUiTabs _tabs = null!;
 
   // Settings panel subsystem
-  private readonly TerminalUiSettingsPanel _settingsPanel;
+  private TerminalUiSettingsPanel _settingsPanel = null!;
 
   // Events subsystem
-  private readonly TerminalUiEvents _events;
+  private TerminalUiEvents _events = null!;
 
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
@@ -95,6 +95,61 @@ public class TerminalController : ITerminalController
   /// </summary>
   public static bool IsAnyTerminalActive => _numFocusedTerminals > 0 && _numVisibleTerminals > 0;
 
+
+  /// <summary>
+  ///     Initializes the controller with all subsystems.
+  ///     Called by the builder to complete initialization.
+  /// </summary>
+  internal void Initialize(
+    TerminalRenderingConfig config,
+    TerminalFontConfig fontConfig,
+    MouseWheelScrollConfig scrollConfig,
+    ThemeConfiguration themeConfig,
+    TerminalUiFonts fonts,
+    CursorRenderer cursorRenderer,
+    TerminalUiRender render,
+    TerminalUiInput input,
+    MouseTrackingManager mouseTrackingManager,
+    MouseStateManager mouseStateManager,
+    CoordinateConverter coordinateConverter,
+    MouseEventProcessor mouseEventProcessor,
+    MouseInputHandler mouseInputHandler,
+    TerminalUiMouseTracking mouseTracking,
+    TerminalUiSelection selection,
+    TerminalUiResize resize,
+    TerminalUiTabs tabs,
+    TerminalUiSettingsPanel settingsPanel,
+    TerminalUiEvents events)
+  {
+    _config = config;
+    _fontConfig = fontConfig;
+    _scrollConfig = scrollConfig;
+    _themeConfig = themeConfig;
+    _fonts = fonts;
+    _cursorRenderer = cursorRenderer;
+    _render = render;
+    _input = input;
+    _mouseTrackingManager = mouseTrackingManager;
+    _mouseStateManager = mouseStateManager;
+    _coordinateConverter = coordinateConverter;
+    _mouseEventProcessor = mouseEventProcessor;
+    _mouseInputHandler = mouseInputHandler;
+    _mouseTracking = mouseTracking;
+    _selection = selection;
+    _resize = resize;
+    _tabs = tabs;
+    _settingsPanel = settingsPanel;
+    _events = events;
+
+    // Initialize opacity manager
+    OpacityManager.Initialize();
+
+    // Initialize cursor style to theme default
+    ResetCursorToThemeDefaults();
+
+    // Apply shell configuration to session manager
+    _settingsPanel.ApplyShellConfigurationToSessionManager();
+  }
 
   /// <summary>
   ///     Creates a new terminal controller with default configuration.
@@ -160,92 +215,32 @@ public class TerminalController : ITerminalController
   public TerminalController(SessionManager sessionManager, TerminalRenderingConfig config, TerminalFontConfig fontConfig, MouseWheelScrollConfig scrollConfig)
   {
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-    _config = config ?? throw new ArgumentNullException(nameof(config));
-    _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
-    _scrollConfig = scrollConfig ?? throw new ArgumentNullException(nameof(scrollConfig));
 
-    // Load theme configuration (includes shell settings)
-    _themeConfig = ThemeConfiguration.Load();
+    // Use builder to initialize all subsystems
+    var builder = new TerminalControllerBuilder(sessionManager, config, fontConfig, scrollConfig);
+    builder
+      .BuildUiSubsystems(this)
+      .BuildInputHandlers(this)
+      .BuildRenderComponents(this, TriggerTerminalResizeForAllSessions, ResetCursorToThemeDefaults)
+      .WireUpEvents()
+      .BuildController(this);
+  }
 
-    // Initialize font subsystem
-    _fonts = new TerminalUiFonts(_config, _fontConfig, "Hack");
-    _fonts.LoadFontSettingsInConstructor();
-    _fonts.InitializeCurrentFontFamily();
+  /// <summary>
+  ///     Factory method to create a new terminal controller.
+  ///     Uses builder pattern for initialization.
+  /// </summary>
+  public static TerminalController Create(
+    SessionManager sessionManager,
+    TerminalRenderingConfig? config = null,
+    TerminalFontConfig? fontConfig = null,
+    MouseWheelScrollConfig? scrollConfig = null)
+  {
+    config ??= DpiContextDetector.DetectAndCreateConfig();
+    fontConfig ??= FontContextDetector.DetectAndCreateConfig();
+    scrollConfig ??= MouseWheelScrollConfig.CreateDefault();
 
-    // Initialize render subsystem
-    _render = new TerminalUiRender(_fonts, _cursorRenderer);
-
-    // Initialize input subsystem
-    _input = new TerminalUiInput(this, _sessionManager, _cursorRenderer, _scrollConfig);
-
-    // Validate configurations
-    _config.Validate();
-    _fonts.CurrentFontConfig.Validate();
-    _scrollConfig.Validate();
-
-    // Initialize mouse tracking infrastructure
-    _mouseTrackingManager = new MouseTrackingManager();
-    _mouseStateManager = new MouseStateManager();
-    _coordinateConverter = new CoordinateConverter();
-    _mouseEventProcessor = new MouseEventProcessor(_mouseTrackingManager, _mouseStateManager);
-    _mouseInputHandler = new MouseInputHandler(_mouseEventProcessor, _coordinateConverter, _mouseStateManager, _mouseTrackingManager);
-
-    // Initialize mouse tracking subsystem
-    _mouseTracking = new TerminalUiMouseTracking(
-      this,
-      _sessionManager,
-      _mouseTrackingManager,
-      _mouseStateManager,
-      _coordinateConverter,
-      _mouseEventProcessor,
-      _mouseInputHandler);
-
-    // Initialize selection subsystem
-    _selection = new TerminalUiSelection(this, _sessionManager, _mouseTracking);
-
-    // Initialize resize subsystem
-    _resize = new TerminalUiResize(_sessionManager, _fonts);
-
-    // Initialize tabs subsystem
-    _tabs = new TerminalUiTabs(this, _sessionManager);
-
-    // Initialize settings panel subsystem
-    _settingsPanel = new TerminalUiSettingsPanel(this, _sessionManager, _themeConfig, _fonts, _selection, TriggerTerminalResizeForAllSessions);
-
-    // Initialize events subsystem
-    _events = new TerminalUiEvents(_sessionManager, _cursorRenderer, _selection, _mouseTracking, ResetCursorToThemeDefaults);
-
-    // Wire up mouse event handlers through mouse tracking subsystem
-    _mouseEventProcessor.MouseEventGenerated += _mouseTracking.OnMouseEventGenerated;
-    _mouseEventProcessor.LocalMouseEvent += _mouseTracking.OnLocalMouseEvent;
-    _mouseEventProcessor.ProcessingError += _mouseTracking.OnMouseProcessingError;
-    _mouseInputHandler.InputError += _mouseTracking.OnMouseInputError;
-
-    // Wire up session manager events to events subsystem
-    _sessionManager.SessionCreated += _events.OnSessionCreated;
-    _sessionManager.SessionClosed += _events.OnSessionClosed;
-    _sessionManager.ActiveSessionChanged += _events.OnActiveSessionChanged;
-
-    // Wire up title change events for any existing sessions
-    foreach (var session in _sessionManager.Sessions)
-    {
-      session.TitleChanged += _events.OnSessionTitleChanged;
-    }
-
-    // Note: Font loading is deferred until first render call when ImGui context is ready
-    // Font loading and metrics calculation are handled by TerminalUiFonts
-
-    // Subscribe to theme change events
-    ThemeManager.ThemeChanged += _events.OnThemeChanged;
-
-    // Initialize opacity manager
-    OpacityManager.Initialize();
-
-    // Initialize cursor style to theme default
-    ResetCursorToThemeDefaults();
-
-    // Apply shell configuration to session manager
-    _settingsPanel.ApplyShellConfigurationToSessionManager();
+    return new TerminalController(sessionManager, config, fontConfig, scrollConfig);
   }
 
   /// <summary>
