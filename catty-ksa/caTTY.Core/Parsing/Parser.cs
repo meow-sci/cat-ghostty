@@ -25,11 +25,6 @@ public class Parser
     private readonly bool _processC0ControlsDuringEscapeSequence;
     private readonly ICursorPositionProvider? _cursorPositionProvider;
 
-    // RPC components (optional)
-    private readonly IRpcSequenceDetector? _rpcSequenceDetector;
-    private readonly IRpcSequenceParser? _rpcSequenceParser;
-    private readonly IRpcHandler? _rpcHandler;
-
     // UTF-8 decoding
     private readonly IUtf8Decoder _utf8Decoder;
 
@@ -43,6 +38,7 @@ public class Parser
     private readonly OscStateHandler _oscStateHandler;
     private readonly DcsStateHandler _dcsStateHandler;
     private readonly ControlStringStateHandler _controlStringStateHandler;
+    private readonly RpcSequenceHandler _rpcSequenceHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -65,11 +61,11 @@ public class Parser
         _oscParser = options.OscParser ?? new OscParser(_logger, options.CursorPositionProvider);
         _sgrParser = options.SgrParser ?? new SgrParser(_logger, options.CursorPositionProvider);
 
-        // RPC components are optional
-        _rpcSequenceDetector = options.RpcSequenceDetector;
-        _rpcSequenceParser = options.RpcSequenceParser;
-        _rpcHandler = options.RpcHandler;
-        // Console.WriteLine($"Parser: RPC enabled={IsRpcHandlingEnabled()}");
+        // Initialize RPC sequence handler with optional RPC components
+        _rpcSequenceHandler = new RpcSequenceHandler(
+            options.RpcSequenceDetector,
+            options.RpcSequenceParser,
+            options.RpcHandler);
 
         // Initialize state handlers
         _normalStateHandler = new NormalStateHandler(
@@ -422,61 +418,21 @@ public class Parser
 
     /// <summary>
     ///     Checks if RPC handling is enabled and all required components are available.
+    ///     Delegates to RpcSequenceHandler.
     /// </summary>
     /// <returns>True if RPC handling is enabled</returns>
     private bool IsRpcHandlingEnabled()
     {
-        return _rpcSequenceDetector != null &&
-               _rpcSequenceParser != null &&
-               _rpcHandler != null &&
-               _rpcHandler.IsEnabled;
+        return _rpcSequenceHandler.IsRpcHandlingEnabled();
     }
 
     /// <summary>
     ///     Attempts to handle the current escape sequence as an RPC sequence.
-    ///     This method maintains clean separation between core terminal emulation and RPC functionality.
+    ///     Delegates to RpcSequenceHandler.
     /// </summary>
     /// <returns>True if the sequence was handled as an RPC sequence</returns>
     private bool TryHandleRpcSequence()
     {
-        if (!IsRpcHandlingEnabled())
-        {
-            return false;
-        }
-
-        ReadOnlySpan<byte> sequenceSpan = _context.EscapeSequence.ToArray().AsSpan();
-
-        // First check if this is an RPC sequence
-        if (!_rpcSequenceDetector!.IsRpcSequence(sequenceSpan))
-        {
-            return false;
-        }
-
-        // Get the sequence type for more detailed validation
-        RpcSequenceType sequenceType = _rpcSequenceDetector.GetSequenceType(sequenceSpan);
-
-
-        // Handle malformed sequences
-        if (sequenceType != RpcSequenceType.Valid)
-        {
-            _rpcHandler!.HandleMalformedRpcSequence(sequenceSpan, sequenceType);
-            return true; // Sequence was handled (even if malformed)
-        }
-
-        // Try to parse the valid RPC sequence
-        if (_rpcSequenceParser!.TryParseRpcSequence(sequenceSpan, out RpcMessage? message) && message != null)
-        {
-            // Console.WriteLine($"!!! GOT VALID RPC SEQUENCE sequenceType={sequenceType} message={message}");
-
-            _rpcHandler!.HandleRpcMessage(message);
-            return true;
-        }
-
-        // Console.WriteLine($"!!! GOT INVALID RPC SEQUENCE");
-
-
-        // Parsing failed for a supposedly valid sequence
-        _rpcHandler!.HandleMalformedRpcSequence(sequenceSpan, RpcSequenceType.Malformed);
-        return true;
+        return _rpcSequenceHandler.TryHandleRpcSequence(_context.EscapeSequence);
     }
 }
