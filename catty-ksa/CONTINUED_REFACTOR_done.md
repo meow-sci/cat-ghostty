@@ -292,3 +292,230 @@
    ```
 
 **Target:** CsiParser.cs <250 LOC (down from 739 LOC)
+
+
+
+---
+
+## Phase 9: Extract TerminalUiSettingsPanel Menu Renderers
+
+**Goal:** Reduce TerminalUiSettingsPanel.cs from 989 LOC to <200 LOC by extracting individual menu renderers.
+
+**Context:** The settings panel contains ImGui menu rendering for File, Edit, Sessions, Font, Theme, and Settings menus. Each should be extracted to its own renderer class.
+
+### Task 9.1: Extract FileMenuRenderer
+
+**Objective:** Extract File menu rendering into `TerminalUi/Menus/FileMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify all File menu rendering code (likely in a method like `RenderFileMenu()`)
+3. Create directory `caTTY.Display/Controllers/TerminalUi/Menus/`
+4. Create `caTTY.Display/Controllers/TerminalUi/Menus/FileMenuRenderer.cs` with class `FileMenuRenderer`
+5. Move File menu logic:
+   - Menu item rendering (New, Open, Save, Exit, etc.)
+   - Associated action handlers
+   - File dialog interactions
+6. Create constructor accepting necessary dependencies (TerminalController reference, settings, etc.)
+7. Add `public void Render()` method as entry point
+8. Update `TerminalUiSettingsPanel.cs` to:
+   - Instantiate `FileMenuRenderer` in constructor
+   - Call `_fileMenuRenderer.Render()` from appropriate location
+9. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+10. Commit with message:
+    ```
+    Task 9.1: Extract FileMenuRenderer from TerminalUiSettingsPanel
+
+    - Create Menus/ subdirectory
+    - Extract File menu rendering to FileMenuRenderer.cs
+    - Update TerminalUiSettingsPanel.cs to delegate file menu
+    - No functionality changes, all tests pass
+    ```
+
+**Target:** FileMenuRenderer.cs ~100-150 LOC
+
+---
+
+### Task 9.2: Extract EditMenuRenderer
+
+**Objective:** Extract Edit menu rendering into `TerminalUi/Menus/EditMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify Edit menu code (Copy, Paste, Select All, Clear, etc.)
+3. Create `caTTY.Display/Controllers/TerminalUi/Menus/EditMenuRenderer.cs` with class `EditMenuRenderer`
+4. Move Edit menu logic and action handlers
+5. Create constructor with dependencies
+6. Add `public void Render()` method
+7. Update `TerminalUiSettingsPanel.cs` to delegate
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+9. Commit with message:
+   ```
+   Task 9.2: Extract EditMenuRenderer from TerminalUiSettingsPanel
+
+   - Extract Edit menu rendering to EditMenuRenderer.cs
+   - Update TerminalUiSettingsPanel.cs to delegate edit menu
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** EditMenuRenderer.cs ~80-120 LOC
+
+---
+
+### Task 9.3: Extract SessionsMenuRenderer
+
+**Objective:** Extract Sessions menu rendering into `TerminalUi/Menus/SessionsMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify Sessions menu code (New Session, Switch Session, Close Session, etc.)
+3. Create `caTTY.Display/Controllers/TerminalUi/Menus/SessionsMenuRenderer.cs` with class `SessionsMenuRenderer`
+4. Move Sessions menu logic and session management UI
+5. Create constructor with dependencies
+6. Add `public void Render()` method
+7. Update `TerminalUiSettingsPanel.cs` to delegate
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+9. Commit with message:
+   ```
+   Task 9.3: Extract SessionsMenuRenderer from TerminalUiSettingsPanel
+
+   - Extract Sessions menu rendering to SessionsMenuRenderer.cs
+   - Update TerminalUiSettingsPanel.cs to delegate sessions menu
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SessionsMenuRenderer.cs ~100-150 LOC
+
+---
+
+### Task 9.4: Extract FontMenuRenderer
+
+**Objective:** Extract Font menu rendering into `TerminalUi/Menus/FontMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify Font menu code (Font selection, size adjustment, style options)
+3. Create `caTTY.Display/Controllers/TerminalUi/Menus/FontMenuRenderer.cs` with class `FontMenuRenderer`
+4. Move Font menu UI logic
+5. Create constructor with dependencies
+6. Add `public void Render()` method
+7. Update `TerminalUiSettingsPanel.cs` to delegate
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+9. Commit with message:
+   ```
+   Task 9.4: Extract FontMenuRenderer from TerminalUiSettingsPanel
+
+   - Extract Font menu rendering to FontMenuRenderer.cs
+   - Update TerminalUiSettingsPanel.cs to delegate font menu
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** FontMenuRenderer.cs ~100-150 LOC
+
+---
+
+### Task 9.5: Extract ThemeMenuRenderer
+
+**Objective:** Extract Theme menu rendering into `TerminalUi/Menus/ThemeMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify Theme menu code (Theme selection, color customization)
+3. Create `caTTY.Display/Controllers/TerminalUi/Menus/ThemeMenuRenderer.cs` with class `ThemeMenuRenderer`
+4. Move Theme menu logic
+5. Create constructor with dependencies
+6. Add `public void Render()` method
+7. Update `TerminalUiSettingsPanel.cs` to delegate
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+9. Commit with message:
+   ```
+   Task 9.5: Extract ThemeMenuRenderer from TerminalUiSettingsPanel
+
+   - Extract Theme menu rendering to ThemeMenuRenderer.cs
+   - Update TerminalUiSettingsPanel.cs to delegate theme menu
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** ThemeMenuRenderer.cs ~100-150 LOC
+
+---
+
+### Task 9.6: Extract GeneralSettingsMenuRenderer
+
+**Objective:** Extract general Settings menu rendering into `TerminalUi/Menus/GeneralSettingsMenuRenderer.cs`.
+
+**Steps:**
+1. Read `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Identify general Settings menu code (scrollback, cursor, misc options)
+3. Create `caTTY.Display/Controllers/TerminalUi/Menus/GeneralSettingsMenuRenderer.cs` with class `GeneralSettingsMenuRenderer`
+4. Move Settings menu logic
+5. Create constructor with dependencies
+6. Add `public void Render()` method
+7. Update `TerminalUiSettingsPanel.cs` to delegate
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+9. Commit with message:
+   ```
+   Task 9.6: Extract GeneralSettingsMenuRenderer from TerminalUiSettingsPanel
+
+   - Extract Settings menu rendering to GeneralSettingsMenuRenderer.cs
+   - Update TerminalUiSettingsPanel.cs to delegate settings menu
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** GeneralSettingsMenuRenderer.cs ~100-150 LOC
+
+---
+
+### Task 9.7: Reduce TerminalUiSettingsPanel.cs to coordinator
+
+**Objective:** Finalize TerminalUiSettingsPanel.cs as minimal coordinator of menu renderers.
+
+**Steps:**
+1. Read current `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+2. Ensure all menu rendering logic moved to renderer classes
+3. Refactor to:
+   - Instantiate all menu renderers in constructor
+   - Coordinate menu bar layout
+   - Call appropriate renderer methods
+   - Handle only top-level coordination
+4. Remove any remaining complex rendering logic
+5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+6. Commit with message:
+   ```
+   Task 9.7: Reduce TerminalUiSettingsPanel to coordinator
+
+   - Remove remaining rendering logic from TerminalUiSettingsPanel.cs
+   - Finalize delegation to menu renderers
+   - TerminalUiSettingsPanel.cs now <200 LOC coordinator
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** TerminalUiSettingsPanel.cs <200 LOC (down from 989 LOC)

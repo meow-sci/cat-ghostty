@@ -121,6 +121,9 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 - Enable with `TerminalTracer.Enabled = true`
 - Database location: `%TEMP%\catty_trace.db` (Windows)
 
+### Tools
+- ALWAYS use bun to run .ts scripts
+
 ## Common Workflows
 
 ### Adding a new escape sequence handler
