@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using Brutal.ImGuiApi;
 using caTTY.Display.Configuration;
+using caTTY.Display.Controllers.TerminalUi.Fonts;
 using caTTY.Display.Rendering;
 using caTTY.Display.Utils;
 using KSA;
@@ -18,11 +19,8 @@ internal class TerminalUiFonts
   private TerminalFontConfig _fontConfig;
   private string _currentFontFamily;
 
-  // Font pointers for different styles
-  private ImFontPtr _regularFont;
-  private ImFontPtr _boldFont;
-  private ImFontPtr _italicFont;
-  private ImFontPtr _boldItalicFont;
+  // Font loader handles font discovery and loading
+  private FontLoader _fontLoader;
 
   // Font loading state
   private bool _fontsLoaded = false;
@@ -37,6 +35,9 @@ internal class TerminalUiFonts
     _config = config ?? throw new ArgumentNullException(nameof(config));
     _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
     _currentFontFamily = currentFontFamily ?? throw new ArgumentNullException(nameof(currentFontFamily));
+
+    // Initialize font loader
+    _fontLoader = new FontLoader(_fontConfig);
 
     CurrentCharacterWidth = _config.CharacterWidth;
     CurrentLineHeight = _config.LineHeight;
@@ -117,106 +118,10 @@ internal class TerminalUiFonts
   /// </summary>
   private void LoadFonts()
   {
-    try
-    {
-      Console.WriteLine($"TerminalUiFonts: Loading fonts with config - Regular: {_fontConfig.RegularFontName}, Size: {_fontConfig.FontSize}");
-
-      // Try to find fonts by name, fall back to default if not found
-      var defaultFont = ImGui.GetFont();
-
-      var regularFont = FindFont(_fontConfig.RegularFontName);
-      _regularFont = regularFont.HasValue ? regularFont.Value : defaultFont;
-      Console.WriteLine($"TerminalUiFonts: Regular font loaded: {(regularFont.HasValue ? "Success" : "Fallback to default")}");
-
-      var boldFont = FindFont(_fontConfig.BoldFontName);
-      _boldFont = boldFont.HasValue ? boldFont.Value : _regularFont;
-
-      var italicFont = FindFont(_fontConfig.ItalicFontName);
-      _italicFont = italicFont.HasValue ? italicFont.Value : _regularFont;
-
-      var boldItalicFont = FindFont(_fontConfig.BoldItalicFontName);
-      _boldItalicFont = boldItalicFont.HasValue ? boldItalicFont.Value : _regularFont;
-
-      Console.WriteLine("TerminalUiFonts: Fonts loaded successfully");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error loading fonts: {ex.Message}");
-
-      // Fallback to default font for all styles
-      var defaultFont = ImGui.GetFont();
-      _regularFont = defaultFont;
-      _boldFont = defaultFont;
-      _italicFont = defaultFont;
-      _boldItalicFont = defaultFont;
-    }
+    // Delegate to font loader
+    _fontLoader.LoadFonts();
   }
 
-  /// <summary>
-  ///     Finds a font by name in the ImGui font atlas.
-  /// </summary>
-  /// <param name="fontName">The name of the font to find</param>
-  /// <returns>The font pointer if found, null otherwise</returns>
-  private ImFontPtr? FindFont(string fontName)
-  {
-    if (string.IsNullOrWhiteSpace(fontName))
-    {
-      return null;
-    }
-
-    try
-    {
-      // First try the standard FontManager (works in standalone apps)
-      if (FontManager.Fonts.TryGetValue(fontName, out ImFontPtr fontPtr))
-      {
-        return fontPtr;
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: FontManager.Fonts not available for '{fontName}': {ex.Message}");
-    }
-
-    try
-    {
-      // Try the GameMod's font loading system (works in game mod context)
-      var gameModType = Type.GetType("caTTY.GameMod.TerminalMod, caTTY");
-      if (gameModType != null)
-      {
-        MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
-        if (getFontMethod != null)
-        {
-          object? result = getFontMethod.Invoke(null, new object[] { fontName });
-          if (result is ImFontPtr font)
-          {
-            return font;
-          }
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: GameMod font loading failed for '{fontName}': {ex.Message}");
-    }
-
-    // Try to iterate through ImGui font atlas (fallback method)
-    try
-    {
-      var io = ImGui.GetIO();
-      var fonts = io.Fonts;
-
-      // This is a simplified approach - in a real implementation,
-      // we would need to iterate through the font atlas and match names
-      // For now, return null to indicate font not found
-      Console.WriteLine($"TerminalUiFonts: Font '{fontName}' not found in ImGui font atlas");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error searching ImGui font atlas for '{fontName}': {ex.Message}");
-    }
-
-    return null;
-  }
 
   /// <summary>
   ///     Calculates character metrics from the loaded fonts.
@@ -228,7 +133,7 @@ internal class TerminalUiFonts
       Console.WriteLine($"TerminalUiFonts: Calculating character metrics using font size: {_fontConfig.FontSize}");
 
       // Use the regular font for metric calculations
-      ImGui.PushFont(_regularFont, _fontConfig.FontSize);
+      ImGui.PushFont(_fontLoader.RegularFont, _fontConfig.FontSize);
 
       try
       {
@@ -278,13 +183,13 @@ internal class TerminalUiFonts
   public ImFontPtr SelectFont(Core.Types.SgrAttributes attributes)
   {
     if (attributes.Bold && attributes.Italic)
-      return _boldItalicFont;
+      return _fontLoader.BoldItalicFont;
     else if (attributes.Bold)
-      return _boldFont;
+      return _fontLoader.BoldFont;
     else if (attributes.Italic)
-      return _italicFont;
+      return _fontLoader.ItalicFont;
     else
-      return _regularFont;
+      return _fontLoader.RegularFont;
   }
 
   /// <summary>
@@ -315,61 +220,8 @@ internal class TerminalUiFonts
   /// </summary>
   public void PushUIFont(out bool fontUsed)
   {
-    try
-    {
-      // Always use Hack Regular at 32.0f for UI elements
-      if (CaTTYFontManager.LoadedFonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr hackFont))
-      {
-        ImGui.PushFont(hackFont, 32.0f);
-        fontUsed = true;
-        return;
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error pushing UI font from CaTTYFontManager: {ex.Message}");
-    }
-
-    // Fallback: Try FontManager (works in standalone apps)
-    try
-    {
-      if (FontManager.Fonts.TryGetValue("HackNerdFontMono-Regular", out ImFontPtr fontPtr))
-      {
-        ImGui.PushFont(fontPtr, 32.0f);
-        fontUsed = true;
-        return;
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: FontManager.Fonts not available for UI font: {ex.Message}");
-    }
-
-    // Try the GameMod's font loading system (works in game mod context)
-    try
-    {
-      var gameModType = Type.GetType("caTTY.GameMod.TerminalMod, caTTY");
-      if (gameModType != null)
-      {
-        MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
-        if (getFontMethod != null)
-        {
-          object? result = getFontMethod.Invoke(null, new object[] { "HackNerdFontMono-Regular" });
-          if (result is ImFontPtr font)
-          {
-            ImGui.PushFont(font, 32.0f);
-            fontUsed = true;
-            return;
-          }
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: GameMod font loading failed for UI font: {ex.Message}");
-    }
-
-    fontUsed = false;
+    // Delegate to font loader
+    _fontLoader.PushUIFont(out fontUsed);
   }
 
   /// <summary>
@@ -377,61 +229,8 @@ internal class TerminalUiFonts
   /// </summary>
   public void PushTerminalContentFont(out bool fontUsed)
   {
-    try
-    {
-      // Use the regular font from our font configuration
-      ImGui.PushFont(_regularFont, _fontConfig.FontSize);
-      fontUsed = true;
-      return;
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error pushing configured font: {ex.Message}");
-    }
-
-    // Fallback: First try the standard FontManager (works in standalone apps)
-    try
-    {
-      if (FontManager.Fonts.TryGetValue(_fontConfig.RegularFontName, out ImFontPtr fontPtr))
-      {
-        ImGui.PushFont(fontPtr, _fontConfig.FontSize);
-        fontUsed = true;
-        return;
-      }
-    }
-    catch (Exception ex)
-    {
-      // FontManager.Fonts may not be available in game mod context
-      Console.WriteLine($"FontManager.Fonts not available: {ex.Message}");
-    }
-
-    // Try the GameMod's font loading system (works in game mod context)
-    try
-    {
-      // Use reflection to call the GameMod's GetFont method
-      var gameModType = Type.GetType("caTTY.GameMod.TerminalMod, caTTY");
-      if (gameModType != null)
-      {
-        MethodInfo? getFontMethod = gameModType.GetMethod("GetFont", BindingFlags.Public | BindingFlags.Static);
-        if (getFontMethod != null)
-        {
-          object? result = getFontMethod.Invoke(null, new object[] { _fontConfig.RegularFontName });
-          if (result is ImFontPtr font)
-          {
-            ImGui.PushFont(font, _fontConfig.FontSize);
-            fontUsed = true;
-            return;
-          }
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      // GameMod font loading not available or failed
-      Console.WriteLine($"GameMod font loading failed: {ex.Message}");
-    }
-
-    fontUsed = false;
+    // Delegate to font loader
+    _fontLoader.PushTerminalContentFont(out fontUsed);
   }
 
   /// <summary>
@@ -536,6 +335,9 @@ internal class TerminalUiFonts
       // Update font configuration
       _fontConfig = newFontConfig;
 
+      // Create new font loader with updated configuration
+      _fontLoader = new FontLoader(_fontConfig);
+
       // Reset font loading state to trigger reload
       _fontsLoaded = false;
 
@@ -635,6 +437,7 @@ internal class TerminalUiFonts
             var oldRegular = _fontConfig.RegularFontName;
 
             _fontConfig = savedFontConfig;
+            _fontLoader = new FontLoader(_fontConfig);
             _currentFontFamily = config.FontFamily;
 
             // Console.WriteLine($"TerminalUiFonts: Constructor - Font config updated from '{oldRegular}' to '{_fontConfig.RegularFontName}'");
@@ -733,6 +536,7 @@ internal class TerminalUiFonts
           Console.WriteLine($"TerminalUiFonts: Created font config - Regular: {savedFontConfig.RegularFontName}");
 
           _fontConfig = savedFontConfig;
+          _fontLoader = new FontLoader(_fontConfig);
           _currentFontFamily = config.FontFamily;
           fontConfigChanged = true;
           Console.WriteLine($"TerminalUiFonts: Successfully loaded font family from settings: {config.FontFamily}");
