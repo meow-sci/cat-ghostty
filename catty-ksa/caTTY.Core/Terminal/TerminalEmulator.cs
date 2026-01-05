@@ -44,6 +44,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
     private readonly EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
     private readonly EmulatorOps.TerminalInsertModeOps _insertModeOps;
+    private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -132,6 +133,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _deleteCharsOps = new EmulatorOps.TerminalDeleteCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _eraseCharsOps = new EmulatorOps.TerminalEraseCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _insertModeOps = new EmulatorOps.TerminalInsertModeOps(_cursorManager, _screenBufferManager, _attributeManager, _modeManager, () => State, () => Width, () => Height);
+        _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, HandleAlternateScreenMode, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1083,67 +1085,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="enabled">True to enable, false to disable</param>
     internal void SetDecMode(int mode, bool enabled)
     {
-        // Update the mode manager first
-        _modeManager.SetPrivateMode(mode, enabled);
-
-        switch (mode)
-        {
-            case 6: // DECOM - Origin Mode
-                State.SetOriginMode(enabled);
-                // Sync with cursor manager after origin mode change
-                _cursorManager.MoveTo(State.CursorY, State.CursorX);
-                _cursorManager.SetWrapPending(State.WrapPending);
-                break;
-
-            case 7: // DECAWM - Auto Wrap Mode
-                State.SetAutoWrapMode(enabled);
-                // Clear wrap pending when auto-wrap mode is disabled (matches TypeScript)
-                if (!enabled)
-                {
-                    _cursorManager.SetWrapPending(false);
-                }
-                // Sync with cursor manager after auto wrap mode change
-                _cursorManager.SetWrapPending(State.WrapPending);
-                break;
-
-            case 25: // DECTCEM - Text Cursor Enable Mode
-                State.CursorVisible = enabled;
-                _cursorManager.Visible = enabled;
-                break;
-
-            case 1: // DECCKM - Application Cursor Keys
-                State.ApplicationCursorKeys = enabled;
-                break;
-
-            case 47: // Alternate Screen Buffer
-            case 1047: // Alternate Screen Buffer with cursor save
-            case 1049: // Alternate Screen Buffer with cursor save and clear
-                HandleAlternateScreenMode(mode, enabled);
-                break;
-
-            case 1000: // VT200 mouse tracking (click)
-            case 1002: // button-event tracking (drag)
-            case 1003: // any-event tracking (motion)
-                State.SetMouseTrackingMode(mode, enabled);
-                break;
-
-            case 1006: // SGR mouse encoding
-                State.MouseSgrEncodingEnabled = enabled;
-                break;
-
-            case 2004: // Bracketed paste mode
-                State.BracketedPasteMode = enabled;
-                break;
-
-            case 2027: // UTF-8 Mode
-                State.Utf8Mode = enabled;
-                _characterSetManager.SetUtf8Mode(enabled);
-                break;
-
-            default:
-                _logger.LogDebug("Unknown DEC mode {Mode} {Action}", mode, enabled ? "set" : "reset");
-                break;
-        }
+        _decModeOps.SetDecMode(mode, enabled);
     }
 
     private void HandleAlternateScreenMode(int mode, bool enabled)
