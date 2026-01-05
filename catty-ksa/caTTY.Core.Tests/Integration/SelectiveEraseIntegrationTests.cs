@@ -16,7 +16,7 @@ public class SelectiveEraseIntegrationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(10, 3, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(10, 3, NullLogger.Instance);
     }
 
     [TearDown]
@@ -30,7 +30,7 @@ public class SelectiveEraseIntegrationTests
     private void SetupTerminal(int width, int height = 3)
     {
         _terminal?.Dispose();
-        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(width, height, NullLogger.Instance);
     }
 
     private string GetRowText(int row)

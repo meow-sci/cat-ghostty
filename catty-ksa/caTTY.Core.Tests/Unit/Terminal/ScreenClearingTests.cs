@@ -14,7 +14,7 @@ public class ScreenClearingTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(10, 5); // 10 cols, 5 rows for testing
+        _terminal = TerminalEmulator.Create(10, 5); // 10 cols, 5 rows for testing
     }
 
     [TearDown]

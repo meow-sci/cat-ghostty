@@ -65,7 +65,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Initially, terminal should be on primary screen
             bool initiallyOnPrimary = !terminal.State.IsAlternateScreenActive;
@@ -135,7 +135,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Write content to primary screen
             foreach (var (text, addNewline) in primaryContent)
@@ -202,7 +202,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Phase 1: Write initial content to primary screen
             foreach (var (text, addNewline) in primaryContent1)
@@ -267,7 +267,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Add some content to scrollback in primary screen first
             for (int i = 0; i < height + 2; i++)
@@ -329,7 +329,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Move cursor to a specific position and write text
             var clampedRow = Math.Min(cursorPos.row, height);
@@ -377,7 +377,7 @@ public class AlternateScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 100, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 100, NullLogger.Instance);
 
             // Write to primary screen
             terminal.Write(primaryText);

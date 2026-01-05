@@ -18,7 +18,7 @@ public class WindowManipulationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(80, 24, 1000, NullLogger<TerminalEmulator>.Instance);
+        _terminal = TerminalEmulator.Create(80, 24, 1000, NullLogger<TerminalEmulator>.Instance);
         
         // Set initial window title and icon name for testing
         _terminal.SetWindowTitle("Initial Title");

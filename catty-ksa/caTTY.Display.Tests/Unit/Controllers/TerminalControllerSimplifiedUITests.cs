@@ -25,7 +25,7 @@ public class TerminalControllerSimplifiedUITests
     public void SetUp()
     {
         // Create test terminal and process manager
-        _terminal = new TerminalEmulator(80, 24);
+        _terminal = TerminalEmulator.Create(80, 24);
         _processManager = new ProcessManager();
         
         // Create session manager and add a session

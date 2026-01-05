@@ -31,7 +31,7 @@ public class TracingPositionTests
         TerminalTracer.Reset();
         
         // Create terminal emulator
-        _terminal = new TerminalEmulator(80, 24);
+        _terminal = TerminalEmulator.Create(80, 24);
     }
 
     [TearDown]

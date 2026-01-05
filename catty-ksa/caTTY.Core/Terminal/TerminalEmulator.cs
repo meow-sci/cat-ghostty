@@ -14,76 +14,254 @@ namespace caTTY.Core.Terminal;
 /// </summary>
 public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 {
-    private readonly ILogger _logger;
-    private readonly Parser _parser;
-    private readonly IScreenBufferManager _screenBufferManager;
-    private readonly ICursorManager _cursorManager;
-    private readonly IModeManager _modeManager;
-    private readonly IAttributeManager _attributeManager;
-    private readonly IScrollbackManager _scrollbackManager;
-    private readonly IScrollbackBuffer _scrollbackBuffer;
-    private readonly IAlternateScreenManager _alternateScreenManager;
-    private readonly ICharacterSetManager _characterSetManager;
+    private ILogger _logger;
+    private Parser _parser;
+    private IScreenBufferManager _screenBufferManager;
+    private ICursorManager _cursorManager;
+    private IModeManager _modeManager;
+    private IAttributeManager _attributeManager;
+    private IScrollbackManager _scrollbackManager;
+    private IScrollbackBuffer _scrollbackBuffer;
+    private IAlternateScreenManager _alternateScreenManager;
+    private ICharacterSetManager _characterSetManager;
 
     // Operation classes
-    private readonly EmulatorOps.TerminalViewportOps _viewportOps;
-    private readonly EmulatorOps.TerminalResizeOps _resizeOps;
-    private readonly EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
-    private readonly EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
-    private readonly EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
-    private readonly EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
-    private readonly EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
-    private readonly EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
-    private readonly EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
-    private readonly EmulatorOps.TerminalScrollOps _scrollOps;
-    private readonly EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
-    private readonly EmulatorOps.TerminalInsertLinesOps _insertLinesOps;
-    private readonly EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
-    private readonly EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
-    private readonly EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
-    private readonly EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
-    private readonly EmulatorOps.TerminalInsertModeOps _insertModeOps;
-    private readonly EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
-    private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
-    private readonly EmulatorOps.TerminalPrivateModesOps _privateModesOps;
-    private readonly EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
-    private readonly EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
-    private readonly EmulatorOps.TerminalOscWindowManipulationOps _oscWindowManipulationOps;
-    private readonly EmulatorOps.TerminalOscClipboardOps _oscClipboardOps;
-    private readonly EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
-    private readonly EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
-    private readonly EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
-    private readonly EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
-    private readonly EmulatorOps.TerminalLineFeedOps _lineFeedOps;
-    private readonly EmulatorOps.TerminalIndexOps _indexOps;
-    private readonly EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
-    private readonly EmulatorOps.TerminalBellOps _bellOps;
-    private readonly EmulatorOps.TerminalBackspaceOps _backspaceOps;
-    private readonly EmulatorOps.TerminalTabOps _tabOps;
-    private readonly EmulatorOps.TerminalResponseOps _responseOps;
-    private readonly EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
-    private readonly EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
-    private readonly EmulatorOps.TerminalInputOps _inputOps;
-    private readonly EmulatorOps.TerminalResetOps _resetOps;
+    private EmulatorOps.TerminalViewportOps _viewportOps;
+    private EmulatorOps.TerminalResizeOps _resizeOps;
+    private EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
+    private EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
+    private EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
+    private EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
+    private EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
+    private EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
+    private EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
+    private EmulatorOps.TerminalScrollOps _scrollOps;
+    private EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
+    private EmulatorOps.TerminalInsertLinesOps _insertLinesOps;
+    private EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
+    private EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
+    private EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
+    private EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
+    private EmulatorOps.TerminalInsertModeOps _insertModeOps;
+    private EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
+    private EmulatorOps.TerminalDecModeOps _decModeOps;
+    private EmulatorOps.TerminalPrivateModesOps _privateModesOps;
+    private EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
+    private EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
+    private EmulatorOps.TerminalOscWindowManipulationOps _oscWindowManipulationOps;
+    private EmulatorOps.TerminalOscClipboardOps _oscClipboardOps;
+    private EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
+    private EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
+    private EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
+    private EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
+    private EmulatorOps.TerminalLineFeedOps _lineFeedOps;
+    private EmulatorOps.TerminalIndexOps _indexOps;
+    private EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
+    private EmulatorOps.TerminalBellOps _bellOps;
+    private EmulatorOps.TerminalBackspaceOps _backspaceOps;
+    private EmulatorOps.TerminalTabOps _tabOps;
+    private EmulatorOps.TerminalResponseOps _responseOps;
+    private EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
+    private EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
+    private EmulatorOps.TerminalInputOps _inputOps;
+    private EmulatorOps.TerminalResetOps _resetOps;
 
     // Optional RPC components for game integration
-    private readonly IRpcHandler? _rpcHandler;
+    private IRpcHandler? _rpcHandler;
 
     private bool _disposed;
 
     /// <summary>
+    ///     Internal constructor used by builder.
+    /// </summary>
+    internal TerminalEmulator()
+    {
+        // Fields will be initialized by Initialize method called from builder
+        // Suppress nullability warnings - fields are initialized immediately by builder
+        State = null!;
+        ScreenBuffer = null!;
+        Cursor = null!;
+        _scrollbackBuffer = null!;
+        _scrollbackManager = null!;
+        _screenBufferManager = null!;
+        _cursorManager = null!;
+        _modeManager = null!;
+        _attributeManager = null!;
+        _alternateScreenManager = null!;
+        _characterSetManager = null!;
+        _viewportOps = null!;
+        _resizeOps = null!;
+        _cursorMovementOps = null!;
+        _cursorSaveRestoreOps = null!;
+        _cursorStyleOps = null!;
+        _eraseInDisplayOps = null!;
+        _eraseInLineOps = null!;
+        _selectiveEraseInDisplayOps = null!;
+        _selectiveEraseInLineOps = null!;
+        _scrollOps = null!;
+        _scrollRegionOps = null!;
+        _insertLinesOps = null!;
+        _deleteLinesOps = null!;
+        _insertCharsOps = null!;
+        _deleteCharsOps = null!;
+        _eraseCharsOps = null!;
+        _insertModeOps = null!;
+        _alternateScreenOps = null!;
+        _decModeOps = null!;
+        _privateModesOps = null!;
+        _bracketedPasteOps = null!;
+        _oscTitleIconOps = null!;
+        _oscWindowManipulationOps = null!;
+        _oscClipboardOps = null!;
+        _oscHyperlinkOps = null!;
+        _oscColorQueryOps = null!;
+        _charsetDesignationOps = null!;
+        _charsetTranslationOps = null!;
+        _lineFeedOps = null!;
+        _indexOps = null!;
+        _carriageReturnOps = null!;
+        _bellOps = null!;
+        _backspaceOps = null!;
+        _tabOps = null!;
+        _responseOps = null!;
+        _screenUpdateOps = null!;
+        _titleIconEventsOps = null!;
+        _inputOps = null!;
+        _resetOps = null!;
+        _parser = null!;
+        _logger = null!;
+    }
+
+    /// <summary>
+    ///     Initializes all fields. Called by TerminalEmulatorBuilder after construction.
+    /// </summary>
+    internal void Initialize(
+        ICursor cursor,
+        TerminalState state,
+        IScreenBuffer screenBuffer,
+        IScrollbackBuffer scrollbackBuffer,
+        IScrollbackManager scrollbackManager,
+        IScreenBufferManager screenBufferManager,
+        ICursorManager cursorManager,
+        IModeManager modeManager,
+        IAttributeManager attributeManager,
+        IAlternateScreenManager alternateScreenManager,
+        ICharacterSetManager characterSetManager,
+        EmulatorOps.TerminalViewportOps viewportOps,
+        EmulatorOps.TerminalResizeOps resizeOps,
+        EmulatorOps.TerminalCursorMovementOps cursorMovementOps,
+        EmulatorOps.TerminalCursorSaveRestoreOps cursorSaveRestoreOps,
+        EmulatorOps.TerminalCursorStyleOps cursorStyleOps,
+        EmulatorOps.TerminalEraseInDisplayOps eraseInDisplayOps,
+        EmulatorOps.TerminalEraseInLineOps eraseInLineOps,
+        EmulatorOps.TerminalSelectiveEraseInDisplayOps selectiveEraseInDisplayOps,
+        EmulatorOps.TerminalSelectiveEraseInLineOps selectiveEraseInLineOps,
+        EmulatorOps.TerminalScrollOps scrollOps,
+        EmulatorOps.TerminalScrollRegionOps scrollRegionOps,
+        EmulatorOps.TerminalInsertLinesOps insertLinesOps,
+        EmulatorOps.TerminalDeleteLinesOps deleteLinesOps,
+        EmulatorOps.TerminalInsertCharsOps insertCharsOps,
+        EmulatorOps.TerminalDeleteCharsOps deleteCharsOps,
+        EmulatorOps.TerminalEraseCharsOps eraseCharsOps,
+        EmulatorOps.TerminalInsertModeOps insertModeOps,
+        EmulatorOps.TerminalAlternateScreenOps alternateScreenOps,
+        EmulatorOps.TerminalDecModeOps decModeOps,
+        EmulatorOps.TerminalPrivateModesOps privateModesOps,
+        EmulatorOps.TerminalBracketedPasteOps bracketedPasteOps,
+        EmulatorOps.TerminalOscTitleIconOps oscTitleIconOps,
+        EmulatorOps.TerminalOscWindowManipulationOps oscWindowManipulationOps,
+        EmulatorOps.TerminalOscClipboardOps oscClipboardOps,
+        EmulatorOps.TerminalOscHyperlinkOps oscHyperlinkOps,
+        EmulatorOps.TerminalOscColorQueryOps oscColorQueryOps,
+        EmulatorOps.TerminalCharsetDesignationOps charsetDesignationOps,
+        EmulatorOps.TerminalCharsetTranslationOps charsetTranslationOps,
+        EmulatorOps.TerminalLineFeedOps lineFeedOps,
+        EmulatorOps.TerminalIndexOps indexOps,
+        EmulatorOps.TerminalCarriageReturnOps carriageReturnOps,
+        EmulatorOps.TerminalBellOps bellOps,
+        EmulatorOps.TerminalBackspaceOps backspaceOps,
+        EmulatorOps.TerminalTabOps tabOps,
+        EmulatorOps.TerminalResponseOps responseOps,
+        EmulatorOps.TerminalScreenUpdateOps screenUpdateOps,
+        EmulatorOps.TerminalTitleIconEventsOps titleIconEventsOps,
+        EmulatorOps.TerminalInputOps inputOps,
+        EmulatorOps.TerminalResetOps resetOps,
+        Parser parser,
+        IRpcHandler? rpcHandler,
+        ILogger logger)
+    {
+        Cursor = cursor;
+        State = state;
+        ScreenBuffer = screenBuffer;
+        _scrollbackBuffer = scrollbackBuffer;
+        _scrollbackManager = scrollbackManager;
+        _screenBufferManager = screenBufferManager;
+        _cursorManager = cursorManager;
+        _modeManager = modeManager;
+        _attributeManager = attributeManager;
+        _alternateScreenManager = alternateScreenManager;
+        _characterSetManager = characterSetManager;
+        _viewportOps = viewportOps;
+        _resizeOps = resizeOps;
+        _cursorMovementOps = cursorMovementOps;
+        _cursorSaveRestoreOps = cursorSaveRestoreOps;
+        _cursorStyleOps = cursorStyleOps;
+        _eraseInDisplayOps = eraseInDisplayOps;
+        _eraseInLineOps = eraseInLineOps;
+        _selectiveEraseInDisplayOps = selectiveEraseInDisplayOps;
+        _selectiveEraseInLineOps = selectiveEraseInLineOps;
+        _scrollOps = scrollOps;
+        _scrollRegionOps = scrollRegionOps;
+        _insertLinesOps = insertLinesOps;
+        _deleteLinesOps = deleteLinesOps;
+        _insertCharsOps = insertCharsOps;
+        _deleteCharsOps = deleteCharsOps;
+        _eraseCharsOps = eraseCharsOps;
+        _insertModeOps = insertModeOps;
+        _alternateScreenOps = alternateScreenOps;
+        _decModeOps = decModeOps;
+        _privateModesOps = privateModesOps;
+        _bracketedPasteOps = bracketedPasteOps;
+        _oscTitleIconOps = oscTitleIconOps;
+        _oscWindowManipulationOps = oscWindowManipulationOps;
+        _oscClipboardOps = oscClipboardOps;
+        _oscHyperlinkOps = oscHyperlinkOps;
+        _oscColorQueryOps = oscColorQueryOps;
+        _charsetDesignationOps = charsetDesignationOps;
+        _charsetTranslationOps = charsetTranslationOps;
+        _lineFeedOps = lineFeedOps;
+        _indexOps = indexOps;
+        _carriageReturnOps = carriageReturnOps;
+        _bellOps = bellOps;
+        _backspaceOps = backspaceOps;
+        _tabOps = tabOps;
+        _responseOps = responseOps;
+        _screenUpdateOps = screenUpdateOps;
+        _titleIconEventsOps = titleIconEventsOps;
+        _inputOps = inputOps;
+        _resetOps = resetOps;
+        _parser = parser;
+        _rpcHandler = rpcHandler;
+        _logger = logger;
+        _disposed = false;
+    }
+
+    /// <summary>
     ///     Creates a new terminal emulator with the specified dimensions.
+    ///     Uses TerminalEmulatorBuilder for initialization.
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, ILogger? logger = null) : this(width, height, 1000, logger, null)
+    public static TerminalEmulator Create(int width, int height, ILogger? logger = null)
     {
+        return TerminalEmulatorBuilder.Build(width, height, 1000, logger, null);
     }
 
     /// <summary>
     ///     Creates a new terminal emulator with the specified dimensions, scrollback, and optional RPC handler.
+    ///     Uses TerminalEmulatorBuilder for initialization.
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
@@ -91,130 +269,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
+    public static TerminalEmulator Create(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
     {
-        if (width < 1 || width > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be between 1 and 1000");
-        }
-
-        if (height < 1 || height > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height), "Height must be between 1 and 1000");
-        }
-
-        if (scrollbackLines < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(scrollbackLines), "Scrollback lines cannot be negative");
-        }
-
-        Cursor = new Cursor();
-        State = new TerminalState(width, height);
-
-        // Use a dual buffer so alternate-screen applications (htop/vim/less/etc.)
-        // don't corrupt primary screen content and scrollback behavior.
-        ScreenBuffer = new DualScreenBuffer(width, height, () => State.IsAlternateScreenActive);
-        _logger = logger ?? NullLogger.Instance;
-        _rpcHandler = rpcHandler;
-
-        // Initialize scrollback infrastructure
-        _scrollbackBuffer = new ScrollbackBuffer(scrollbackLines, width);
-        _scrollbackManager = new ScrollbackManager(scrollbackLines, width);
-
-        // Initialize managers
-        _screenBufferManager = new ScreenBufferManager(ScreenBuffer);
-        _cursorManager = new CursorManager(Cursor);
-        _modeManager = new ModeManager();
-        _attributeManager = new AttributeManager();
-        _characterSetManager = new CharacterSetManager(State);
-        _alternateScreenManager = new AlternateScreenManager(State, _cursorManager, (DualScreenBuffer)ScreenBuffer);
-
-        // Set up scrollback integration
-        _screenBufferManager.SetScrollbackIntegration(
-            row => _scrollbackManager.AddLine(row),
-            () => State.IsAlternateScreenActive
-        );
-
-        // Initialize operation classes - create screen update ops first as it's used by other ops
-        _screenUpdateOps = new EmulatorOps.TerminalScreenUpdateOps(e => ScreenUpdated?.Invoke(this, e));
-        _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, _screenUpdateOps.OnScreenUpdated);
-        _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, _screenUpdateOps.OnScreenUpdated);
-        _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
-        _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
-        _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
-        _eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLine, _logger);
-        _eraseInLineOps = new EmulatorOps.TerminalEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
-        _selectiveEraseInLineOps = new EmulatorOps.TerminalSelectiveEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
-        _selectiveEraseInDisplayOps = new EmulatorOps.TerminalSelectiveEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLineSelective, _logger);
-        _scrollOps = new EmulatorOps.TerminalScrollOps(_cursorManager, _screenBufferManager, _attributeManager, () => State, () => Cursor);
-        _scrollRegionOps = new EmulatorOps.TerminalScrollRegionOps(_cursorManager, () => State, () => Height);
-        _insertLinesOps = new EmulatorOps.TerminalInsertLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _deleteLinesOps = new EmulatorOps.TerminalDeleteLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _insertCharsOps = new EmulatorOps.TerminalInsertCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _deleteCharsOps = new EmulatorOps.TerminalDeleteCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _eraseCharsOps = new EmulatorOps.TerminalEraseCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _insertModeOps = new EmulatorOps.TerminalInsertModeOps(_cursorManager, _screenBufferManager, _attributeManager, _modeManager, () => State, () => Width, () => Height);
-        _alternateScreenOps = new EmulatorOps.TerminalAlternateScreenOps(_cursorManager, _alternateScreenManager, _scrollbackManager, () => State);
-        _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
-        _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
-        _bracketedPasteOps = new EmulatorOps.TerminalBracketedPasteOps(() => State);
-        _titleIconEventsOps = new EmulatorOps.TerminalTitleIconEventsOps(e => TitleChanged?.Invoke(this, e), e => IconNameChanged?.Invoke(this, e));
-        _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, _titleIconEventsOps.OnTitleChanged, _titleIconEventsOps.OnIconNameChanged);
-        _oscWindowManipulationOps = new EmulatorOps.TerminalOscWindowManipulationOps(() => State, SetWindowTitle, SetIconName, EmitResponse, () => Height, () => Width, _logger);
-        _oscClipboardOps = new EmulatorOps.TerminalOscClipboardOps(_logger, OnClipboardRequest);
-        _oscHyperlinkOps = new EmulatorOps.TerminalOscHyperlinkOps(_logger, _attributeManager, () => State);
-        _oscColorQueryOps = new EmulatorOps.TerminalOscColorQueryOps(_attributeManager);
-        _charsetDesignationOps = new EmulatorOps.TerminalCharsetDesignationOps(_characterSetManager);
-        _charsetTranslationOps = new EmulatorOps.TerminalCharsetTranslationOps(_characterSetManager);
-        _lineFeedOps = new EmulatorOps.TerminalLineFeedOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
-        _indexOps = new EmulatorOps.TerminalIndexOps(_screenBufferManager, _attributeManager, () => State, () => Cursor, () => Height);
-        _carriageReturnOps = new EmulatorOps.TerminalCarriageReturnOps(_cursorManager, () => State);
-        _bellOps = new EmulatorOps.TerminalBellOps(OnBell);
-        _backspaceOps = new EmulatorOps.TerminalBackspaceOps(_cursorManager, () => State);
-        _tabOps = new EmulatorOps.TerminalTabOps(_cursorManager, () => State, () => Cursor, () => Width);
-        _responseOps = new EmulatorOps.TerminalResponseOps(e => ResponseEmitted?.Invoke(this, e));
-        _inputOps = new EmulatorOps.TerminalInputOps(() => _parser!, ThrowIfDisposed, () => OnScreenUpdated());
-        _resetOps = new EmulatorOps.TerminalResetOps(() => State, () => ScreenBuffer, () => Cursor, _cursorManager, _attributeManager, _modeManager, () => Width, () => Height, _logger);
-
-        // Initialize parser with terminal handlers and optional RPC components
-        var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
-        var parserOptions = new ParserOptions
-        {
-            Handlers = handlers,
-            Logger = _logger,
-            EmitNormalBytesDuringEscapeSequence = false,
-            ProcessC0ControlsDuringEscapeSequence = true,
-            CursorPositionProvider = this
-        };
-
-        // Wire RPC components if RPC handler is provided
-        if (_rpcHandler != null)
-        {
-            // Create RPC components for integration
-            // Note: These would typically be injected, but for clean integration we create them here
-            var rpcSequenceDetector = new RpcSequenceDetector();
-            var rpcSequenceParser = new RpcSequenceParser();
-
-            parserOptions.RpcSequenceDetector = rpcSequenceDetector;
-            parserOptions.RpcSequenceParser = rpcSequenceParser;
-            parserOptions.RpcHandler = _rpcHandler;
-
-            _logger.LogDebug("RPC functionality enabled for terminal emulator");
-        }
-        else
-        {
-            _logger.LogDebug("RPC functionality disabled - no RPC handler provided");
-        }
-
-        _parser = new Parser(parserOptions);
-
-        _disposed = false;
+        return TerminalEmulatorBuilder.Build(width, height, scrollbackLines, logger, rpcHandler);
     }
 
     /// <summary>
     ///     Gets the current terminal state.
     /// </summary>
-    public TerminalState State { get; }
+    public TerminalState State { get; private set; }
 
     /// <summary>
     ///     Gets the screen buffer manager for buffer operations.
@@ -254,12 +317,12 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <summary>
     ///     Gets the current screen buffer for rendering.
     /// </summary>
-    public IScreenBuffer ScreenBuffer { get; }
+    public IScreenBuffer ScreenBuffer { get; private set; }
 
     /// <summary>
     ///     Gets the current cursor state.
     /// </summary>
-    public ICursor Cursor { get; }
+    public ICursor Cursor { get; private set; }
 
     /// <summary>
     /// Gets the current cursor row position (0-based) for tracing purposes.
@@ -309,12 +372,16 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <summary>
     ///     Event raised when the window title is changed via OSC sequences.
     /// </summary>
+#pragma warning disable CS0067 // Event is used via helper method
     public event EventHandler<TitleChangeEventArgs>? TitleChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     ///     Event raised when the icon name is changed via OSC sequences.
     /// </summary>
+#pragma warning disable CS0067 // Event is used via helper method
     public event EventHandler<IconNameChangeEventArgs>? IconNameChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     ///     Event raised when a clipboard operation is requested via OSC 52 sequences.
@@ -734,6 +801,62 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     {
         _screenUpdateOps.OnScreenUpdated();
     }
+
+    /// <summary>
+    ///     Internal helper for builder - gets the parser instance.
+    /// </summary>
+    internal Parser GetParser() => _parser;
+
+    /// <summary>
+    ///     Internal helper for builder - throws if disposed.
+    /// </summary>
+    internal void ThrowIfDisposedInternal() => ThrowIfDisposed();
+
+    /// <summary>
+    ///     Internal helper for builder - calls OnScreenUpdated.
+    /// </summary>
+    internal void OnScreenUpdatedInternal() => OnScreenUpdated();
+
+    /// <summary>
+    ///     Internal helper for builder - raises OnBell event.
+    /// </summary>
+    internal void OnBellInternal() => OnBell();
+
+    /// <summary>
+    ///     Internal helper for builder - raises ScreenUpdated event with args.
+    /// </summary>
+    internal void OnScreenUpdatedEvent(ScreenUpdatedEventArgs e) => ScreenUpdated?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises TitleChanged event with string.
+    /// </summary>
+    internal void OnTitleChangedEvent(string title) => OnTitleChanged(title);
+
+    /// <summary>
+    ///     Internal helper for builder - raises IconNameChanged event with string.
+    /// </summary>
+    internal void OnIconNameChangedEvent(string iconName) => OnIconNameChanged(iconName);
+
+    /// <summary>
+    ///     Internal helper for builder - raises ClipboardRequest event.
+    /// </summary>
+    internal void OnClipboardRequestInternal(string selectionTarget, string? data, bool isQuery) =>
+        OnClipboardRequest(selectionTarget, data, isQuery);
+
+    /// <summary>
+    ///     Internal helper for builder - raises ResponseEmitted event with args.
+    /// </summary>
+    internal void OnResponseEmittedEvent(ResponseEmittedEventArgs e) => ResponseEmitted?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises TitleChanged event with event args.
+    /// </summary>
+    internal void RaiseTitleChanged(TitleChangeEventArgs e) => TitleChanged?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises IconNameChanged event with event args.
+    /// </summary>
+    internal void RaiseIconNameChanged(IconNameChangeEventArgs e) => IconNameChanged?.Invoke(this, e);
 
     /// <summary>
     ///     Raises the ResponseEmitted event.

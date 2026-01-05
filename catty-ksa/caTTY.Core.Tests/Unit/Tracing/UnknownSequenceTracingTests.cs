@@ -34,7 +34,7 @@ public class UnknownSequenceTracingTests
         TerminalTracer.Reset(); // Ensure clean state
 
         // Create terminal
-        _terminal = new TerminalEmulator(80, 24, 1000);
+        _terminal = TerminalEmulator.Create(80, 24, 1000);
     }
 
     [TearDown]

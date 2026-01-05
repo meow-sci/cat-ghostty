@@ -494,7 +494,7 @@ public class TerminalTracingProperties
             // Arrange - Clear any existing traces and create terminal emulator
             ClearTraceDatabase();
 
-            using var terminal = new TerminalEmulator(80, 24);
+            using var terminal = TerminalEmulator.Create(80, 24);
 
             // Act - Write character through the parser (which triggers tracing)
             // Convert character to bytes and process through Write method
@@ -619,7 +619,7 @@ public class TerminalTracingProperties
             // Arrange - Clear any existing traces and create terminal emulator
             ClearTraceDatabase();
 
-            using var terminal = new TerminalEmulator(80, 24);
+            using var terminal = TerminalEmulator.Create(80, 24);
 
             // Get initial attributes before processing SGR
             var initialAttributes = terminal.AttributeManager.CurrentAttributes;

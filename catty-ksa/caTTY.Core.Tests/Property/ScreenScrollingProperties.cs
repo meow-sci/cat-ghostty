@@ -47,7 +47,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test character pattern
             FillScreenWithPattern(terminal, testChar, width, height);
@@ -135,7 +135,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test character pattern
             FillScreenWithPattern(terminal, testChar, width, height);
@@ -218,7 +218,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Position cursor at a known location
             terminal.Write($"\x1b[{height/2};{width/2}H");
@@ -258,8 +258,8 @@ public class ScreenScrollingProperties
             var (width, height) = dimensions;
 
             // Create two identical terminals
-            using var terminal1 = new TerminalEmulator(width, height, 10, NullLogger.Instance);
-            using var terminal2 = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal1 = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
+            using var terminal2 = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill both with same pattern
             FillScreenWithPattern(terminal1, testChar, width, height);
@@ -302,7 +302,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test pattern
             FillScreenWithPattern(terminal, testChar, width, height);
@@ -347,7 +347,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Activate alternate screen mode
             terminal.State.IsAlternateScreenActive = true;
@@ -376,7 +376,7 @@ public class ScreenScrollingProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill screen with test pattern
             FillScreenWithPattern(terminal, testChar, width, height);

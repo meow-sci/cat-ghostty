@@ -31,7 +31,7 @@ public class CursorVisibilityProperties
         return Prop.ForAll(CursorVisibilitySequenceArb, visibilitySequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Track the expected final visibility state
             bool expectedVisibility = true; // Default cursor visibility is true
@@ -70,7 +70,7 @@ public class CursorVisibilityProperties
             (initialVisibility, movementSequence) =>
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24);
+                var terminal = TerminalEmulator.Create(80, 24);
 
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";
@@ -106,7 +106,7 @@ public class CursorVisibilityProperties
             (initialVisibility, textToWrite) =>
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24);
+                var terminal = TerminalEmulator.Create(80, 24);
 
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";
@@ -139,8 +139,8 @@ public class CursorVisibilityProperties
         return Prop.ForAll(CursorVisibilitySequenceArb, visibilitySequence =>
         {
             // Arrange: Create two identical terminals
-            var terminal1 = new TerminalEmulator(80, 24);
-            var terminal2 = new TerminalEmulator(80, 24);
+            var terminal1 = TerminalEmulator.Create(80, 24);
+            var terminal2 = TerminalEmulator.Create(80, 24);
 
             // Act: Apply the same sequence to both terminals
             foreach (bool visible in visibilitySequence)
@@ -175,7 +175,7 @@ public class CursorVisibilityProperties
             (initialVisibility, newWidth, newHeight) =>
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24);
+                var terminal = TerminalEmulator.Create(80, 24);
 
                 // Set initial visibility state
                 string visibilitySequence = initialVisibility ? "\x1b[?25h" : "\x1b[?25l";

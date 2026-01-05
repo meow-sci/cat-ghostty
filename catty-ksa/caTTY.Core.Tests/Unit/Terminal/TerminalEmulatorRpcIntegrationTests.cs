@@ -18,7 +18,7 @@ public class TerminalEmulatorRpcIntegrationTests
     {
         _logger = new TestLogger();
         _mockRpcHandler = new MockRpcHandler();
-        _terminal = new TerminalEmulator(80, 24, 1000, _logger, _mockRpcHandler);
+        _terminal = TerminalEmulator.Create(80, 24, 1000, _logger, _mockRpcHandler);
     }
 
     [TearDown]
@@ -41,7 +41,7 @@ public class TerminalEmulatorRpcIntegrationTests
     public void Constructor_WithoutRpcHandler_DisablesRpcFunctionality()
     {
         // Arrange & Act
-        using var terminal = new TerminalEmulator(80, 24, 1000, _logger, null);
+        using var terminal = TerminalEmulator.Create(80, 24, 1000, _logger, null);
 
         // Assert
         Assert.That(terminal.IsRpcEnabled, Is.False);
@@ -75,7 +75,7 @@ public class TerminalEmulatorRpcIntegrationTests
     public void SetRpcEnabled_WithoutRpcHandler_ReturnsFalse()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 24, 1000, _logger, null);
+        using var terminal = TerminalEmulator.Create(80, 24, 1000, _logger, null);
 
         // Act
         bool result = terminal.SetRpcEnabled(true);

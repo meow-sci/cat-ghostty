@@ -17,7 +17,7 @@ public class SelectiveEraseTests
     public void SetUp()
     {
         // Default to 10 columns like TypeScript line erase tests
-        _terminal = new TerminalEmulator(10, 3, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(10, 3, NullLogger.Instance);
     }
 
     [TearDown]
@@ -31,7 +31,7 @@ public class SelectiveEraseTests
     private void SetupTerminal(int width, int height = 3)
     {
         _terminal?.Dispose();
-        _terminal = new TerminalEmulator(width, height, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(width, height, NullLogger.Instance);
     }
 
     [Test]

@@ -52,7 +52,7 @@ public class ScreenBufferProperties
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
 
-            using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Fill the original buffer with a test pattern
             FillBufferWithPattern(terminal, testChar, originalWidth, originalHeight);
@@ -89,7 +89,7 @@ public class ScreenBufferProperties
         {
             var (width, height) = dimensions;
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill buffer with test pattern
             FillBufferWithPattern(terminal, testChar, width, height);
@@ -135,7 +135,7 @@ public class ScreenBufferProperties
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
 
-            using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Position cursor at a specific location
             var targetRow = Math.Min(originalHeight / 2, originalHeight - 1);
@@ -207,7 +207,7 @@ public class ScreenBufferProperties
 
                 try
                 {
-                    using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
+                    using var terminal = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
 
                     // Fill with some content
                     FillBufferWithPattern(terminal, testChar, originalWidth, originalHeight);
@@ -250,8 +250,8 @@ public class ScreenBufferProperties
             var (newWidth, newHeight) = newDimensions;
 
             // Create two identical terminals
-            using var terminal1 = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
-            using var terminal2 = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
+            using var terminal1 = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
+            using var terminal2 = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Fill both with identical content
             FillBufferWithPattern(terminal1, testChar, originalWidth, originalHeight);
@@ -297,7 +297,7 @@ public class ScreenBufferProperties
             var (originalWidth, originalHeight) = originalDimensions;
             var (newWidth, newHeight) = newDimensions;
 
-            using var terminal = new TerminalEmulator(originalWidth, originalHeight, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(originalWidth, originalHeight, 10, NullLogger.Instance);
 
             // Set bold attribute and write some content
             terminal.Write("\x1b[1mBOLD");
@@ -352,7 +352,7 @@ public class ScreenBufferProperties
     {
         return Prop.ForAll(TestCharArb, testChar =>
         {
-            using var terminal = new TerminalEmulator(10, 10, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(10, 10, 10, NullLogger.Instance);
 
             // Fill with initial content
             FillBufferWithPattern(terminal, testChar, 10, 10);

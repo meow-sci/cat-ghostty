@@ -43,7 +43,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Bytes192_219()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process invalid UTF-8 bytes 192, 219 (0xC0, 0xDB)
@@ -109,7 +109,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Byte243()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process byte 243 (0xF3) alone (incomplete 4-byte sequence)
@@ -149,7 +149,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Bytes192_133()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process invalid UTF-8 bytes 192, 133 (0xC0, 0x85)
@@ -189,7 +189,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Bytes158_65_66()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process bytes [158, 65, 66] (orphaned continuation + ASCII)
@@ -229,7 +229,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Bytes192_176()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process bytes [192, 176] (0xC0, 0xB0)
@@ -269,7 +269,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_InvalidUtf8Byte194()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process byte 194 (0xC2) alone (incomplete 2-byte sequence)
@@ -309,7 +309,7 @@ public class Utf8SpecificDebuggingTests
     public void Debug_PropertyTestScenario_Byte194()
     {
         // Arrange - Replicate the exact property test scenario
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         byte[] invalidSequence = { 194 }; // This is what the property test generates
 
         // Act - Process invalid UTF-8 sequence (exactly like property test)

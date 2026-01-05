@@ -157,7 +157,7 @@ public class TerminalMod
             registry.RegisterVehicleCommands();
 
             // Create terminal emulator (80x24 is a standard terminal size)
-            _terminal = new TerminalEmulator(80, 24, 2500, NullLogger.Instance, rpcHandler);
+            _terminal = TerminalEmulator.Create(80, 24, 2500, NullLogger.Instance, rpcHandler);
 
             Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
 

@@ -16,7 +16,7 @@ public class LineOperationIntegrationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(10, 5); // Small terminal for easier testing
+        _terminal = TerminalEmulator.Create(10, 5); // Small terminal for easier testing
     }
 
     [TearDown]

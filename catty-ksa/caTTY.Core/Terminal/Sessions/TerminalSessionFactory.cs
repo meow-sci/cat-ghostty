@@ -42,7 +42,7 @@ internal class TerminalSessionFactory
         registry.RegisterVehicleCommands();
 
 
-        var terminal = new TerminalEmulator(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler);
+        var terminal = TerminalEmulator.Create(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler);
 
 
 

@@ -16,7 +16,7 @@ public class EscSequenceTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
     }
 
     [TearDown]
