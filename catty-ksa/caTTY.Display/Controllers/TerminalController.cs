@@ -78,6 +78,9 @@ public class TerminalController : ITerminalController
   // Settings panel subsystem
   private readonly TerminalUiSettingsPanel _settingsPanel;
 
+  // Events subsystem
+  private readonly TerminalUiEvents _events;
+
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
 
@@ -209,28 +212,31 @@ public class TerminalController : ITerminalController
     // Initialize settings panel subsystem
     _settingsPanel = new TerminalUiSettingsPanel(this, _sessionManager, _themeConfig, _fonts, _selection, TriggerTerminalResizeForAllSessions);
 
+    // Initialize events subsystem
+    _events = new TerminalUiEvents(_sessionManager, _cursorRenderer, _selection, _mouseTracking, ResetCursorToThemeDefaults);
+
     // Wire up mouse event handlers through mouse tracking subsystem
     _mouseEventProcessor.MouseEventGenerated += _mouseTracking.OnMouseEventGenerated;
     _mouseEventProcessor.LocalMouseEvent += _mouseTracking.OnLocalMouseEvent;
     _mouseEventProcessor.ProcessingError += _mouseTracking.OnMouseProcessingError;
     _mouseInputHandler.InputError += _mouseTracking.OnMouseInputError;
 
-    // Wire up session manager events
-    _sessionManager.SessionCreated += OnSessionCreated;
-    _sessionManager.SessionClosed += OnSessionClosed;
-    _sessionManager.ActiveSessionChanged += OnActiveSessionChanged;
+    // Wire up session manager events to events subsystem
+    _sessionManager.SessionCreated += _events.OnSessionCreated;
+    _sessionManager.SessionClosed += _events.OnSessionClosed;
+    _sessionManager.ActiveSessionChanged += _events.OnActiveSessionChanged;
 
     // Wire up title change events for any existing sessions
     foreach (var session in _sessionManager.Sessions)
     {
-      session.TitleChanged += OnSessionTitleChanged;
+      session.TitleChanged += _events.OnSessionTitleChanged;
     }
 
     // Note: Font loading is deferred until first render call when ImGui context is ready
     // Font loading and metrics calculation are handled by TerminalUiFonts
 
     // Subscribe to theme change events
-    ThemeManager.ThemeChanged += OnThemeChanged;
+    ThemeManager.ThemeChanged += _events.OnThemeChanged;
 
     // Initialize opacity manager
     OpacityManager.Initialize();
@@ -472,21 +478,21 @@ public class TerminalController : ITerminalController
       // Unsubscribe from session manager events
       if (_sessionManager != null)
       {
-        _sessionManager.SessionCreated -= OnSessionCreated;
-        _sessionManager.SessionClosed -= OnSessionClosed;
-        _sessionManager.ActiveSessionChanged -= OnActiveSessionChanged;
+        _sessionManager.SessionCreated -= _events.OnSessionCreated;
+        _sessionManager.SessionClosed -= _events.OnSessionClosed;
+        _sessionManager.ActiveSessionChanged -= _events.OnActiveSessionChanged;
 
         // Unsubscribe from all session events
         foreach (var session in _sessionManager.Sessions)
         {
-          session.Terminal.ScreenUpdated -= OnScreenUpdated;
-          session.Terminal.ResponseEmitted -= OnResponseEmitted;
-          session.TitleChanged -= OnSessionTitleChanged;
+          session.Terminal.ScreenUpdated -= _events.OnScreenUpdated;
+          session.Terminal.ResponseEmitted -= _events.OnResponseEmitted;
+          session.TitleChanged -= _events.OnSessionTitleChanged;
         }
       }
 
       // Unsubscribe from theme change events
-      ThemeManager.ThemeChanged -= OnThemeChanged;
+      ThemeManager.ThemeChanged -= _events.OnThemeChanged;
 
       _disposed = true;
     }
@@ -653,26 +659,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnFocusGained()
   {
-    try
-    {
-      // Make cursor immediately visible when gaining focus
-      _cursorRenderer.ForceVisible();
-
-      // Clear any existing selection when gaining focus (matches TypeScript behavior)
-      // This prevents stale selections from interfering with new input
-      if (!_selection.GetCurrentSelection().IsEmpty)
-      {
-        Console.WriteLine("TerminalController: Clearing selection on focus gained");
-        _selection.ClearSelection();
-      }
-
-      // Reset cursor blink state to ensure it's visible
-      _cursorRenderer.ResetBlinkState();
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error handling focus gained: {ex.Message}");
-    }
+    _events.OnFocusGained();
   }
 
   /// <summary>
@@ -681,24 +668,10 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnFocusLost()
   {
-    try
-    {
-      // Stop any ongoing selection when losing focus
-      if (_selection.IsSelecting)
-      {
-        Console.WriteLine("TerminalController: Stopping selection on focus lost");
-        _selection.IsSelecting = false;
-      }
+    _events.OnFocusLost();
 
-      // Reset mouse wheel accumulator to prevent stuck scrolling
-      _wheelAccumulator = 0.0f;
-
-      Console.WriteLine("TerminalController: Terminal lost focus - input capture inactive");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error handling focus lost: {ex.Message}");
-    }
+    // Reset mouse wheel accumulator to prevent stuck scrolling
+    _wheelAccumulator = 0.0f;
   }
 
   /// <summary>
@@ -1007,93 +980,6 @@ public class TerminalController : ITerminalController
 
 
   /// <summary>
-  ///     Handles screen updated events from the terminal.
-  /// </summary>
-  private void OnScreenUpdated(object? sender, ScreenUpdatedEventArgs e)
-  {
-    // Screen will be redrawn on next frame
-  }
-
-  /// <summary>
-  ///     Handles response emitted events from the terminal.
-  /// </summary>
-  private void OnResponseEmitted(object? sender, ResponseEmittedEventArgs e)
-  {
-    // Find the session that emitted this response
-    var emittingSession = _sessionManager.Sessions.FirstOrDefault(s => s.Terminal == sender);
-    if (emittingSession?.ProcessManager.IsRunning == true)
-    {
-      try
-      {
-        emittingSession.ProcessManager.Write(e.ResponseData.Span);
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Failed to send terminal response to process: {ex.Message}");
-      }
-    }
-  }
-
-  /// <summary>
-  ///     Handles theme change events from the ThemeManager.
-  ///     Updates cursor style and other theme-dependent settings when theme changes.
-  /// </summary>
-  private void OnThemeChanged(object? sender, ThemeChangedEventArgs e)
-  {
-    try
-    {
-      Console.WriteLine($"TerminalController: Theme changed from '{e.PreviousTheme.Name}' to '{e.NewTheme.Name}'");
-
-      // Reset cursor style to match new theme defaults
-      ResetCursorToThemeDefaults();
-
-      // Force cursor to be visible immediately after theme change
-      _cursorRenderer.ForceVisible();
-
-      // Reset cursor blink state to ensure proper timing with new theme
-      _cursorRenderer.ResetBlinkState();
-
-      Console.WriteLine($"TerminalController: Theme change handling completed for '{e.NewTheme.Name}'");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error handling theme change: {ex.Message}");
-    }
-  }
-
-  /// <summary>
-  ///     Handles mouse events that should be sent to the application as escape sequences.
-  /// </summary>
-  private void OnMouseEventGenerated(object? sender, MouseEventArgs e)
-  {
-    _mouseTracking.OnMouseEventGenerated(sender, e);
-  }
-
-  /// <summary>
-  ///     Handles mouse events that should be processed locally (selection, scrolling).
-  /// </summary>
-  private void OnLocalMouseEvent(object? sender, MouseEventArgs e)
-  {
-    _mouseTracking.OnLocalMouseEvent(sender, e);
-  }
-
-  /// <summary>
-  ///     Handles mouse processing errors.
-  /// </summary>
-  private void OnMouseProcessingError(object? sender, MouseProcessingErrorEventArgs e)
-  {
-    _mouseTracking.OnMouseProcessingError(sender, e);
-  }
-
-  /// <summary>
-  ///     Handles mouse input errors.
-  /// </summary>
-  private void OnMouseInputError(object? sender, MouseInputErrorEventArgs e)
-  {
-    _mouseTracking.OnMouseInputError(sender, e);
-  }
-
-  /// <summary>
   ///     Handles terminal reset events by resetting cursor to theme defaults.
   ///     This method should be called when terminal reset sequences are processed.
   /// </summary>
@@ -1104,62 +990,6 @@ public class TerminalController : ITerminalController
     {
       ResetCursorToThemeDefaults();
     }
-  }
-
-  /// <summary>
-  ///     Handles session creation events from the SessionManager.
-  /// </summary>
-  private void OnSessionCreated(object? sender, SessionCreatedEventArgs e)
-  {
-    // Wire up events for the new session
-    var session = e.Session;
-    session.Terminal.ScreenUpdated += OnScreenUpdated;
-    session.Terminal.ResponseEmitted += OnResponseEmitted;
-    session.TitleChanged += OnSessionTitleChanged;
-
-    Console.WriteLine($"TerminalController: Session created - {session.Title} ({session.Id})");
-  }
-
-  /// <summary>
-  ///     Handles session closure events from the SessionManager.
-  /// </summary>
-  private void OnSessionClosed(object? sender, SessionClosedEventArgs e)
-  {
-    // Unwire events for the closed session
-    var session = e.Session;
-    session.Terminal.ScreenUpdated -= OnScreenUpdated;
-    session.Terminal.ResponseEmitted -= OnResponseEmitted;
-    session.TitleChanged -= OnSessionTitleChanged;
-
-    Console.WriteLine($"TerminalController: Session closed - {session.Title} ({session.Id})");
-  }
-
-  /// <summary>
-  ///     Handles active session change events from the SessionManager.
-  /// </summary>
-  private void OnActiveSessionChanged(object? sender, ActiveSessionChangedEventArgs e)
-  {
-    Console.WriteLine($"TerminalController: Active session changed from {e.PreviousSession?.Title} to {e.NewSession?.Title}");
-
-    // Clear any existing selection when switching sessions
-    if (!_selection.GetCurrentSelection().IsEmpty)
-    {
-      _selection.ClearSelection();
-    }
-
-    // Reset cursor blink state for new active session
-    _cursorRenderer.ResetBlinkState();
-  }
-
-  /// <summary>
-  ///     Handles session title change events from individual sessions.
-  ///     This ensures the UI updates when applications like htop change the terminal title.
-  /// </summary>
-  private void OnSessionTitleChanged(object? sender, SessionTitleChangedEventArgs e)
-  {
-    // Note: No explicit UI refresh needed here since ImGui re-renders every frame
-    // The tab labels will automatically show the updated session titles on next render
-    Console.WriteLine($"TerminalController: Session title changed from '{e.OldTitle}' to '{e.NewTitle}'");
   }
 
   #region Layout Helper Methods

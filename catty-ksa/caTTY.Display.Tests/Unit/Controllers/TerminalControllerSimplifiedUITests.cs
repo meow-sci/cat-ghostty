@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using caTTY.Core.Terminal;
 using caTTY.Display.Controllers;
+using caTTY.Display.Controllers.TerminalUi;
 using caTTY.Display.Configuration;
 using System.Reflection;
 
@@ -73,37 +74,38 @@ public class TerminalControllerSimplifiedUITests
     public void TerminalController_ShouldPreserveMenuBarFunctionality()
     {
         // Arrange & Act
-        var renderMenuBarMethod = typeof(TerminalController)
-            .GetMethod("RenderMenuBar", BindingFlags.NonPublic | BindingFlags.Instance);
+        // After refactoring, menu rendering methods are in TerminalUiSettingsPanel subsystem
+        var renderMenuBarMethod = typeof(TerminalUiSettingsPanel)
+            .GetMethod("RenderMenuBar", BindingFlags.Public | BindingFlags.Instance);
 
-        var renderFileMenuMethod = typeof(TerminalController)
+        var renderFileMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderFileMenu", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        var renderEditMenuMethod = typeof(TerminalController)
+        var renderEditMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderEditMenu", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        var renderFontMenuMethod = typeof(TerminalController)
+        var renderFontMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderFontMenu", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        var renderThemeMenuMethod = typeof(TerminalController)
+        var renderThemeMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderThemeMenu", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        var renderSettingsMenuMethod = typeof(TerminalController)
+        var renderSettingsMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderSettingsMenu", BindingFlags.NonPublic | BindingFlags.Instance);
 
         // Assert
-        Assert.That(renderMenuBarMethod, Is.Not.Null, 
-            "RenderMenuBar method should be preserved in simplified UI");
-        Assert.That(renderFileMenuMethod, Is.Not.Null, 
-            "RenderFileMenu method should be preserved in simplified UI");
-        Assert.That(renderEditMenuMethod, Is.Not.Null, 
-            "RenderEditMenu method should be preserved in simplified UI");
-        Assert.That(renderFontMenuMethod, Is.Not.Null, 
-            "RenderFontMenu method should be preserved in simplified UI");
-        Assert.That(renderThemeMenuMethod, Is.Not.Null, 
-            "RenderThemeMenu method should be preserved in simplified UI");
-        Assert.That(renderSettingsMenuMethod, Is.Not.Null, 
-            "RenderSettingsMenu method should be preserved in simplified UI");
+        Assert.That(renderMenuBarMethod, Is.Not.Null,
+            "RenderMenuBar method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(renderFileMenuMethod, Is.Not.Null,
+            "RenderFileMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(renderEditMenuMethod, Is.Not.Null,
+            "RenderEditMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(renderFontMenuMethod, Is.Not.Null,
+            "RenderFontMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(renderThemeMenuMethod, Is.Not.Null,
+            "RenderThemeMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(renderSettingsMenuMethod, Is.Not.Null,
+            "RenderSettingsMenu method should be preserved in TerminalUiSettingsPanel");
     }
 
     [Test]

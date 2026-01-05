@@ -19,7 +19,8 @@
       "Bash(\".\\\\scripts\\\\dotnet-test.ps1\")",
       "Bash(find:*)",
       "Bash(node scripts/test-errors.ts:*)",
-      "Bash(bun scripts/test-errors.ts:*)"
+      "Bash(bun scripts/test-errors.ts:*)",
+      "Bash(dotnet test:*)"
     ]
   }
 }
