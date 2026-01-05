@@ -72,6 +72,9 @@ public class TerminalController : ITerminalController
   // Input subsystem
   private readonly TerminalUiInput _input;
 
+  // Tabs subsystem
+  private readonly TerminalUiTabs _tabs;
+
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
 
@@ -199,6 +202,9 @@ public class TerminalController : ITerminalController
 
     // Initialize resize subsystem
     _resize = new TerminalUiResize(_sessionManager, _fonts);
+
+    // Initialize tabs subsystem
+    _tabs = new TerminalUiTabs(this, _sessionManager);
 
     // Wire up mouse event handlers through mouse tracking subsystem
     _mouseEventProcessor.MouseEventGenerated += _mouseTracking.OnMouseEventGenerated;
@@ -1158,7 +1164,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   /// <param name="tabCount">Number of terminal tabs (defaults to 1 for current single terminal)</param>
   /// <returns>Tab area height in pixels</returns>
-  private static float CalculateTabAreaHeight(int tabCount = 1) => TerminalUiResize.CalculateTabAreaHeight(tabCount);
+  private static float CalculateTabAreaHeight(int tabCount = 1) => TerminalUiTabs.CalculateTabAreaHeight(tabCount);
 
   /// <summary>
   /// Calculates the current settings area height based on the number of control rows.
@@ -2078,163 +2084,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTabArea()
   {
-    try
-    {
-      var sessions = _sessionManager.Sessions;
-      var activeSession = _sessionManager.ActiveSession;
-
-      // Get available width for tab area
-      float availableWidth = ImGui.GetContentRegionAvail().X;
-      float tabHeight = LayoutConstants.TAB_AREA_HEIGHT;
-
-      // Create a child region for the tab area to maintain consistent height
-      bool childBegun = ImGui.BeginChild("TabArea", new float2(availableWidth, tabHeight), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar);
-
-      try
-      {
-        if (childBegun)
-        {
-          // Add button on the left with fixed width
-          float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
-          if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
-          {
-            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-            ForceFocus();
-          }
-
-          if (ImGui.IsItemHovered())
-          {
-            ImGui.SetTooltip("Add new terminal session");
-          }
-
-          // Only show tabs if we have sessions
-          if (sessions.Count > 0)
-          {
-            ImGui.SameLine();
-
-            // Calculate remaining width for tab bar
-            float remainingWidth = availableWidth - addButtonWidth - LayoutConstants.ELEMENT_SPACING;
-
-            // Begin tab bar with remaining width
-            if (ImGui.BeginTabBar("SessionTabs", ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.FittingPolicyScroll))
-            {
-              try
-              {
-                // Render each session as a tab
-                foreach (var session in sessions)
-                {
-                  bool isActive = session == activeSession;
-                  
-                  // Create tab label with session title and optional exit code
-                  string tabLabel = session.Title;
-                  if (session.ProcessManager.ExitCode.HasValue)
-                  {
-                    tabLabel += $" (Exit: {session.ProcessManager.ExitCode})";
-                  }
-
-                  // Use unique ID for each tab
-                  string tabId = $"{tabLabel}##tab_{session.Id}";
-
-                  // Don't use SetSelected flag - let ImGui handle tab selection naturally
-                  ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags.None;
-
-                  bool tabOpen = true;
-                  if (ImGui.BeginTabItem(tabId, ref tabOpen, tabFlags))
-                  {
-                    try
-                    {
-                      // If this tab is being rendered and it's not the current active session, switch to it
-                      // This only happens when user actually clicks the tab, not when we force selection
-                      if (!isActive)
-                      {
-                        _sessionManager.SwitchToSession(session.Id);
-                        // Don't call ForceFocus() here as it's not needed for tab switching
-                      }
-
-                      // Tab content is handled by the terminal canvas, so we don't render content here
-                      // The tab item just needs to exist to show the tab
-                    }
-                    finally
-                    {
-                      ImGui.EndTabItem();
-                    }
-                  }
-
-                  // Handle tab close button (when tabOpen becomes false)
-                  if (!tabOpen && sessions.Count > 1)
-                  {
-                    _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
-                  }
-
-                  // Context menu for tab (right-click)
-                  if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-                  {
-                    ImGui.OpenPopup($"tab_context_{session.Id}");
-                  }
-
-                  if (ImGui.BeginPopup($"tab_context_{session.Id}"))
-                  {
-                    if (ImGui.MenuItem("Close Tab") && sessions.Count > 1)
-                    {
-                      _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(session.Id));
-                    }
-
-                    // Add restart option for terminated sessions
-                    if (!session.ProcessManager.IsRunning && session.ProcessManager.ExitCode.HasValue)
-                    {
-                      if (ImGui.MenuItem("Restart Session"))
-                      {
-                        _ = Task.Run(async () =>
-                        {
-                          try
-                          {
-                            await _sessionManager.RestartSessionAsync(session.Id);
-                          }
-                          catch (Exception ex)
-                          {
-                            Console.WriteLine($"TerminalController: Failed to restart session {session.Id}: {ex.Message}");
-                          }
-                        });
-                      }
-                    }
-
-                    if (ImGui.MenuItem("Rename Tab"))
-                    {
-                      // TODO: Implement tab renaming in future
-                      ShowNotImplementedMessage("Tab renaming");
-                    }
-                    ImGui.EndPopup();
-                  }
-                }
-              }
-              finally
-              {
-                ImGui.EndTabBar();
-              }
-            }
-          }
-        }
-      }
-      finally
-      {
-        if (childBegun)
-        {
-          ImGui.EndChild();
-        }
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error rendering tab area: {ex.Message}");
-
-      // Fallback: render a simple text indicator if tab rendering fails
-      ImGui.Text("No sessions");
-      ImGui.SameLine();
-      if (ImGui.Button("+##fallback_add"))
-      {
-        _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-      }
-    }
+    _tabs.RenderTabArea();
   }
 
   /// <summary>
