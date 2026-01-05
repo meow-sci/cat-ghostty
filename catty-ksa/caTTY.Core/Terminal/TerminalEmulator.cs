@@ -612,29 +612,6 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     internal (byte Red, byte Green, byte Blue) GetCurrentBackgroundColor()
         => _oscColorQueryOps.GetCurrentBackgroundColor();
 
-    /// <summary>
-    ///     Gets the default foreground color (typically white or light gray).
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetDefaultForegroundColor()
-        => EmulatorOps.TerminalOscColorQueryOps.GetDefaultForegroundColor();
-
-    /// <summary>
-    ///     Gets the default background color (typically black or dark).
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetDefaultBackgroundColor()
-        => EmulatorOps.TerminalOscColorQueryOps.GetDefaultBackgroundColor();
-
-    /// <summary>
-    ///     Converts a named color to RGB values.
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetNamedColorRgb(NamedColor namedColor, bool isBackground)
-        => EmulatorOps.TerminalOscColorQueryOps.GetNamedColorRgb(namedColor, isBackground);
-
-    /// <summary>
-    ///     Converts an indexed color (0-255) to RGB values using standard terminal palette.
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetIndexedColorRgb(int index, bool isBackground)
-        => EmulatorOps.TerminalOscColorQueryOps.GetIndexedColorRgb(index, isBackground);
 
     /// <summary>
     ///     Handles clipboard operations from OSC 52 sequences.
@@ -917,10 +894,6 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _decModeOps.SetDecMode(mode, enabled);
     }
 
-    private void HandleAlternateScreenMode(int mode, bool enabled)
-    {
-        _alternateScreenOps.HandleAlternateScreenMode(mode, enabled);
-    }
 
     /// <summary>
     ///     Moves the cursor up by the specified number of lines.
