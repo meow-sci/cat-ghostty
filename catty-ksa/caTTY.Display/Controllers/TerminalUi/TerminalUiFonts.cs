@@ -22,12 +22,15 @@ internal class TerminalUiFonts
   // Font loader handles font discovery and loading
   private FontLoader _fontLoader;
 
+  // Font metrics calculator handles character width/height calculations
+  private FontMetricsCalculator _metricsCalculator;
+
   // Font loading state
   private bool _fontsLoaded = false;
 
-  // Current metrics
-  public float CurrentCharacterWidth { get; private set; }
-  public float CurrentLineHeight { get; private set; }
+  // Current metrics (delegated to FontMetricsCalculator)
+  public float CurrentCharacterWidth => _metricsCalculator.CurrentCharacterWidth;
+  public float CurrentLineHeight => _metricsCalculator.CurrentLineHeight;
   public float CurrentFontSize { get; private set; }
 
   public TerminalUiFonts(TerminalRenderingConfig config, TerminalFontConfig fontConfig, string currentFontFamily)
@@ -39,8 +42,9 @@ internal class TerminalUiFonts
     // Initialize font loader
     _fontLoader = new FontLoader(_fontConfig);
 
-    CurrentCharacterWidth = _config.CharacterWidth;
-    CurrentLineHeight = _config.LineHeight;
+    // Initialize metrics calculator
+    _metricsCalculator = new FontMetricsCalculator(_config);
+
     CurrentFontSize = _fontConfig.FontSize;
   }
 
@@ -104,9 +108,8 @@ internal class TerminalUiFonts
     {
       Console.WriteLine($"TerminalUiFonts: Error during deferred font loading: {ex.Message}");
 
-      // Set fallback values to prevent crashes
-      CurrentCharacterWidth = _config.CharacterWidth;
-      CurrentLineHeight = _config.LineHeight;
+      // Set fallback values to prevent crashes (metrics calculator uses defaults from config)
+      _metricsCalculator.ResetToDefaults();
 
       // Mark as loaded to prevent repeated attempts
       _fontsLoaded = true;
@@ -128,51 +131,8 @@ internal class TerminalUiFonts
   /// </summary>
   private void CalculateCharacterMetrics()
   {
-    try
-    {
-      Console.WriteLine($"TerminalUiFonts: Calculating character metrics using font size: {_fontConfig.FontSize}");
-
-      // Use the regular font for metric calculations
-      ImGui.PushFont(_fontLoader.RegularFont, _fontConfig.FontSize);
-
-      try
-      {
-        // Calculate character width using multiple test characters to ensure accuracy
-        var testChars = new[] { 'M', 'W', '@', '#' }; // Wide characters for accurate measurement
-        float maxWidth = 0.0f;
-
-        foreach (char testChar in testChars)
-        {
-          var textSize = ImGui.CalcTextSize(testChar.ToString());
-          maxWidth = Math.Max(maxWidth, textSize.X);
-        }
-
-        // Use the maximum width found to ensure all characters fit properly
-        CurrentCharacterWidth = (float)Math.Floor(maxWidth);
-
-        // Calculate line height using a standard character
-        var lineSize = ImGui.CalcTextSize("M");
-        // CRITICAL FIX: Use exact font height without extra spacing to prevent gaps between rows
-        // Terminal emulators should have tight line spacing with no gaps
-        CurrentLineHeight = (float)Math.Round(lineSize.Y);
-
-        Console.WriteLine($"TerminalUiFonts: Calculated metrics from font - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
-      }
-      finally
-      {
-        ImGui.PopFont();
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error calculating character metrics: {ex.Message}");
-
-      // Fallback to DPI-based metrics from config
-      CurrentCharacterWidth = _config.CharacterWidth;
-      CurrentLineHeight = _config.LineHeight;
-
-      Console.WriteLine($"TerminalUiFonts: Using fallback metrics from config - CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
-    }
+    // Delegate to FontMetricsCalculator
+    _metricsCalculator.CalculateCharacterMetrics(_fontLoader.RegularFont, _fontConfig.FontSize);
   }
 
   /// <summary>
@@ -338,6 +298,9 @@ internal class TerminalUiFonts
       // Create new font loader with updated configuration
       _fontLoader = new FontLoader(_fontConfig);
 
+      // Metrics calculator doesn't need to be recreated (it uses immutable config reference)
+      // Just recalculate metrics after loading new fonts
+
       // Reset font loading state to trigger reload
       _fontsLoaded = false;
 
@@ -438,6 +401,7 @@ internal class TerminalUiFonts
 
             _fontConfig = savedFontConfig;
             _fontLoader = new FontLoader(_fontConfig);
+            // Metrics calculator doesn't need to be recreated (it uses immutable config reference)
             _currentFontFamily = config.FontFamily;
 
             // Console.WriteLine($"TerminalUiFonts: Constructor - Font config updated from '{oldRegular}' to '{_fontConfig.RegularFontName}'");
@@ -537,6 +501,7 @@ internal class TerminalUiFonts
 
           _fontConfig = savedFontConfig;
           _fontLoader = new FontLoader(_fontConfig);
+          // Metrics calculator doesn't need to be recreated (it uses immutable config reference)
           _currentFontFamily = config.FontFamily;
           fontConfigChanged = true;
           Console.WriteLine($"TerminalUiFonts: Successfully loaded font family from settings: {config.FontFamily}");
