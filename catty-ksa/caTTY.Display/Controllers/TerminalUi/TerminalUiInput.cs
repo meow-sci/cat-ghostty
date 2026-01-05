@@ -25,6 +25,7 @@ public class TerminalUiInput
   private readonly CursorRenderer _cursorRenderer;
   private readonly MouseWheelScrollConfig _scrollConfig;
   private readonly KeyboardInputHandler _keyboardInputHandler;
+  private readonly InputFocusManager _focusManager;
   private float _wheelAccumulator = 0.0f;
 
   public TerminalUiInput(
@@ -41,6 +42,7 @@ public class TerminalUiInput
         sessionManager,
         cursorRenderer,
         SendToProcess);
+    _focusManager = new InputFocusManager(controller);
   }
 
   /// <summary>
@@ -49,44 +51,7 @@ public class TerminalUiInput
   /// </summary>
   public void ManageInputCapture()
   {
-    try
-    {
-
-      // Invisible input widget
-      // even this doesn't fully prevent KSA from processing global hot keys like 'm'
-
-      // ImGui.PushStyleVar(ImGuiStyleVar.Alpha, 0.5f);
-      // // Dummy buffer for InputText - we don't need the captured text so use a local stack buffer
-      // ReadOnlySpan<byte> dummySpan = stackalloc byte[64];
-      // ImGui.InputText("##hidden", dummySpan, ImGuiInputTextFlags.None);
-      // ImGui.PopStyleVar();
-
-      // Console.WriteLine($"IsInputCaptureActive={IsInputCaptureActive}");
-
-      // ImGui.GetIO().WantCaptureKeyboard = true;
-      // Console.WriteLine($"ImGui.GetIO().WantCaptureKeyboard {ImGui.GetIO().WantCaptureKeyboard}");
-      // ImGui.SetNextFrameWantCaptureKeyboard(true);
-      // ImGui.SetKeyboardFocusHere();
-
-      // Use SetNextFrameWantCaptureKeyboard when terminal should capture input
-      // This tells ImGui (and the game) that we want exclusive keyboard access for the next frame
-      // This is the proper way to capture keyboard input in KSA game context
-      if (_controller.IsInputCaptureActive)
-      {
-        // ImGui.SetKeyboardFocusHere();
-
-        // TODO: FIXME: this still doesn't prevent global hotkeys like 'm' from taking place
-        // ImGui.SetNextFrameWantCaptureKeyboard(true);
-        // ImGui.SetKeyboardFocusHere();
-        // Console.WriteLine("TerminalController: Capturing keyboard input (suppressing game hotkeys)");
-      }
-      // Note: No need to explicitly set to false due to ImGui immediate mode design
-      // Just don't call SetNextFrameWantCaptureKeyboard when terminal shouldn't capture input
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error managing input capture: {ex.Message}");
-    }
+    _focusManager.ManageInputCapture();
   }
 
   /// <summary>
@@ -95,9 +60,7 @@ public class TerminalUiInput
   /// </summary>
   public bool ShouldCaptureInput()
   {
-    // Terminal captures input only when both focused and visible
-    // This matches the TypeScript implementation's input priority management
-    return _controller.IsInputCaptureActive;
+    return _focusManager.ShouldCaptureInput();
   }
 
   /// <summary>
@@ -107,7 +70,7 @@ public class TerminalUiInput
   public void HandleInput()
   {
     // Verify focus state before processing input (defensive programming)
-    if (!_controller.HasFocus || !_controller.IsVisible)
+    if (!_focusManager.ShouldProcessInput())
     {
       return;
     }
@@ -134,7 +97,7 @@ public class TerminalUiInput
     try
     {
       // Only process mouse wheel events when terminal has focus
-      if (!_controller.HasFocus)
+      if (!_focusManager.HasFocusForMouseWheel())
       {
         return;
       }
