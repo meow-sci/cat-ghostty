@@ -36,6 +36,9 @@ public class Parser
     // Parser engine context
     private readonly ParserEngineContext _context = new();
 
+    // State handlers
+    private readonly NormalStateHandler _normalStateHandler;
+
     // Parser engine
     private readonly ParserEngine _engine;
 
@@ -62,6 +65,13 @@ public class Parser
         _rpcSequenceParser = options.RpcSequenceParser;
         _rpcHandler = options.RpcHandler;
         // Console.WriteLine($"Parser: RPC enabled={IsRpcHandlingEnabled()}");
+
+        // Initialize state handlers
+        _normalStateHandler = new NormalStateHandler(
+            _cursorPositionProvider,
+            HandleC0ExceptEscape,
+            StartEscapeSequence,
+            HandleNormalByte);
 
         // Initialize parser engine with state handlers
         _engine = new ParserEngine(
@@ -127,37 +137,11 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in normal text processing state.
+    ///     Delegates to NormalStateHandler.
     /// </summary>
     private void HandleNormalState(byte b)
     {
-        // C0 controls (including BEL/BS/TAB/LF/CR) execute immediately in normal mode
-        if (b < 0x20 && b != 0x1b && HandleC0ExceptEscape(b))
-        {
-            return;
-        }
-
-        // Handle other C0 control characters that aren't explicitly handled
-        if (b < 0x20 && b != 0x1b)
-        {
-            TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
-            // These control characters are typically ignored or have no specific handler
-            return;
-        }
-
-        if (b == 0x1b) // ESC
-        {
-            StartEscapeSequence(b);
-            return;
-        }
-
-        // DEL (0x7F) should be ignored in terminal emulation
-        if (b == 0x7F)
-        {
-            TraceHelper.TraceControlChar(b, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
-            return;
-        }
-
-        HandleNormalByte(b);
+        _normalStateHandler.HandleNormalState(b);
     }
 
     /// <summary>
