@@ -2,6 +2,7 @@ using NUnit.Framework;
 using caTTY.Core.Terminal;
 using caTTY.Display.Controllers;
 using caTTY.Display.Controllers.TerminalUi;
+using caTTY.Display.Controllers.TerminalUi.Menus;
 using caTTY.Display.Configuration;
 using System.Reflection;
 
@@ -75,11 +76,13 @@ public class TerminalControllerSimplifiedUITests
     {
         // Arrange & Act
         // After refactoring, menu rendering methods are in TerminalUiSettingsPanel subsystem
+        // File menu has been extracted to FileMenuRenderer
         var renderMenuBarMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderMenuBar", BindingFlags.Public | BindingFlags.Instance);
 
-        var renderFileMenuMethod = typeof(TerminalUiSettingsPanel)
-            .GetMethod("RenderFileMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+        var fileMenuRendererType = typeof(FileMenuRenderer);
+        var fileMenuRenderMethod = fileMenuRendererType
+            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
         var renderEditMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderEditMenu", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -96,8 +99,10 @@ public class TerminalControllerSimplifiedUITests
         // Assert
         Assert.That(renderMenuBarMethod, Is.Not.Null,
             "RenderMenuBar method should be preserved in TerminalUiSettingsPanel");
-        Assert.That(renderFileMenuMethod, Is.Not.Null,
-            "RenderFileMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(fileMenuRendererType, Is.Not.Null,
+            "FileMenuRenderer class should exist for File menu rendering");
+        Assert.That(fileMenuRenderMethod, Is.Not.Null,
+            "FileMenuRenderer should have Render method");
         Assert.That(renderEditMenuMethod, Is.Not.Null,
             "RenderEditMenu method should be preserved in TerminalUiSettingsPanel");
         Assert.That(renderFontMenuMethod, Is.Not.Null,

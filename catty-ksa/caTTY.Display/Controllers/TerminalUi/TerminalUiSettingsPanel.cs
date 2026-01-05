@@ -5,6 +5,7 @@ using Brutal.ImGuiApi;
 using caTTY.Core.Managers;
 using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
+using caTTY.Display.Controllers.TerminalUi.Menus;
 using caTTY.Display.Rendering;
 using caTTY.Display.Utils;
 using float2 = Brutal.Numerics.float2;
@@ -24,6 +25,7 @@ internal class TerminalUiSettingsPanel
   private readonly TerminalUiFonts _fonts;
   private readonly TerminalUiSelection _selection;
   private readonly Action _triggerTerminalResizeForAllSessions;
+  private readonly FileMenuRenderer _fileMenuRenderer;
 
   public TerminalUiSettingsPanel(
     TerminalController controller,
@@ -39,6 +41,7 @@ internal class TerminalUiSettingsPanel
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _selection = selection ?? throw new ArgumentNullException(nameof(selection));
     _triggerTerminalResizeForAllSessions = triggerTerminalResizeForAllSessions ?? throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
+    _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
   }
 
   /// <summary>
@@ -51,7 +54,7 @@ internal class TerminalUiSettingsPanel
     {
       try
       {
-        RenderFileMenu();
+        _fileMenuRenderer.Render();
         RenderEditMenu();
         RenderSessionsMenu();
         RenderFontMenu();
@@ -61,62 +64,6 @@ internal class TerminalUiSettingsPanel
       finally
       {
         ImGui.EndMenuBar();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the File menu with terminal management options.
-  /// </summary>
-  private void RenderFileMenu()
-  {
-    if (ImGui.BeginMenu("File"))
-    {
-      try
-      {
-        // New Terminal - now enabled for multi-session support
-        if (ImGui.MenuItem("New Terminal"))
-        {
-          _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-        }
-
-        // Close Terminal - enabled when more than one session exists
-        bool canCloseTerminal = _sessionManager.SessionCount > 1;
-        if (ImGui.MenuItem("Close Terminal", "", false, canCloseTerminal))
-        {
-          var activeSession = _sessionManager.ActiveSession;
-          if (activeSession != null)
-          {
-            _ = Task.Run(async () => await _sessionManager.CloseSessionAsync(activeSession.Id));
-          }
-        }
-
-        ImGui.Separator();
-
-        // Next Terminal - enabled when more than one session exists
-        bool canNavigateSessions = _sessionManager.SessionCount > 1;
-        if (ImGui.MenuItem("Next Terminal", "", false, canNavigateSessions))
-        {
-          _sessionManager.SwitchToNextSession();
-        }
-
-        // Previous Terminal - enabled when more than one session exists
-        if (ImGui.MenuItem("Previous Terminal", "", false, canNavigateSessions))
-        {
-          _sessionManager.SwitchToPreviousSession();
-        }
-
-        ImGui.Separator();
-
-        // Exit - closes the terminal window
-        if (ImGui.MenuItem("Exit"))
-        {
-          _controller.IsVisible = false;
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
       }
     }
   }
