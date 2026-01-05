@@ -36,6 +36,9 @@ public class Parser
     // Parser engine context
     private readonly ParserEngineContext _context = new();
 
+    // Parser engine
+    private readonly ParserEngine _engine;
+
     /// <summary>
     ///     Creates a new parser with the specified options.
     /// </summary>
@@ -59,6 +62,20 @@ public class Parser
         _rpcSequenceParser = options.RpcSequenceParser;
         _rpcHandler = options.RpcHandler;
         // Console.WriteLine($"Parser: RPC enabled={IsRpcHandlingEnabled()}");
+
+        // Initialize parser engine with state handlers
+        _engine = new ParserEngine(
+            _context,
+            _logger,
+            HandleNormalState,
+            HandleEscapeState,
+            HandleCsiState,
+            HandleOscState,
+            HandleOscEscapeState,
+            HandleDcsState,
+            HandleDcsEscapeState,
+            HandleControlStringState,
+            HandleControlStringEscapeState);
     }
 
     /// <summary>
@@ -101,45 +118,11 @@ public class Parser
 
     /// <summary>
     ///     Main state machine processor for handling bytes based on current parser state.
+    ///     Delegates to the parser engine for byte processing.
     /// </summary>
     private void ProcessByte(byte b)
     {
-        if (b > 255)
-        {
-            _logger.LogWarning("Ignoring out-of-range byte: {Byte}", b);
-            return;
-        }
-
-        switch (_context.State)
-        {
-            case ParserState.Normal:
-                HandleNormalState(b);
-                break;
-            case ParserState.Escape:
-                HandleEscapeState(b);
-                break;
-            case ParserState.CsiEntry:
-                HandleCsiState(b);
-                break;
-            case ParserState.Osc:
-                HandleOscState(b);
-                break;
-            case ParserState.OscEscape:
-                HandleOscEscapeState(b);
-                break;
-            case ParserState.Dcs:
-                HandleDcsState(b);
-                break;
-            case ParserState.DcsEscape:
-                HandleDcsEscapeState(b);
-                break;
-            case ParserState.ControlString:
-                HandleControlStringState(b);
-                break;
-            case ParserState.ControlStringEscape:
-                HandleControlStringEscapeState(b);
-                break;
-        }
+        _engine.ProcessByte(b);
     }
 
     /// <summary>
