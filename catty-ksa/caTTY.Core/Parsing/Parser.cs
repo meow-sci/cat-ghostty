@@ -42,6 +42,7 @@ public class Parser
     private readonly CsiStateHandler _csiStateHandler;
     private readonly OscStateHandler _oscStateHandler;
     private readonly DcsStateHandler _dcsStateHandler;
+    private readonly ControlStringStateHandler _controlStringStateHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -105,6 +106,10 @@ public class Parser
             _dcsParser,
             _handlers,
             _cursorPositionProvider,
+            ResetEscapeState);
+
+        _controlStringStateHandler = new ControlStringStateHandler(
+            _logger,
             ResetEscapeState);
 
         // Initialize parser engine with state handlers
@@ -234,48 +239,20 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in control string state (SOS/PM/APC).
+    ///     Delegates to ControlStringStateHandler.
     /// </summary>
     private void HandleControlStringState(byte b)
     {
-        // CAN (0x18) / SUB (0x1a) abort a control string per ECMA-48
-        if (b == 0x18 || b == 0x1a)
-        {
-            ResetEscapeState();
-            return;
-        }
-
-        _context.EscapeSequence.Add(b);
-
-        if (b == 0x1b) // ESC
-        {
-            _context.State = ParserState.ControlStringEscape;
-        }
+        _controlStringStateHandler.HandleControlStringState(b, _context);
     }
 
     /// <summary>
     ///     Handles bytes in control string escape state (checking for ST terminator).
+    ///     Delegates to ControlStringStateHandler.
     /// </summary>
     private void HandleControlStringEscapeState(byte b)
     {
-        _context.EscapeSequence.Add(b);
-
-        if (b == 0x5c) // \
-        {
-            // ST terminator
-            string raw = BytesToString(_context.EscapeSequence);
-            string kind = _context.ControlStringKind?.ToString().ToUpperInvariant() ?? "STR";
-            _logger.LogDebug("{Kind} (ST): {Raw}", kind, raw);
-            ResetEscapeState();
-            return;
-        }
-
-        if (b == 0x18 || b == 0x1a) // CAN/SUB
-        {
-            ResetEscapeState();
-            return;
-        }
-
-        _context.State = ParserState.ControlString;
+        _controlStringStateHandler.HandleControlStringEscapeState(b, _context);
     }
 
 
@@ -441,14 +418,6 @@ public class Parser
         {
             HandleNormalByte(b);
         }
-    }
-
-    /// <summary>
-    ///     Converts a list of bytes to a string representation.
-    /// </summary>
-    private static string BytesToString(IEnumerable<byte> bytes)
-    {
-        return string.Concat(bytes.Select(b => (char)b));
     }
 
     /// <summary>
