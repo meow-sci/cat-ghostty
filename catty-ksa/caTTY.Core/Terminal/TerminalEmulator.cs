@@ -51,6 +51,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
     private readonly EmulatorOps.TerminalOscWindowManipulationOps _oscWindowManipulationOps;
     private readonly EmulatorOps.TerminalOscClipboardOps _oscClipboardOps;
+    private readonly EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -146,6 +147,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, OnTitleChanged, OnIconNameChanged);
         _oscWindowManipulationOps = new EmulatorOps.TerminalOscWindowManipulationOps(() => State, SetWindowTitle, SetIconName, EmitResponse, () => Height, () => Width, _logger);
         _oscClipboardOps = new EmulatorOps.TerminalOscClipboardOps(_logger, OnClipboardRequest);
+        _oscHyperlinkOps = new EmulatorOps.TerminalOscHyperlinkOps(_logger, _attributeManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -721,27 +723,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Clears hyperlink state when empty URL is provided.
     /// </summary>
     /// <param name="url">The hyperlink URL, or empty string to clear hyperlink state</param>
-    internal void HandleHyperlink(string url)
-    {
-        // OSC 8 format: ESC ] 8 ; [params] ; [url] BEL/ST
-        // where params can include id=<id> and other key=value pairs
-        // For now, we only handle the URL part and ignore parameters
-
-        if (string.IsNullOrEmpty(url))
-        {
-            // Clear hyperlink state - OSC 8 ;; ST
-            _attributeManager.SetHyperlinkUrl(null);
-            State.CurrentHyperlinkUrl = null;
-            _logger.LogDebug("Cleared hyperlink state");
-        }
-        else
-        {
-            // Set hyperlink URL for subsequent characters
-            _attributeManager.SetHyperlinkUrl(url);
-            State.CurrentHyperlinkUrl = url;
-            _logger.LogDebug("Set hyperlink URL: {Url}", url);
-        }
-    }
+    internal void HandleHyperlink(string url) => _oscHyperlinkOps.HandleHyperlink(url);
 
     /// <summary>
     ///     Handles a backspace character (BS) - move cursor one position left if not at column 0.
