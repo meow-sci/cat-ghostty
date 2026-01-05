@@ -55,6 +55,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
     private readonly EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
     private readonly EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
+    private readonly EmulatorOps.TerminalLineFeedOps _lineFeedOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -154,6 +155,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _oscColorQueryOps = new EmulatorOps.TerminalOscColorQueryOps(_attributeManager);
         _charsetDesignationOps = new EmulatorOps.TerminalCharsetDesignationOps(_characterSetManager);
         _charsetTranslationOps = new EmulatorOps.TerminalCharsetTranslationOps(_characterSetManager);
+        _lineFeedOps = new EmulatorOps.TerminalLineFeedOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -463,28 +465,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     In raw terminal mode, LF only moves down without changing column position.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleLineFeed()
-    {
-        // Clear wrap pending and move cursor down
-        _cursorManager.SetWrapPending(false);
-
-        // Move cursor down one line
-        if (_cursorManager.Row + 1 > State.ScrollBottom)
-        {
-            // At bottom of scroll region - need to scroll up by one line within the region
-            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-            _cursorManager.MoveTo(State.ScrollBottom, _cursorManager.Column);
-        }
-        else
-        {
-            _cursorManager.MoveTo(_cursorManager.Row + 1, _cursorManager.Column);
-        }
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleLineFeed() => _lineFeedOps.HandleLineFeed();
 
     /// <summary>
     ///     Handles index operation (ESC D) - move cursor down one line without changing column.

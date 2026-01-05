@@ -110,6 +110,9 @@ Each task is scoped so you can land it independently and keep the app working.
   - Add a new method (example): `public void PumpSessions(float deltaTime)`
     - For all sessions (or at least active session): call `session.DrainPendingProcessOutput()`.
     - Run cursor blink update (currently in `Update`).
+  - **Defer Resize:** In `Render()`, check `ImGui.GetWindowSize()`. If changed, set a `_pendingResize` flag. Do not call `ApplyTerminalDimensionsToAllSessions` immediately.
+  - **Defer Input:** In `Render()`, read input and queue it.
+  - In `Update()` (next frame), apply pending resize and flush queued input.
   - `Render()` should not trigger terminal mutation, parsing, or viewport assembly.
 
 ### 5) Introduce a stable render snapshot (stop per-frame copying)
