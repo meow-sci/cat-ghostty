@@ -61,6 +61,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalBellOps _bellOps;
     private readonly EmulatorOps.TerminalBackspaceOps _backspaceOps;
     private readonly EmulatorOps.TerminalTabOps _tabOps;
+    private readonly EmulatorOps.TerminalResponseOps _responseOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -166,6 +167,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _bellOps = new EmulatorOps.TerminalBellOps(OnBell);
         _backspaceOps = new EmulatorOps.TerminalBackspaceOps(_cursorManager, () => State);
         _tabOps = new EmulatorOps.TerminalTabOps(_cursorManager, () => State, () => Cursor, () => Width);
+        _responseOps = new EmulatorOps.TerminalResponseOps(e => ResponseEmitted?.Invoke(this, e));
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -737,7 +739,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="responseText">The response text to emit</param>
     internal void EmitResponse(string responseText)
     {
-        OnResponseEmitted(responseText);
+        _responseOps.EmitResponse(responseText);
     }
 
     /// <summary>
@@ -754,7 +756,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="responseData">The response data to emit</param>
     protected void OnResponseEmitted(ReadOnlyMemory<byte> responseData)
     {
-        ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseData));
+        _responseOps.OnResponseEmitted(responseData);
     }
 
     /// <summary>
@@ -763,7 +765,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="responseText">The response text to emit</param>
     protected void OnResponseEmitted(string responseText)
     {
-        ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseText));
+        _responseOps.OnResponseEmitted(responseText);
     }
 
     /// <summary>
