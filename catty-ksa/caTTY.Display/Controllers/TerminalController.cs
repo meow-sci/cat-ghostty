@@ -57,7 +57,10 @@ public class TerminalController : ITerminalController
 
   // Cached terminal rect for mouse position -> cell coordinate conversion
   internal float2 _lastTerminalOrigin;
-  private float2 _lastTerminalSize;
+  internal float2 _lastTerminalSize;
+
+  // Mouse tracking subsystem
+  private readonly TerminalUiMouseTracking _mouseTracking;
 
   // Window resize detection
   private float2 _lastWindowSize = new(0, 0);
@@ -187,11 +190,21 @@ public class TerminalController : ITerminalController
     _mouseEventProcessor = new MouseEventProcessor(_mouseTrackingManager, _mouseStateManager);
     _mouseInputHandler = new MouseInputHandler(_mouseEventProcessor, _coordinateConverter, _mouseStateManager, _mouseTrackingManager);
 
-    // Wire up mouse event handlers
-    _mouseEventProcessor.MouseEventGenerated += OnMouseEventGenerated;
-    _mouseEventProcessor.LocalMouseEvent += OnLocalMouseEvent;
-    _mouseEventProcessor.ProcessingError += OnMouseProcessingError;
-    _mouseInputHandler.InputError += OnMouseInputError;
+    // Initialize mouse tracking subsystem
+    _mouseTracking = new TerminalUiMouseTracking(
+      this,
+      _sessionManager,
+      _mouseTrackingManager,
+      _mouseStateManager,
+      _coordinateConverter,
+      _mouseEventProcessor,
+      _mouseInputHandler);
+
+    // Wire up mouse event handlers through mouse tracking subsystem
+    _mouseEventProcessor.MouseEventGenerated += _mouseTracking.OnMouseEventGenerated;
+    _mouseEventProcessor.LocalMouseEvent += _mouseTracking.OnLocalMouseEvent;
+    _mouseEventProcessor.ProcessingError += _mouseTracking.OnMouseProcessingError;
+    _mouseInputHandler.InputError += _mouseTracking.OnMouseInputError;
 
     // Wire up session manager events
     _sessionManager.SessionCreated += OnSessionCreated;
@@ -1290,39 +1303,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void HandleMouseTrackingForApplications()
   {
-    try
-    {
-      // Sync mouse tracking configuration from terminal state
-      SyncMouseTrackingConfiguration();
-
-      // Only process if mouse tracking is enabled
-      var config = _mouseTrackingManager.Configuration;
-      if (config.Mode == MouseTrackingMode.Off)
-      {
-        return; // No mouse tracking requested
-      }
-
-      // Update mouse input handler with current terminal state
-      _mouseInputHandler.SetTerminalFocus(HasFocus);
-
-      // Update coordinate converter with current terminal metrics
-      UpdateCoordinateConverterMetrics();
-
-      // Update terminal size for mouse input handler
-      var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
-      var activeSession = _sessionManager.ActiveSession;
-      if (activeSession != null)
-      {
-        _mouseInputHandler.UpdateTerminalSize(terminalSize, activeSession.Terminal.Width, activeSession.Terminal.Height);
-      }
-
-      // Process mouse input through the mouse input handler
-      _mouseInputHandler.HandleMouseInput();
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"Error in mouse tracking for applications: {ex.Message}");
-    }
+    _mouseTracking.HandleMouseTrackingForApplications();
   }
 
   /// <summary>
@@ -1331,36 +1312,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void HandleMouseInputIntegrated()
   {
-    try
-    {
-      // Sync mouse tracking configuration from terminal state
-      SyncMouseTrackingConfiguration();
-
-      // Update mouse input handler with current terminal state
-      _mouseInputHandler.SetTerminalFocus(HasFocus);
-
-      // Update coordinate converter with current terminal metrics
-      UpdateCoordinateConverterMetrics();
-
-      // Update terminal size for mouse input handler
-      var terminalSize = new float2(_lastTerminalSize.X, _lastTerminalSize.Y);
-      var activeSession = _sessionManager.ActiveSession;
-      if (activeSession != null)
-      {
-        _mouseInputHandler.UpdateTerminalSize(terminalSize, activeSession.Terminal.Width, activeSession.Terminal.Height);
-      }
-
-      // Process mouse input through the mouse input handler
-      _mouseInputHandler.HandleMouseInput();
-
-      // Also handle local selection (existing functionality)
-      // This runs after mouse tracking to allow shift-key bypass
-      HandleMouseInputForTerminal();
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"Error in integrated mouse input handling: {ex.Message}");
-    }
+    _mouseTracking.HandleMouseInputIntegrated(HandleMouseInputForTerminal);
   }
 
   /// <summary>
@@ -1368,11 +1320,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void UpdateCoordinateConverterMetrics()
   {
-    // Update coordinate converter with current font metrics
-    _coordinateConverter.UpdateMetrics(
-      CurrentCharacterWidth,
-      CurrentLineHeight,
-      _lastTerminalOrigin);
+    _mouseTracking.UpdateCoordinateConverterMetrics();
   }
 
   /// <summary>
@@ -1380,48 +1328,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void SyncMouseTrackingConfiguration()
   {
-    try
-    {
-      var activeSession = _sessionManager.ActiveSession;
-      if (activeSession == null) return;
-
-      var terminalState = ((TerminalEmulator)activeSession.Terminal).State;
-
-      // Convert terminal state mouse tracking bits to MouseTrackingMode
-      MouseTrackingMode mode = MouseTrackingMode.Off;
-
-      // Check bits in priority order (highest mode wins)
-      if ((terminalState.MouseTrackingModeBits & 4) != 0) // 1003 bit
-      {
-        mode = MouseTrackingMode.Any;
-      }
-      else if ((terminalState.MouseTrackingModeBits & 2) != 0) // 1002 bit
-      {
-        mode = MouseTrackingMode.Button;
-      }
-      else if ((terminalState.MouseTrackingModeBits & 1) != 0) // 1000 bit
-      {
-        mode = MouseTrackingMode.Click;
-      }
-
-      // Only update if mode changed
-      if (_mouseTrackingManager.CurrentMode != mode)
-      {
-        Console.WriteLine($"[DEBUG] Mouse tracking mode changed: {_mouseTrackingManager.CurrentMode} -> {mode} (bits={terminalState.MouseTrackingModeBits})");
-        _mouseTrackingManager.SetTrackingMode(mode);
-      }
-
-      // Only update if SGR encoding changed
-      if (_mouseTrackingManager.SgrEncodingEnabled != terminalState.MouseSgrEncodingEnabled)
-      {
-        Console.WriteLine($"[DEBUG] SGR encoding changed: {_mouseTrackingManager.SgrEncodingEnabled} -> {terminalState.MouseSgrEncodingEnabled}");
-        _mouseTrackingManager.SetSgrEncoding(terminalState.MouseSgrEncodingEnabled);
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"Error syncing mouse tracking configuration: {ex.Message}");
-    }
+    _mouseTracking.SyncMouseTrackingConfiguration();
   }
 
   /// <summary>
@@ -1588,27 +1495,7 @@ public class TerminalController : ITerminalController
   /// <returns>The cell coordinates, or null if the mouse is outside the terminal area</returns>
   private SelectionPosition? GetMouseCellCoordinates()
   {
-    var mouse = ImGui.GetMousePos();
-
-    float relX = mouse.X - _lastTerminalOrigin.X;
-    float relY = mouse.Y - _lastTerminalOrigin.Y;
-
-    // Check if mouse is within terminal bounds
-    if (relX < 0 || relY < 0 || relX >= _lastTerminalSize.X || relY >= _lastTerminalSize.Y)
-    {
-      return null;
-    }
-
-    int col = (int)Math.Floor(relX / Math.Max(1e-6f, CurrentCharacterWidth));
-    int row = (int)Math.Floor(relY / Math.Max(1e-6f, CurrentLineHeight));
-
-    var activeSession = _sessionManager.ActiveSession;
-    if (activeSession == null) return null;
-
-    col = Math.Max(0, Math.Min(activeSession.Terminal.Width - 1, col));
-    row = Math.Max(0, Math.Min(activeSession.Terminal.Height - 1, row));
-
-    return new SelectionPosition(row, col);
+    return _mouseTracking.GetMouseCellCoordinates();
   }
 
   /// <summary>
@@ -1619,11 +1506,7 @@ public class TerminalController : ITerminalController
   /// <returns>True if the mouse is over the terminal content area, false otherwise</returns>
   private bool IsMouseOverTerminal(float2 mousePos)
   {
-    float relX = mousePos.X - _lastTerminalOrigin.X;
-    float relY = mousePos.Y - _lastTerminalOrigin.Y;
-
-    // Check if mouse is within terminal bounds
-    return relX >= 0 && relY >= 0 && relX < _lastTerminalSize.X && relY < _lastTerminalSize.Y;
+    return _mouseTracking.IsMouseOverTerminal(mousePos);
   }
 
   /// <summary>
@@ -1843,47 +1726,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnMouseEventGenerated(object? sender, MouseEventArgs e)
   {
-    try
-    {
-      var mouseEvent = e.MouseEvent;
-      var config = _mouseTrackingManager.Configuration;
-
-      // Generate the appropriate escape sequence
-      string? escapeSequence = mouseEvent.Type switch
-      {
-        MouseEventType.Press => EscapeSequenceGenerator.GenerateMousePress(
-          mouseEvent.Button, mouseEvent.X1, mouseEvent.Y1, mouseEvent.Modifiers, config.SgrEncodingEnabled),
-        MouseEventType.Release => EscapeSequenceGenerator.GenerateMouseRelease(
-          mouseEvent.Button, mouseEvent.X1, mouseEvent.Y1, mouseEvent.Modifiers, config.SgrEncodingEnabled),
-        MouseEventType.Motion => EscapeSequenceGenerator.GenerateMouseMotion(
-          mouseEvent.Button, mouseEvent.X1, mouseEvent.Y1, mouseEvent.Modifiers, config.SgrEncodingEnabled),
-        MouseEventType.Wheel => EscapeSequenceGenerator.GenerateMouseWheel(
-          mouseEvent.Button == MouseButton.WheelUp, mouseEvent.X1, mouseEvent.Y1, mouseEvent.Modifiers, config.SgrEncodingEnabled),
-        _ => null
-      };
-
-      if (escapeSequence != null)
-      {
-        // Send directly to active session's process manager (primary data path)
-        var activeSession = _sessionManager.ActiveSession;
-        if (activeSession?.ProcessManager.IsRunning == true)
-        {
-          activeSession.ProcessManager.Write(escapeSequence);
-        }
-
-        // Also raise the DataInput event for external subscribers (monitoring/logging)
-        byte[] bytes = Encoding.UTF8.GetBytes(escapeSequence);
-        DataInput?.Invoke(this, new DataInputEventArgs(escapeSequence, bytes));
-      }
-      else
-      {
-        Console.WriteLine($"[WARN] No escape sequence generated for event type: {mouseEvent.Type}");
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"Error generating mouse escape sequence: {ex.Message}");
-    }
+    _mouseTracking.OnMouseEventGenerated(sender, e);
   }
 
   /// <summary>
@@ -1891,9 +1734,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnLocalMouseEvent(object? sender, MouseEventArgs e)
   {
-    // Local mouse events are handled by the existing selection system
-    // This is where we could extend local mouse handling if needed
-    // For now, selection is handled directly in HandleMouseInputForTerminal()
+    _mouseTracking.OnLocalMouseEvent(sender, e);
   }
 
   /// <summary>
@@ -1901,11 +1742,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnMouseProcessingError(object? sender, MouseProcessingErrorEventArgs e)
   {
-    Console.WriteLine($"[ERROR] Mouse processing error: {e.Message}");
-    if (e.Exception != null)
-    {
-      Console.WriteLine($"Exception: {e.Exception}");
-    }
+    _mouseTracking.OnMouseProcessingError(sender, e);
   }
 
   /// <summary>
@@ -1913,11 +1750,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void OnMouseInputError(object? sender, MouseInputErrorEventArgs e)
   {
-    Console.WriteLine($"Mouse input error: {e.Message}");
-    if (e.Exception != null)
-    {
-      Console.WriteLine($"Exception: {e.Exception}");
-    }
+    _mouseTracking.OnMouseInputError(sender, e);
   }
 
   /// <summary>
