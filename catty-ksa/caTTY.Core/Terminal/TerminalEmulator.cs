@@ -59,6 +59,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalIndexOps _indexOps;
     private readonly EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
     private readonly EmulatorOps.TerminalBellOps _bellOps;
+    private readonly EmulatorOps.TerminalBackspaceOps _backspaceOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -162,6 +163,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _indexOps = new EmulatorOps.TerminalIndexOps(_screenBufferManager, _attributeManager, () => State, () => Cursor, () => Height);
         _carriageReturnOps = new EmulatorOps.TerminalCarriageReturnOps(_cursorManager, () => State);
         _bellOps = new EmulatorOps.TerminalBellOps(OnBell);
+        _backspaceOps = new EmulatorOps.TerminalBackspaceOps(_cursorManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -598,20 +600,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles a backspace character (BS) - move cursor one position left if not at column 0.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleBackspace()
-    {
-        _cursorManager.SetWrapPending(false);
-
-        if (_cursorManager.Column > 0)
-        {
-            _cursorManager.MoveLeft(1);
-        }
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleBackspace() => _backspaceOps.HandleBackspace();
 
     /// <summary>
     ///     Handles a tab character - move to next tab stop using terminal state.
