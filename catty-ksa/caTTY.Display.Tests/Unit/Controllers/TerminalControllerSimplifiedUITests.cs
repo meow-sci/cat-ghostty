@@ -76,8 +76,7 @@ public class TerminalControllerSimplifiedUITests
     {
         // Arrange & Act
         // After refactoring, menu rendering methods are in TerminalUiSettingsPanel subsystem
-        // File menu has been extracted to FileMenuRenderer
-        // Edit menu has been extracted to EditMenuRenderer
+        // All menus have been extracted to individual menu renderer classes
         var renderMenuBarMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderMenuBar", BindingFlags.Public | BindingFlags.Instance);
 
@@ -93,11 +92,13 @@ public class TerminalControllerSimplifiedUITests
         var fontMenuRenderMethod = fontMenuRendererType
             .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
-        var renderThemeMenuMethod = typeof(TerminalUiSettingsPanel)
-            .GetMethod("RenderThemeMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+        var themeMenuRendererType = typeof(ThemeMenuRenderer);
+        var themeMenuRenderMethod = themeMenuRendererType
+            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
-        var renderSettingsMenuMethod = typeof(TerminalUiSettingsPanel)
-            .GetMethod("RenderSettingsMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+        var generalSettingsMenuRendererType = typeof(GeneralSettingsMenuRenderer);
+        var generalSettingsMenuRenderMethod = generalSettingsMenuRendererType
+            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
         // Assert
         Assert.That(renderMenuBarMethod, Is.Not.Null,
@@ -114,10 +115,14 @@ public class TerminalControllerSimplifiedUITests
             "FontMenuRenderer class should exist for Font menu rendering");
         Assert.That(fontMenuRenderMethod, Is.Not.Null,
             "FontMenuRenderer should have Render method");
-        Assert.That(renderThemeMenuMethod, Is.Not.Null,
-            "RenderThemeMenu method should be preserved in TerminalUiSettingsPanel");
-        Assert.That(renderSettingsMenuMethod, Is.Not.Null,
-            "RenderSettingsMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(themeMenuRendererType, Is.Not.Null,
+            "ThemeMenuRenderer class should exist for Theme menu rendering");
+        Assert.That(themeMenuRenderMethod, Is.Not.Null,
+            "ThemeMenuRenderer should have Render method");
+        Assert.That(generalSettingsMenuRendererType, Is.Not.Null,
+            "GeneralSettingsMenuRenderer class should exist for Settings menu rendering");
+        Assert.That(generalSettingsMenuRenderMethod, Is.Not.Null,
+            "GeneralSettingsMenuRenderer should have Render method");
     }
 
     [Test]
