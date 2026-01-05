@@ -49,6 +49,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalPrivateModesOps _privateModesOps;
     private readonly EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
     private readonly EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
+    private readonly EmulatorOps.TerminalOscWindowManipulationOps _oscWindowManipulationOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -142,6 +143,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
         _bracketedPasteOps = new EmulatorOps.TerminalBracketedPasteOps(() => State);
         _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, OnTitleChanged, OnIconNameChanged);
+        _oscWindowManipulationOps = new EmulatorOps.TerminalOscWindowManipulationOps(() => State, SetWindowTitle, SetIconName, EmitResponse, () => Height, () => Width, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -553,6 +555,18 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <returns>The current icon name</returns>
     internal string GetIconName() => _oscTitleIconOps.GetIconName();
+
+    /// <summary>
+    ///     Handles window manipulation sequences (CSI Ps t).
+    ///     Implements title stack operations for vi compatibility and window size queries.
+    ///     Gracefully handles unsupported operations (minimize/restore) in game context.
+    /// </summary>
+    /// <param name="operation">The window manipulation operation code</param>
+    /// <param name="parameters">Additional parameters for the operation</param>
+    internal void HandleWindowManipulation(int operation, int[] parameters)
+    {
+        _oscWindowManipulationOps.HandleWindowManipulation(operation, parameters);
+    }
 
     /// <summary>
     ///     Gets the current foreground color for color queries.
