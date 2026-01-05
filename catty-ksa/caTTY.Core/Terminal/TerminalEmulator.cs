@@ -64,6 +64,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
     private readonly EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
     private readonly EmulatorOps.TerminalInputOps _inputOps;
+    private readonly EmulatorOps.TerminalResetOps _resetOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -173,6 +174,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _tabOps = new EmulatorOps.TerminalTabOps(_cursorManager, () => State, () => Cursor, () => Width);
         _responseOps = new EmulatorOps.TerminalResponseOps(e => ResponseEmitted?.Invoke(this, e));
         _inputOps = new EmulatorOps.TerminalInputOps(() => _parser!, ThrowIfDisposed, () => OnScreenUpdated());
+        _resetOps = new EmulatorOps.TerminalResetOps(() => State, () => ScreenBuffer, () => Cursor, _cursorManager, _attributeManager, _modeManager, () => Width, () => Height, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1037,82 +1039,14 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Resets the terminal to its initial state.
     ///     Implements ESC c (Reset to Initial State) sequence.
     /// </summary>
-    internal void ResetToInitialState()
-    {
-        // Reset terminal state
-        State.Reset();
-
-        // Clear the screen buffer
-        ScreenBuffer.Clear();
-
-        // Update cursor to match reset state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
-
-        // Reset cursor manager style to match state
-        _cursorManager.Style = State.CursorStyle;
-    }
+    internal void ResetToInitialState() => _resetOps.ResetToInitialState();
 
     /// <summary>
     ///     Performs a soft reset of the terminal.
     ///     Implements CSI ! p (DECSTR - DEC Soft Terminal Reset) sequence.
     ///     Resets terminal modes and state without clearing the screen buffer or cursor position.
     /// </summary>
-    public void SoftReset()
-    {
-        // Reset cursor position to home (0,0)
-        State.CursorX = 0;
-        State.CursorY = 0;
-
-        // Clear saved cursor positions
-        State.SavedCursor = null;
-        State.AnsiSavedCursor = null;
-
-        // Reset wrap pending state
-        State.WrapPending = false;
-
-        // Reset cursor style and visibility to defaults
-        State.CursorStyle = CursorStyle.BlinkingBlock;
-        State.CursorVisible = true;
-
-        // Reset terminal modes to defaults
-        State.ApplicationCursorKeys = false;
-        State.OriginMode = false;
-        State.AutoWrapMode = true;
-
-        // Reset scroll region to full screen
-        State.ScrollTop = 0;
-        State.ScrollBottom = Height - 1;
-
-        // Reset character protection to unprotected
-        State.CurrentCharacterProtection = false;
-        _attributeManager.CurrentCharacterProtection = false;
-
-        // Reset SGR attributes to defaults
-        State.CurrentSgrState = SgrAttributes.Default;
-        _attributeManager.ResetAttributes();
-
-        // Reset character sets to defaults (ASCII)
-        State.CharacterSets = new CharacterSetState();
-
-        // Reset UTF-8 mode to enabled
-        State.Utf8Mode = true;
-
-        // Reset tab stops to default (every 8 columns)
-        State.InitializeTabStops(Width);
-
-        // Update cursor manager to match reset state
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.Visible = State.CursorVisible;
-        _cursorManager.Style = State.CursorStyle;
-
-        // Update mode manager to match reset state
-        _modeManager.AutoWrapMode = State.AutoWrapMode;
-        _modeManager.ApplicationCursorKeys = State.ApplicationCursorKeys;
-        _modeManager.CursorVisible = State.CursorVisible;
-        _modeManager.OriginMode = State.OriginMode;
-
-        _logger.LogDebug("Soft reset completed - modes and state reset without clearing screen");
-    }
+    public void SoftReset() => _resetOps.SoftReset();
 
     /// <summary>
     ///     Designates a character set to a specific G slot.
