@@ -42,6 +42,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
     private readonly EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
     private readonly EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
+    private readonly EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -128,6 +129,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _deleteLinesOps = new EmulatorOps.TerminalDeleteLinesOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _insertCharsOps = new EmulatorOps.TerminalInsertCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _deleteCharsOps = new EmulatorOps.TerminalDeleteCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
+        _eraseCharsOps = new EmulatorOps.TerminalEraseCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1570,21 +1572,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Does not move the cursor or shift other characters.
     /// </summary>
     /// <param name="count">Number of characters to erase (minimum 1)</param>
-    internal void EraseCharactersInLine(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for character erasure within current line
-        _screenBufferManager.EraseCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void EraseCharactersInLine(int count) =>
+        _eraseCharsOps.EraseCharactersInLine(count);
 
     /// <summary>
     ///     Resets the terminal to its initial state.
