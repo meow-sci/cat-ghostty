@@ -48,6 +48,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
     private readonly EmulatorOps.TerminalPrivateModesOps _privateModesOps;
     private readonly EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
+    private readonly EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -140,6 +141,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
         _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
         _bracketedPasteOps = new EmulatorOps.TerminalBracketedPasteOps(() => State);
+        _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, OnTitleChanged, OnIconNameChanged);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -524,56 +526,33 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles empty titles and title reset.
     /// </summary>
     /// <param name="title">The new window title</param>
-    internal void SetWindowTitle(string title)
-    {
-        title ??= string.Empty;
-        State.WindowProperties.Title = title;
-        OnTitleChanged(title);
-    }
+    internal void SetWindowTitle(string title) => _oscTitleIconOps.SetWindowTitle(title);
 
     /// <summary>
     ///     Sets the icon name and emits an icon name change event.
     ///     Handles empty icon names and icon name reset.
     /// </summary>
     /// <param name="iconName">The new icon name</param>
-    internal void SetIconName(string iconName)
-    {
-        iconName ??= string.Empty;
-        State.WindowProperties.IconName = iconName;
-        OnIconNameChanged(iconName);
-    }
+    internal void SetIconName(string iconName) => _oscTitleIconOps.SetIconName(iconName);
 
     /// <summary>
     ///     Sets both window title and icon name to the same value.
     ///     Emits both title change and icon name change events.
     /// </summary>
     /// <param name="title">The new title and icon name</param>
-    internal void SetTitleAndIcon(string title)
-    {
-        title ??= string.Empty;
-        State.WindowProperties.Title = title;
-        State.WindowProperties.IconName = title;
-        OnTitleChanged(title);
-        OnIconNameChanged(title);
-    }
+    internal void SetTitleAndIcon(string title) => _oscTitleIconOps.SetTitleAndIcon(title);
 
     /// <summary>
     ///     Gets the current window title.
     /// </summary>
     /// <returns>The current window title</returns>
-    internal string GetWindowTitle()
-    {
-        return State.WindowProperties.Title;
-    }
+    internal string GetWindowTitle() => _oscTitleIconOps.GetWindowTitle();
 
     /// <summary>
     ///     Gets the current icon name.
     /// </summary>
     /// <returns>The current icon name</returns>
-    internal string GetIconName()
-    {
-        return State.WindowProperties.IconName;
-    }
+    internal string GetIconName() => _oscTitleIconOps.GetIconName();
 
     /// <summary>
     ///     Gets the current foreground color for color queries.
