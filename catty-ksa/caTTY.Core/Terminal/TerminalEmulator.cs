@@ -43,6 +43,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
     private readonly EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
     private readonly EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
+    private readonly EmulatorOps.TerminalInsertModeOps _insertModeOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -130,6 +131,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _insertCharsOps = new EmulatorOps.TerminalInsertCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _deleteCharsOps = new EmulatorOps.TerminalDeleteCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _eraseCharsOps = new EmulatorOps.TerminalEraseCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
+        _insertModeOps = new EmulatorOps.TerminalInsertModeOps(_cursorManager, _screenBufferManager, _attributeManager, _modeManager, () => State, () => Width, () => Height);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -947,7 +949,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             // Insert mode: shift existing characters right before writing new character
             int charactersToShift = isWide ? 2 : 1;
-            ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
+            _insertModeOps.ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
         }
 
         var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
@@ -1005,55 +1007,6 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         // NOTE: 64e8b6190d4498d3b1cd2e1b3e07e7587e685967 implemented this and it broke cursor positioning entirely on the line discipline
 
         return false;
-    }
-
-    /// <summary>
-    ///     Shifts characters to the right on the current line to make space for insertion.
-    ///     Used when insert mode is enabled to shift existing characters before writing new ones.
-    /// </summary>
-    /// <param name="row">The row to shift characters on</param>
-    /// <param name="startColumn">The column to start shifting from</param>
-    /// <param name="shiftAmount">Number of positions to shift (1 for normal chars, 2 for wide chars)</param>
-    private void ShiftCharactersRight(int row, int startColumn, int shiftAmount)
-    {
-        // Bounds checking
-        if (row < 0 || row >= Height || startColumn < 0 || startColumn >= Width)
-        {
-            return;
-        }
-
-        // Calculate how many characters we can actually shift
-        int availableSpace = Width - startColumn;
-        if (availableSpace <= shiftAmount)
-        {
-            // Not enough space to shift - clear from cursor to end of line
-            for (int col = startColumn; col < Width; col++)
-            {
-                var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
-                _screenBufferManager.SetCell(row, col, emptyCell);
-            }
-            return;
-        }
-
-        // Shift characters to the right, starting from the rightmost character
-        // Work backwards to avoid overwriting characters we haven't moved yet
-        for (int col = Width - 1 - shiftAmount; col >= startColumn; col--)
-        {
-            int targetCol = col + shiftAmount;
-            if (targetCol < Width)
-            {
-                // Get the cell to move
-                var sourceCell = _screenBufferManager.GetCell(row, col);
-                _screenBufferManager.SetCell(row, targetCol, sourceCell);
-            }
-        }
-
-        // Clear the positions where we're about to insert
-        for (int col = startColumn; col < startColumn + shiftAmount && col < Width; col++)
-        {
-            var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
-            _screenBufferManager.SetCell(row, col, emptyCell);
-        }
     }
 
     /// <summary>
@@ -1807,11 +1760,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="enabled">True to enable insert mode, false to disable</param>
     public void SetInsertMode(bool enabled)
     {
-        // Update mode manager
-        _modeManager.InsertMode = enabled;
-
-        // Update terminal state for compatibility
-        _modeManager.SetMode(4, enabled);
+        _insertModeOps.SetInsertMode(enabled);
     }
 
     /// <summary>
