@@ -58,6 +58,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalLineFeedOps _lineFeedOps;
     private readonly EmulatorOps.TerminalIndexOps _indexOps;
     private readonly EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
+    private readonly EmulatorOps.TerminalBellOps _bellOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -160,6 +161,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _lineFeedOps = new EmulatorOps.TerminalLineFeedOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _indexOps = new EmulatorOps.TerminalIndexOps(_screenBufferManager, _attributeManager, () => State, () => Cursor, () => Height);
         _carriageReturnOps = new EmulatorOps.TerminalCarriageReturnOps(_cursorManager, () => State);
+        _bellOps = new EmulatorOps.TerminalBellOps(OnBell);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -488,7 +490,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void HandleBell()
     {
-        OnBell();
+        _bellOps.HandleBell();
     }
 
     /// <summary>
