@@ -60,6 +60,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
     private readonly EmulatorOps.TerminalBellOps _bellOps;
     private readonly EmulatorOps.TerminalBackspaceOps _backspaceOps;
+    private readonly EmulatorOps.TerminalTabOps _tabOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -164,6 +165,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _carriageReturnOps = new EmulatorOps.TerminalCarriageReturnOps(_cursorManager, () => State);
         _bellOps = new EmulatorOps.TerminalBellOps(OnBell);
         _backspaceOps = new EmulatorOps.TerminalBackspaceOps(_cursorManager, () => State);
+        _tabOps = new EmulatorOps.TerminalTabOps(_cursorManager, () => State, () => Cursor, () => Width);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -605,44 +607,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <summary>
     ///     Handles a tab character - move to next tab stop using terminal state.
     /// </summary>
-    internal void HandleTab()
-    {
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Find next tab stop
-        int nextTabStop = -1;
-        for (int col = State.CursorX + 1; col < Width; col++)
-        {
-            if (col < State.TabStops.Length && State.TabStops[col])
-            {
-                nextTabStop = col;
-                break;
-            }
-        }
-
-        // If no tab stop found, go to right edge
-        if (nextTabStop == -1)
-        {
-            nextTabStop = Width - 1;
-        }
-
-        // Move cursor to the tab stop
-        State.CursorX = nextTabStop;
-
-        // Handle wrap pending if we're at the right edge and auto-wrap is enabled
-        if (State.CursorX >= Width - 1 && State.AutoWrapMode)
-        {
-            State.WrapPending = true;
-        }
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
-    }
+    internal void HandleTab() => _tabOps.HandleTab();
 
     /// <summary>
     ///     Writes a character at the current cursor position and advances the cursor.
@@ -1003,132 +968,33 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Sets a tab stop at the current cursor position.
     ///     Implements ESC H (Horizontal Tab Set) sequence.
     /// </summary>
-    internal void SetTabStopAtCursor()
-    {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Set tab stop at current cursor position
-        if (State.CursorX >= 0 && State.CursorX < State.TabStops.Length)
-        {
-            State.TabStops[State.CursorX] = true;
-        }
-    }
+    internal void SetTabStopAtCursor() => _tabOps.SetTabStopAtCursor();
 
     /// <summary>
     ///     Moves cursor forward to the next tab stop.
     ///     Implements CSI I (Cursor Forward Tab) sequence.
     /// </summary>
     /// <param name="count">Number of tab stops to move forward</param>
-    internal void CursorForwardTab(int count)
-    {
-        // Clear wrap pending state first
-        _cursorManager.SetWrapPending(false);
-
-        int n = Math.Max(1, count);
-        int currentCol = _cursorManager.Column;
-
-        if (currentCol < 0)
-        {
-            currentCol = 0;
-        }
-
-        for (int i = 0; i < n; i++)
-        {
-            int nextStop = -1;
-            for (int x = currentCol + 1; x < Width; x++)
-            {
-                if (x < State.TabStops.Length && State.TabStops[x])
-                {
-                    nextStop = x;
-                    break;
-                }
-            }
-
-            currentCol = nextStop == -1 ? Width - 1 : nextStop;
-        }
-
-        // Update cursor position through cursor manager
-        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void CursorForwardTab(int count) => _tabOps.CursorForwardTab(count);
 
     /// <summary>
     ///     Moves cursor backward to the previous tab stop.
     ///     Implements CSI Z (Cursor Backward Tab) sequence.
     /// </summary>
     /// <param name="count">Number of tab stops to move backward</param>
-    internal void CursorBackwardTab(int count)
-    {
-        // Clear wrap pending state first
-        _cursorManager.SetWrapPending(false);
-
-        int n = Math.Max(1, count);
-        int currentCol = _cursorManager.Column;
-
-        if (currentCol < 0)
-        {
-            currentCol = 0;
-        }
-
-        for (int i = 0; i < n; i++)
-        {
-            int prevStop = -1;
-            for (int x = currentCol - 1; x >= 0; x--)
-            {
-                if (x < State.TabStops.Length && State.TabStops[x])
-                {
-                    prevStop = x;
-                    break;
-                }
-            }
-
-            currentCol = prevStop == -1 ? 0 : prevStop;
-        }
-
-        // Update cursor position through cursor manager
-        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void CursorBackwardTab(int count) => _tabOps.CursorBackwardTab(count);
 
     /// <summary>
     ///     Clears the tab stop at the current cursor position.
     ///     Implements CSI g (Tab Clear) sequence with mode 0.
     /// </summary>
-    internal void ClearTabStopAtCursor()
-    {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear tab stop at current cursor position
-        if (State.CursorX >= 0 && State.CursorX < State.TabStops.Length)
-        {
-            State.TabStops[State.CursorX] = false;
-        }
-    }
+    internal void ClearTabStopAtCursor() => _tabOps.ClearTabStopAtCursor();
 
     /// <summary>
     ///     Clears all tab stops.
     ///     Implements CSI 3 g (Tab Clear) sequence with mode 3.
     /// </summary>
-    internal void ClearAllTabStops()
-    {
-        // Clear all tab stops
-        for (int i = 0; i < State.TabStops.Length; i++)
-        {
-            State.TabStops[i] = false;
-        }
-    }
+    internal void ClearAllTabStops() => _tabOps.ClearAllTabStops();
 
     /// <summary>
     ///     Inserts blank lines at the cursor position within the scroll region.
