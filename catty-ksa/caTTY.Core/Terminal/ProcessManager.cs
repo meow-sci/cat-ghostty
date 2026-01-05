@@ -4,8 +4,11 @@ using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
 using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
+using ConPtyPipeManager = caTTY.Core.Terminal.Process.ConPtyPipeManager;
 using ProcessCleanup = caTTY.Core.Terminal.Process.ProcessCleanup;
 using ProcessEvents = caTTY.Core.Terminal.Process.ProcessEvents;
+using ProcessLifecycleManager = caTTY.Core.Terminal.Process.ProcessLifecycleManager;
+using ProcessStateManager = caTTY.Core.Terminal.Process.ProcessStateManager;
 using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
 using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
 using SysProcess = System.Diagnostics.Process;
@@ -35,57 +38,17 @@ public class ProcessManager : IProcessManager
     /// <summary>
     ///     Gets whether a shell process is currently running.
     /// </summary>
-    public bool IsRunning
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                if (_process == null)
-                {
-                    return false;
-                }
-
-                try
-                {
-                    return !_process.HasExited;
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process has been disposed
-                    return false;
-                }
-            }
-        }
-    }
+    public bool IsRunning => ProcessStateManager.IsRunning(_process, _processLock);
 
     /// <summary>
     ///     Gets the process ID of the running shell, or null if no process is running.
     /// </summary>
-    public int? ProcessId
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                return _process?.Id;
-            }
-        }
-    }
+    public int? ProcessId => ProcessStateManager.GetProcessId(_process, _processLock);
 
     /// <summary>
     ///     Gets the exit code of the last process, or null if no process has exited.
     /// </summary>
-    public int? ExitCode
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                return _process?.HasExited == true ? _process.ExitCode : null;
-            }
-        }
-    }
+    public int? ExitCode => ProcessStateManager.GetExitCode(_process, _processLock);
 
     /// <summary>
     ///     Event raised when data is received from the shell process stdout/stderr.
@@ -134,31 +97,11 @@ public class ProcessManager : IProcessManager
             // Store terminal size
             _currentSize = new ConPtyNative.COORD((short)options.InitialWidth, (short)options.InitialHeight);
 
-            // Create communication pipes
-            if (!ConPtyNative.CreatePipe(out _inputReadHandle, out _inputWriteHandle, IntPtr.Zero, 0))
-            {
-                throw new ProcessStartException($"Failed to create input pipe: {Marshal.GetLastWin32Error()}");
-            }
-
-            if (!ConPtyNative.CreatePipe(out _outputReadHandle, out _outputWriteHandle, IntPtr.Zero, 0))
-            {
-                CleanupHandles();
-                throw new ProcessStartException($"Failed to create output pipe: {Marshal.GetLastWin32Error()}");
-            }
-
-            // Create pseudoconsole
-            int result = ConPtyNative.CreatePseudoConsole(_currentSize, _inputReadHandle, _outputWriteHandle, 0, out _pseudoConsole);
-            if (result != 0)
-            {
-                CleanupHandles();
-                throw new ProcessStartException($"Failed to create pseudoconsole: {result}");
-            }
-
-            // Close the handles that were passed to the pseudoconsole (as per Microsoft docs)
-            ConPtyNative.CloseHandle(_inputReadHandle);
-            ConPtyNative.CloseHandle(_outputWriteHandle);
-            _inputReadHandle = IntPtr.Zero;
-            _outputWriteHandle = IntPtr.Zero;
+            // Create communication pipes and pseudoconsole
+            var pipeHandles = ConPtyPipeManager.CreatePipesAndPseudoConsole(_currentSize);
+            _inputWriteHandle = pipeHandles.InputWriteHandle;
+            _outputReadHandle = pipeHandles.OutputReadHandle;
+            _pseudoConsole = pipeHandles.PseudoConsole;
 
             // Prepare startup information
             var startupInfo = StartupInfoBuilder.Create();
@@ -179,36 +122,26 @@ public class ProcessManager : IProcessManager
             string commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
 
             // Create the process
-            var processInfo = new ConPtyNative.PROCESS_INFORMATION();
-            if (!ConPtyNative.CreateProcessW(
-                    null,
-                    commandLine,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    false,
-                    ConPtyNative.EXTENDED_STARTUPINFO_PRESENT,
-                    IntPtr.Zero,
-                    options.WorkingDirectory ?? Environment.CurrentDirectory,
-                    ref startupInfo,
-                    out processInfo))
+            ConPtyNative.PROCESS_INFORMATION processInfo;
+            try
             {
-                int error = Marshal.GetLastWin32Error();
+                processInfo = ProcessLifecycleManager.CreateProcess(
+                    commandLine,
+                    options.WorkingDirectory ?? Environment.CurrentDirectory,
+                    ref startupInfo);
+            }
+            catch
+            {
                 AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
-                throw new ProcessStartException($"Failed to create process: {error}");
+                throw;
             }
 
             // Clean up startup info
             AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
 
             // Wrap the process handle in a Process object for lifecycle management
-            var process = SysProcess.GetProcessById(processInfo.dwProcessId);
-            process.EnableRaisingEvents = true;
-            process.Exited += OnProcessExited;
-
-            // Close process and thread handles (we have the Process object now)
-            ConPtyNative.CloseHandle(processInfo.hProcess);
-            ConPtyNative.CloseHandle(processInfo.hThread);
+            var process = ProcessLifecycleManager.WrapProcessHandle(processInfo, OnProcessExited);
 
             lock (_processLock)
             {
@@ -220,23 +153,15 @@ public class ProcessManager : IProcessManager
             CancellationToken readToken = _readCancellationSource.Token;
             _outputReadTask = ReadOutputAsync(readToken);
 
-            // Wait a short time to ensure the process started successfully
-            await Task.Delay(100, cancellationToken);
-
-            // Check if process exited immediately
+            // Validate that the process started successfully
             try
             {
-                if (process.HasExited)
-                {
-                    int exitCode = process.ExitCode;
-                    CleanupProcess();
-                    throw new ProcessStartException(
-                        $"Shell process exited immediately with code {exitCode}: {shellPath}", shellPath);
-                }
+                await ProcessLifecycleManager.ValidateProcessStartAsync(process, shellPath, cancellationToken);
             }
-            catch (InvalidOperationException)
+            catch
             {
-                // Process has already exited and been disposed - let the exit handler deal with cleanup
+                CleanupProcess();
+                throw;
             }
         }
         catch (Exception ex) when (!(ex is ProcessStartException))
@@ -255,57 +180,20 @@ public class ProcessManager : IProcessManager
     {
         ThrowIfDisposed();
 
-        SysProcess? processToStop = null;
-        CancellationTokenSource? cancellationSource = null;
+        SysProcess? processToStop;
+        CancellationTokenSource? cancellationSource;
+        Task? readTask;
 
         lock (_processLock)
         {
             processToStop = _process;
             cancellationSource = _readCancellationSource;
-        }
-
-        if (processToStop == null)
-        {
-            return; // No process running
+            readTask = _outputReadTask;
         }
 
         try
         {
-            // Cancel read operations
-            cancellationSource?.Cancel();
-
-            // Try graceful shutdown first
-            if (!processToStop.HasExited)
-            {
-                try
-                {
-                    // For ConPTY processes, we can try CloseMainWindow first, then Kill if needed
-                    processToStop.CloseMainWindow();
-
-                    // Wait a short time for graceful shutdown
-                    if (!processToStop.WaitForExit(2000))
-                    {
-                        processToStop.Kill(true);
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process already exited
-                }
-            }
-
-            // Wait for read task to complete
-            if (_outputReadTask != null)
-            {
-                try
-                {
-                    await _outputReadTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected when cancellation is requested
-                }
-            }
+            await ProcessLifecycleManager.StopProcessGracefullyAsync(processToStop, cancellationSource, readTask);
         }
         finally
         {
@@ -329,17 +217,8 @@ public class ProcessManager : IProcessManager
             currentProcess = _process;
         }
 
-        if (currentProcess == null || currentProcess.HasExited)
-        {
-            throw new InvalidOperationException("No process is currently running");
-        }
-
-        if (_inputWriteHandle == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Input handle is not available");
-        }
-
-        ConPtyInputWriter.Write(data, _inputWriteHandle, currentProcess, args => OnProcessError(args));
+        ProcessStateManager.ValidateProcessRunning(currentProcess, _inputWriteHandle);
+        ConPtyInputWriter.Write(data, _inputWriteHandle, currentProcess!, args => OnProcessError(args));
     }
 
     /// <summary>
@@ -363,17 +242,8 @@ public class ProcessManager : IProcessManager
             currentProcess = _process;
         }
 
-        if (currentProcess == null || currentProcess.HasExited)
-        {
-            throw new InvalidOperationException("No process is currently running");
-        }
-
-        if (_inputWriteHandle == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Input handle is not available");
-        }
-
-        ConPtyInputWriter.Write(text, _inputWriteHandle, currentProcess, args => OnProcessError(args));
+        ProcessStateManager.ValidateProcessRunning(currentProcess, _inputWriteHandle);
+        ConPtyInputWriter.Write(text, _inputWriteHandle, currentProcess!, args => OnProcessError(args));
     }
 
     /// <summary>
@@ -399,15 +269,7 @@ public class ProcessManager : IProcessManager
             currentProcess = _process;
         }
 
-        if (currentProcess == null || currentProcess.HasExited)
-        {
-            throw new InvalidOperationException("No process is currently running");
-        }
-
-        if (_pseudoConsole == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Pseudoconsole is not available");
-        }
+        ProcessStateManager.ValidateProcessForResize(currentProcess, _pseudoConsole);
 
         var newSize = new ConPtyNative.COORD((short)width, (short)height);
         int result = ConPtyNative.ResizePseudoConsole(_pseudoConsole, newSize);
