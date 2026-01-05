@@ -10,6 +10,10 @@
       "Bash(mkdir:*)",
       "Bash(.scriptsdotnet-test.ps1)",
       "Bash(pwsh -File:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(pwsh:*)",
+      "Bash(powershell -File:*)",
+      "Bash(powershell:*)",
       "Bash(powershell.exe:*)"
     ]
   }

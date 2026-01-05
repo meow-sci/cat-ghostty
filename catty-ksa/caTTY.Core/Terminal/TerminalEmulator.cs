@@ -46,6 +46,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalInsertModeOps _insertModeOps;
     private readonly EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
     private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
+    private readonly EmulatorOps.TerminalPrivateModesOps _privateModesOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -136,6 +137,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _insertModeOps = new EmulatorOps.TerminalInsertModeOps(_cursorManager, _screenBufferManager, _attributeManager, _modeManager, () => State, () => Width, () => Height);
         _alternateScreenOps = new EmulatorOps.TerminalAlternateScreenOps(_cursorManager, _alternateScreenManager, _scrollbackManager, () => State);
         _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
+        _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1623,8 +1625,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="modes">Array of private mode numbers to save</param>
     internal void SavePrivateModes(int[] modes)
     {
-        // Save the current state of each specified mode
-        _modeManager.SavePrivateModes(modes);
+        _privateModesOps.SavePrivateModes(modes);
     }
 
     /// <summary>
@@ -1633,8 +1634,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="modes">Array of private mode numbers to restore</param>
     internal void RestorePrivateModes(int[] modes)
     {
-        // Restore the saved state of each specified mode
-        _modeManager.RestorePrivateModes(modes);
+        _privateModesOps.RestorePrivateModes(modes);
     }
 
     /// <summary>
