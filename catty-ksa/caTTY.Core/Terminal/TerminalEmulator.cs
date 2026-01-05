@@ -36,6 +36,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
     private readonly EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
     private readonly EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
+    private readonly EmulatorOps.TerminalScrollOps _scrollOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -116,6 +117,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _eraseInLineOps = new EmulatorOps.TerminalEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
         _selectiveEraseInLineOps = new EmulatorOps.TerminalSelectiveEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
         _selectiveEraseInDisplayOps = new EmulatorOps.TerminalSelectiveEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLineSelective, _logger);
+        _scrollOps = new EmulatorOps.TerminalScrollOps(_cursorManager, _screenBufferManager, _attributeManager, () => State, () => Cursor);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1085,21 +1087,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="lines">Number of lines to scroll up (default: 1)</param>
     internal void ScrollScreenUp(int lines = 1)
     {
-        if (lines <= 0)
-        {
-            return; // Do nothing for zero or negative lines
-        }
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for proper scrollback integration
-        _screenBufferManager.ScrollUpInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollOps.ScrollScreenUp(lines);
     }
 
     /// <summary>
@@ -1109,21 +1097,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="lines">Number of lines to scroll down (default: 1)</param>
     internal void ScrollScreenDown(int lines = 1)
     {
-        if (lines <= 0)
-        {
-            return; // Do nothing for zero or negative lines
-        }
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for proper scrollback integration
-        _screenBufferManager.ScrollDownInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollOps.ScrollScreenDown(lines);
     }
 
     /// <summary>
@@ -1431,27 +1405,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void HandleReverseIndex()
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear wrap pending state
-        State.WrapPending = false;
-
-        if (State.CursorY <= State.ScrollTop)
-        {
-            // At top of scroll region - scroll the region down
-            State.CursorY = State.ScrollTop;
-            _screenBufferManager.ScrollDownInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-        }
-        else
-        {
-            // Move cursor up one line
-            State.CursorY = Math.Max(State.ScrollTop, State.CursorY - 1);
-        }
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        _scrollOps.HandleReverseIndex();
     }
 
     /// <summary>
