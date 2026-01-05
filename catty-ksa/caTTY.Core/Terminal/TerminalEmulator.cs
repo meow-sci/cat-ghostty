@@ -54,6 +54,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
     private readonly EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
     private readonly EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
+    private readonly EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -152,6 +153,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _oscHyperlinkOps = new EmulatorOps.TerminalOscHyperlinkOps(_logger, _attributeManager, () => State);
         _oscColorQueryOps = new EmulatorOps.TerminalOscColorQueryOps(_attributeManager);
         _charsetDesignationOps = new EmulatorOps.TerminalCharsetDesignationOps(_characterSetManager);
+        _charsetTranslationOps = new EmulatorOps.TerminalCharsetTranslationOps(_characterSetManager);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1325,19 +1327,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles shift-in (SI) control character.
     ///     Switches active character set to G0.
     /// </summary>
-    internal void HandleShiftIn()
-    {
-        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G0);
-    }
+    internal void HandleShiftIn() => _charsetTranslationOps.HandleShiftIn();
 
     /// <summary>
     ///     Handles shift-out (SO) control character.
     ///     Switches active character set to G1.
     /// </summary>
-    internal void HandleShiftOut()
-    {
-        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G1);
-    }
+    internal void HandleShiftOut() => _charsetTranslationOps.HandleShiftOut();
 
     /// <summary>
     ///     Translates a character according to the current character set.
@@ -1345,19 +1341,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="ch">The character to translate</param>
     /// <returns>The translated character string</returns>
-    internal string TranslateCharacter(char ch)
-    {
-        return _characterSetManager.TranslateCharacter(ch);
-    }
+    internal string TranslateCharacter(char ch) => _charsetTranslationOps.TranslateCharacter(ch);
 
     /// <summary>
     ///     Generates a character set query response.
     /// </summary>
     /// <returns>The character set query response string</returns>
-    internal string GenerateCharacterSetQueryResponse()
-    {
-        return _characterSetManager.GenerateCharacterSetQueryResponse();
-    }
+    internal string GenerateCharacterSetQueryResponse() => _charsetTranslationOps.GenerateCharacterSetQueryResponse();
 
     /// <summary>
     ///     Raises the Bell event.
