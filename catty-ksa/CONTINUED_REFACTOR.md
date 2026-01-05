@@ -441,36 +441,30 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 
 **Context:** Screen buffer operations can be conceptually divided into read operations (getting cell contents, querying state) and write operations (setting cells, scrolling). This is optional if the split doesn't make semantic sense.
 
-### Task 16.1: Evaluate ScreenBufferManager split feasibility
+### Task 16.1: Evaluate ScreenBufferManager split feasibility (COMPLETED - KEPT UNIFIED)
 
 **Objective:** Determine if splitting ScreenBufferManager makes sense.
 
-**Steps:**
-1. Read `caTTY.Core/Managers/ScreenBufferManager.cs`
-2. Analyze methods and categorize:
-   - Read operations (queries, getters)
-   - Write operations (setters, modifications)
-   - Shared/complex operations
-3. Evaluate if split is clean or creates awkward coupling
-4. Document decision in task commit
-5. If split is feasible, proceed with extraction (create `ScreenBufferReader.cs` and `ScreenBufferWriter.cs`)
-6. If split is not clean, skip this phase and document reasoning
-7. Run tests: `.\scripts\dotnet-test.ps1`
-   - ONLY use this to run dotnet tests
-   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
-   - Exit code 0 = success, proceed to commit
-   - Exit code non-zero = fix issues
-8. Commit with message:
-   ```
-   Task 16.1: Evaluate and optionally split ScreenBufferManager
+**Status:** COMPLETED - Decision made to keep unified at 601 LOC
 
-   - [If split] Extract read/write operations to separate classes
-   - [If split] ScreenBufferManager.cs now <400 LOC
-   - [If not split] Document reasoning for keeping unified
-   - No functionality changes, all tests pass
-   ```
+**Analysis Results:**
+- Read operations: 5 methods (Width, Height, GetCell, GetRow, CopyTo)
+- Write operations: 3 methods (SetCell, Clear, ClearRegion)
+- Complex operations (read+write): 12 methods
+  * Scroll operations (4): ScrollUp, ScrollDown, ScrollUpInRegion, ScrollDownInRegion
+  * Line manipulation (2): InsertLinesInRegion, DeleteLinesInRegion
+  * Character manipulation (3): InsertCharactersInLine, DeleteCharactersInLine, EraseCharactersInLine
+  * Configuration (2): SetScrollbackIntegration, Resize
 
-**Target:** ScreenBufferManager.cs <400 LOC (down from 601 LOC) IF split is clean, otherwise remain at 601 LOC
+**Decision Reasoning:**
+1. Heavy interdependencies - 60% of methods (12/20) require both read and write operations
+2. All complex operations follow atomic pattern: read from position A → write to position B → clear/fill remaining
+3. Single Responsibility Principle already satisfied - class has cohesive screen buffer management API
+4. 601 LOC is reasonable for this complexity level
+5. No natural seam for clean split - separating would create awkward cross-class coupling
+6. Splitting would harm rather than help code clarity and maintainability
+
+**Outcome:** ScreenBufferManager.cs remains at 601 LOC as a justified exception to <500 LOC guideline
 
 ---
 
@@ -522,11 +516,12 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 - ✅ All tests pass
 
 ### Phase 16 (ScreenBufferManager): 1 task
-- ✅ ScreenBufferManager.cs reduced to <400 LOC (if feasible)
+- ✅ Task 16.1 completed - evaluated and decided to keep unified at 601 LOC
+- ✅ Decision: Split not feasible due to heavy interdependencies (12/20 methods require both read+write)
 - ✅ All tests pass
 
 ### Overall Success Criteria
-- ✅ All production files ≤500 LOC (with rare exceptions for data structures)
+- ✅ All production files ≤500 LOC (with justified exceptions: ScreenBufferManager at 601 LOC)
 - ✅ Facade + operation class pattern maintained throughout
 - ✅ All ~1500 tests pass
 - ✅ No functionality changes - logic remains identical
