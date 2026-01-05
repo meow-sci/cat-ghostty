@@ -1,0 +1,294 @@
+## Phase 7: Extract SgrParser Components
+
+**Goal:** Reduce SgrParser.cs from 879 LOC to <200 LOC by splitting into focused subdirectory components.
+
+**Context:** SGR (Select Graphic Rendition) parsing handles text styling and colors. The parser tokenizes parameters, parses color sequences (8-bit, 24-bit RGB), and constructs messages. All logic should be split without changing behavior.
+
+### Task 7.1: Create Sgr directory and extract SgrParamTokenizer
+
+**Objective:** Extract parameter tokenization logic from SgrParser.cs into new `Sgr/SgrParamTokenizer.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/SgrParser.cs` to understand current structure
+2. Create directory `caTTY.Core/Parsing/Sgr/`
+3. Create `caTTY.Core/Parsing/Sgr/SgrParamTokenizer.cs` with class `SgrParamTokenizer`
+4. Move parameter tokenization logic from SgrParser:
+   - Methods that parse/tokenize parameter lists
+   - Methods that handle parameter delimiters (`:`, `;`)
+   - Parameter validation logic
+5. Create appropriate constructor to accept any needed dependencies
+6. Update `SgrParser.cs` to instantiate `SgrParamTokenizer` and delegate tokenization calls
+7. Verify no functionality changes - all method signatures preserved
+8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = tests failed, review failures shown in output, fix issues
+9. Commit with message:
+   ```
+   Task 7.1: Extract SgrParamTokenizer from SgrParser
+
+   - Create caTTY.Core/Parsing/Sgr/ directory
+   - Extract parameter tokenization logic to SgrParamTokenizer.cs
+   - Update SgrParser.cs to delegate to tokenizer
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SgrParamTokenizer.cs ~150-200 LOC
+
+---
+
+### Task 7.2: Extract SgrColorParsers
+
+**Objective:** Extract color parsing logic (8-bit indexed, 24-bit RGB) into `Sgr/SgrColorParsers.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/SgrParser.cs` to identify color parsing methods
+2. Create `caTTY.Core/Parsing/Sgr/SgrColorParsers.cs` with class `SgrColorParsers`
+3. Move color parsing logic:
+   - 8-bit indexed color parsing (256-color palette)
+   - 24-bit RGB color parsing
+   - Parameter extraction for foreground/background colors
+   - Color validation logic
+4. Create constructor to accept dependencies (if any)
+5. Update `SgrParser.cs` to instantiate `SgrColorParsers` and delegate color parsing
+6. Ensure all color-related method calls updated
+7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues shown
+8. Commit with message:
+   ```
+   Task 7.2: Extract SgrColorParsers from SgrParser
+
+   - Extract 8-bit and 24-bit color parsing to SgrColorParsers.cs
+   - Update SgrParser.cs to delegate color parsing
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SgrColorParsers.cs ~150-200 LOC
+
+---
+
+### Task 7.3: Extract SgrAttributeApplier
+
+**Objective:** Extract attribute application logic into `Sgr/SgrAttributeApplier.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/SgrParser.cs` to identify attribute application methods
+2. Create `caTTY.Core/Parsing/Sgr/SgrAttributeApplier.cs` with class `SgrAttributeApplier`
+3. Move attribute application logic:
+   - Methods that apply parsed SGR parameters to state
+   - Bold, italic, underline, blink, reverse, etc. attribute application
+   - Reset/default handling
+4. Create constructor to accept dependencies
+5. Update `SgrParser.cs` to instantiate `SgrAttributeApplier` and delegate application
+6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+7. Commit with message:
+   ```
+   Task 7.3: Extract SgrAttributeApplier from SgrParser
+
+   - Extract attribute application logic to SgrAttributeApplier.cs
+   - Update SgrParser.cs to delegate attribute operations
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SgrAttributeApplier.cs ~150-200 LOC
+
+---
+
+### Task 7.4: Extract SgrMessageFactory
+
+**Objective:** Extract message construction logic into `Sgr/SgrMessageFactory.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/SgrParser.cs` to identify message building methods
+2. Create `caTTY.Core/Parsing/Sgr/SgrMessageFactory.cs` with class `SgrMessageFactory`
+3. Move message construction logic:
+   - Methods that build `SgrMessage` instances from parsed parameters
+   - Message validation
+   - Default message creation
+4. Create constructor with needed dependencies (SgrParamTokenizer, SgrColorParsers, SgrAttributeApplier)
+5. Update `SgrParser.cs` to instantiate `SgrMessageFactory` and delegate message building
+6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+7. Commit with message:
+   ```
+   Task 7.4: Extract SgrMessageFactory from SgrParser
+
+   - Extract message construction to SgrMessageFactory.cs
+   - Update SgrParser.cs to delegate message building
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SgrMessageFactory.cs ~150-200 LOC
+
+---
+
+### Task 7.5: Reduce SgrParser.cs to facade
+
+**Objective:** Finalize SgrParser.cs as minimal facade coordinating extracted components.
+
+**Steps:**
+1. Read current `caTTY.Core/Parsing/SgrParser.cs`
+2. Ensure all business logic moved to component classes
+3. Refactor SgrParser to:
+   - Instantiate component classes in constructor
+   - Provide simple public API methods that delegate to components
+   - Keep only coordination logic
+4. Remove any remaining complex logic
+5. Add XML documentation comments if not present
+6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+7. Commit with message:
+   ```
+   Task 7.5: Reduce SgrParser to facade pattern
+
+   - Remove remaining business logic from SgrParser.cs
+   - Finalize delegation to component classes
+   - SgrParser.cs now <200 LOC facade
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** SgrParser.cs <200 LOC (down from 879 LOC)
+
+---
+
+## Phase 8: Extract CsiParser Components
+
+**Goal:** Reduce CsiParser.cs from 739 LOC to <250 LOC by splitting into focused subdirectory components.
+
+**Context:** CSI (Control Sequence Introducer) parsing handles cursor movement, erasing, scrolling, and device queries. Similar pattern to SgrParser extraction.
+
+### Task 8.1: Create Csi directory and extract CsiTokenizer
+
+**Objective:** Extract parameter tokenization from CsiParser.cs into `Csi/CsiTokenizer.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/CsiParser.cs` to understand tokenization logic
+2. Create directory `caTTY.Core/Parsing/Csi/`
+3. Create `caTTY.Core/Parsing/Csi/CsiTokenizer.cs` with class `CsiTokenizer`
+4. Move tokenization logic:
+   - Byte parsing and parameter extraction
+   - Intermediate byte handling
+   - Parameter list construction
+5. Create constructor for dependencies
+6. Update `CsiParser.cs` to use `CsiTokenizer`
+7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+8. Commit with message:
+   ```
+   Task 8.1: Extract CsiTokenizer from CsiParser
+
+   - Create caTTY.Core/Parsing/Csi/ directory
+   - Extract tokenization logic to CsiTokenizer.cs
+   - Update CsiParser.cs to delegate tokenization
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** CsiTokenizer.cs ~150-200 LOC
+
+---
+
+### Task 8.2: Extract CsiParamParsers
+
+**Objective:** Extract parameter parsing helpers into `Csi/CsiParamParsers.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/CsiParser.cs` to identify parameter parsing methods
+2. Create `caTTY.Core/Parsing/Csi/CsiParamParsers.cs` with class `CsiParamParsers`
+3. Move parameter parsing helpers:
+   - Integer parameter extraction
+   - Default value handling
+   - Parameter validation
+   - Optional parameter parsing
+4. Create constructor for dependencies
+5. Update `CsiParser.cs` to use `CsiParamParsers`
+6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+7. Commit with message:
+   ```
+   Task 8.2: Extract CsiParamParsers from CsiParser
+
+   - Extract parameter parsing helpers to CsiParamParsers.cs
+   - Update CsiParser.cs to delegate parameter operations
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** CsiParamParsers.cs ~100-150 LOC
+
+---
+
+### Task 8.3: Extract CsiMessageFactory
+
+**Objective:** Extract message construction into `Csi/CsiMessageFactory.cs`.
+
+**Steps:**
+1. Read `caTTY.Core/Parsing/CsiParser.cs` to identify message building
+2. Create `caTTY.Core/Parsing/Csi/CsiMessageFactory.cs` with class `CsiMessageFactory`
+3. Move message construction:
+   - Building `CsiMessage` instances from parsed data
+   - Message type determination
+   - Final character to message mapping
+4. Create constructor with dependencies (CsiTokenizer, CsiParamParsers)
+5. Update `CsiParser.cs` to use `CsiMessageFactory`
+6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+7. Commit with message:
+   ```
+   Task 8.3: Extract CsiMessageFactory from CsiParser
+
+   - Extract message construction to CsiMessageFactory.cs
+   - Update CsiParser.cs to delegate message building
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** CsiMessageFactory.cs ~200-250 LOC
+
+---
+
+### Task 8.4: Reduce CsiParser.cs to facade
+
+**Objective:** Finalize CsiParser.cs as minimal facade.
+
+**Steps:**
+1. Read current `caTTY.Core/Parsing/CsiParser.cs`
+2. Ensure all business logic moved to component classes
+3. Refactor to simple delegation pattern
+4. Keep only public API and coordination
+5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail.  Do not redirect stdout as this slows down tests by 10x.
+   - Exit code 0 = success, proceed to commit
+   - Exit code non-zero = fix issues
+6. Commit with message:
+   ```
+   Task 8.4: Reduce CsiParser to facade pattern
+
+   - Remove remaining business logic from CsiParser.cs
+   - Finalize delegation to component classes
+   - CsiParser.cs now <250 LOC facade
+   - No functionality changes, all tests pass
+   ```
+
+**Target:** CsiParser.cs <250 LOC (down from 739 LOC)
