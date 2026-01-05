@@ -1,4 +1,3 @@
-using System.Text;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
 using caTTY.Core.Managers;
@@ -64,6 +63,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalResponseOps _responseOps;
     private readonly EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
     private readonly EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
+    private readonly EmulatorOps.TerminalInputOps _inputOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -172,6 +172,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _backspaceOps = new EmulatorOps.TerminalBackspaceOps(_cursorManager, () => State);
         _tabOps = new EmulatorOps.TerminalTabOps(_cursorManager, () => State, () => Cursor, () => Width);
         _responseOps = new EmulatorOps.TerminalResponseOps(e => ResponseEmitted?.Invoke(this, e));
+        _inputOps = new EmulatorOps.TerminalInputOps(() => _parser!, ThrowIfDisposed, () => OnScreenUpdated());
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -325,18 +326,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="data">The raw byte data to process</param>
     public void Write(ReadOnlySpan<byte> data)
     {
-        ThrowIfDisposed();
-
-        if (data.IsEmpty)
-        {
-            return;
-        }
-
-        // Use parser for proper UTF-8 decoding and escape sequence handling
-        _parser.PushBytes(data);
-
-        // Notify that the screen has been updated
-        OnScreenUpdated();
+        _inputOps.Write(data);
     }
 
     /// <summary>
@@ -345,16 +335,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="text">The text to process</param>
     public void Write(string text)
     {
-        ThrowIfDisposed();
-
-        if (string.IsNullOrEmpty(text))
-        {
-            return;
-        }
-
-        // Convert string to UTF-8 bytes and process
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        Write(bytes.AsSpan());
+        _inputOps.Write(text);
     }
 
     /// <summary>
@@ -445,9 +426,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     public void FlushIncompleteSequences()
     {
-        ThrowIfDisposed();
-        _parser.FlushIncompleteSequences();
-        OnScreenUpdated();
+        _inputOps.FlushIncompleteSequences();
     }
 
     /// <summary>
