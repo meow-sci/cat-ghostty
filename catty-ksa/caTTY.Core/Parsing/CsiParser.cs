@@ -1,6 +1,6 @@
-using System.Text;
 using caTTY.Core.Types;
 using caTTY.Core.Tracing;
+using caTTY.Core.Parsing.Csi;
 
 namespace caTTY.Core.Parsing;
 
@@ -12,6 +12,7 @@ namespace caTTY.Core.Parsing;
 public class CsiParser : ICsiParser
 {
     private readonly ICursorPositionProvider? _cursorPositionProvider;
+    private readonly CsiTokenizer _tokenizer;
 
     /// <summary>
     /// Creates a new CSI parser.
@@ -20,6 +21,7 @@ public class CsiParser : ICsiParser
     public CsiParser(ICursorPositionProvider? cursorPositionProvider = null)
     {
         _cursorPositionProvider = cursorPositionProvider;
+        _tokenizer = new CsiTokenizer();
     }
     /// <summary>
     ///     Parses a complete CSI sequence from the provided bytes.
@@ -29,47 +31,22 @@ public class CsiParser : ICsiParser
     /// <returns>A parsed CSI message with parameters and command information</returns>
     public CsiMessage ParseCsiSequence(ReadOnlySpan<byte> sequence, string raw)
     {
+        // Tokenize the CSI sequence
+        var tokenResult = _tokenizer.Tokenize(sequence);
+
         if (sequence.Length < 3) // Minimum: ESC [ final
         {
             return CreateUnknownMessage(raw, Array.Empty<int>(), false, null, "");
         }
 
-        byte finalByte = sequence[^1];
-        string final = ((char)finalByte).ToString();
-
-        // Extract parameters and intermediate characters
-        var paramsText = new StringBuilder();
-        var intermediate = new StringBuilder();
-
-        // Skip ESC [ (first 2 bytes) and process until final byte
-        for (int i = 2; i < sequence.Length - 1; i++)
-        {
-            byte b = sequence[i];
-            if (b >= 0x30 && b <= 0x3f) // Parameter bytes (0-9, :, ;, <, =, >, ?)
-            {
-                paramsText.Append((char)b);
-            }
-            else if (b >= 0x20 && b <= 0x2f) // Intermediate bytes (space, !, ", #, etc.)
-            {
-                intermediate.Append((char)b);
-            }
-        }
-
-        // Parse parameters
-        if (!TryParseParameters(paramsText.ToString(), out int[] parameters, out bool isPrivate, out string? prefix))
-        {
-            return CreateUnknownMessage(raw, Array.Empty<int>(), false, null, intermediate.ToString());
-        }
-
-        string intermediateStr = intermediate.ToString();
-
         // Parse specific CSI commands based on final byte and modifiers
-        var result = ParseCsiCommand(finalByte, final, parameters, isPrivate, prefix, intermediateStr, raw);
-        
+        var result = ParseCsiCommand(tokenResult.FinalByte, tokenResult.Final, tokenResult.Parameters,
+            tokenResult.IsPrivate, tokenResult.Prefix, tokenResult.Intermediate, raw);
+
         // Trace the parsed CSI sequence
-        TraceHelper.TraceCsiSequence((char)finalByte, paramsText.ToString(), 
-            prefix?.FirstOrDefault(), TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
-        
+        TraceHelper.TraceCsiSequence((char)tokenResult.FinalByte, tokenResult.ParameterText,
+            tokenResult.Prefix?.FirstOrDefault(), TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
+
         return result;
     }
 
@@ -84,60 +61,7 @@ public class CsiParser : ICsiParser
     public bool TryParseParameters(ReadOnlySpan<char> parameterString, out int[] parameters, out bool isPrivate,
         out string? prefix)
     {
-        parameters = Array.Empty<int>();
-        isPrivate = false;
-        prefix = null;
-
-        if (parameterString.IsEmpty)
-        {
-            return true;
-        }
-
-        string text = parameterString.ToString();
-
-        // Check for private mode indicator
-        if (text.StartsWith("?"))
-        {
-            isPrivate = true;
-            text = text[1..];
-        }
-        else if (text.StartsWith(">"))
-        {
-            prefix = ">";
-            text = text[1..];
-        }
-
-        if (text.Length == 0)
-        {
-            return true;
-        }
-
-        // Parse semicolon-separated parameters
-        string[] parts = text.Split(';');
-        var paramList = new List<int>();
-
-        foreach (string part in parts)
-        {
-            if (string.IsNullOrEmpty(part))
-            {
-                // Empty parameter - treat as 0 (will be defaulted later)
-                paramList.Add(0);
-                continue;
-            }
-
-            if (int.TryParse(part, out int value))
-            {
-                paramList.Add(value);
-            }
-            else
-            {
-                // Invalid numbers are treated as 0 (following TypeScript behavior)
-                paramList.Add(0);
-            }
-        }
-
-        parameters = paramList.ToArray();
-        return true;
+        return _tokenizer.TryParseParameters(parameterString, out parameters, out isPrivate, out prefix);
     }
 
     /// <summary>
@@ -149,12 +73,7 @@ public class CsiParser : ICsiParser
     /// <returns>The parameter value or fallback</returns>
     public int GetParameter(int[] parameters, int index, int fallback)
     {
-        if (index < 0 || index >= parameters.Length)
-        {
-            return fallback;
-        }
-
-        return parameters[index];
+        return _tokenizer.GetParameter(parameters, index, fallback);
     }
 
     /// <summary>
