@@ -15,6 +15,7 @@ public class SgrParser : ISgrParser
     private readonly ILogger _logger;
     private readonly ICursorPositionProvider? _cursorPositionProvider;
     private readonly SgrParamTokenizer _tokenizer;
+    private readonly SgrColorParsers _colorParsers;
 
     /// <summary>
     ///     Creates a new SGR parser.
@@ -26,6 +27,7 @@ public class SgrParser : ISgrParser
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cursorPositionProvider = cursorPositionProvider;
         _tokenizer = new SgrParamTokenizer();
+        _colorParsers = new SgrColorParsers();
     }
 
     /// <summary>
@@ -66,6 +68,7 @@ public class SgrParser : ISgrParser
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
         _tokenizer = new SgrParamTokenizer();
+        _colorParsers = new SgrColorParsers();
     }
 
     /// <summary>
@@ -519,106 +522,17 @@ public class SgrParser : ISgrParser
 
     private SgrMessage? ParseExtendedForegroundColor(SgrParseContext context)
     {
-        context.Index++; // Skip 38
-        var color = ParseExtendedColor(context, out int consumed);
-        if (color != null)
-        {
-            context.Index += consumed;
-            return CreateSgrMessage("sgr.foregroundColor", true, color);
-        }
-        // If parsing failed, create unknown message for just the 38 parameter
-        return CreateSgrMessage("sgr.unknown", false, 38);
+        return _colorParsers.ParseExtendedForegroundColor(context);
     }
 
     private SgrMessage? ParseExtendedBackgroundColor(SgrParseContext context)
     {
-        context.Index++; // Skip 48
-        var color = ParseExtendedColor(context, out int consumed);
-        if (color != null)
-        {
-            context.Index += consumed;
-            return CreateSgrMessage("sgr.backgroundColor", true, color);
-        }
-        // If parsing failed, create unknown message for just the 48 parameter
-        return CreateSgrMessage("sgr.unknown", false, 48);
+        return _colorParsers.ParseExtendedBackgroundColor(context);
     }
 
     private SgrMessage? ParseExtendedUnderlineColor(SgrParseContext context)
     {
-        context.Index++; // Skip 58
-        var color = ParseExtendedColor(context, out int consumed);
-        if (color != null)
-        {
-            context.Index += consumed;
-            return CreateSgrMessage("sgr.underlineColor", true, color);
-        }
-        // If parsing failed, create unknown message for just the 58 parameter
-        return CreateSgrMessage("sgr.unknown", false, 58);
-    }
-
-    private Color? ParseExtendedColor(SgrParseContext context, out int consumed)
-    {
-        consumed = 0;
-        
-        if (context.Index >= context.Params.Length)
-            return null;
-
-        int colorType = context.Params[context.Index];
-
-        if (colorType == 5)
-        {
-            // 256-color mode: 38;5;n or 38:5:n
-            if (context.Index + 1 < context.Params.Length)
-            {
-                int colorIndex = context.Params[context.Index + 1];
-                if (colorIndex >= 0 && colorIndex <= 255)
-                {
-                    consumed = 2;
-                    return new Color((byte)colorIndex);
-                }
-            }
-            return null;
-        }
-
-        if (colorType == 2)
-        {
-            // True color mode: 38;2;r;g;b or 38:2:r:g:b (or 38:2::r:g:b with colorspace)
-            // The ITU T.416 format includes an optional colorspace ID after the 2
-            
-            // Check if we have colon separators that might indicate colorspace format
-            bool hasColonSeparators = context.Index < context.Separators.Length && 
-                                     context.Separators[context.Index] == ":";
-
-            if (hasColonSeparators && context.Index + 4 < context.Params.Length)
-            {
-                // Try parsing with colorspace ID: 38:2:<colorspace>:r:g:b or 38:2::r:g:b
-                int r = context.Params[context.Index + 2];
-                int g = context.Params[context.Index + 3];
-                int b = context.Params[context.Index + 4];
-                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255)
-                {
-                    consumed = 5;
-                    return new Color((byte)r, (byte)g, (byte)b);
-                }
-            }
-
-            // Standard format: 38;2;r;g;b or 38:2:r:g:b
-            if (context.Index + 3 < context.Params.Length)
-            {
-                int r = context.Params[context.Index + 1];
-                int g = context.Params[context.Index + 2];
-                int b = context.Params[context.Index + 3];
-                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255)
-                {
-                    consumed = 4;
-                    return new Color((byte)r, (byte)g, (byte)b);
-                }
-            }
-            return null;
-        }
-
-        // Unknown color type
-        return null;
+        return _colorParsers.ParseExtendedUnderlineColor(context);
     }
 
     /// <summary>
@@ -731,14 +645,4 @@ public class SgrParser : ISgrParser
         messages.Add(CreateSgrMessage("sgr.withIntermediate", implemented, new { parameters, intermediate }));
         return messages;
     }
-}
-
-/// <summary>
-///     Parse context for SGR sequences.
-/// </summary>
-internal class SgrParseContext
-{
-    public int[] Params { get; set; } = Array.Empty<int>();
-    public string[] Separators { get; set; } = Array.Empty<string>();
-    public int Index { get; set; }
 }

@@ -25,6 +25,8 @@
    - Instantiate `FileMenuRenderer` in constructor
    - Call `_fileMenuRenderer.Render()` from appropriate location
 9. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 10. Commit with message:
@@ -54,6 +56,8 @@
 6. Add `public void Render()` method
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -82,6 +86,8 @@
 6. Add `public void Render()` method
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -110,6 +116,8 @@
 6. Add `public void Render()` method
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -138,6 +146,8 @@
 6. Add `public void Render()` method
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -166,6 +176,8 @@
 6. Add `public void Render()` method
 7. Update `TerminalUiSettingsPanel.cs` to delegate
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -195,6 +207,8 @@
    - Handle only top-level coordination
 4. Remove any remaining complex rendering logic
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -237,6 +251,8 @@
    - Instantiate `FontLoader`
    - Delegate loading operations
 9. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 10. Commit with message:
@@ -265,6 +281,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiFonts.cs` to delegate metrics calculations
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -292,6 +310,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiFonts.cs` to delegate selection UI
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -319,6 +339,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiFonts.cs` to delegate persistence operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -344,6 +366,8 @@
 3. Refactor to coordination pattern
 4. Keep only high-level font management API
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -379,6 +403,8 @@
 6. Create constructor with dependencies
 7. Update `TerminalUiResize.cs` to delegate window resize detection
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -407,6 +433,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiResize.cs` to delegate dimension calculations
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -434,6 +462,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiResize.cs` to delegate font-driven resizes
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -459,6 +489,8 @@
 3. Refactor to orchestration pattern
 4. Keep only high-level resize coordination
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -494,6 +526,8 @@
 6. Create constructor with dependencies
 7. Update `TerminalUiInput.cs` to delegate keyboard operations
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 9. Commit with message:
@@ -522,6 +556,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiInput.cs` to delegate special key operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -549,6 +585,8 @@
 5. Create constructor with dependencies
 6. Update `TerminalUiInput.cs` to delegate focus operations
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -574,6 +612,8 @@
 3. Refactor to coordination pattern
 4. Keep only high-level input API
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -614,6 +654,8 @@
    - Add static factory method `Create()` that uses builder
 6. Update all instantiation sites to use `TerminalEmulator.Create(...)`
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -646,6 +688,8 @@
    - `BuildMiscOps()` - remaining operations
 3. Call sub-methods from `BuildOperations()`
 4. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 5. Commit with message:
@@ -676,6 +720,8 @@
    - Essential coordination logic (if any)
 4. Remove any remaining initialization complexity
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
@@ -716,6 +762,8 @@
    - Add static factory method `Create()`
 6. Update instantiation sites to use factory
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -741,6 +789,8 @@
 1. Read `caTTY.Display/Controllers/TerminalControllerBuilder.cs`
 2. If any build method >150 LOC, split into subcategories
 3. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 4. Commit with message:
@@ -765,6 +815,8 @@
 2. Verify all initialization in builder
 3. Ensure only delegation and essential coordination
 4. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 5. Commit with message:
@@ -800,6 +852,8 @@
    - Possibly `SessionStateManager.cs` for state tracking
 5. Update SessionManager to delegate additional operations
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -828,6 +882,8 @@
    - Possibly `ProcessErrorHandler.cs` for error handling
 5. Update ProcessManager to delegate additional operations
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -864,6 +920,8 @@
 5. If split is feasible, proceed with extraction (create `ScreenBufferReader.cs` and `ScreenBufferWriter.cs`)
 6. If split is not clean, skip this phase and document reasoning
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:

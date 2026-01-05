@@ -21,7 +21,9 @@
       "Bash(node scripts/test-errors.ts:*)",
       "Bash(bun scripts/test-errors.ts:*)",
       "Bash(dotnet test:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(PowerShell.exe -File ./scripts/dotnet-test.ps1)",
+      "Bash(echo:*)"
     ]
   }
 }

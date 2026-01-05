@@ -60,6 +60,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 6. Update `SgrParser.cs` to instantiate `SgrParamTokenizer` and delegate tokenization calls
 7. Verify no functionality changes - all method signatures preserved
 8. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = tests failed, review failures shown in output, fix issues
 9. Commit with message:
@@ -92,6 +94,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 5. Update `SgrParser.cs` to instantiate `SgrColorParsers` and delegate color parsing
 6. Ensure all color-related method calls updated
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues shown
 8. Commit with message:
@@ -121,6 +125,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 4. Create constructor to accept dependencies
 5. Update `SgrParser.cs` to instantiate `SgrAttributeApplier` and delegate application
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -150,6 +156,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 4. Create constructor with needed dependencies (SgrParamTokenizer, SgrColorParsers, SgrAttributeApplier)
 5. Update `SgrParser.cs` to instantiate `SgrMessageFactory` and delegate message building
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -179,6 +187,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 4. Remove any remaining complex logic
 5. Add XML documentation comments if not present
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -216,6 +226,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 5. Create constructor for dependencies
 6. Update `CsiParser.cs` to use `CsiTokenizer`
 7. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 8. Commit with message:
@@ -247,6 +259,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 4. Create constructor for dependencies
 5. Update `CsiParser.cs` to use `CsiParamParsers`
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -276,6 +290,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 4. Create constructor with dependencies (CsiTokenizer, CsiParamParsers)
 5. Update `CsiParser.cs` to use `CsiMessageFactory`
 6. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 7. Commit with message:
@@ -301,6 +317,8 @@ This document outlines the continued refactoring of caTTY-cs to achieve the goal
 3. Refactor to simple delegation pattern
 4. Keep only public API and coordination
 5. Run tests: `.\scripts\dotnet-test.ps1`
+   - ONLY use this to run dotnet tests
+   - Run this command EXACTLY, don't bother redirecting or checking head/tail, it is already optimized for minimal output and shows errors when tests fail
    - Exit code 0 = success, proceed to commit
    - Exit code non-zero = fix issues
 6. Commit with message:
