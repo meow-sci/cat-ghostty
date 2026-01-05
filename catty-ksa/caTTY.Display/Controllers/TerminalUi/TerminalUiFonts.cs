@@ -27,6 +27,9 @@ internal class TerminalUiFonts
   // Font family selector handles font family selection and state
   private FontFamilySelector _familySelector;
 
+  // Font config persistence handles saving/loading font configuration
+  private readonly FontConfigPersistence _configPersistence;
+
   // Font loading state
   private bool _fontsLoaded = false;
 
@@ -48,6 +51,9 @@ internal class TerminalUiFonts
 
     // Initialize font family selector
     _familySelector = new FontFamilySelector(_fontConfig, currentFontFamily ?? throw new ArgumentNullException(nameof(currentFontFamily)));
+
+    // Initialize config persistence
+    _configPersistence = new FontConfigPersistence();
 
     CurrentFontSize = _fontConfig.FontSize;
   }
@@ -375,77 +381,8 @@ internal class TerminalUiFonts
   /// </summary>
   public void LoadFontSettingsInConstructor()
   {
-    try
-    {
-      var config = ThemeConfiguration.Load();
-
-      // Console.WriteLine($"TerminalUiFonts: Constructor - Loaded config FontFamily: '{config.FontFamily}', FontSize: {config.FontSize}");
-
-      // Apply saved font family if available
-      if (!string.IsNullOrEmpty(config.FontFamily))
-      {
-        try
-        {
-          // Console.WriteLine($"TerminalUiFonts: Constructor - Attempting to create font config for family: '{config.FontFamily}'");
-
-          // Create font configuration manually since CaTTYFontManager.CreateFontConfigForFamily is broken
-          var savedFontConfig = CaTTYFontManager.CreateFontConfigForFamily(config.FontFamily, config.FontSize ?? _fontConfig.FontSize);
-
-          if (savedFontConfig != null)
-          {
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Successfully created font config");
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Regular: {savedFontConfig.RegularFontName}");
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Bold: {savedFontConfig.BoldFontName}");
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Size: {savedFontConfig.FontSize}");
-
-            var oldRegular = _fontConfig.RegularFontName;
-
-            _fontConfig = savedFontConfig;
-            _fontLoader = new FontLoader(_fontConfig);
-            // Metrics calculator doesn't need to be recreated (it uses immutable config reference)
-
-            // Recreate family selector with new config and loaded family
-            _familySelector = new FontFamilySelector(_fontConfig, config.FontFamily ?? _familySelector.CurrentFontFamily);
-
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Font config updated from '{oldRegular}' to '{_fontConfig.RegularFontName}'");
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Current font family set to: '{_familySelector.CurrentFontFamily}'");
-          }
-          else
-          {
-            // Console.WriteLine($"TerminalUiFonts: Constructor - Could not create font config for '{config.FontFamily}', keeping default");
-          }
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"TerminalUiFonts: Constructor - FAILED to load saved font family '{config.FontFamily}': {ex.Message}");
-
-          // Keep current font configuration on error
-        }
-      }
-      else
-      {
-        // Console.WriteLine("TerminalUiFonts: Constructor - No saved font family found in config");
-      }
-
-      // Apply saved font size if available
-      if (config.FontSize.HasValue)
-      {
-        var fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, config.FontSize.Value));
-        var oldSize = _fontConfig.FontSize;
-        _fontConfig.FontSize = fontSize;
-        // Console.WriteLine($"TerminalUiFonts: Constructor - Font size updated from {oldSize} to {fontSize}");
-      }
-      else
-      {
-        // Console.WriteLine("TerminalUiFonts: Constructor - No saved font size found in config");
-      }
-
-      // Console.WriteLine($"TerminalUiFonts: Constructor - Final font config: Regular='{_fontConfig.RegularFontName}', Size={_fontConfig.FontSize}");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Constructor - ERROR loading font settings: {ex.Message}");
-    }
+    // Delegate to config persistence
+    (_fontConfig, _fontLoader, _familySelector) = _configPersistence.LoadFontSettingsInConstructor(_fontConfig, _fontLoader, _familySelector);
   }
 
   /// <summary>
@@ -462,75 +399,17 @@ internal class TerminalUiFonts
   /// </summary>
   public void LoadFontSettings(Action onFontChanged)
   {
-    try
+    // Delegate to config persistence
+    bool fontConfigChanged;
+    (_fontConfig, _fontLoader, _familySelector, fontConfigChanged) = _configPersistence.LoadFontSettings(_fontConfig, _fontLoader, _familySelector);
+
+    // If font configuration changed, reset font loading state to force reload
+    if (fontConfigChanged)
     {
-      // Load fresh configuration from disk to get latest saved values
-      var config = ThemeConfiguration.Load();
+      _fontsLoaded = false;
 
-      bool fontConfigChanged = false;
-
-      // Apply saved font family if available
-      if (!string.IsNullOrEmpty(config.FontFamily))
-      {
-        try
-        {
-          // Create font configuration for the saved family
-          var savedFontConfig = CaTTYFontManager.CreateFontConfigForFamily(config.FontFamily, config.FontSize ?? _fontConfig.FontSize);
-
-          // Log what we're trying to load vs what we got
-          Console.WriteLine($"TerminalUiFonts: Attempting to load font family '{config.FontFamily}'");
-          Console.WriteLine($"TerminalUiFonts: Created font config - Regular: {savedFontConfig.RegularFontName}");
-
-          _fontConfig = savedFontConfig;
-          _fontLoader = new FontLoader(_fontConfig);
-          // Metrics calculator doesn't need to be recreated (it uses immutable config reference)
-
-          // Recreate family selector with new config and loaded family
-          _familySelector = new FontFamilySelector(_fontConfig, config.FontFamily ?? _familySelector.CurrentFontFamily);
-          fontConfigChanged = true;
-          Console.WriteLine($"TerminalUiFonts: Successfully loaded font family from settings: {config.FontFamily}");
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"TerminalUiFonts: Failed to load saved font family '{config.FontFamily}': {ex.Message}");
-          // Keep current font configuration on error
-        }
-      }
-      else
-      {
-        Console.WriteLine("TerminalUiFonts: No saved font family found, using default");
-      }
-
-      // Apply saved font size if available
-      if (config.FontSize.HasValue)
-      {
-        var fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, config.FontSize.Value));
-        if (Math.Abs(_fontConfig.FontSize - fontSize) > 0.1f)
-        {
-          _fontConfig.FontSize = fontSize;
-          fontConfigChanged = true;
-          Console.WriteLine($"TerminalUiFonts: Loaded font size from settings: {fontSize}");
-        }
-      }
-      else
-      {
-        Console.WriteLine("TerminalUiFonts: No saved font size found, using default");
-      }
-
-      // If font configuration changed, reset font loading state to force reload
-      if (fontConfigChanged)
-      {
-        _fontsLoaded = false;
-        Console.WriteLine("TerminalUiFonts: Font configuration changed, fonts will be reloaded on next render");
-        Console.WriteLine($"TerminalUiFonts: Final font config after loading - Regular: {_fontConfig.RegularFontName}, Size: {_fontConfig.FontSize}");
-
-        // Notify caller that font changed
-        onFontChanged?.Invoke();
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error loading font settings: {ex.Message}");
+      // Notify caller that font changed
+      onFontChanged?.Invoke();
     }
   }
 
@@ -539,22 +418,7 @@ internal class TerminalUiFonts
   /// </summary>
   public void SaveFontSettings()
   {
-    try
-    {
-      var config = ThemeConfiguration.Load();
-
-      // Update font settings from family selector
-      config.FontFamily = _familySelector.GetFontFamilyForSaving();
-      config.FontSize = _fontConfig.FontSize;
-
-      // Save configuration
-      config.Save();
-
-      Console.WriteLine($"TerminalUiFonts: Saved font settings - Family: {_familySelector.CurrentFontFamily}, Size: {_fontConfig.FontSize}");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalUiFonts: Error saving font settings: {ex.Message}");
-    }
+    // Delegate to config persistence
+    _configPersistence.SaveFontSettings(_familySelector, _fontConfig);
   }
 }
