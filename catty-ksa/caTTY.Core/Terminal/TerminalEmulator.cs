@@ -56,6 +56,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
     private readonly EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
     private readonly EmulatorOps.TerminalLineFeedOps _lineFeedOps;
+    private readonly EmulatorOps.TerminalIndexOps _indexOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -156,6 +157,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _charsetDesignationOps = new EmulatorOps.TerminalCharsetDesignationOps(_characterSetManager);
         _charsetTranslationOps = new EmulatorOps.TerminalCharsetTranslationOps(_characterSetManager);
         _lineFeedOps = new EmulatorOps.TerminalLineFeedOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
+        _indexOps = new EmulatorOps.TerminalIndexOps(_screenBufferManager, _attributeManager, () => State, () => Cursor, () => Height);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -471,25 +473,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles index operation (ESC D) - move cursor down one line without changing column.
     ///     Used by ESC D sequence.
     /// </summary>
-    internal void HandleIndex()
-    {
-        if (Cursor.Row < Height - 1)
-        {
-            // Move cursor down one row, keep same column
-            Cursor.SetPosition(Cursor.Row + 1, Cursor.Col);
-        }
-        else
-        {
-            // At bottom row - need to scroll up by one line
-            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-            // Cursor stays at the bottom row
-        }
-
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-        State.WrapPending = false;
-    }
+    internal void HandleIndex() => _indexOps.HandleIndex();
 
     /// <summary>
     ///     Handles a carriage return (CR) character - move to column 0.
