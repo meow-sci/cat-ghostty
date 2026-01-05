@@ -53,6 +53,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalOscClipboardOps _oscClipboardOps;
     private readonly EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
     private readonly EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
+    private readonly EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -150,6 +151,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _oscClipboardOps = new EmulatorOps.TerminalOscClipboardOps(_logger, OnClipboardRequest);
         _oscHyperlinkOps = new EmulatorOps.TerminalOscHyperlinkOps(_logger, _attributeManager, () => State);
         _oscColorQueryOps = new EmulatorOps.TerminalOscColorQueryOps(_attributeManager);
+        _charsetDesignationOps = new EmulatorOps.TerminalCharsetDesignationOps(_characterSetManager);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1317,18 +1319,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="slot">The G slot to designate (G0, G1, G2, G3)</param>
     /// <param name="charset">The character set identifier</param>
     internal void DesignateCharacterSet(string slot, string charset)
-    {
-        CharacterSetKey slotKey = slot switch
-        {
-            "G0" => CharacterSetKey.G0,
-            "G1" => CharacterSetKey.G1,
-            "G2" => CharacterSetKey.G2,
-            "G3" => CharacterSetKey.G3,
-            _ => CharacterSetKey.G0
-        };
-
-        _characterSetManager.DesignateCharacterSet(slotKey, charset);
-    }
+        => _charsetDesignationOps.DesignateCharacterSet(slot, charset);
 
     /// <summary>
     ///     Handles shift-in (SI) control character.
