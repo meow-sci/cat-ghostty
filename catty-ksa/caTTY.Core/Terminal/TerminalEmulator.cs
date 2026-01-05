@@ -37,6 +37,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
     private readonly EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
     private readonly EmulatorOps.TerminalScrollOps _scrollOps;
+    private readonly EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -118,6 +119,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _selectiveEraseInLineOps = new EmulatorOps.TerminalSelectiveEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
         _selectiveEraseInDisplayOps = new EmulatorOps.TerminalSelectiveEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLineSelective, _logger);
         _scrollOps = new EmulatorOps.TerminalScrollOps(_cursorManager, _screenBufferManager, _attributeManager, () => State, () => Cursor);
+        _scrollRegionOps = new EmulatorOps.TerminalScrollRegionOps(_cursorManager, () => State, () => Height);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1108,35 +1110,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="bottom">Bottom boundary (1-indexed, null for default)</param>
     internal void SetScrollRegion(int? top, int? bottom)
     {
-        // DECSTBM - Set Top and Bottom Margins
-        if (top == null && bottom == null)
-        {
-            // Reset to full screen
-            State.ScrollTop = 0;
-            State.ScrollBottom = Height - 1;
-        }
-        else
-        {
-            // Convert from 1-indexed to 0-indexed and validate bounds
-            int newTop = top.HasValue ? Math.Max(0, Math.Min(Height - 1, top.Value - 1)) : 0;
-            int newBottom = bottom.HasValue ? Math.Max(0, Math.Min(Height - 1, bottom.Value - 1)) : Height - 1;
-
-            // Ensure top < bottom
-            if (newTop < newBottom)
-            {
-                State.ScrollTop = newTop;
-                State.ScrollBottom = newBottom;
-            }
-        }
-
-        // Move cursor to home position within scroll region (following TypeScript behavior)
-        _cursorManager.MoveTo(State.ScrollTop, 0);
-        _cursorManager.SetWrapPending(false);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollRegionOps.SetScrollRegion(top, bottom);
     }
 
     /// <summary>
