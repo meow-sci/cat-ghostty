@@ -28,6 +28,7 @@ internal class TerminalUiSettingsPanel
   private readonly FileMenuRenderer _fileMenuRenderer;
   private readonly EditMenuRenderer _editMenuRenderer;
   private readonly SessionsMenuRenderer _sessionsMenuRenderer;
+  private readonly FontMenuRenderer _fontMenuRenderer;
 
   public TerminalUiSettingsPanel(
     TerminalController controller,
@@ -46,6 +47,7 @@ internal class TerminalUiSettingsPanel
     _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
     _editMenuRenderer = new EditMenuRenderer(controller, selection);
     _sessionsMenuRenderer = new SessionsMenuRenderer(sessionManager);
+    _fontMenuRenderer = new FontMenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
   }
 
   /// <summary>
@@ -61,7 +63,7 @@ internal class TerminalUiSettingsPanel
         _fileMenuRenderer.Render();
         _editMenuRenderer.Render();
         _sessionsMenuRenderer.Render();
-        RenderFontMenu();
+        _fontMenuRenderer.Render();
         RenderThemeMenu();
         RenderSettingsMenu();
       }
@@ -70,61 +72,6 @@ internal class TerminalUiSettingsPanel
         ImGui.EndMenuBar();
       }
     }
-  }
-
-  /// <summary>
-  /// Renders the Font menu with font size slider and font family selection options.
-  /// </summary>
-  private void RenderFontMenu()
-  {
-    if (ImGui.BeginMenu("Font"))
-    {
-      try
-      {
-        // Font Size Slider
-        int currentFontSize = (int)_fonts.CurrentFontConfig.FontSize;
-        ImGui.Text("Font Size:");
-        ImGui.SameLine();
-        if (ImGui.SliderInt("##FontSize", ref currentFontSize, 4, 72))
-        {
-          SetFontSize((float)currentFontSize);
-        }
-
-        ImGui.Separator();
-
-        // Font Family Selection
-        var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
-
-        foreach (var fontFamily in availableFonts)
-        {
-          bool isSelected = fontFamily == _fonts.CurrentFontFamily;
-
-          if (ImGui.MenuItem(fontFamily, "", isSelected))
-          {
-            SelectFontFamily(fontFamily);
-          }
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Selects a font family and applies it to the terminal.
-  /// </summary>
-  /// <param name="displayName">The display name of the font family to select</param>
-  private void SelectFontFamily(string displayName)
-  {
-    _fonts.SelectFontFamily(displayName, () =>
-    {
-      // Callback when font configuration changes
-      _sessionManager.ApplyFontConfigToAllSessions(_fonts.CurrentFontConfig);
-      _triggerTerminalResizeForAllSessions();
-    });
-    _fonts.SaveFontSettings();
   }
 
   /// <summary>
@@ -702,40 +649,6 @@ internal class TerminalUiSettingsPanel
     {
       Console.WriteLine($"Error loading shell configuration: {ex.Message}");
       // Continue with default shell configuration
-    }
-  }
-
-  /// <summary>
-  /// Sets the font size to the specified value.
-  /// </summary>
-  /// <param name="fontSize">The new font size to set</param>
-  private void SetFontSize(float fontSize)
-  {
-    try
-    {
-      // Clamp the font size to valid range
-      fontSize = Math.Max(LayoutConstants.MIN_FONT_SIZE, Math.Min(LayoutConstants.MAX_FONT_SIZE, fontSize));
-
-      var currentConfig = _fonts.CurrentFontConfig;
-      var newFontConfig = new TerminalFontConfig
-      {
-        FontSize = fontSize,
-        RegularFontName = currentConfig.RegularFontName,
-        BoldFontName = currentConfig.BoldFontName,
-        ItalicFontName = currentConfig.ItalicFontName,
-        BoldItalicFontName = currentConfig.BoldItalicFontName,
-        AutoDetectContext = currentConfig.AutoDetectContext
-      };
-      _controller.UpdateFontConfig(newFontConfig);
-
-      // Save font settings to persistent configuration
-      SaveFontSettings();
-
-      Console.WriteLine($"TerminalController: Font size set to {fontSize}");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error setting font size: {ex.Message}");
     }
   }
 
