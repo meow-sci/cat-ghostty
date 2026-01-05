@@ -62,6 +62,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalBackspaceOps _backspaceOps;
     private readonly EmulatorOps.TerminalTabOps _tabOps;
     private readonly EmulatorOps.TerminalResponseOps _responseOps;
+    private readonly EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -132,9 +133,10 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
             () => State.IsAlternateScreenActive
         );
 
-        // Initialize operation classes
-        _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, OnScreenUpdated);
-        _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, OnScreenUpdated);
+        // Initialize operation classes - create screen update ops first as it's used by other ops
+        _screenUpdateOps = new EmulatorOps.TerminalScreenUpdateOps(e => ScreenUpdated?.Invoke(this, e));
+        _viewportOps = new EmulatorOps.TerminalViewportOps(_scrollbackManager, _screenUpdateOps.OnScreenUpdated);
+        _resizeOps = new EmulatorOps.TerminalResizeOps(State, _screenBufferManager, _cursorManager, _scrollbackManager, () => Width, () => Height, _screenUpdateOps.OnScreenUpdated);
         _cursorMovementOps = new EmulatorOps.TerminalCursorMovementOps(_cursorManager, () => State, () => Width);
         _cursorSaveRestoreOps = new EmulatorOps.TerminalCursorSaveRestoreOps(_cursorManager, () => State, () => Width, () => Height, _logger);
         _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
@@ -747,7 +749,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     private void OnScreenUpdated()
     {
-        ScreenUpdated?.Invoke(this, new ScreenUpdatedEventArgs());
+        _screenUpdateOps.OnScreenUpdated();
     }
 
     /// <summary>
