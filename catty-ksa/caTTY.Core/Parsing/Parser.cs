@@ -40,6 +40,7 @@ public class Parser
     private readonly NormalStateHandler _normalStateHandler;
     private readonly EscapeStateHandler _escapeStateHandler;
     private readonly CsiStateHandler _csiStateHandler;
+    private readonly OscStateHandler _oscStateHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -90,6 +91,13 @@ public class Parser
             MaybeEmitNormalByteDuringEscapeSequence,
             IsRpcHandlingEnabled,
             TryHandleRpcSequence,
+            ResetEscapeState);
+
+        _oscStateHandler = new OscStateHandler(
+            _logger,
+            _oscParser,
+            _handlers,
+            MaybeEmitNormalByteDuringEscapeSequence,
             ResetEscapeState);
 
         // Initialize parser engine with state handlers
@@ -183,68 +191,20 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in OSC sequence state.
+    ///     Delegates to OscStateHandler.
     /// </summary>
     private void HandleOscState(byte b)
     {
-        // Allow UTF-8 bytes in OSC sequences
-        // Only reject control characters (0x00-0x1F) except for BEL (0x07) and ESC (0x1b) which are terminators
-        // Keep 1:1 behavior with the pre-refactor Parser: warn + optionally emit as normal byte, without altering OSC state.
-        if (b < 0x20 && b != 0x07 && b != 0x1b)
-        {
-            _logger.LogWarning("OSC: control character byte 0x{Byte:X2}", b);
-            MaybeEmitNormalByteDuringEscapeSequence(b);
-            return;
-        }
-
-        if (_oscParser.ProcessOscByte(b, _context.EscapeSequence, out OscMessage? message))
-        {
-            if (message != null)
-            {
-                // If we have a parsed xterm message, handle it specifically
-                if (message.XtermMessage != null)
-                {
-                    _handlers.HandleXtermOsc(message.XtermMessage);
-                }
-                else
-                {
-                    _handlers.HandleOsc(message);
-                }
-            }
-            ResetEscapeState();
-            return;
-        }
-
-        if (b == 0x1b) // ESC
-        {
-            _context.State = ParserState.OscEscape;
-        }
+        _oscStateHandler.HandleOscState(b, _context);
     }
 
     /// <summary>
     ///     Handles bytes in OSC escape state (checking for ST terminator).
+    ///     Delegates to OscStateHandler.
     /// </summary>
     private void HandleOscEscapeState(byte b)
     {
-        if (_oscParser.ProcessOscEscapeByte(b, _context.EscapeSequence, out OscMessage? message))
-        {
-            if (message != null)
-            {
-                // If we have a parsed xterm message, handle it specifically
-                if (message.XtermMessage != null)
-                {
-                    _handlers.HandleXtermOsc(message.XtermMessage);
-                }
-                else
-                {
-                    _handlers.HandleOsc(message);
-                }
-            }
-            ResetEscapeState();
-            return;
-        }
-
-        // Continue OSC payload
-        _context.State = ParserState.Osc;
+        _oscStateHandler.HandleOscEscapeState(b, _context);
     }
 
     /// <summary>
