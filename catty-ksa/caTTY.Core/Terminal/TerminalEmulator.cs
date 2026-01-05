@@ -44,6 +44,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
     private readonly EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
     private readonly EmulatorOps.TerminalInsertModeOps _insertModeOps;
+    private readonly EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
     private readonly EmulatorOps.TerminalDecModeOps _decModeOps;
 
     // Optional RPC components for game integration
@@ -133,7 +134,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _deleteCharsOps = new EmulatorOps.TerminalDeleteCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _eraseCharsOps = new EmulatorOps.TerminalEraseCharsOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _insertModeOps = new EmulatorOps.TerminalInsertModeOps(_cursorManager, _screenBufferManager, _attributeManager, _modeManager, () => State, () => Width, () => Height);
-        _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, HandleAlternateScreenMode, _logger);
+        _alternateScreenOps = new EmulatorOps.TerminalAlternateScreenOps(_cursorManager, _alternateScreenManager, _scrollbackManager, () => State);
+        _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -1090,49 +1092,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 
     private void HandleAlternateScreenMode(int mode, bool enabled)
     {
-        if (enabled)
-        {
-            switch (mode)
-            {
-                case 47: // Basic alternate screen
-                    _alternateScreenManager.ActivateAlternate();
-                    break;
-                case 1047: // Alternate screen with cursor save
-                    _alternateScreenManager.ActivateAlternateWithCursorSave();
-                    break;
-                case 1049: // Alternate screen with cursor save and clear
-                    _alternateScreenManager.ActivateAlternateWithClearAndCursorSave();
-                    break;
-            }
-        }
-        else
-        {
-            // Store whether we were in alternate screen before deactivation
-            bool wasAlternate = State.IsAlternateScreenActive;
-
-            switch (mode)
-            {
-                case 47: // Basic alternate screen
-                    _alternateScreenManager.DeactivateAlternate();
-                    break;
-                case 1047: // Alternate screen with cursor restore
-                case 1049: // Alternate screen with cursor restore
-                    _alternateScreenManager.DeactivateAlternateWithCursorRestore();
-                    break;
-            }
-
-            // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
-            // (matches catty-web controller behavior).
-            if (wasAlternate)
-            {
-                _scrollbackManager.ScrollToBottom();
-            }
-        }
-
-        // Sync cursor manager with terminal state after buffer switching
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _alternateScreenOps.HandleAlternateScreenMode(mode, enabled);
     }
 
     /// <summary>
