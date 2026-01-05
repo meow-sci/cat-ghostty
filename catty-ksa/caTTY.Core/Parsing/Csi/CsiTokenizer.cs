@@ -174,21 +174,4 @@ public class CsiTokenizer
         parameters = paramList.ToArray();
         return true;
     }
-
-    /// <summary>
-    ///     Gets a parameter value with a fallback default.
-    /// </summary>
-    /// <param name="parameters">The parameter array</param>
-    /// <param name="index">The parameter index</param>
-    /// <param name="fallback">The default value if parameter is missing</param>
-    /// <returns>The parameter value or fallback</returns>
-    public int GetParameter(int[] parameters, int index, int fallback)
-    {
-        if (index < 0 || index >= parameters.Length)
-        {
-            return fallback;
-        }
-
-        return parameters[index];
-    }
 }

@@ -73,7 +73,7 @@ public class CsiParser : ICsiParser
     /// <returns>The parameter value or fallback</returns>
     public int GetParameter(int[] parameters, int index, int fallback)
     {
-        return _tokenizer.GetParameter(parameters, index, fallback);
+        return CsiParamParsers.GetParameter(parameters, index, fallback);
     }
 
     /// <summary>
@@ -255,8 +255,7 @@ public class CsiParser : ICsiParser
     private static CsiMessage CreateCursorPositionMessage(string raw, byte finalByte, int[] parameters)
     {
         // Default missing or zero parameters to 1 (following TypeScript behavior)
-        int row = parameters.Length > 0 && parameters[0] > 0 ? parameters[0] : 1;
-        int column = parameters.Length > 1 && parameters[1] > 0 ? parameters[1] : 1;
+        var (row, column) = CsiParamParsers.ParseCursorPosition(parameters);
 
         return new CsiMessage
         {
@@ -285,8 +284,7 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateTabClearMessage(string raw, byte finalByte, int[] parameters)
     {
-        int modeValue = GetParameter(parameters, 0, 0);
-        int mode = modeValue == 3 ? 3 : 0;
+        int mode = CsiParamParsers.GetParameterFromSet(parameters, 0, 0, 0, 3);
         return new CsiMessage
         {
             Type = "csi.tabClear",
@@ -300,8 +298,7 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateEraseDisplayMessage(string raw, byte finalByte, int[] parameters, bool isPrivate)
     {
-        int modeValue = GetParameter(parameters, 0, 0);
-        int mode = modeValue >= 0 && modeValue <= 3 ? modeValue : 0;
+        int mode = CsiParamParsers.GetParameterInRange(parameters, 0, 0, 0, 3);
 
         return new CsiMessage
         {
@@ -316,8 +313,7 @@ public class CsiParser : ICsiParser
 
     private CsiMessage CreateEraseLineMessage(string raw, byte finalByte, int[] parameters, bool isPrivate)
     {
-        int modeValue = GetParameter(parameters, 0, 0);
-        int mode = modeValue >= 0 && modeValue <= 2 ? modeValue : 0;
+        int mode = CsiParamParsers.GetParameterInRange(parameters, 0, 0, 0, 2);
 
         return new CsiMessage
         {
@@ -628,31 +624,6 @@ public class CsiParser : ICsiParser
     /// </summary>
     private static int[] ValidateDecModes(int[] parameters)
     {
-        var validModes = new List<int>();
-
-        foreach (int mode in parameters)
-        {
-            if (IsValidDecModeNumber(mode))
-            {
-                validModes.Add(mode);
-            }
-        }
-
-        return validModes.ToArray();
-    }
-
-    /// <summary>
-    ///     Checks if a DEC private mode number is valid.
-    /// </summary>
-    private static bool IsValidDecModeNumber(int mode)
-    {
-        // Validate mode is a positive integer
-        if (mode < 0)
-        {
-            return false;
-        }
-
-        // DEC private modes can range from 1 to 65535 (16-bit unsigned integer range)
-        return mode <= 65535;
+        return CsiParamParsers.ValidateDecModes(parameters);
     }
 }
