@@ -63,6 +63,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalTabOps _tabOps;
     private readonly EmulatorOps.TerminalResponseOps _responseOps;
     private readonly EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
+    private readonly EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -156,7 +157,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _decModeOps = new EmulatorOps.TerminalDecModeOps(_cursorManager, _modeManager, _alternateScreenManager, _characterSetManager, _scrollbackManager, () => State, _alternateScreenOps.HandleAlternateScreenMode, _logger);
         _privateModesOps = new EmulatorOps.TerminalPrivateModesOps(_modeManager);
         _bracketedPasteOps = new EmulatorOps.TerminalBracketedPasteOps(() => State);
-        _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, OnTitleChanged, OnIconNameChanged);
+        _titleIconEventsOps = new EmulatorOps.TerminalTitleIconEventsOps(e => TitleChanged?.Invoke(this, e), e => IconNameChanged?.Invoke(this, e));
+        _oscTitleIconOps = new EmulatorOps.TerminalOscTitleIconOps(() => State, _titleIconEventsOps.OnTitleChanged, _titleIconEventsOps.OnIconNameChanged);
         _oscWindowManipulationOps = new EmulatorOps.TerminalOscWindowManipulationOps(() => State, SetWindowTitle, SetIconName, EmitResponse, () => Height, () => Width, _logger);
         _oscClipboardOps = new EmulatorOps.TerminalOscClipboardOps(_logger, OnClipboardRequest);
         _oscHyperlinkOps = new EmulatorOps.TerminalOscHyperlinkOps(_logger, _attributeManager, () => State);
@@ -1180,19 +1182,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Raises the TitleChanged event.
     /// </summary>
     /// <param name="newTitle">The new window title</param>
-    private void OnTitleChanged(string newTitle)
-    {
-        TitleChanged?.Invoke(this, new TitleChangeEventArgs(newTitle));
-    }
+    private void OnTitleChanged(string newTitle) => _titleIconEventsOps.OnTitleChanged(newTitle);
 
     /// <summary>
     ///     Raises the IconNameChanged event.
     /// </summary>
     /// <param name="newIconName">The new icon name</param>
-    private void OnIconNameChanged(string newIconName)
-    {
-        IconNameChanged?.Invoke(this, new IconNameChangeEventArgs(newIconName));
-    }
+    private void OnIconNameChanged(string newIconName) => _titleIconEventsOps.OnIconNameChanged(newIconName);
 
     /// <summary>
     ///     Raises the ClipboardRequest event.
