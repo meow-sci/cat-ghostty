@@ -12,25 +12,25 @@ namespace caTTY.Display.Controllers.TerminalUi;
 /// </summary>
 internal class TerminalUiResize
 {
-  private readonly SessionManager _sessionManager;
-  private readonly TerminalUiFonts _fonts;
   private readonly WindowResizeHandler _windowResizeHandler;
   private readonly TerminalDimensionCalculator _dimensionCalculator;
   private readonly FontResizeProcessor _fontResizeProcessor;
+  private readonly SessionResizeApplicator _sessionResizeApplicator;
 
   public TerminalUiResize(SessionManager sessionManager, TerminalUiFonts fonts)
   {
-    _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
-    _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
+    if (sessionManager == null) throw new ArgumentNullException(nameof(sessionManager));
+    if (fonts == null) throw new ArgumentNullException(nameof(fonts));
 
-    // Initialize dimension calculator
+    // Initialize components
     _dimensionCalculator = new TerminalDimensionCalculator(fonts);
+    _sessionResizeApplicator = new SessionResizeApplicator(sessionManager);
 
     // Initialize window resize handler with dependencies
     _windowResizeHandler = new WindowResizeHandler(
       sessionManager,
       _dimensionCalculator.CalculateTerminalDimensions,
-      ApplyTerminalDimensionsToAllSessions
+      _sessionResizeApplicator.ApplyTerminalDimensionsToAllSessions
     );
 
     // Initialize font resize processor
@@ -66,43 +66,7 @@ internal class TerminalUiResize
   /// <param name="rows">New terminal height in rows</param>
   internal void ApplyTerminalDimensionsToAllSessions(int cols, int rows)
   {
-    // NOTE: This method is intentionally ImGui-free so it can be unit-tested.
-    // Dimension validation is performed by callers (window resize/font resize/manual paths).
-    try
-    {
-      var sessions = _sessionManager.Sessions;
-      foreach (var session in sessions)
-      {
-        try
-        {
-          session.Terminal.Resize(cols, rows);
-          session.UpdateTerminalDimensions(cols, rows);
-
-          if (session.ProcessManager.IsRunning)
-          {
-            try
-            {
-              session.ProcessManager.Resize(cols, rows);
-            }
-            catch (Exception ex)
-            {
-              Console.WriteLine($"TerminalController: Failed to resize PTY process for session {session.Id}: {ex.Message}");
-            }
-          }
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"TerminalController: Error resizing session {session.Id}: {ex.Message}");
-        }
-      }
-
-      // Persist dimensions for future sessions
-      _sessionManager.UpdateLastKnownTerminalDimensions(cols, rows);
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error applying resize to all sessions: {ex.Message}");
-    }
+    _sessionResizeApplicator.ApplyTerminalDimensionsToAllSessions(cols, rows);
   }
 
 
@@ -113,8 +77,7 @@ internal class TerminalUiResize
   /// <returns>Current terminal dimensions (width, height)</returns>
   public (int width, int height) GetTerminalDimensions()
   {
-    var activeSession = _sessionManager.ActiveSession;
-    return activeSession != null ? (activeSession.Terminal.Width, activeSession.Terminal.Height) : (0, 0);
+    return _sessionResizeApplicator.GetTerminalDimensions();
   }
 
   /// <summary>
@@ -163,42 +126,7 @@ internal class TerminalUiResize
   /// <exception cref="ArgumentException">Thrown when dimensions are invalid</exception>
   public void ResizeTerminal(int cols, int rows)
   {
-    if (cols < 1 || rows < 1 || cols > 1000 || rows > 1000)
-    {
-      throw new ArgumentException($"Invalid terminal dimensions: {cols}x{rows}. Must be between 1x1 and 1000x1000.");
-    }
-
-    var activeSession = _sessionManager.ActiveSession;
-    if (activeSession == null)
-    {
-      throw new InvalidOperationException("No active session to resize");
-    }
-
-    try
-    {
-      // Console.WriteLine($"TerminalController: Manual terminal resize requested: {cols}x{rows}");
-
-      // Resize the headless terminal emulator
-      activeSession.Terminal.Resize(cols, rows);
-
-      // Persist dimensions for session metadata + future sessions
-      activeSession.UpdateTerminalDimensions(cols, rows);
-      _sessionManager.UpdateLastKnownTerminalDimensions(cols, rows);
-
-      // Resize the PTY process if running
-      if (activeSession.ProcessManager.IsRunning)
-      {
-        activeSession.ProcessManager.Resize(cols, rows);
-        // Console.WriteLine($"TerminalController: PTY process resized to {cols}x{rows}");
-      }
-
-      // Console.WriteLine($"TerminalController: Manual terminal resize completed successfully");
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error during manual terminal resize: {ex.Message}");
-      throw new InvalidOperationException($"Failed to resize terminal to {cols}x{rows}: {ex.Message}", ex);
-    }
+    _sessionResizeApplicator.ResizeActiveSession(cols, rows);
   }
 
   /// <summary>
