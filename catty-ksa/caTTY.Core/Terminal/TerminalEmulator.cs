@@ -35,6 +35,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
     private readonly EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
     private readonly EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
+    private readonly EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -113,6 +114,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _cursorStyleOps = new EmulatorOps.TerminalCursorStyleOps(_cursorManager, () => State, _logger);
         _eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLine, _logger);
         _eraseInLineOps = new EmulatorOps.TerminalEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
+        _selectiveEraseInLineOps = new EmulatorOps.TerminalSelectiveEraseInLineOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, _logger);
         _selectiveEraseInDisplayOps = new EmulatorOps.TerminalSelectiveEraseInDisplayOps(_cursorManager, _attributeManager, _screenBufferManager, () => State, () => Width, () => Height, ClearLineSelective, _logger);
 
         // Initialize parser with terminal handlers and optional RPC components
@@ -1373,61 +1375,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Only erases unprotected cells, preserving protected cells.
     /// </summary>
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
-    internal void ClearLineSelective(int mode)
-    {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Bounds check
-        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
-        {
-            return;
-        }
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of line
-                for (int col = _cursorManager.Column; col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 1: // From start of line to cursor
-                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 2: // Entire line
-                for (int col = 0; col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void ClearLineSelective(int mode) => _selectiveEraseInLineOps.ClearLineSelective(mode);
 
     /// <summary>
     ///     Sets the character protection attribute for subsequently written characters.
