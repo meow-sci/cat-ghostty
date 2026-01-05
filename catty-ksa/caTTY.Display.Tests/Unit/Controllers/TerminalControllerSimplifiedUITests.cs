@@ -77,6 +77,7 @@ public class TerminalControllerSimplifiedUITests
         // Arrange & Act
         // After refactoring, menu rendering methods are in TerminalUiSettingsPanel subsystem
         // File menu has been extracted to FileMenuRenderer
+        // Edit menu has been extracted to EditMenuRenderer
         var renderMenuBarMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderMenuBar", BindingFlags.Public | BindingFlags.Instance);
 
@@ -84,8 +85,9 @@ public class TerminalControllerSimplifiedUITests
         var fileMenuRenderMethod = fileMenuRendererType
             .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
-        var renderEditMenuMethod = typeof(TerminalUiSettingsPanel)
-            .GetMethod("RenderEditMenu", BindingFlags.NonPublic | BindingFlags.Instance);
+        var editMenuRendererType = typeof(EditMenuRenderer);
+        var editMenuRenderMethod = editMenuRendererType
+            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
         var renderFontMenuMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderFontMenu", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -103,8 +105,10 @@ public class TerminalControllerSimplifiedUITests
             "FileMenuRenderer class should exist for File menu rendering");
         Assert.That(fileMenuRenderMethod, Is.Not.Null,
             "FileMenuRenderer should have Render method");
-        Assert.That(renderEditMenuMethod, Is.Not.Null,
-            "RenderEditMenu method should be preserved in TerminalUiSettingsPanel");
+        Assert.That(editMenuRendererType, Is.Not.Null,
+            "EditMenuRenderer class should exist for Edit menu rendering");
+        Assert.That(editMenuRenderMethod, Is.Not.Null,
+            "EditMenuRenderer should have Render method");
         Assert.That(renderFontMenuMethod, Is.Not.Null,
             "RenderFontMenu method should be preserved in TerminalUiSettingsPanel");
         Assert.That(renderThemeMenuMethod, Is.Not.Null,

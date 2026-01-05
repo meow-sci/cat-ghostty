@@ -26,6 +26,7 @@ internal class TerminalUiSettingsPanel
   private readonly TerminalUiSelection _selection;
   private readonly Action _triggerTerminalResizeForAllSessions;
   private readonly FileMenuRenderer _fileMenuRenderer;
+  private readonly EditMenuRenderer _editMenuRenderer;
 
   public TerminalUiSettingsPanel(
     TerminalController controller,
@@ -42,6 +43,7 @@ internal class TerminalUiSettingsPanel
     _selection = selection ?? throw new ArgumentNullException(nameof(selection));
     _triggerTerminalResizeForAllSessions = triggerTerminalResizeForAllSessions ?? throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
     _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
+    _editMenuRenderer = new EditMenuRenderer(controller, selection);
   }
 
   /// <summary>
@@ -55,7 +57,7 @@ internal class TerminalUiSettingsPanel
       try
       {
         _fileMenuRenderer.Render();
-        RenderEditMenu();
+        _editMenuRenderer.Render();
         RenderSessionsMenu();
         RenderFontMenu();
         RenderThemeMenu();
@@ -64,41 +66,6 @@ internal class TerminalUiSettingsPanel
       finally
       {
         ImGui.EndMenuBar();
-      }
-    }
-  }
-
-  /// <summary>
-  /// Renders the Edit menu with text operations.
-  /// </summary>
-  private void RenderEditMenu()
-  {
-    if (ImGui.BeginMenu("Edit"))
-    {
-      try
-      {
-        // Copy - enabled only when selection exists
-        bool hasSelection = !_selection.GetCurrentSelection().IsEmpty;
-        if (ImGui.MenuItem("Copy", "", false, hasSelection))
-        {
-          _selection.CopySelectionToClipboard();
-        }
-
-        // Paste - always enabled
-        if (ImGui.MenuItem("Paste"))
-        {
-          PasteFromClipboard();
-        }
-
-        // Select All - always enabled
-        if (ImGui.MenuItem("Select All"))
-        {
-          SelectAllText();
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
       }
     }
   }
@@ -804,34 +771,6 @@ internal class TerminalUiSettingsPanel
       Console.WriteLine($"Error loading shell configuration: {ex.Message}");
       // Continue with default shell configuration
     }
-  }
-
-  /// <summary>
-  /// Pastes text from the clipboard to the terminal.
-  /// </summary>
-  private void PasteFromClipboard()
-  {
-    try
-    {
-      string? clipboardText = ClipboardManager.GetText();
-      if (!string.IsNullOrEmpty(clipboardText))
-      {
-        _controller.SendToProcess(clipboardText);
-        Console.WriteLine($"TerminalController: Pasted {clipboardText.Length} characters from clipboard");
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error pasting from clipboard: {ex.Message}");
-    }
-  }
-
-  /// <summary>
-  /// Selects all text in the terminal.
-  /// </summary>
-  private void SelectAllText()
-  {
-    _selection.SelectAllVisibleContent();
   }
 
   /// <summary>
