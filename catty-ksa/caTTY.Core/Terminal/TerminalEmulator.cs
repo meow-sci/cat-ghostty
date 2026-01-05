@@ -57,6 +57,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     private readonly EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
     private readonly EmulatorOps.TerminalLineFeedOps _lineFeedOps;
     private readonly EmulatorOps.TerminalIndexOps _indexOps;
+    private readonly EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
 
     // Optional RPC components for game integration
     private readonly IRpcHandler? _rpcHandler;
@@ -158,6 +159,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         _charsetTranslationOps = new EmulatorOps.TerminalCharsetTranslationOps(_characterSetManager);
         _lineFeedOps = new EmulatorOps.TerminalLineFeedOps(_cursorManager, _screenBufferManager, _attributeManager, () => State);
         _indexOps = new EmulatorOps.TerminalIndexOps(_screenBufferManager, _attributeManager, () => State, () => Cursor, () => Height);
+        _carriageReturnOps = new EmulatorOps.TerminalCarriageReturnOps(_cursorManager, () => State);
 
         // Initialize parser with terminal handlers and optional RPC components
         var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
@@ -479,16 +481,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles a carriage return (CR) character - move to column 0.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleCarriageReturn()
-    {
-        _cursorManager.MoveTo(_cursorManager.Row, 0);
-        _cursorManager.SetWrapPending(false);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleCarriageReturn() => _carriageReturnOps.HandleCarriageReturn();
 
     /// <summary>
     ///     Handles a bell character (BEL) - emit bell event for notification.
