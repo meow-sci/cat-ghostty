@@ -41,6 +41,7 @@ public class Parser
     private readonly EscapeStateHandler _escapeStateHandler;
     private readonly CsiStateHandler _csiStateHandler;
     private readonly OscStateHandler _oscStateHandler;
+    private readonly DcsStateHandler _dcsStateHandler;
 
     // Parser engine
     private readonly ParserEngine _engine;
@@ -98,6 +99,12 @@ public class Parser
             _oscParser,
             _handlers,
             MaybeEmitNormalByteDuringEscapeSequence,
+            ResetEscapeState);
+
+        _dcsStateHandler = new DcsStateHandler(
+            _dcsParser,
+            _handlers,
+            _cursorPositionProvider,
             ResetEscapeState);
 
         // Initialize parser engine with state handlers
@@ -209,48 +216,20 @@ public class Parser
 
     /// <summary>
     ///     Handles bytes in DCS sequence state.
+    ///     Delegates to DcsStateHandler.
     /// </summary>
     private void HandleDcsState(byte b)
     {
-        if (_dcsParser.ProcessDcsByte(b, _context.EscapeSequence, ref _context.DcsCommand, _context.DcsParamBuffer, ref _context.DcsParameters, out DcsMessage? message))
-        {
-            // Sequence aborted (CAN/SUB)
-            if (message == null)
-            {
-                ResetEscapeState();
-                return;
-            }
-        }
-
-        if (b == 0x1b) // ESC
-        {
-            _context.State = ParserState.DcsEscape;
-        }
+        _dcsStateHandler.HandleDcsState(b, _context);
     }
 
     /// <summary>
     ///     Handles bytes in DCS escape state (checking for ST terminator).
+    ///     Delegates to DcsStateHandler.
     /// </summary>
     private void HandleDcsEscapeState(byte b)
     {
-        // We just saw an ESC while inside DCS. If next byte is "\" then it's ST terminator.
-        // Otherwise, it was a literal ESC in the payload and we continue in DCS.
-        _context.EscapeSequence.Add(b);
-
-        if (b == 0x5c) // \
-        {
-            FinishDcsSequence("ST");
-            return;
-        }
-
-        // CAN/SUB should still abort even if we were in the ESC lookahead
-        if (b == 0x18 || b == 0x1a)
-        {
-            ResetEscapeState();
-            return;
-        }
-
-        _context.State = ParserState.Dcs;
+        _dcsStateHandler.HandleDcsEscapeState(b, _context);
     }
 
     /// <summary>
@@ -451,22 +430,6 @@ public class Parser
         _context.State = ParserState.Escape;
         _context.EscapeSequence.Clear();
         _context.EscapeSequence.Add(b);
-    }
-
-
-    /// <summary>
-    ///     Finishes a DCS sequence and sends it to the handler.
-    /// </summary>
-    private void FinishDcsSequence(string terminator)
-    {
-        DcsMessage message = _dcsParser.CreateDcsMessage(_context.EscapeSequence, terminator, _context.DcsCommand, _context.DcsParameters);
-
-        // Trace the DCS sequence with command, parameters, and data payload
-        string? parametersString = _context.DcsParameters.Length > 0 ? string.Join(";", _context.DcsParameters) : null;
-        TraceHelper.TraceDcsSequence(_context.DcsCommand ?? string.Empty, parametersString, null, TraceDirection.Output, _cursorPositionProvider?.Row, _cursorPositionProvider?.Column);
-
-        _handlers.HandleDcs(message);
-        ResetEscapeState();
     }
 
     /// <summary>
