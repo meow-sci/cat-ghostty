@@ -144,15 +144,15 @@ Add menu items for performance tracing control:
 - Frame count and average frame time
 - Formatted ASCII table
 
-### Task 11: Create Performance Analysis Documentation ⏸️ PENDING
+### Task 11: Create Performance Analysis Documentation ✅ COMPLETED
 **File**: `caTTY.Display/Performance/README.md` (new file)
 
 Document:
-- How to enable performance tracing
-- How to view performance summary
-- Interpretation of results
-- Typical bottlenecks to look for
-- Example output and analysis
+- ✅ How to enable performance tracing
+- ✅ How to view performance summary
+- ✅ Interpretation of results
+- ✅ Typical bottlenecks to look for
+- ✅ Example output and analysis
 
 ### Task 12: Update Dependency Injection ✅ PARTIALLY COMPLETE
 **Status:**
@@ -184,7 +184,7 @@ This plan is now in the repository root for easy reference and task tracking.
 **New Files:**
 - ✅ `caTTY.Display/Performance/PerformanceStopwatch.cs`
 - ⏸️ `caTTY.Display.Tests/Performance/PerformanceStopwatchTests.cs`
-- ⏸️ `caTTY.Display/Performance/README.md`
+- ✅ `caTTY.Display/Performance/README.md`
 - ⏸️ `caTTY.Display/Performance/BASELINE.md`
 
 **Modified Files:**
@@ -259,6 +259,5 @@ This plan is now in the repository root for easy reference and task tracking.
 
 **Pending:**
 - ⏸️ Unit tests
-- ⏸️ Performance Control UI
-- ⏸️ Documentation (README, BASELINE)
+- ⏸️ Documentation (BASELINE)
 - ⏸️ Testing and validation
