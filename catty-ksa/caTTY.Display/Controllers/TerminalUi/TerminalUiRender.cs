@@ -186,9 +186,7 @@ internal class TerminalUiRender
 
 //            _perfWatch.Start("RenderCell.FlushRun");
 
-            float runX = terminalDrawPos.X + (runStartCol * currentCharacterWidth);
             float runY = terminalDrawPos.Y + (row * currentLineHeight);
-            var runPos = new float2(runX, runY);
 
 //            _perfWatch.Start("Font.SelectAndRender");
 //            _perfWatch.Start("Font.SelectAndRender.PushFont");
@@ -197,8 +195,15 @@ internal class TerminalUiRender
             try
             {
 //              _perfWatch.Start("Font.SelectAndRender.AddText");
-              string text = new string(runChars, 0, runLength);
-              drawList.AddText(runPos, runColorU32, text);
+              // Render each character at its exact grid position to prevent drift
+              // caused by font glyph advance widths not matching currentCharacterWidth.
+              // This fixes character shifting when selection changes run boundaries.
+              for (int i = 0; i < runLength; i++)
+              {
+                float charX = terminalDrawPos.X + ((runStartCol + i) * currentCharacterWidth);
+                var charPos = new float2(charX, runY);
+                drawList.AddText(charPos, runColorU32, runChars[i].ToString());
+              }
 //              _perfWatch.Stop("Font.SelectAndRender.AddText");
             }
             finally
