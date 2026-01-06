@@ -63,6 +63,15 @@ public interface IScreenBuffer
     ReadOnlySpan<Cell> GetRow(int row);
 
     /// <summary>
+    ///     Gets a read-only memory of cells for the specified row.
+    ///     Returns empty memory if row is out of bounds.
+    ///     This method is useful for deferred access where a span cannot be used.
+    /// </summary>
+    /// <param name="row">The row index</param>
+    /// <returns>Read-only memory of cells in the row</returns>
+    ReadOnlyMemory<Cell> GetRowMemory(int row);
+
+    /// <summary>
     ///     Scrolls the buffer up by the specified number of lines.
     /// </summary>
     /// <param name="lines">Number of lines to scroll up</param>

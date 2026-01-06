@@ -108,6 +108,22 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
         return _lines[actualIndex].AsSpan(0, _columns);
     }
 
+    /// <summary>
+    ///     Gets a line from the scrollback buffer as ReadOnlyMemory.
+    ///     This is useful for building viewport lists without allocation.
+    /// </summary>
+    /// <param name="index">Index of the line (0 = oldest, CurrentLines-1 = newest)</param>
+    /// <returns>The requested line as read-only memory</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when index is out of range</exception>
+    public ReadOnlyMemory<Cell> GetLineMemory(int index)
+    {
+        if (index < 0 || index >= _currentLines)
+            throw new ArgumentOutOfRangeException(nameof(index), $"Index {index} is out of range [0, {_currentLines})");
+
+        var actualIndex = (_startIndex + index) % _maxLines;
+        return _lines[actualIndex].AsMemory(0, _columns);
+    }
+
     /// <inheritdoc />
     public void Clear()
     {
@@ -201,16 +217,30 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
     /// <inheritdoc />
     public List<ReadOnlyMemory<Cell>> GetViewportRows(ReadOnlyMemory<Cell>[] screenBuffer, bool isAlternateScreenActive, int requestedRows)
     {
+        var result = new List<ReadOnlyMemory<Cell>>(requestedRows);
+        GetViewportRowsNonAlloc(screenBuffer, isAlternateScreenActive, requestedRows, result);
+        return result;
+    }
+
+    /// <inheritdoc />
+    public void GetViewportRowsNonAlloc(ReadOnlyMemory<Cell>[] screenBuffer, bool isAlternateScreenActive, int requestedRows, List<ReadOnlyMemory<Cell>> result)
+    {
+        result.Clear();
+        
         if (requestedRows <= 0)
-            return new List<ReadOnlyMemory<Cell>>();
+            return;
 
         // In alternate screen mode, don't show scrollback (matches TypeScript behavior)
         if (isAlternateScreenActive)
         {
-            return screenBuffer.Take(requestedRows).ToList();
+            int rowsToAdd = Math.Min(requestedRows, screenBuffer.Length);
+            for (int i = 0; i < rowsToAdd; i++)
+            {
+                result.Add(screenBuffer[i]);
+            }
+            return;
         }
 
-        var result = new List<ReadOnlyMemory<Cell>>(requestedRows);
         var scrollbackRows = _currentLines;
         var screenRows = screenBuffer.Length;
         
@@ -226,15 +256,12 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
             
             if (globalRow < scrollbackRows)
             {
-                // Show scrollback content
-                var line = GetLine(globalRow);
-                var lineArray = new Cell[line.Length];
-                line.CopyTo(lineArray);
-                result.Add(lineArray.AsMemory());
+                // Show scrollback content - reference directly to internal storage, no copy
+                result.Add(GetLineMemory(globalRow));
             }
             else
             {
-                // Show screen buffer content
+                // Show screen buffer content - reference directly, no copy
                 var screenRow = globalRow - scrollbackRows;
                 if (screenRow < screenBuffer.Length)
                 {
@@ -242,18 +269,11 @@ public class ScrollbackManager : IScrollbackManager, IDisposable
                 }
                 else
                 {
-                    // Fill with empty cells if we run out of content
-                    var emptyLine = new Cell[_columns];
-                    for (int j = 0; j < _columns; j++)
-                    {
-                        emptyLine[j] = Cell.Space;
-                    }
-                    result.Add(emptyLine.AsMemory());
+                    // Return empty memory for out-of-bounds rows
+                    result.Add(ReadOnlyMemory<Cell>.Empty);
                 }
             }
         }
-
-        return result;
     }
 
     /// <summary>

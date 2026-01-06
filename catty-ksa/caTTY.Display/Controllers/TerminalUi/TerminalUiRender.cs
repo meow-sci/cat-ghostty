@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
@@ -20,6 +21,10 @@ internal class TerminalUiRender
   private readonly Performance.PerformanceStopwatch _perfWatch;
   private readonly CachedColorResolver _colorResolver;
   private readonly StyleManager _styleManager;
+  
+  // Reusable buffers to avoid per-frame allocations
+  private ReadOnlyMemory<Cell>[] _screenBufferCache = [];
+  private readonly List<ReadOnlyMemory<Cell>> _viewportRowsCache = new(256);
 
   public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, CachedColorResolver colorResolver, StyleManager styleManager)
   {
@@ -85,22 +90,29 @@ internal class TerminalUiRender
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
       _perfWatch.Start("GetViewportRows");
-      var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
-      for (int i = 0; i < activeSession.Terminal.Height; i++)
+      
+      // Ensure screen buffer cache is the right size
+      int terminalRowCount = activeSession.Terminal.Height;
+      if (_screenBufferCache.Length != terminalRowCount)
       {
-        var rowSpan = activeSession.Terminal.ScreenBuffer.GetRow(i);
-        var rowArray = new Cell[rowSpan.Length];
-        rowSpan.CopyTo(rowArray);
-        screenBuffer[i] = rowArray.AsMemory();
+        _screenBufferCache = new ReadOnlyMemory<Cell>[terminalRowCount];
+      }
+      
+      // Get row memory references directly from ScreenBuffer - no allocation!
+      for (int i = 0; i < terminalRowCount; i++)
+      {
+        _screenBufferCache[i] = activeSession.Terminal.ScreenBuffer.GetRowMemory(i);
       }
 
       // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
       var isAlternateScreenActive = ((TerminalEmulator)activeSession.Terminal).State.IsAlternateScreenActive;
-      var viewportRows = activeSession.Terminal.ScrollbackManager.GetViewportRows(
-          screenBuffer,
+      activeSession.Terminal.ScrollbackManager.GetViewportRowsNonAlloc(
+          _screenBufferCache,
           isAlternateScreenActive,
-          activeSession.Terminal.Height
+          terminalRowCount,
+          _viewportRowsCache
       );
+      var viewportRows = _viewportRowsCache;
       _perfWatch.Stop("GetViewportRows");
 
       // Render each cell from the viewport content

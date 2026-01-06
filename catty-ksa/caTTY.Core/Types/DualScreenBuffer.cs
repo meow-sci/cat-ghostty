@@ -43,6 +43,8 @@ public sealed class DualScreenBuffer : IScreenBuffer
 
     public ReadOnlySpan<Cell> GetRow(int row) => Active.GetRow(row);
 
+    public ReadOnlyMemory<Cell> GetRowMemory(int row) => Active.GetRowMemory(row);
+
     public void ScrollUp(int lines) => Active.ScrollUp(lines);
 
     public void ScrollDown(int lines) => Active.ScrollDown(lines);
