@@ -117,13 +117,13 @@ Unit tests covering:
 - ⏸️ Instrument `RenderCursor()`
 - ⏸️ Instrument individual shape renderers
 
-### Task 8: Instrument Decoration Rendering ⏸️ PENDING
+### Task 8: Instrument Decoration Rendering ✅ COMPLETED
 **File**: `caTTY.Display/Controllers/TerminalUi/TerminalUiRender.cs`
 
-- ⏸️ Instrument `RenderUnderline()`
-- ⏸️ Instrument `RenderStrikethrough()`
-- ⏸️ Instrument `RenderDottedUnderline()`
-- ⏸️ Instrument `RenderDashedUnderline()`
+- ✅ Instrument `RenderUnderline()`
+- ✅ Instrument `RenderStrikethrough()`
+- ✅ Instrument `RenderDottedUnderline()`
+- ✅ Instrument `RenderDashedUnderline()`
 
 ### Task 9: Add Performance Control UI ⏸️ PENDING
 **File**: `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`

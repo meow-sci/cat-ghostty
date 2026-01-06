@@ -275,50 +275,58 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    float4 underlineColor = _styleManager.GetUnderlineColor(attributes, foregroundColor);
-    underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
-    float thickness = _styleManager.GetUnderlineThickness(attributes.UnderlineStyle);
-
-    float underlineY = pos.Y + currentLineHeight - 2;
-    var underlineStart = new float2(pos.X, underlineY);
-    var underlineEnd = new float2(pos.X + currentCharacterWidth, underlineY);
-
-    switch (attributes.UnderlineStyle)
+    _perfWatch.Start("RenderUnderline");
+    try
     {
-      case UnderlineStyle.Single:
-        uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
-        float singleThickness = Math.Max(3.0f, thickness);
-        drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
-        break;
+      float4 underlineColor = _styleManager.GetUnderlineColor(attributes, foregroundColor);
+      underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
+      float thickness = _styleManager.GetUnderlineThickness(attributes.UnderlineStyle);
 
-      case UnderlineStyle.Double:
-        // Draw two lines for double underline with proper spacing
-        uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
-        float doubleThickness = Math.Max(3.0f, thickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      var underlineStart = new float2(pos.X, underlineY);
+      var underlineEnd = new float2(pos.X + currentCharacterWidth, underlineY);
 
-        // First line (bottom) - same position as single underline
-        drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
+      switch (attributes.UnderlineStyle)
+      {
+        case UnderlineStyle.Single:
+          uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+          float singleThickness = Math.Max(3.0f, thickness);
+          drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
+          break;
 
-        // Second line (top) - spaced 4 pixels above the first for better visibility
-        var doubleStart = new float2(pos.X, underlineY - 4);
-        var doubleEnd = new float2(pos.X + currentCharacterWidth, underlineY - 4);
-        drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
-        break;
+        case UnderlineStyle.Double:
+          // Draw two lines for double underline with proper spacing
+          uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+          float doubleThickness = Math.Max(3.0f, thickness);
 
-      case UnderlineStyle.Curly:
-        // Draw wavy line using bezier curves for a smooth curly effect
-        RenderCurlyUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+          // First line (bottom) - same position as single underline
+          drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
 
-      case UnderlineStyle.Dotted:
-        // Draw dotted line using small segments with spacing
-        RenderDottedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+          // Second line (top) - spaced 4 pixels above the first for better visibility
+          var doubleStart = new float2(pos.X, underlineY - 4);
+          var doubleEnd = new float2(pos.X + currentCharacterWidth, underlineY - 4);
+          drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
+          break;
 
-      case UnderlineStyle.Dashed:
-        // Draw dashed line using longer segments with spacing
-        RenderDashedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+        case UnderlineStyle.Curly:
+          // Draw wavy line using bezier curves for a smooth curly effect
+          RenderCurlyUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+
+        case UnderlineStyle.Dotted:
+          // Draw dotted line using small segments with spacing
+          RenderDottedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+
+        case UnderlineStyle.Dashed:
+          // Draw dashed line using longer segments with spacing
+          RenderDashedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+      }
+    }
+    finally
+    {
+      _perfWatch.Stop("RenderUnderline");
     }
   }
 
@@ -327,13 +335,21 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    // Apply foreground opacity to strikethrough color
-    foregroundColor = OpacityManager.ApplyForegroundOpacity(foregroundColor);
+    _perfWatch.Start("RenderStrikethrough");
+    try
+    {
+      // Apply foreground opacity to strikethrough color
+      foregroundColor = OpacityManager.ApplyForegroundOpacity(foregroundColor);
 
-    float strikeY = pos.Y + (currentLineHeight / 2);
-    var strikeStart = new float2(pos.X, strikeY);
-    var strikeEnd = new float2(pos.X + currentCharacterWidth, strikeY);
-    drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+      float strikeY = pos.Y + (currentLineHeight / 2);
+      var strikeStart = new float2(pos.X, strikeY);
+      var strikeEnd = new float2(pos.X + currentCharacterWidth, strikeY);
+      drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+    }
+    finally
+    {
+      _perfWatch.Stop("RenderStrikethrough");
+    }
   }
 
   /// <summary>
@@ -371,20 +387,28 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    float underlineY = pos.Y + currentLineHeight - 2;
-    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-    float dottedThickness = Math.Max(3.0f, thickness);
-
-    float dotSize = 3.0f; // Increased dot size for better visibility
-    float spacing = 3.0f; // Increased spacing for clearer separation
-    float totalStep = dotSize + spacing;
-
-    for (float x = pos.X; x < pos.X + currentCharacterWidth - dotSize; x += totalStep)
+    _perfWatch.Start("RenderDottedUnderline");
+    try
     {
-      float dotEnd = Math.Min(x + dotSize, pos.X + currentCharacterWidth);
-      var dotStart = new float2(x, underlineY);
-      var dotEndPos = new float2(dotEnd, underlineY);
-      drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+      float dottedThickness = Math.Max(3.0f, thickness);
+
+      float dotSize = 3.0f; // Increased dot size for better visibility
+      float spacing = 3.0f; // Increased spacing for clearer separation
+      float totalStep = dotSize + spacing;
+
+      for (float x = pos.X; x < pos.X + currentCharacterWidth - dotSize; x += totalStep)
+      {
+        float dotEnd = Math.Min(x + dotSize, pos.X + currentCharacterWidth);
+        var dotStart = new float2(x, underlineY);
+        var dotEndPos = new float2(dotEnd, underlineY);
+        drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+      }
+    }
+    finally
+    {
+      _perfWatch.Stop("RenderDottedUnderline");
     }
   }
 
@@ -393,20 +417,28 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    float underlineY = pos.Y + currentLineHeight - 2;
-    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-    float dashedThickness = Math.Max(3.0f, thickness);
-
-    float dashSize = 6.0f; // Increased dash length for better visibility
-    float spacing = 4.0f; // Increased spacing for clearer separation
-    float totalStep = dashSize + spacing;
-
-    for (float x = pos.X; x < pos.X + currentCharacterWidth - dashSize; x += totalStep)
+    _perfWatch.Start("RenderDashedUnderline");
+    try
     {
-      float dashEnd = Math.Min(x + dashSize, pos.X + currentCharacterWidth);
-      var dashStart = new float2(x, underlineY);
-      var dashEndPos = new float2(dashEnd, underlineY);
-      drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+      float dashedThickness = Math.Max(3.0f, thickness);
+
+      float dashSize = 6.0f; // Increased dash length for better visibility
+      float spacing = 4.0f; // Increased spacing for clearer separation
+      float totalStep = dashSize + spacing;
+
+      for (float x = pos.X; x < pos.X + currentCharacterWidth - dashSize; x += totalStep)
+      {
+        float dashEnd = Math.Min(x + dashSize, pos.X + currentCharacterWidth);
+        var dashStart = new float2(x, underlineY);
+        var dashEndPos = new float2(dashEnd, underlineY);
+        drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+      }
+    }
+    finally
+    {
+      _perfWatch.Stop("RenderDashedUnderline");
     }
   }
 }
