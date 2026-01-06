@@ -287,27 +287,19 @@ internal class TerminalUiRender
               cellAttributes[col] = cell.Attributes;
 //              _perfWatch.Stop("RenderCell.Setup");
 
-              // Resolve colors using the new color resolution system
+              // Resolve and process all colors in one fused call
 //              _perfWatch.Start("RenderCell.ResolveColors");
-              float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
-              float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+              _colorResolver.ResolveCellColors(
+                  cell.Attributes,
+                  out uint fgColorU32,
+                  out uint cellBgColorU32,
+                  out bool needsBackground,
+                  out float4 fgColor);
 //              _perfWatch.Stop("RenderCell.ResolveColors");
-
-              // Apply SGR attributes to colors
-              var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
-
-              // Apply foreground opacity to foreground colors and cell background opacity to background colors
-//              _perfWatch.Start("RenderCell.ApplyOpacity");
-              fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
-              bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
-//              _perfWatch.Stop("RenderCell.ApplyOpacity");
 
               foregroundColors[col] = fgColor;
 
-              // Determine if this cell needs a background and batch drawing
-              uint cellBgColorU32 = 0;
-              bool needsBackground = false;
-
+              // Handle selection - override colors if selected
               if (isSelected)
               {
 //                _perfWatch.Start("RenderCell.DrawSelection");
@@ -316,20 +308,13 @@ internal class TerminalUiRender
                 var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
                 // Apply foreground opacity to selection foreground and cell background opacity to selection background
-                bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+                var bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
                 fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
                 foregroundColors[col] = fgColor;
 
                 cellBgColorU32 = ImGui.ColorConvertFloat4ToU32(bgColor);
                 needsBackground = true;
 //                _perfWatch.Stop("RenderCell.DrawSelection");
-              }
-              else if (cell.Attributes.BackgroundColor.HasValue)
-              {
-//                _perfWatch.Start("RenderCell.DrawBackground");
-                cellBgColorU32 = ImGui.ColorConvertFloat4ToU32(bgColor);
-                needsBackground = true;
-//                _perfWatch.Stop("RenderCell.DrawBackground");
               }
 
               // Batch background drawing
@@ -468,20 +453,15 @@ internal class TerminalUiRender
       bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
 //      _perfWatch.Stop("RenderCell.Setup");
 
-      // Resolve colors using the new color resolution system
+      // Resolve and process all colors in one fused call
 //      _perfWatch.Start("RenderCell.ResolveColors");
-      float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
-      float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+      _colorResolver.ResolveCellColors(
+          cell.Attributes,
+          out uint fgColorU32,
+          out uint bgColorU32,
+          out bool needsBackground,
+          out float4 fgColor);
 //      _perfWatch.Stop("RenderCell.ResolveColors");
-
-      // Apply SGR attributes to colors
-      var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
-
-    // Apply foreground opacity to foreground colors and cell background opacity to background colors
-//    _perfWatch.Start("RenderCell.ApplyOpacity");
-    fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
-    bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
-//    _perfWatch.Stop("RenderCell.ApplyOpacity");
 
     // Apply selection highlighting or draw background only when needed
     if (isSelected)
@@ -492,21 +472,22 @@ internal class TerminalUiRender
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
       // Apply foreground opacity to selection foreground and cell background opacity to selection background
-      bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+      var bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
       fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
+      fgColorU32 = ImGui.ColorConvertFloat4ToU32(fgColor);
 
       // Always draw background for selected cells
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
 //      _perfWatch.Stop("RenderCell.DrawSelection");
     }
-    else if (cell.Attributes.BackgroundColor.HasValue)
+    else if (needsBackground)
     {
 //      _perfWatch.Start("RenderCell.DrawBackground");
       // Only draw background when SGR sequences have set a specific background color
       // This allows the theme background to show through for cells without explicit background colors
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-      drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+      drawList.AddRectFilled(pos, bgRect, bgColorU32);
 //      _perfWatch.Stop("RenderCell.DrawBackground");
     }
     // Note: When no SGR background color is set and cell is not selected,
@@ -528,7 +509,7 @@ internal class TerminalUiRender
         try
         {
 //          _perfWatch.Start("Font.SelectAndRender.AddText");
-          drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+          drawList.AddText(pos, fgColorU32, cell.Character.ToString());
 //          _perfWatch.Stop("Font.SelectAndRender.AddText");
         }
         finally

@@ -294,6 +294,104 @@ public class CachedColorResolver : IDisposable
     }
     
     /// <summary>
+    /// Resolves and processes cell colors in a single fused operation.
+    /// Returns final uint colors ready for ImGui draw calls.
+    /// 
+    /// This method combines:
+    /// - Color resolution (fg/bg)
+    /// - SGR attribute application (inverse, faint, bold color changes)
+    /// - Opacity application
+    /// - Float4 to uint32 conversion
+    /// 
+    /// Optimizations:
+    /// - Skips background resolution if not needed
+    /// - Early exit for hidden cells
+    /// - Direct uint output (no intermediate float4 storage needed by caller)
+    /// </summary>
+    /// <param name="attributes">Cell SGR attributes</param>
+    /// <param name="fgColorU32">Output: final foreground color as uint32</param>
+    /// <param name="bgColorU32">Output: final background color as uint32</param>
+    /// <param name="needsBackground">Output: true if background needs to be drawn</param>
+    /// <param name="fgColor">Output: final foreground color as float4 (for decorations)</param>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public void ResolveCellColors(
+        SgrAttributes attributes,
+        out uint fgColorU32,
+        out uint bgColorU32,
+        out bool needsBackground,
+        out float4 fgColor)
+    {
+        // Resolve base colors
+        float4 baseFg = Resolve(attributes.ForegroundColor, false);
+        float4 baseBg = Resolve(attributes.BackgroundColor, true);
+        
+        // Apply SGR attributes inline (avoiding StyleManager.ApplyAttributes call)
+        fgColor = baseFg;
+        float4 bgColor = baseBg;
+        
+        // Apply bold (brighten foreground)
+        if (attributes.Bold)
+        {
+            fgColor = new float4(
+                Math.Min(1.0f, fgColor.X * 1.3f),
+                Math.Min(1.0f, fgColor.Y * 1.3f),
+                Math.Min(1.0f, fgColor.Z * 1.3f),
+                fgColor.W
+            );
+        }
+        
+        // Apply faint/dim (darken foreground)
+        if (attributes.Faint)
+        {
+            fgColor = new float4(
+                fgColor.X * 0.7f,
+                fgColor.Y * 0.7f,
+                fgColor.Z * 0.7f,
+                fgColor.W
+            );
+        }
+        
+        // Apply inverse (swap foreground and background)
+        if (attributes.Inverse)
+        {
+            (fgColor, bgColor) = (bgColor, fgColor);
+        }
+        
+        // Apply hidden (make foreground same as background)
+        if (attributes.Hidden)
+        {
+            fgColor = bgColor;
+        }
+        
+        // Apply opacity
+        fgColor = new float4(fgColor.X, fgColor.Y, fgColor.Z, fgColor.W * OpacityManager.CurrentForegroundOpacity);
+        bgColor = new float4(bgColor.X, bgColor.Y, bgColor.Z, bgColor.W * OpacityManager.CurrentCellBackgroundOpacity);
+        
+        // Determine if background needs to be drawn
+        needsBackground = attributes.BackgroundColor.HasValue || attributes.Inverse;
+        
+        // Convert to uint32 for ImGui
+        fgColorU32 = ColorToU32(fgColor);
+        bgColorU32 = needsBackground ? ColorToU32(bgColor) : 0;
+    }
+    
+    /// <summary>
+    /// Converts a float4 color to uint32 format for ImGui.
+    /// This is the same conversion ImGui.ColorConvertFloat4ToU32 does,
+    /// but inlined here to avoid the function call overhead.
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static uint ColorToU32(float4 color)
+    {
+        // ImGui uses ABGR format (alpha in high bits)
+        uint r = (uint)(Math.Clamp(color.X, 0f, 1f) * 255f + 0.5f);
+        uint g = (uint)(Math.Clamp(color.Y, 0f, 1f) * 255f + 0.5f);
+        uint b = (uint)(Math.Clamp(color.Z, 0f, 1f) * 255f + 0.5f);
+        uint a = (uint)(Math.Clamp(color.W, 0f, 1f) * 255f + 0.5f);
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    }
+    
+    /// <summary>
     /// Disposes the cached color resolver and unsubscribes from events.
     /// </summary>
     public void Dispose()
