@@ -75,7 +75,7 @@ internal class TerminalControllerBuilder
     _fonts.InitializeCurrentFontFamily();
 
     // Initialize cursor renderer
-    _cursorRenderer = new CursorRenderer();
+    _cursorRenderer = new CursorRenderer(controller.PerfWatch);
 
     // Initialize color and style managers
     _colorResolver = new ColorResolver(controller.PerfWatch);

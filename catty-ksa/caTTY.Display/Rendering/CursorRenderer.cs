@@ -2,6 +2,7 @@ using System;
 using Brutal.ImGuiApi;
 using Brutal.Numerics;
 using caTTY.Core.Types;
+using caTTY.Display.Performance;
 
 namespace caTTY.Display.Rendering;
 
@@ -12,8 +13,18 @@ namespace caTTY.Display.Rendering;
 /// </summary>
 public class CursorRenderer
 {
+    private readonly PerformanceStopwatch _perfWatch;
     private DateTime _lastBlinkTime = DateTime.Now;
     private bool _blinkState = true;
+
+    /// <summary>
+    ///     Creates a new CursorRenderer with the specified performance stopwatch.
+    /// </summary>
+    /// <param name="perfWatch">Performance stopwatch for timing measurements</param>
+    public CursorRenderer(PerformanceStopwatch perfWatch)
+    {
+        _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
+    }
 
     /// <summary>
     ///     Updates the cursor blink state based on elapsed time.
@@ -21,11 +32,19 @@ public class CursorRenderer
     /// <param name="blinkInterval">Blink interval in milliseconds</param>
     public void UpdateBlinkState(int blinkInterval = 500)
     {
-        DateTime currentTime = DateTime.Now;
-        if ((currentTime - _lastBlinkTime).TotalMilliseconds >= blinkInterval)
+        _perfWatch.Start("CursorRenderer.UpdateBlinkState");
+        try
         {
-            _blinkState = !_blinkState;
-            _lastBlinkTime = currentTime;
+            DateTime currentTime = DateTime.Now;
+            if ((currentTime - _lastBlinkTime).TotalMilliseconds >= blinkInterval)
+            {
+                _blinkState = !_blinkState;
+                _lastBlinkTime = currentTime;
+            }
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.UpdateBlinkState");
         }
     }
 
@@ -50,22 +69,30 @@ public class CursorRenderer
         float4 cursorColor,
         bool isAtBottom)
     {
-        // Don't render cursor if not visible or scrolled back in history
-        if (!cursorVisible || !isAtBottom)
+        _perfWatch.Start("CursorRenderer.RenderCursor");
+        try
         {
-            return;
-        }
+            // Don't render cursor if not visible or scrolled back in history
+            if (!cursorVisible || !isAtBottom)
+            {
+                return;
+            }
 
-        // Handle blinking - if cursor should blink and is in off state, don't render
-        bool shouldBlink = cursorStyle.ShouldBlink();
-        if (shouldBlink && !_blinkState)
+            // Handle blinking - if cursor should blink and is in off state, don't render
+            bool shouldBlink = cursorStyle.ShouldBlink();
+            if (shouldBlink && !_blinkState)
+            {
+                return;
+            }
+
+            // Get cursor shape and render accordingly
+            CursorShape shape = cursorStyle.GetShape();
+            RenderCursorShape(drawList, position, characterWidth, lineHeight, shape, cursorColor);
+        }
+        finally
         {
-            return;
+            _perfWatch.Stop("CursorRenderer.RenderCursor");
         }
-
-        // Get cursor shape and render accordingly
-        CursorShape shape = cursorStyle.GetShape();
-        RenderCursorShape(drawList, position, characterWidth, lineHeight, shape, cursorColor);
     }
 
     /// <summary>
@@ -77,7 +104,7 @@ public class CursorRenderer
     /// <param name="lineHeight">Height of a character cell</param>
     /// <param name="shape">Cursor shape to render</param>
     /// <param name="cursorColor">Cursor color</param>
-    private static void RenderCursorShape(
+    private void RenderCursorShape(
         ImDrawListPtr drawList,
         float2 position,
         float characterWidth,
@@ -85,91 +112,131 @@ public class CursorRenderer
         CursorShape shape,
         float4 cursorColor)
     {
-        uint color = ImGui.ColorConvertFloat4ToU32(cursorColor);
-
-        switch (shape)
+        _perfWatch.Start("CursorRenderer.RenderCursorShape");
+        try
         {
-            case CursorShape.Block:
-                RenderBlockCursor(drawList, position, characterWidth, lineHeight, color);
-                break;
+            uint color = ImGui.ColorConvertFloat4ToU32(cursorColor);
 
-            case CursorShape.BlockHollow:
-                RenderBlockHollowCursor(drawList, position, characterWidth, lineHeight, color);
-                break;
+            switch (shape)
+            {
+                case CursorShape.Block:
+                    RenderBlockCursor(drawList, position, characterWidth, lineHeight, color);
+                    break;
 
-            case CursorShape.Underline:
-                RenderUnderlineCursor(drawList, position, characterWidth, lineHeight, color);
-                break;
+                case CursorShape.BlockHollow:
+                    RenderBlockHollowCursor(drawList, position, characterWidth, lineHeight, color);
+                    break;
 
-            case CursorShape.Bar:
-                RenderBarCursor(drawList, position, characterWidth, lineHeight, color);
-                break;
+                case CursorShape.Underline:
+                    RenderUnderlineCursor(drawList, position, characterWidth, lineHeight, color);
+                    break;
 
-            default:
-                // Fallback to block cursor
-                RenderBlockCursor(drawList, position, characterWidth, lineHeight, color);
-                break;
+                case CursorShape.Bar:
+                    RenderBarCursor(drawList, position, characterWidth, lineHeight, color);
+                    break;
+
+                default:
+                    // Fallback to block cursor
+                    RenderBlockCursor(drawList, position, characterWidth, lineHeight, color);
+                    break;
+            }
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.RenderCursorShape");
         }
     }
 
     /// <summary>
     ///     Renders a filled block cursor.
     /// </summary>
-    private static void RenderBlockCursor(
+    private void RenderBlockCursor(
         ImDrawListPtr drawList,
         float2 position,
         float characterWidth,
         float lineHeight,
         uint color)
     {
-        var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
-        drawList.AddRectFilled(position, endPos, color);
+        _perfWatch.Start("CursorRenderer.RenderBlockCursor");
+        try
+        {
+            var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
+            drawList.AddRectFilled(position, endPos, color);
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.RenderBlockCursor");
+        }
     }
 
     /// <summary>
     ///     Renders a hollow block cursor (outline only).
     /// </summary>
-    private static void RenderBlockHollowCursor(
+    private void RenderBlockHollowCursor(
         ImDrawListPtr drawList,
         float2 position,
         float characterWidth,
         float lineHeight,
         uint color)
     {
-        var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
-        drawList.AddRect(position, endPos, color, 0.0f, ImDrawFlags.None, 1.0f);
+        _perfWatch.Start("CursorRenderer.RenderBlockHollowCursor");
+        try
+        {
+            var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
+            drawList.AddRect(position, endPos, color, 0.0f, ImDrawFlags.None, 1.0f);
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.RenderBlockHollowCursor");
+        }
     }
 
     /// <summary>
     ///     Renders an underline cursor.
     /// </summary>
-    private static void RenderUnderlineCursor(
+    private void RenderUnderlineCursor(
         ImDrawListPtr drawList,
         float2 position,
         float characterWidth,
         float lineHeight,
         uint color)
     {
-        const float underlineThickness = 2.0f;
-        var startPos = new float2(position.X, position.Y + lineHeight - underlineThickness);
-        var endPos = new float2(position.X + characterWidth, position.Y + lineHeight - underlineThickness);
-        drawList.AddLine(startPos, endPos, color, underlineThickness);
+        _perfWatch.Start("CursorRenderer.RenderUnderlineCursor");
+        try
+        {
+            const float underlineThickness = 2.0f;
+            var startPos = new float2(position.X, position.Y + lineHeight - underlineThickness);
+            var endPos = new float2(position.X + characterWidth, position.Y + lineHeight - underlineThickness);
+            drawList.AddLine(startPos, endPos, color, underlineThickness);
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.RenderUnderlineCursor");
+        }
     }
 
     /// <summary>
     ///     Renders a bar cursor (vertical line).
     /// </summary>
-    private static void RenderBarCursor(
+    private void RenderBarCursor(
         ImDrawListPtr drawList,
         float2 position,
         float characterWidth,
         float lineHeight,
         uint color)
     {
-        const float barThickness = 2.0f;
-        var startPos = new float2(position.X, position.Y);
-        var endPos = new float2(position.X, position.Y + lineHeight);
-        drawList.AddLine(startPos, endPos, color, barThickness);
+        _perfWatch.Start("CursorRenderer.RenderBarCursor");
+        try
+        {
+            const float barThickness = 2.0f;
+            var startPos = new float2(position.X, position.Y);
+            var endPos = new float2(position.X, position.Y + lineHeight);
+            drawList.AddLine(startPos, endPos, color, barThickness);
+        }
+        finally
+        {
+            _perfWatch.Stop("CursorRenderer.RenderBarCursor");
+        }
     }
 
     /// <summary>
