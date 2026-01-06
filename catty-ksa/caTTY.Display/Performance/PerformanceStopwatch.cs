@@ -357,7 +357,37 @@ public class PerformanceStopwatch
             sb.AppendLine(
                 $"│ {taskName,-62} │ {totalMs,12:F2} │ {node.Count,7} │ {avgMs,12:F3} │ {avgUs,12:F2} │");
 
-            foreach (var child in node.GetChildrenInEncounterOrder())
+            // Show explicit self-time so parent totals reconcile with children.
+            // This helps highlight uninstrumented work and measurement overhead.
+            var children = node.GetChildrenInEncounterOrder().ToList();
+            if (children.Count > 0)
+            {
+                long childTicks = 0;
+                foreach (var child in children)
+                {
+                    childTicks += child.TotalTicks;
+                }
+
+                var selfTicks = node.TotalTicks - childTicks;
+                if (selfTicks > 0)
+                {
+                    var selfIndent = new string(' ', (depth + 1) * 2);
+                    var selfName = selfIndent + "<self>";
+                    if (selfName.Length > 62)
+                    {
+                        selfName = selfName.Substring(0, 59) + "...";
+                    }
+
+                    var selfMs = selfTicks * 1000.0 / Stopwatch.Frequency;
+                    var selfAvgMs = node.Count > 0 ? selfMs / node.Count : 0;
+                    var selfAvgUs = node.Count > 0 ? selfTicks * 1_000_000.0 / Stopwatch.Frequency / node.Count : 0;
+
+                    sb.AppendLine(
+                        $"│ {selfName,-62} │ {selfMs,12:F2} │ {node.Count,7} │ {selfAvgMs,12:F3} │ {selfAvgUs,12:F2} │");
+                }
+            }
+
+            foreach (var child in children)
             {
                 AppendNode(child, depth + 1);
             }

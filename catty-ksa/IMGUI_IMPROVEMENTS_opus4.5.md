@@ -574,7 +574,7 @@ The `ColorResolver.Resolve` breakdown (1,267,200 calls = 2× per cell for fg/bg)
 
 Based on timing data, here's the **actual order of importance**:
 
-#### 🔴 Priority 1: Color Resolution Caching (Potential: ~250ms savings, 33% of render)
+#### [DONE] 🔴 Priority 1: Color Resolution Caching (Potential: ~250ms savings, 33% of render)
 
 **Problem:** Every cell resolves fg/bg colors every frame, even though:
 - 80% of cells use default colors (same every frame)

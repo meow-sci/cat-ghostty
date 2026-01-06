@@ -1,27 +1,60 @@
-┌────────────────────────────────────────────────────────────────┬──────────────┬────────┬──────────────┬──────────────┐
-│ Task Name                                                      │ Total (ms)   │ Count  │ Avg (ms)     │ Avg (µs)     │
-├────────────────────────────────────────────────────────────────┼──────────────┼────────┼──────────────┼──────────────┤
-│ CursorRenderer.UpdateBlinkState                                │         0.04 │    60  │        0.001 │         0.58 │
-│ TerminalController.Render                                      │       564.51 │    60  │        9.409 │      9408.53 │
-│   TerminalUiFonts.EnsureFontsLoaded                            │         0.01 │    60  │        0.000 │         0.12 │
-│   RenderTerminalCanvas                                         │       561.25 │    60  │        9.354 │      9354.10 │
-│     RenderTerminalContent                                      │       561.22 │    60  │        9.354 │      9353.74 │
-│       Font.Push                                                │         0.03 │    60  │        0.001 │         0.55 │
-│       GetViewportRows                                          │        49.16 │    60  │        0.819 │       819.32 │
-│       CellRenderingLoop                                        │       509.73 │    60  │        8.495 │      8495.48 │
-│         RenderCell                                             │       469.00 │ 592800 │        0.001 │         0.79 │
-│           RenderCell.Setup                                     │        29.61 │ 592800 │        0.000 │         0.05 │
-│           RenderCell.ResolveColors                             │        41.05 │ 592800 │        0.000 │         0.07 │
-│           StyleManager.ApplyAttributes                         │        31.92 │ 592800 │        0.000 │         0.05 │
-│           RenderCell.ApplyOpacity                              │        35.02 │ 592800 │        0.000 │         0.06 │
-│           Font.SelectAndRender                                 │       154.71 │ 280393 │        0.001 │         0.55 │
-│             Font.SelectAndRender.SelectFont                    │        38.99 │ 280393 │        0.000 │         0.14 │
-│               TerminalUiFonts.SelectFont                       │        13.20 │ 280393 │        0.000 │         0.05 │
-│             Font.SelectAndRender.PushFont                      │        15.58 │ 280393 │        0.000 │         0.06 │
-│             Font.SelectAndRender.AddText                       │        21.83 │ 280393 │        0.000 │         0.08 │
-│             Font.SelectAndRender.PopFont                       │        14.11 │ 280393 │        0.000 │         0.05 │
-│           RenderCell.DrawBackground                            │         1.92 │ 32940  │        0.000 │         0.06 │
-│       RenderCursor                                             │         0.10 │    60  │        0.002 │         1.72 │
-│         CursorRenderer.RenderCursor                            │         0.00 │    60  │        0.000 │         0.06 │
-│       HandleMouseInput                                         │         0.21 │    60  │        0.003 │         3.43 │
-└────────────────────────────────────────────────────────────────┴──────────────┴────────┴──────────────┴──────────────┘
+┌────────────────────────────────────────────────────────────────┬──────────────┬─────────┬──────────────┬──────────────┐
+│ Task Name                                                      │ Total (ms)   │ Count   │ Avg (ms)     │ Avg (µs)     │
+├────────────────────────────────────────────────────────────────┼──────────────┼─────────┼──────────────┼──────────────┤
+│ CursorRenderer.UpdateBlinkState                                │         0.04 │      60 │        0.001 │         0.67 │
+│ TerminalController.Render                                      │       658.64 │      60 │       10.977 │     10977.38 │
+│   <self>                                                       │         3.33 │      60 │        0.056 │        55.57 │
+│   TerminalUiFonts.EnsureFontsLoaded                            │         0.01 │      60 │        0.000 │         0.11 │
+│   RenderTerminalCanvas                                         │       655.30 │      60 │       10.922 │     10921.70 │
+│     <self>                                                     │         0.03 │      60 │        0.001 │         0.51 │
+│     RenderTerminalContent                                      │       655.27 │      60 │       10.921 │     10921.18 │
+│       <self>                                                   │         2.04 │      60 │        0.034 │        34.05 │
+│       Font.Push                                                │         0.04 │      60 │        0.001 │         0.62 │
+│       GetViewportRows                                          │        46.38 │      60 │        0.773 │       773.04 │
+│       CellRenderingLoop                                        │       606.45 │      60 │       10.107 │     10107.47 │
+│         <self>                                                 │        32.66 │      60 │        0.544 │       544.33 │
+│         RenderCell                                             │       573.44 │  663480 │        0.001 │         0.86 │
+│           <self>                                               │       181.21 │  663480 │        0.000 │         0.27 │
+│           RenderCell.Setup                                     │        93.66 │  663480 │        0.000 │         0.14 │
+│             <self>                                             │        61.55 │  663480 │        0.000 │         0.09 │
+│             RenderCell.SelectionCheck                          │        32.11 │  663480 │        0.000 │         0.05 │
+│           RenderCell.ResolveColors                             │        51.22 │  663480 │        0.000 │         0.08 │
+│           StyleManager.ApplyAttributes                         │        35.54 │  663480 │        0.000 │         0.05 │
+│           RenderCell.ApplyOpacity                              │        38.32 │  663480 │        0.000 │         0.06 │
+│           RenderCell.RunBatching                               │       141.05 │  313614 │        0.000 │         0.45 │
+│             <self>                                             │        56.07 │  313614 │        0.000 │         0.18 │
+│             Font.SelectAndRender.SelectFont                    │        43.72 │  313614 │        0.000 │         0.14 │
+│               <self>                                           │        28.97 │  313614 │        0.000 │         0.09 │
+│               TerminalUiFonts.SelectFont                       │        14.75 │  313614 │        0.000 │         0.05 │
+│             RenderCell.ConvertFgToU32                          │        14.43 │  313614 │        0.000 │         0.05 │
+│             RenderCell.RunBatching.MergeDecision               │        20.11 │  266894 │        0.000 │         0.08 │
+│             RenderCell.FlushRun                                │         6.71 │   11042 │        0.001 │         0.61 │
+│               <self>                                           │         1.54 │   11042 │        0.000 │         0.14 │
+│               Font.SelectAndRender                             │         4.44 │   11042 │        0.000 │         0.40 │
+│                 <self>                                         │         2.07 │   11042 │        0.000 │         0.19 │
+│                 Font.SelectAndRender.PushFont                  │         0.70 │   11042 │        0.000 │         0.06 │
+│                 Font.SelectAndRender.AddText                   │         1.09 │   11042 │        0.000 │         0.10 │
+│                 Font.SelectAndRender.PopFont                   │         0.58 │   11042 │        0.000 │         0.05 │
+│               RenderCell.FlushRun.DecorationsLoop              │         0.74 │   11042 │        0.000 │         0.07 │
+│           RenderCell.FlushRun                                  │        30.40 │   46327 │        0.001 │         0.66 │
+│             <self>                                             │         6.20 │   46327 │        0.000 │         0.13 │
+│             Font.SelectAndRender                               │        19.42 │   46327 │        0.000 │         0.42 │
+│               <self>                                           │         8.67 │   46327 │        0.000 │         0.19 │
+│               Font.SelectAndRender.PushFont                    │         2.69 │   46327 │        0.000 │         0.06 │
+│               Font.SelectAndRender.AddText                     │         5.64 │   46327 │        0.000 │         0.12 │
+│               Font.SelectAndRender.PopFont                     │         2.42 │   46327 │        0.000 │         0.05 │
+│             RenderCell.FlushRun.DecorationsLoop                │         4.78 │   46327 │        0.000 │         0.10 │
+│           RenderCell.DrawBackground                            │         2.03 │   33660 │        0.000 │         0.06 │
+│         RenderCell.FlushRun                                    │         0.35 │     393 │        0.001 │         0.89 │
+│           <self>                                               │         0.05 │     393 │        0.000 │         0.14 │
+│           Font.SelectAndRender                                 │         0.20 │     393 │        0.001 │         0.52 │
+│             <self>                                             │         0.07 │     393 │        0.000 │         0.18 │
+│             Font.SelectAndRender.PushFont                      │         0.02 │     393 │        0.000 │         0.06 │
+│             Font.SelectAndRender.AddText                       │         0.09 │     393 │        0.000 │         0.23 │
+│             Font.SelectAndRender.PopFont                       │         0.02 │     393 │        0.000 │         0.05 │
+│           RenderCell.FlushRun.DecorationsLoop                  │         0.09 │     393 │        0.000 │         0.24 │
+│       RenderCursor                                             │         0.14 │      60 │        0.002 │         2.40 │
+│         <self>                                                 │         0.14 │      60 │        0.002 │         2.30 │
+│         CursorRenderer.RenderCursor                            │         0.01 │      60 │        0.000 │         0.10 │
+│       HandleMouseInput                                         │         0.22 │      60 │        0.004 │         3.61 │
+└────────────────────────────────────────────────────────────────┴──────────────┴─────────┴──────────────┴──────────────┘

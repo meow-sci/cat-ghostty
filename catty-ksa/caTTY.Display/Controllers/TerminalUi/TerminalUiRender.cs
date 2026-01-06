@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
@@ -104,16 +105,236 @@ internal class TerminalUiRender
 
       // Render each cell from the viewport content
       _perfWatch.Start("CellRenderingLoop");
-      for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
-      {
-        var rowMemory = viewportRows[row];
-        var rowSpan = rowMemory.Span;
+      int terminalWidthCells = activeSession.Terminal.Width;
+      char[] runChars = ArrayPool<char>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      float4[] foregroundColors = ArrayPool<float4>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      SgrAttributes[] cellAttributes = ArrayPool<SgrAttributes>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      bool[] isSelectedByCol = ArrayPool<bool>.Shared.Rent(Math.Max(terminalWidthCells, 1));
 
-        for (int col = 0; col < Math.Min(rowSpan.Length, activeSession.Terminal.Width); col++)
+      try
+      {
+        for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
         {
-          Cell cell = rowSpan[col];
-          RenderCell(drawList, terminalDrawPos, row, col, cell, currentCharacterWidth, currentLineHeight, currentSelection);
+          var rowMemory = viewportRows[row];
+          var rowSpan = rowMemory.Span;
+          int colsToRender = Math.Min(rowSpan.Length, terminalWidthCells);
+
+          int runStartCol = 0;
+          int runLength = 0;
+          uint runColorU32 = 0;
+          ImFontPtr runFont = default;
+
+          void FlushRun()
+          {
+            if (runLength <= 0)
+              return;
+
+            _perfWatch.Start("RenderCell.FlushRun");
+
+            float runX = terminalDrawPos.X + (runStartCol * currentCharacterWidth);
+            float runY = terminalDrawPos.Y + (row * currentLineHeight);
+            var runPos = new float2(runX, runY);
+
+            _perfWatch.Start("Font.SelectAndRender");
+            _perfWatch.Start("Font.SelectAndRender.PushFont");
+            ImGui.PushFont(runFont, _fonts.CurrentFontConfig.FontSize);
+            _perfWatch.Stop("Font.SelectAndRender.PushFont");
+            try
+            {
+              _perfWatch.Start("Font.SelectAndRender.AddText");
+              string text = new string(runChars, 0, runLength);
+              drawList.AddText(runPos, runColorU32, text);
+              _perfWatch.Stop("Font.SelectAndRender.AddText");
+            }
+            finally
+            {
+              _perfWatch.Start("Font.SelectAndRender.PopFont");
+              ImGui.PopFont();
+              _perfWatch.Stop("Font.SelectAndRender.PopFont");
+              _perfWatch.Stop("Font.SelectAndRender");
+            }
+
+            // Decorations must be drawn after text to preserve existing draw order.
+            _perfWatch.Start("RenderCell.FlushRun.DecorationsLoop");
+            for (int i = 0; i < runLength; i++)
+            {
+              int col = runStartCol + i;
+              if (col < 0 || col >= colsToRender)
+                continue;
+
+              if (isSelectedByCol[col])
+                continue;
+
+              var attrs = cellAttributes[col];
+              var fgColor = foregroundColors[col];
+              float x = terminalDrawPos.X + (col * currentCharacterWidth);
+              float y = terminalDrawPos.Y + (row * currentLineHeight);
+              var pos = new float2(x, y);
+
+              if (_styleManager.ShouldRenderUnderline(attrs))
+              {
+                _perfWatch.Start("RenderDecorations");
+                RenderUnderline(drawList, pos, attrs, fgColor, currentCharacterWidth, currentLineHeight);
+                _perfWatch.Stop("RenderDecorations");
+              }
+
+              if (_styleManager.ShouldRenderStrikethrough(attrs))
+              {
+                _perfWatch.Start("RenderDecorations");
+                RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
+                _perfWatch.Stop("RenderDecorations");
+              }
+            }
+
+            _perfWatch.Stop("RenderCell.FlushRun.DecorationsLoop");
+
+            runLength = 0;
+
+            _perfWatch.Stop("RenderCell.FlushRun");
+          }
+
+          for (int col = 0; col < colsToRender; col++)
+          {
+            _perfWatch.Start("RenderCell");
+            try
+            {
+              _perfWatch.Start("RenderCell.Setup");
+              float x = terminalDrawPos.X + (col * currentCharacterWidth);
+              float y = terminalDrawPos.Y + (row * currentLineHeight);
+              var pos = new float2(x, y);
+
+              Cell cell = rowSpan[col];
+
+              // Check if this cell is selected
+              _perfWatch.Start("RenderCell.SelectionCheck");
+              bool isSelected;
+              if (currentSelection.IsEmpty)
+              {
+                isSelected = false;
+              }
+              else
+              {
+                _perfWatch.Start("RenderCell.SelectionCheck.Contains");
+                isSelected = currentSelection.Contains(row, col);
+                _perfWatch.Stop("RenderCell.SelectionCheck.Contains");
+              }
+              _perfWatch.Stop("RenderCell.SelectionCheck");
+
+              isSelectedByCol[col] = isSelected;
+              cellAttributes[col] = cell.Attributes;
+              _perfWatch.Stop("RenderCell.Setup");
+
+              // Resolve colors using the new color resolution system
+              _perfWatch.Start("RenderCell.ResolveColors");
+              float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
+              float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+              _perfWatch.Stop("RenderCell.ResolveColors");
+
+              // Apply SGR attributes to colors
+              var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
+
+              // Apply foreground opacity to foreground colors and cell background opacity to background colors
+              _perfWatch.Start("RenderCell.ApplyOpacity");
+              fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
+              bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
+              _perfWatch.Stop("RenderCell.ApplyOpacity");
+
+              foregroundColors[col] = fgColor;
+
+              // Apply selection highlighting or draw background only when needed
+              if (isSelected)
+              {
+                _perfWatch.Start("RenderCell.DrawSelection");
+                // Use selection colors - invert foreground and background for selected text
+                var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
+                var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
+
+                // Apply foreground opacity to selection foreground and cell background opacity to selection background
+                bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+                fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
+                foregroundColors[col] = fgColor;
+
+                // Always draw background for selected cells
+                var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
+                drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                _perfWatch.Stop("RenderCell.DrawSelection");
+              }
+              else if (cell.Attributes.BackgroundColor.HasValue)
+              {
+                _perfWatch.Start("RenderCell.DrawBackground");
+                // Only draw background when SGR sequences have set a specific background color
+                var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
+                drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                _perfWatch.Stop("RenderCell.DrawBackground");
+              }
+
+              // Draw character if not space or null (batched into runs)
+              if (cell.Character != ' ' && cell.Character != '\0')
+              {
+                _perfWatch.Start("RenderCell.RunBatching");
+                _perfWatch.Start("Font.SelectAndRender.SelectFont");
+                var font = _fonts.SelectFont(cell.Attributes);
+                _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+
+                _perfWatch.Start("RenderCell.ConvertFgToU32");
+                uint fgU32 = ImGui.ColorConvertFloat4ToU32(foregroundColors[col]);
+                _perfWatch.Stop("RenderCell.ConvertFgToU32");
+
+                if (runLength == 0)
+                {
+                  runStartCol = col;
+                  runFont = font;
+                  runColorU32 = fgU32;
+                  runChars[0] = cell.Character;
+                  runLength = 1;
+                }
+                else
+                {
+                  _perfWatch.Start("RenderCell.RunBatching.MergeDecision");
+                  bool isContiguous = col == runStartCol + runLength;
+                  bool sameFont = runFont.Equals(font);
+                  bool sameColor = runColorU32 == fgU32;
+
+                  _perfWatch.Stop("RenderCell.RunBatching.MergeDecision");
+
+                  if (isContiguous && sameFont && sameColor)
+                  {
+                    runChars[runLength] = cell.Character;
+                    runLength++;
+                  }
+                  else
+                  {
+                    FlushRun();
+                    runStartCol = col;
+                    runFont = font;
+                    runColorU32 = fgU32;
+                    runChars[0] = cell.Character;
+                    runLength = 1;
+                  }
+                }
+
+                _perfWatch.Stop("RenderCell.RunBatching");
+              }
+              else
+              {
+                FlushRun();
+              }
+            }
+            finally
+            {
+              _perfWatch.Stop("RenderCell");
+            }
+          }
+
+          FlushRun();
         }
+      }
+      finally
+      {
+        ArrayPool<char>.Shared.Return(runChars);
+        ArrayPool<float4>.Shared.Return(foregroundColors);
+        ArrayPool<SgrAttributes>.Shared.Return(cellAttributes);
+        ArrayPool<bool>.Shared.Return(isSelectedByCol);
       }
       _perfWatch.Stop("CellRenderingLoop");
 
