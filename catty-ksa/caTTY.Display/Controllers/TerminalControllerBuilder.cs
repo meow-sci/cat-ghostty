@@ -44,6 +44,7 @@ internal class TerminalControllerBuilder
   // Rendering components
   private CursorRenderer? _cursorRenderer;
   private ColorResolver? _colorResolver;
+  private CachedColorResolver? _cachedColorResolver;
   private StyleManager? _styleManager;
 
   /// <summary>
@@ -79,10 +80,11 @@ internal class TerminalControllerBuilder
 
     // Initialize color and style managers
     _colorResolver = new ColorResolver(controller.PerfWatch);
+    _cachedColorResolver = new CachedColorResolver(_colorResolver, controller.PerfWatch);
     _styleManager = new StyleManager(controller.PerfWatch, _colorResolver);
 
-    // Initialize render subsystem
-    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _colorResolver, _styleManager);
+    // Initialize render subsystem - use CachedColorResolver for performance
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _cachedColorResolver, _styleManager);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);

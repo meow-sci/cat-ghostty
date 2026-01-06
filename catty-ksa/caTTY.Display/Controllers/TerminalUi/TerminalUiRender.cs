@@ -17,10 +17,10 @@ internal class TerminalUiRender
   private readonly TerminalUiFonts _fonts;
   private readonly CursorRenderer _cursorRenderer;
   private readonly Performance.PerformanceStopwatch _perfWatch;
-  private readonly ColorResolver _colorResolver;
+  private readonly CachedColorResolver _colorResolver;
   private readonly StyleManager _styleManager;
 
-  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, ColorResolver colorResolver, StyleManager styleManager)
+  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, CachedColorResolver colorResolver, StyleManager styleManager)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _cursorRenderer = cursorRenderer ?? throw new ArgumentNullException(nameof(cursorRenderer));
