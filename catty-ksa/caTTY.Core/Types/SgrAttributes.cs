@@ -393,6 +393,23 @@ public readonly struct SgrAttributes : IEquatable<SgrAttributes>
     public static SgrAttributes Default => new();
 
     /// <summary>
+    ///     Returns true if these attributes are completely default (no styling that requires rendering).
+    ///     Used for early-exit optimization in render loop.
+    /// </summary>
+    public bool IsDefault =>
+        !Bold &&
+        !Faint &&
+        !Italic &&
+        !Underline &&
+        !Blink &&
+        !Inverse &&
+        !Hidden &&
+        !Strikethrough &&
+        !ForegroundColor.HasValue &&
+        !BackgroundColor.HasValue &&
+        !UnderlineColor.HasValue;
+
+    /// <summary>
     ///     Determines whether the specified SgrAttributes is equal to the current SgrAttributes.
     /// </summary>
     public bool Equals(SgrAttributes other)

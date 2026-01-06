@@ -205,22 +205,41 @@ internal class TerminalUiRender
 //            _perfWatch.Stop("RenderCell.FlushRun");
           }
 
+          // Pre-compute whether this row might have any selection overlap
+          bool rowMightHaveSelection = !currentSelection.IsEmpty &&
+              row >= currentSelection.Start.Row &&
+              row <= currentSelection.End.Row;
+
           for (int col = 0; col < colsToRender; col++)
           {
 //            _perfWatch.Start("RenderCell");
             try
             {
+              Cell cell = rowSpan[col];
+
+              // EARLY EXIT: Skip completely default empty cells
+              // This is the most common case in typical terminal output
+              bool isEmptyChar = cell.Character == ' ' || cell.Character == '\0';
+              if (isEmptyChar && cell.Attributes.IsDefault)
+              {
+                // Quick selection check - only do full Contains() if row overlaps selection
+                if (!rowMightHaveSelection || !currentSelection.Contains(row, col))
+                {
+                  // Flush any pending text run before skipping
+                  FlushRun();
+                  continue;
+                }
+              }
+
 //              _perfWatch.Start("RenderCell.Setup");
               float x = terminalDrawPos.X + (col * currentCharacterWidth);
               float y = terminalDrawPos.Y + (row * currentLineHeight);
               var pos = new float2(x, y);
 
-              Cell cell = rowSpan[col];
-
               // Check if this cell is selected
 //              _perfWatch.Start("RenderCell.SelectionCheck");
               bool isSelected;
-              if (currentSelection.IsEmpty)
+              if (!rowMightHaveSelection)
               {
                 isSelected = false;
               }
