@@ -76,7 +76,7 @@ internal class TerminalControllerBuilder
     _cursorRenderer = new CursorRenderer();
 
     // Initialize render subsystem
-    _render = new TerminalUiRender(_fonts, _cursorRenderer);
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);

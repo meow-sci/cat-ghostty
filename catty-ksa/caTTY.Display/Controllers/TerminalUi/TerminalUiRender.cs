@@ -16,11 +16,13 @@ internal class TerminalUiRender
 {
   private readonly TerminalUiFonts _fonts;
   private readonly CursorRenderer _cursorRenderer;
+  private readonly Performance.PerformanceStopwatch _perfWatch;
 
-  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer)
+  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _cursorRenderer = cursorRenderer ?? throw new ArgumentNullException(nameof(cursorRenderer));
+    _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
   }
 
   /// <summary>
@@ -47,7 +49,9 @@ internal class TerminalUiRender
     }
 
     // Push terminal content font for this rendering section
+    _perfWatch.Start("Font.Push");
     _fonts.PushTerminalContentFont(out bool terminalFontUsed);
+    _perfWatch.Stop("Font.Push");
 
     try
     {
@@ -75,6 +79,7 @@ internal class TerminalUiRender
       // No need to draw a separate terminal background rectangle
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
+      _perfWatch.Start("GetViewportRows");
       var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
       for (int i = 0; i < activeSession.Terminal.Height; i++)
       {
@@ -91,8 +96,10 @@ internal class TerminalUiRender
           isAlternateScreenActive,
           activeSession.Terminal.Height
       );
+      _perfWatch.Stop("GetViewportRows");
 
       // Render each cell from the viewport content
+      _perfWatch.Start("CellRenderingLoop");
       for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
       {
         var rowMemory = viewportRows[row];
@@ -104,14 +111,19 @@ internal class TerminalUiRender
           RenderCell(drawList, terminalDrawPos, row, col, cell, currentCharacterWidth, currentLineHeight, currentSelection);
         }
       }
+      _perfWatch.Stop("CellRenderingLoop");
 
       // Render cursor
+      _perfWatch.Start("RenderCursor");
       RenderCursor(drawList, terminalDrawPos, activeSession, currentCharacterWidth, currentLineHeight);
+      _perfWatch.Stop("RenderCursor");
 
       // Handle mouse input only when the invisible button is hovered/active
       if (terminalHovered || terminalActive)
       {
+        _perfWatch.Start("HandleMouseInput");
         handleMouseInputForTerminal();
+        _perfWatch.Stop("HandleMouseInput");
       }
 
       // Also handle mouse tracking for applications (this works regardless of hover state)
