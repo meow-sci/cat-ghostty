@@ -1,15 +1,30 @@
+using System.Collections;
+
 namespace caTTY.Core.Types;
 
 /// <summary>
 ///     Implementation of IScreenBuffer using a jagged array of cells.
 ///     This allows GetRow() to return spans without allocation.
 ///     All cells are initialized to the default empty cell (space character).
+///     Includes dirty row tracking for incremental rendering optimization.
 /// </summary>
 public class ScreenBuffer : IScreenBuffer
 {
     private Cell[][] _rows;
     private int _width;
     private int _height;
+    
+    /// <summary>
+    ///     Tracks which rows have been modified since last ClearDirtyFlags().
+    ///     Used for incremental rendering optimization.
+    /// </summary>
+    private BitArray _dirtyRows;
+    
+    /// <summary>
+    ///     Cached flag indicating if any row is dirty.
+    ///     Avoids scanning the entire BitArray when no changes have occurred.
+    /// </summary>
+    private bool _anyRowDirty;
 
     /// <summary>
     ///     Creates a new screen buffer with the specified dimensions.
@@ -39,6 +54,10 @@ public class ScreenBuffer : IScreenBuffer
         {
             _rows[row] = new Cell[width];
         }
+
+        // Initialize dirty tracking - all rows start dirty to force initial render
+        _dirtyRows = new BitArray(height, true);
+        _anyRowDirty = true;
 
         // Initialize all cells to empty (space character)
         Clear();
@@ -86,6 +105,7 @@ public class ScreenBuffer : IScreenBuffer
         }
 
         _rows[row][col] = cell;
+        MarkRowDirty(row);
     }
 
     /// <summary>
@@ -102,6 +122,7 @@ public class ScreenBuffer : IScreenBuffer
                 rowData[col] = emptyCell;
             }
         }
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -121,6 +142,7 @@ public class ScreenBuffer : IScreenBuffer
         {
             rowData[col] = emptyCell;
         }
+        MarkRowDirty(row);
     }
 
     /// <summary>
@@ -152,6 +174,7 @@ public class ScreenBuffer : IScreenBuffer
             {
                 rowData[col] = emptyCell;
             }
+            MarkRowDirty(row);
         }
     }
 
@@ -224,6 +247,9 @@ public class ScreenBuffer : IScreenBuffer
                 rowData[col] = emptyCell;
             }
         }
+        
+        // All rows have effectively changed after a scroll
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -259,6 +285,9 @@ public class ScreenBuffer : IScreenBuffer
                 rowData[col] = emptyCell;
             }
         }
+        
+        // All rows have effectively changed after a scroll
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -357,6 +386,10 @@ public class ScreenBuffer : IScreenBuffer
         _rows = newRows;
         _width = newWidth;
         _height = newHeight;
+        
+        // Resize dirty tracking array and mark all rows as dirty
+        _dirtyRows = new BitArray(newHeight, true);
+        _anyRowDirty = true;
     }
 
     /// <summary>
@@ -368,5 +401,60 @@ public class ScreenBuffer : IScreenBuffer
     public bool IsInBounds(int row, int col)
     {
         return row >= 0 && row < _height && col >= 0 && col < _width;
+    }
+
+    /// <summary>
+    ///     Checks if the specified row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    /// </summary>
+    /// <param name="row">The row index</param>
+    /// <returns>True if the row has been modified, false otherwise</returns>
+    public bool IsRowDirty(int row)
+    {
+        if (row < 0 || row >= _height)
+        {
+            return false;
+        }
+        return _dirtyRows[row];
+    }
+
+    /// <summary>
+    ///     Checks if any row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    /// </summary>
+    /// <returns>True if any row is dirty, false otherwise</returns>
+    public bool HasAnyDirtyRows()
+    {
+        return _anyRowDirty;
+    }
+
+    /// <summary>
+    ///     Clears all dirty flags, marking all rows as clean.
+    /// </summary>
+    public void ClearDirtyFlags()
+    {
+        _dirtyRows.SetAll(false);
+        _anyRowDirty = false;
+    }
+
+    /// <summary>
+    ///     Marks all rows as dirty, forcing a full re-render.
+    /// </summary>
+    public void MarkAllRowsDirty()
+    {
+        _dirtyRows.SetAll(true);
+        _anyRowDirty = true;
+    }
+
+    /// <summary>
+    ///     Marks a specific row as dirty.
+    /// </summary>
+    /// <param name="row">The row index to mark as dirty</param>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private void MarkRowDirty(int row)
+    {
+        if (row >= 0 && row < _height)
+        {
+            _dirtyRows[row] = true;
+            _anyRowDirty = true;
+        }
     }
 }

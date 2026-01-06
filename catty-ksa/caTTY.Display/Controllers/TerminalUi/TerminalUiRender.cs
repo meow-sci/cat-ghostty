@@ -115,6 +115,13 @@ internal class TerminalUiRender
       var viewportRows = _viewportRowsCache;
 //      _perfWatch.Stop("GetViewportRows");
 
+      // Check if we're viewing the live screen buffer (not scrolled into scrollback history)
+      // This enables dirty row tracking optimization
+      // - In alternate screen mode: always viewing live buffer (no scrollback)
+      // - In primary screen mode: only when auto-scroll is enabled (not scrolled up)
+      bool isViewingLiveScreen = isAlternateScreenActive || activeSession.Terminal.IsAutoScrollEnabled;
+      bool canUseDirtyTracking = isViewingLiveScreen;
+
       // Render each cell from the viewport content
 //      _perfWatch.Start("CellRenderingLoop");
       int terminalWidthCells = activeSession.Terminal.Width;
@@ -240,6 +247,20 @@ internal class TerminalUiRender
           if (!rowMightHaveSelection && !RowHasContent(rowSpan))
           {
             continue;
+          }
+
+          // DIRTY ROW OPTIMIZATION: Skip clean rows that have no content requiring rendering
+          // This only applies when viewing the live screen buffer (not scrollback)
+          // Clean rows with no content can be safely skipped because nothing needs to be drawn
+          if (canUseDirtyTracking && !activeSession.Terminal.ScreenBuffer.IsRowDirty(row))
+          {
+            // Row hasn't changed since last render and has already been skipped
+            // (if it had content, it wouldn't pass the RowHasContent check above on future frames)
+            // For truly empty rows that haven't been modified, we can skip processing
+            if (!RowHasContent(rowSpan) && !rowMightHaveSelection)
+            {
+              continue;
+            }
           }
 
           for (int col = 0; col < colsToRender; col++)
@@ -413,6 +434,14 @@ internal class TerminalUiRender
         ArrayPool<bool>.Shared.Return(isSelectedByCol);
       }
 //      _perfWatch.Stop("CellRenderingLoop");
+
+      // Clear dirty flags after rendering (only when viewing current screen, not scrollback)
+      // This marks all rows as "clean" so the next frame can detect new changes
+      if (canUseDirtyTracking)
+      {
+        // Only clear when viewing current screen buffer content (not scrolled into history)
+        activeSession.Terminal.ScreenBuffer.ClearDirtyFlags();
+      }
 
       // Render cursor
 //      _perfWatch.Start("RenderCursor");

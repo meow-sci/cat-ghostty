@@ -107,4 +107,31 @@ public interface IScreenBuffer
     /// <param name="col">The column index</param>
     /// <returns>True if coordinates are valid, false otherwise</returns>
     bool IsInBounds(int row, int col);
+
+    /// <summary>
+    ///     Checks if the specified row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    ///     Used for incremental rendering optimization.
+    /// </summary>
+    /// <param name="row">The row index</param>
+    /// <returns>True if the row has been modified, false otherwise</returns>
+    bool IsRowDirty(int row);
+
+    /// <summary>
+    ///     Checks if any row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    ///     Used for quick early-out in rendering.
+    /// </summary>
+    /// <returns>True if any row is dirty, false otherwise</returns>
+    bool HasAnyDirtyRows();
+
+    /// <summary>
+    ///     Clears all dirty flags, marking all rows as clean.
+    ///     Should be called after rendering is complete.
+    /// </summary>
+    void ClearDirtyFlags();
+
+    /// <summary>
+    ///     Marks all rows as dirty, forcing a full re-render.
+    ///     Used after resize or screen switch operations.
+    /// </summary>
+    void MarkAllRowsDirty();
 }
