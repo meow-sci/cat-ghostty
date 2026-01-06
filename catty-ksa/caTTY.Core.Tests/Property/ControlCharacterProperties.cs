@@ -44,7 +44,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(MixedSequenceArb, sequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act
             terminal.Write(sequence);
@@ -70,7 +70,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(MixedSequenceArb, sequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
             int bellEventCount = 0;
             terminal.Bell += (sender, args) => bellEventCount++;
 
@@ -102,7 +102,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(testCaseArb, testCase =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Write some text
             string text = new('A', testCase.TextLength);
@@ -134,7 +134,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(Arb.From(Gen.Choose(1, 15)), tabCount =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act - Write multiple tabs
             byte[] tabs = new byte[tabCount];
@@ -159,7 +159,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(MixedSequenceArb, sequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act - Process the sequence
             terminal.Write(sequence);
@@ -203,7 +203,7 @@ public class ControlCharacterProperties
         return Prop.ForAll(operationsArb, (string[] operations) =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act
             foreach (var op in operations)

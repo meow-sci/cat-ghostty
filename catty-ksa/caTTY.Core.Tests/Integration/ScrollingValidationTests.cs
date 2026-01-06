@@ -20,7 +20,7 @@ public class ScrollingValidationTests
     public void LongCommandOutput_ScrollsCorrectly_AndPreservesScrollback()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 24, 100, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 24, 100, NullLogger.Instance);
         
         // Act: Simulate long command output (more lines than screen height)
         var totalLines = 50; // More than 24 lines (screen height)
@@ -69,7 +69,7 @@ public class ScrollingValidationTests
     public void ViewportNavigation_WorksCorrectly_WithAutoScroll()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 24, 100, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 24, 100, NullLogger.Instance);
         
         // Generate content to fill scrollback
         for (int i = 1; i <= 30; i++)
@@ -134,7 +134,7 @@ public class ScrollingValidationTests
     public void ScreenBufferResize_PreservesContent_Appropriately()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(40, 10, 50, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(40, 10, 50, NullLogger.Instance);
         
         // Fill terminal with identifiable content
         for (int i = 1; i <= 15; i++) // More than screen height
@@ -170,7 +170,7 @@ public class ScrollingValidationTests
     {
         // Arrange: Create terminal with small scrollback capacity
         var scrollbackCapacity = 10;
-        using var terminal = new TerminalEmulator(80, 5, scrollbackCapacity, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 5, scrollbackCapacity, NullLogger.Instance);
         
         // Act: Generate more content than scrollback capacity
         var totalLines = scrollbackCapacity + 10; // Exceed capacity
@@ -202,7 +202,7 @@ public class ScrollingValidationTests
     public void MixedContentTypes_ScrollCorrectly()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 10, 50, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 10, 50, NullLogger.Instance);
         
         // Act: Generate mixed content types
         terminal.Write("Short line\r\n");
@@ -233,7 +233,7 @@ public class ScrollingValidationTests
     public void CsiScrollOperations_WorkCorrectly()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 10, 50, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 10, 50, NullLogger.Instance);
         
         // Fill screen with content
         for (int i = 1; i <= 10; i++)
@@ -279,7 +279,7 @@ public class ScrollingValidationTests
     public void StressTest_TerminalRemainsStable()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 24, 100, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 24, 100, NullLogger.Instance);
         
         // Act: Generate high volume of content rapidly
         var totalLines = 500;
@@ -320,7 +320,7 @@ public class ScrollingValidationTests
     public void EmptyTerminalScrolling_HandledGracefully()
     {
         // Arrange
-        using var terminal = new TerminalEmulator(80, 24, 50, NullLogger.Instance);
+        using var terminal = TerminalEmulator.Create(80, 24, 50, NullLogger.Instance);
         
         // Act & Assert: Try scrolling operations on empty terminal
         Assert.DoesNotThrow(() => terminal.ScrollbackManager.ScrollUp(5),

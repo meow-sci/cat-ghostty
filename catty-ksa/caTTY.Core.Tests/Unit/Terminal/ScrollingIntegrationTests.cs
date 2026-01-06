@@ -17,7 +17,7 @@ public class ScrollingIntegrationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(10, 5, 10, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(10, 5, 10, NullLogger.Instance);
     }
 
     [TearDown]

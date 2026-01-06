@@ -21,7 +21,7 @@ public class MouseModeStateTrackingTests
     public void SetUp()
     {
         _logger = NullLogger<TerminalEmulator>.Instance;
-        _terminal = new TerminalEmulator(80, 24, _logger);
+        _terminal = TerminalEmulator.Create(80, 24, _logger);
     }
 
     [TearDown]

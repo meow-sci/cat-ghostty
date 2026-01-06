@@ -54,7 +54,7 @@ public class LineCharacterOperationProperties
             (dimensions, insertCount, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill terminal with test pattern
             FillTerminalWithPattern(terminal, testChar, width, height);
@@ -90,7 +90,7 @@ public class LineCharacterOperationProperties
             (dimensions, deleteCount, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill terminal with test pattern
             FillTerminalWithPattern(terminal, testChar, width, height);
@@ -126,7 +126,7 @@ public class LineCharacterOperationProperties
             (dimensions, insertCount, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill a single line with test pattern
             terminal.Write("\x1b[5;1H"); // Move to row 5
@@ -164,7 +164,7 @@ public class LineCharacterOperationProperties
             (dimensions, deleteCount, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill a single line with test pattern
             terminal.Write("\x1b[5;1H"); // Move to row 5
@@ -202,7 +202,7 @@ public class LineCharacterOperationProperties
             (dimensions, operationCount) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Write content with different attributes
             terminal.Write("\x1b[3;1H"); // Move to row 3
@@ -239,7 +239,7 @@ public class LineCharacterOperationProperties
             var (width, height) = dimensions;
             if (height < 6) return true; // Skip if terminal too small for scroll region test
 
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Set scroll region (leave top and bottom rows outside)
             int scrollTop = 2;
@@ -277,7 +277,7 @@ public class LineCharacterOperationProperties
             (dimensions, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             bool allEdgeCasesWork = true;
 
@@ -341,7 +341,7 @@ public class LineCharacterOperationProperties
             (dimensions, testChar) =>
         {
             var (width, height) = dimensions;
-            using var terminal = new TerminalEmulator(width, height, 10, NullLogger.Instance);
+            using var terminal = TerminalEmulator.Create(width, height, 10, NullLogger.Instance);
 
             // Fill with initial content
             FillTerminalWithPattern(terminal, testChar, width, height);

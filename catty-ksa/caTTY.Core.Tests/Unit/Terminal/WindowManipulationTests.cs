@@ -18,7 +18,7 @@ public class WindowManipulationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(80, 24, 1000, NullLogger<TerminalEmulator>.Instance);
+        _terminal = TerminalEmulator.Create(80, 24, 1000, NullLogger<TerminalEmulator>.Instance);
         
         // Set initial window title and icon name for testing
         _terminal.SetWindowTitle("Initial Title");
@@ -41,7 +41,7 @@ public class WindowManipulationTests
         Assert.That(_terminal.State.IconNameStack, Is.Empty, "Icon name stack should start empty");
 
         // Act
-        _terminal.HandleWindowManipulation(22, new[] { 1 });
+        _terminal.Write("\x1b[22;1t"); // CSI 22;1t - Push icon name to stack
 
         // Assert
         Assert.That(_terminal.State.IconNameStack, Has.Count.EqualTo(1), "Should have one item in icon name stack");
@@ -56,7 +56,7 @@ public class WindowManipulationTests
         Assert.That(_terminal.State.TitleStack, Is.Empty, "Title stack should start empty");
 
         // Act
-        _terminal.HandleWindowManipulation(22, new[] { 2 });
+        _terminal.Write("\x1b[22;2t"); // CSI 22;2t - Push window title to stack
 
         // Assert
         Assert.That(_terminal.State.TitleStack, Has.Count.EqualTo(1), "Should have one item in title stack");
@@ -67,12 +67,12 @@ public class WindowManipulationTests
     public void HandleWindowManipulation_PopIconNameFromStack_RestoresIconName()
     {
         // Arrange - Push current icon name, then change it
-        _terminal.HandleWindowManipulation(22, new[] { 1 }); // Push current icon name
+        _terminal.Write("\x1b[22;1t"); // CSI 22;1t - Push current icon name
         _terminal.SetIconName("Changed Icon");
         Assert.That(_terminal.GetIconName(), Is.EqualTo("Changed Icon"), "Icon name should be changed");
 
         // Act - Pop icon name from stack
-        _terminal.HandleWindowManipulation(23, new[] { 1 });
+        _terminal.Write("\x1b[23;1t"); // CSI 23;1t - Pop icon name from stack
 
         // Assert
         Assert.That(_terminal.GetIconName(), Is.EqualTo("Initial Icon"), "Should restore original icon name");
@@ -83,12 +83,12 @@ public class WindowManipulationTests
     public void HandleWindowManipulation_PopWindowTitleFromStack_RestoresTitle()
     {
         // Arrange - Push current title, then change it
-        _terminal.HandleWindowManipulation(22, new[] { 2 }); // Push current title
+        _terminal.Write("\x1b[22;2t"); // CSI 22;2t - Push current title
         _terminal.SetWindowTitle("Changed Title");
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo("Changed Title"), "Title should be changed");
 
         // Act - Pop title from stack
-        _terminal.HandleWindowManipulation(23, new[] { 2 });
+        _terminal.Write("\x1b[23;2t"); // CSI 23;2t - Pop title from stack
 
         // Assert
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo("Initial Title"), "Should restore original title");
@@ -103,7 +103,7 @@ public class WindowManipulationTests
         Assert.That(_terminal.State.IconNameStack, Is.Empty, "Icon name stack should be empty");
 
         // Act - Try to pop from empty stack
-        _terminal.HandleWindowManipulation(23, new[] { 1 });
+        _terminal.Write("\x1b[23;1t"); // CSI 23;1t - Pop icon name from stack
 
         // Assert
         Assert.That(_terminal.GetIconName(), Is.EqualTo(currentIconName), "Icon name should remain unchanged");
@@ -118,7 +118,7 @@ public class WindowManipulationTests
         Assert.That(_terminal.State.TitleStack, Is.Empty, "Title stack should be empty");
 
         // Act - Try to pop from empty stack
-        _terminal.HandleWindowManipulation(23, new[] { 2 });
+        _terminal.Write("\x1b[23;2t"); // CSI 23;2t - Pop title from stack
 
         // Assert
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo(currentTitle), "Title should remain unchanged");
@@ -133,16 +133,16 @@ public class WindowManipulationTests
         _terminal.SetIconName("Icon 1");
 
         // Act & Assert - Push first set
-        _terminal.HandleWindowManipulation(22, new[] { 2 }); // Push title
-        _terminal.HandleWindowManipulation(22, new[] { 1 }); // Push icon
+        _terminal.Write("\x1b[22;2t"); // CSI 22;2t - Push title
+        _terminal.Write("\x1b[22;1t"); // CSI 22;1t - Push icon
         Assert.That(_terminal.State.TitleStack, Has.Count.EqualTo(1));
         Assert.That(_terminal.State.IconNameStack, Has.Count.EqualTo(1));
 
         // Change titles/icons and push again
         _terminal.SetWindowTitle("Title 2");
         _terminal.SetIconName("Icon 2");
-        _terminal.HandleWindowManipulation(22, new[] { 2 }); // Push title
-        _terminal.HandleWindowManipulation(22, new[] { 1 }); // Push icon
+        _terminal.Write("\x1b[22;2t"); // CSI 22;2t - Push title
+        _terminal.Write("\x1b[22;1t"); // CSI 22;1t - Push icon
         Assert.That(_terminal.State.TitleStack, Has.Count.EqualTo(2));
         Assert.That(_terminal.State.IconNameStack, Has.Count.EqualTo(2));
 
@@ -151,19 +151,19 @@ public class WindowManipulationTests
         _terminal.SetIconName("Icon 3");
 
         // Pop in reverse order (LIFO)
-        _terminal.HandleWindowManipulation(23, new[] { 1 }); // Pop icon
+        _terminal.Write("\x1b[23;1t"); // CSI 23;1t - Pop icon
         Assert.That(_terminal.GetIconName(), Is.EqualTo("Icon 2"));
         Assert.That(_terminal.State.IconNameStack, Has.Count.EqualTo(1));
 
-        _terminal.HandleWindowManipulation(23, new[] { 2 }); // Pop title
+        _terminal.Write("\x1b[23;2t"); // CSI 23;2t - Pop title
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo("Title 2"));
         Assert.That(_terminal.State.TitleStack, Has.Count.EqualTo(1));
 
-        _terminal.HandleWindowManipulation(23, new[] { 1 }); // Pop icon
+        _terminal.Write("\x1b[23;1t"); // CSI 23;1t - Pop icon
         Assert.That(_terminal.GetIconName(), Is.EqualTo("Icon 1"));
         Assert.That(_terminal.State.IconNameStack, Is.Empty);
 
-        _terminal.HandleWindowManipulation(23, new[] { 2 }); // Pop title
+        _terminal.Write("\x1b[23;2t"); // CSI 23;2t - Pop title
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo("Title 1"));
         Assert.That(_terminal.State.TitleStack, Is.Empty);
     }
@@ -176,11 +176,11 @@ public class WindowManipulationTests
         _terminal.ResponseEmitted += (sender, args) => emittedResponse = Encoding.UTF8.GetString(args.ResponseData.Span);
 
         // Act
-        _terminal.HandleWindowManipulation(18, Array.Empty<int>());
+        _terminal.Write("\x1b[18t"); // CSI 18t - Query terminal size
 
         // Assert
         Assert.That(emittedResponse, Is.Not.Null, "Should emit a response");
-        Assert.That(emittedResponse, Is.EqualTo($"\x1b[8;{_terminal.Height};{_terminal.Width}t"), 
+        Assert.That(emittedResponse, Is.EqualTo($"\x1b[8;{_terminal.Height};{_terminal.Width}t"),
             "Should emit correct terminal size response");
     }
 
@@ -194,10 +194,10 @@ public class WindowManipulationTests
         _terminal.ResponseEmitted += (sender, args) => emittedResponse = Encoding.UTF8.GetString(args.ResponseData.Span);
 
         // Act - Test various unsupported operations
-        _terminal.HandleWindowManipulation(1, Array.Empty<int>()); // Restore window
-        _terminal.HandleWindowManipulation(2, Array.Empty<int>()); // Minimize window
-        _terminal.HandleWindowManipulation(8, new[] { 24, 80 }); // Resize window
-        _terminal.HandleWindowManipulation(99, new[] { 1, 2, 3 }); // Unknown operation
+        _terminal.Write("\x1b[1t"); // CSI 1t - Restore window
+        _terminal.Write("\x1b[2t"); // CSI 2t - Minimize window
+        _terminal.Write("\x1b[8;24;80t"); // CSI 8;24;80t - Resize window
+        _terminal.Write("\x1b[99;1;2;3t"); // CSI 99;1;2;3t - Unknown operation
 
         // Assert - Nothing should change
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo(initialTitle), "Title should remain unchanged");
@@ -215,10 +215,10 @@ public class WindowManipulationTests
         string initialIcon = _terminal.GetIconName();
 
         // Act - Test invalid sub-operations for title stack
-        _terminal.HandleWindowManipulation(22, new[] { 0 }); // Invalid push sub-operation
-        _terminal.HandleWindowManipulation(22, new[] { 3 }); // Invalid push sub-operation
-        _terminal.HandleWindowManipulation(23, new[] { 0 }); // Invalid pop sub-operation
-        _terminal.HandleWindowManipulation(23, new[] { 3 }); // Invalid pop sub-operation
+        _terminal.Write("\x1b[22;0t"); // CSI 22;0t - Invalid push sub-operation
+        _terminal.Write("\x1b[22;3t"); // CSI 22;3t - Invalid push sub-operation
+        _terminal.Write("\x1b[23;0t"); // CSI 23;0t - Invalid pop sub-operation
+        _terminal.Write("\x1b[23;3t"); // CSI 23;3t - Invalid pop sub-operation
 
         // Assert - Nothing should change
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo(initialTitle), "Title should remain unchanged");
@@ -235,8 +235,8 @@ public class WindowManipulationTests
         string initialIcon = _terminal.GetIconName();
 
         // Act - Test operations that require parameters but don't have them
-        _terminal.HandleWindowManipulation(22, Array.Empty<int>()); // Push without sub-operation
-        _terminal.HandleWindowManipulation(23, Array.Empty<int>()); // Pop without sub-operation
+        _terminal.Write("\x1b[22t"); // CSI 22t - Push without sub-operation
+        _terminal.Write("\x1b[23t"); // CSI 23t - Pop without sub-operation
 
         // Assert - Nothing should change
         Assert.That(_terminal.GetWindowTitle(), Is.EqualTo(initialTitle), "Title should remain unchanged");

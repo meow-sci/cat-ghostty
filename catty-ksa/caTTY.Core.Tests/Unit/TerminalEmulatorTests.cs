@@ -18,7 +18,7 @@ public class TerminalEmulatorTests
     public void Constructor_WithValidDimensions_CreatesTerminal()
     {
         // Arrange & Act
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Assert
         Assert.That(terminal.Width, Is.EqualTo(80));
@@ -34,9 +34,9 @@ public class TerminalEmulatorTests
     public void Constructor_WithInvalidWidth_ThrowsArgumentOutOfRangeException()
     {
         // Arrange, Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(0, 24));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(-1, 24));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(1001, 24));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(0, 24));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(-1, 24));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(1001, 24));
     }
 
     /// <summary>
@@ -46,9 +46,9 @@ public class TerminalEmulatorTests
     public void Constructor_WithInvalidHeight_ThrowsArgumentOutOfRangeException()
     {
         // Arrange, Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(80, 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(80, -1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new TerminalEmulator(80, 1001));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(80, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(80, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TerminalEmulator.Create(80, 1001));
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public class TerminalEmulatorTests
     public void Write_WithPrintableCharacter_WritesCharacterAtCursor()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         byte[] data = new[] { (byte)'A' };
 
         // Act
@@ -77,7 +77,7 @@ public class TerminalEmulatorTests
     public void Write_WithMultipleCharacters_WritesAllCharacters()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         byte[] data = new[] { (byte)'H', (byte)'e', (byte)'l', (byte)'l', (byte)'o' };
 
         // Act
@@ -99,7 +99,7 @@ public class TerminalEmulatorTests
     public void Write_WithString_WritesStringContent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act
         terminal.Write("Test");
@@ -118,7 +118,7 @@ public class TerminalEmulatorTests
     public void Write_WithLineFeed_MovesCursorDown()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("A");
         byte[] data = new byte[] { 0x0A }; // LF
 
@@ -137,7 +137,7 @@ public class TerminalEmulatorTests
     public void Write_WithCarriageReturn_MovesCursorToColumnZero()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("Hello");
         byte[] data = new byte[] { 0x0D }; // CR
 
@@ -156,7 +156,7 @@ public class TerminalEmulatorTests
     public void Write_WithCRLF_MovesCursorToNextLineStart()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("Hello");
         byte[] data = new byte[] { 0x0D, 0x0A }; // CR LF
 
@@ -175,7 +175,7 @@ public class TerminalEmulatorTests
     public void Write_WithTab_MovesCursorToNextTabStop()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         byte[] data = new byte[] { 0x09 }; // TAB
 
         // Act
@@ -192,7 +192,7 @@ public class TerminalEmulatorTests
     public void Write_WithBell_RaisesBellEvent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         bool bellEventRaised = false;
         BellEventArgs? bellEventArgs = null;
         terminal.Bell += (sender, args) =>
@@ -218,7 +218,7 @@ public class TerminalEmulatorTests
     public void Write_WithBackspace_MovesCursorLeft()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("ABC"); // Move cursor to column 3
         byte[] data = new byte[] { 0x08 }; // BS
 
@@ -237,7 +237,7 @@ public class TerminalEmulatorTests
     public void Write_WithBackspaceAtColumnZero_DoesNotMoveCursor()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         // Cursor is already at (0, 0)
         byte[] data = new byte[] { 0x08 }; // BS
 
@@ -256,7 +256,7 @@ public class TerminalEmulatorTests
     public void Write_WithMultipleControlCharacters_HandlesAllCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         bool bellEventRaised = false;
         int bellCount = 0;
         terminal.Bell += (sender, args) =>
@@ -281,7 +281,7 @@ public class TerminalEmulatorTests
     public void Write_WithMixedControlCharactersAndText_WorksCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         byte[] data = new byte[] { (byte)'a', 0x07, (byte)'b', 0x08, (byte)'c' }; // a BEL b BS c
 
         // Act
@@ -301,7 +301,7 @@ public class TerminalEmulatorTests
     public void Write_WithTabCharacter_MovesToCorrectTabStops()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act & Assert - Test multiple tab stops
         terminal.Write("\t"); // Should go to column 8
@@ -321,7 +321,7 @@ public class TerminalEmulatorTests
     public void Write_WithTabNearRightEdge_GoesToRightEdge()
     {
         // Arrange
-        var terminal = new TerminalEmulator(10, 24); // Small width
+        var terminal = TerminalEmulator.Create(10, 24); // Small width
         terminal.Write("1234567"); // Move to column 7
 
         // Act
@@ -342,7 +342,7 @@ public class TerminalEmulatorTests
     public void Write_WithBackspaceAfterWrapPending_ClearsWrapPending()
     {
         // Arrange
-        var terminal = new TerminalEmulator(5, 24); // Small width
+        var terminal = TerminalEmulator.Create(5, 24); // Small width
         terminal.Write("12345"); // Fill first line, should set wrap pending
 
         // Act
@@ -365,7 +365,7 @@ public class TerminalEmulatorTests
     public void Write_WithTabAfterWrapPending_ClearsWrapPending()
     {
         // Arrange
-        var terminal = new TerminalEmulator(5, 24); // Small width
+        var terminal = TerminalEmulator.Create(5, 24); // Small width
         terminal.Write("12345"); // Fill first line, should set wrap pending
 
         // Act
@@ -383,7 +383,7 @@ public class TerminalEmulatorTests
     public void Write_WithDEL_IgnoresCharacter()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("A");
         byte[] data = new byte[] { 0x7F }; // DEL
 
@@ -402,7 +402,7 @@ public class TerminalEmulatorTests
     public void Write_AtRightEdge_WrapsToNextLine()
     {
         // Arrange
-        var terminal = new TerminalEmulator(5, 24); // Small width for testing
+        var terminal = TerminalEmulator.Create(5, 24); // Small width for testing
         terminal.Write("12345"); // Fill first line
 
         // Act
@@ -421,7 +421,7 @@ public class TerminalEmulatorTests
     public void Write_RaisesScreenUpdatedEvent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         bool eventRaised = false;
         terminal.ScreenUpdated += (sender, args) => eventRaised = true;
 
@@ -439,7 +439,7 @@ public class TerminalEmulatorTests
     public void Write_WithEmptyData_DoesNotRaiseEvent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         bool eventRaised = false;
         terminal.ScreenUpdated += (sender, args) => eventRaised = true;
 
@@ -457,7 +457,7 @@ public class TerminalEmulatorTests
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act & Assert
         Assert.DoesNotThrow(() =>
@@ -474,7 +474,7 @@ public class TerminalEmulatorTests
     public void Write_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Dispose();
 
         // Act & Assert
@@ -488,7 +488,7 @@ public class TerminalEmulatorTests
     public void ScrollViewportUp_FromBottom_DisablesAutoScroll()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        var terminal = TerminalEmulator.Create(80, 3, 100); // Small terminal to force scrollback
         
         // Fill the screen and add more content to create scrollback
         for (int i = 0; i < 6; i++) // More lines than screen height
@@ -514,7 +514,7 @@ public class TerminalEmulatorTests
     public void ScrollViewportDown_ToBottom_EnablesAutoScroll()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        var terminal = TerminalEmulator.Create(80, 3, 100); // Small terminal to force scrollback
         
         // Fill the screen and add more content to create scrollback
         for (int i = 0; i < 6; i++) // More lines than screen height
@@ -540,7 +540,7 @@ public class TerminalEmulatorTests
     public void ScrollViewportToTop_DisablesAutoScroll()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        var terminal = TerminalEmulator.Create(80, 3, 100); // Small terminal to force scrollback
         
         // Fill the screen and add more content to create scrollback
         for (int i = 0; i < 6; i++) // More lines than screen height
@@ -563,7 +563,7 @@ public class TerminalEmulatorTests
     public void ScrollViewportToBottom_EnablesAutoScroll()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        var terminal = TerminalEmulator.Create(80, 3, 100); // Small terminal to force scrollback
         
         // Fill the screen and add more content to create scrollback
         for (int i = 0; i < 6; i++) // More lines than screen height
@@ -589,7 +589,7 @@ public class TerminalEmulatorTests
     public void ViewportMethods_AfterDispose_ThrowObjectDisposedException()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Dispose();
 
         // Act & Assert
@@ -606,7 +606,7 @@ public class TerminalEmulatorTests
     public void Resize_WithValidDimensions_UpdatesDimensions()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act
         terminal.Resize(100, 30);
@@ -623,7 +623,7 @@ public class TerminalEmulatorTests
     public void Resize_PreservesCursorPosition()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("Hello");
         // Cursor should be at (0, 5)
 
@@ -642,7 +642,7 @@ public class TerminalEmulatorTests
     public void Resize_ClampsCursorPosition()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         // Move cursor to position that will be out of bounds after resize
         terminal.Write(new string(' ', 70)); // Move cursor to column 70
         
@@ -661,7 +661,7 @@ public class TerminalEmulatorTests
     public void Resize_PreservesContentWithinBounds()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("Test content");
 
         // Act - resize to larger dimensions
@@ -681,7 +681,7 @@ public class TerminalEmulatorTests
     public void Resize_WithSameDimensions_DoesNothing()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("Test");
         int originalCursorCol = terminal.Cursor.Col;
 
@@ -702,7 +702,7 @@ public class TerminalEmulatorTests
     public void Resize_WithInvalidDimensions_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => terminal.Resize(0, 24));
@@ -718,7 +718,7 @@ public class TerminalEmulatorTests
     public void Resize_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Dispose();
 
         // Act & Assert
@@ -732,7 +732,7 @@ public class TerminalEmulatorTests
     public void Write_CsiSaveRestorePrivateModes_WorksCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Set some initial modes
         terminal.Write("\x1b[?1h");    // Application cursor keys on
@@ -773,7 +773,7 @@ public class TerminalEmulatorTests
     public void Write_CsiSetCursorStyle_WorksCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Test different cursor styles
         terminal.Write("\x1b[2 q");    // Steady block
@@ -803,7 +803,7 @@ public class TerminalEmulatorTests
     public void Write_BracketedPasteMode_WorksCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Initially should be off
         Assert.That(terminal.ModeManager.BracketedPasteMode, Is.False);
@@ -829,7 +829,7 @@ public class TerminalEmulatorTests
     public void WrapPasteContent_WithBracketedPasteModeEnabled_WrapsContent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
 
         // Act
@@ -848,7 +848,7 @@ public class TerminalEmulatorTests
     public void WrapPasteContent_WithBracketedPasteModeDisabled_DoesNotWrapContent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         // Bracketed paste mode is disabled by default
 
         // Act
@@ -867,7 +867,7 @@ public class TerminalEmulatorTests
     public void WrapPasteContent_WithEmptyContent_HandlesCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
 
         // Act & Assert
@@ -884,7 +884,7 @@ public class TerminalEmulatorTests
     public void WrapPasteContent_WithReadOnlySpan_WorksCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         terminal.Write("\x1b[?2004h"); // Enable bracketed paste mode
 
         // Act
@@ -904,7 +904,7 @@ public class TerminalEmulatorTests
     public void IsBracketedPasteModeEnabled_ReflectsCurrentState()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Initially should be false
         Assert.That(terminal.IsBracketedPasteModeEnabled(), Is.False);
@@ -927,7 +927,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsModeWithoutClearingScreen()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Write some content to the screen
         terminal.Write("Hello World");
@@ -988,7 +988,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsScrollRegion()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Set a custom scroll region
         terminal.Write("\x1b[5;20r"); // Set scroll region from row 5 to 20
@@ -1014,7 +1014,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsCharacterSets()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Set non-default character sets
         terminal.Write("\x1b(0"); // Set G0 to DEC Special Character Set
@@ -1044,7 +1044,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsTabStops()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Clear all tab stops and set custom ones
         terminal.Write("\x1b[3g"); // Clear all tab stops
@@ -1076,7 +1076,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsCharacterProtection()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Set character protection
         terminal.Write("\x1b[2\"q"); // Set character protection to protected
@@ -1100,7 +1100,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_ResetsUtf8Mode()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Disable UTF-8 mode (this would normally be done through some sequence, but we'll set it directly for testing)
         terminal.State.Utf8Mode = false;
@@ -1124,7 +1124,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_PreservesScrollbackContent()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 3, 100); // Small terminal to force scrollback
+        var terminal = TerminalEmulator.Create(80, 3, 100); // Small terminal to force scrollback
         
         // Fill the screen and add more content to create scrollback
         for (int i = 0; i < 6; i++) // More lines than screen height
@@ -1152,7 +1152,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_CanBeCalledMultipleTimes()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Write some content and set some modes
         terminal.Write("Test content");
@@ -1181,7 +1181,7 @@ public class TerminalEmulatorTests
     public void Write_DecSoftReset_UpdatesAllManagerStates()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Set various states
         terminal.Write("\x1b[10;20H"); // Move cursor
@@ -1214,7 +1214,7 @@ public class TerminalEmulatorTests
     public void InsertMode_EnableAndDisable_UpdatesModeState()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
 
         // Act - Enable insert mode (CSI 4 h)
         terminal.Write("\x1b[4h");
@@ -1238,7 +1238,7 @@ public class TerminalEmulatorTests
     public void InsertMode_Enabled_InsertsCharactersInsteadOfOverwriting()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Write initial text
         terminal.Write("ABCDEF");
@@ -1271,7 +1271,7 @@ public class TerminalEmulatorTests
     public void InsertMode_Disabled_OverwritesCharacters()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Write initial text
         terminal.Write("ABCDEF");
@@ -1303,7 +1303,7 @@ public class TerminalEmulatorTests
     public void InsertMode_LineOverflow_TruncatesAtRightEdge()
     {
         // Arrange
-        var terminal = new TerminalEmulator(10, 24); // Small width for testing overflow
+        var terminal = TerminalEmulator.Create(10, 24); // Small width for testing overflow
         
         // Fill the line completely
         terminal.Write("0123456789");
@@ -1337,7 +1337,7 @@ public class TerminalEmulatorTests
     public void InsertMode_PreservesCharacterAttributes_WhenShifting()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         
         // Write text with bold attribute
         terminal.Write("\x1b[1mABC\x1b[0m"); // Bold ABC, then reset
@@ -1369,7 +1369,7 @@ public class TerminalEmulatorTests
     public void InsertMode_AtRightEdge_HandlesCorrectly()
     {
         // Arrange
-        var terminal = new TerminalEmulator(5, 24); // Very small width
+        var terminal = TerminalEmulator.Create(5, 24); // Very small width
         
         // Fill the line
         terminal.Write("ABCDE");

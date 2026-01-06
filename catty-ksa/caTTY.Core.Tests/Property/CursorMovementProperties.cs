@@ -32,7 +32,7 @@ public class CursorMovementProperties
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Start from a position within bounds
             terminal.Write("\x1b[12;40H"); // Middle of screen
@@ -63,8 +63,8 @@ public class CursorMovementProperties
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
         {
             // Arrange: Create two identical terminals
-            var terminal1 = new TerminalEmulator(80, 24);
-            var terminal2 = new TerminalEmulator(80, 24);
+            var terminal1 = TerminalEmulator.Create(80, 24);
+            var terminal2 = TerminalEmulator.Create(80, 24);
 
             // Start both from the same position
             terminal1.Write("\x1b[10;15H");
@@ -92,7 +92,7 @@ public class CursorMovementProperties
         return Prop.ForAll(CursorMovementSequenceArb, sequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Write some content first
             terminal.Write("Hello World");
@@ -133,7 +133,7 @@ public class CursorMovementProperties
             (width, height, charCount) =>
             {
                 // Test with auto-wrap enabled
-                var terminalWithWrap = new TerminalEmulator(width, height);
+                var terminalWithWrap = TerminalEmulator.Create(width, height);
 
                 // Enable auto-wrap mode (should be default, but make it explicit)
                 terminalWithWrap.Write("\x1b[?7h");
@@ -148,7 +148,7 @@ public class CursorMovementProperties
                 ICursor cursorWithWrap = terminalWithWrap.Cursor;
 
                 // Test with auto-wrap disabled
-                var terminalWithoutWrap = new TerminalEmulator(width, height);
+                var terminalWithoutWrap = TerminalEmulator.Create(width, height);
 
                 // Disable auto-wrap mode
                 terminalWithoutWrap.Write("\x1b[?7l");

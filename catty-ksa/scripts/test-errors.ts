@@ -3,7 +3,20 @@
 import { DOMParser } from "@xmldom/xmldom";
 import { join } from "node:path";
 import { stringify } from 'yaml';
+import { parseArgs } from "util";
 
+const { values } = parseArgs({
+  args: Bun.argv,
+  options: {
+    SummaryOnly: {
+      type: "boolean",
+    },
+  },
+  strict: false,
+  allowPositionals: true,
+});
+
+const summaryOnly = values.SummaryOnly ?? false;
 
 const solutionDir = join(__dirname, "../");
 const testresultsDir = join(solutionDir, ".testresults");
@@ -52,7 +65,8 @@ interface SuccessReport {
 }
 
 // If success, exit
-if (outcome === "Passed") {
+if (outcome === "Completed") {
+  
   const report: SuccessReport = {
     status: "ok",
     total: Number(total),
@@ -108,7 +122,7 @@ interface ErrorReport {
   failed: number;
   total: number;
   passed: number;
-  tests: {
+  tests?: {
     method: string;
     message: string;
   }[];
@@ -122,10 +136,14 @@ if (failures.length > 0) {
     failed: failures.length,
     passed: Number(passed),
     total: Number(total),
-    tests: failures.map(f => ({
+  };
+
+  // Only include detailed test info if not in summary-only mode
+  if (!summaryOnly) {
+    report.tests = failures.map(f => ({
       method: f.fqTestName,
       message: f.errorMessage.replace(/\r?\n/g, "\n  "),
-    })),
+    }));
   }
 
   console.error("---\n" + stringify(report, {}));

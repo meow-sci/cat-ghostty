@@ -63,7 +63,7 @@ public class Utf8Properties
         return Prop.ForAll(ValidUtf8StringArb, input =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(200, 50); // Large enough to hold test data
+            var terminal = TerminalEmulator.Create(200, 50); // Large enough to hold test data
             int[] expectedCodePoints = input.EnumerateRunes().Select(r => r.Value).ToArray();
 
             // Act
@@ -106,8 +106,8 @@ public class Utf8Properties
             }
 
             // Arrange - Create two identical terminals
-            var terminal1 = new TerminalEmulator(200, 50);
-            var terminal2 = new TerminalEmulator(200, 50);
+            var terminal1 = TerminalEmulator.Create(200, 50);
+            var terminal2 = TerminalEmulator.Create(200, 50);
 
             // Reconstruct the original byte array
             byte[] originalBytes = splitSequences.SelectMany(seq => seq).ToArray();
@@ -155,7 +155,7 @@ public class Utf8Properties
         return Prop.ForAll(wideCharArb, wideChar =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
             (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
             // Act
@@ -194,7 +194,7 @@ public class Utf8Properties
         return Prop.ForAll(invalidUtf8Arb, invalidSequence =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act - Process invalid UTF-8 sequence
             terminal.Write(invalidSequence);
@@ -238,7 +238,7 @@ public class Utf8Properties
         return Prop.ForAll(mixedSequenceArb, mixedContent =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24);
+            var terminal = TerminalEmulator.Create(80, 24);
 
             // Act
             terminal.Write(mixedContent);

@@ -1,6 +1,17 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
+using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
+using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
+using ConPtyOutputPump = caTTY.Core.Terminal.Process.ConPtyOutputPump;
+using ConPtyPipeManager = caTTY.Core.Terminal.Process.ConPtyPipeManager;
+using ProcessCleanup = caTTY.Core.Terminal.Process.ProcessCleanup;
+using ProcessEvents = caTTY.Core.Terminal.Process.ProcessEvents;
+using ProcessLifecycleManager = caTTY.Core.Terminal.Process.ProcessLifecycleManager;
+using ProcessStateManager = caTTY.Core.Terminal.Process.ProcessStateManager;
+using ShellCommandResolver = caTTY.Core.Terminal.Process.ShellCommandResolver;
+using StartupInfoBuilder = caTTY.Core.Terminal.Process.StartupInfoBuilder;
+using SysProcess = System.Diagnostics.Process;
 
 namespace caTTY.Core.Terminal;
 
@@ -11,17 +22,15 @@ namespace caTTY.Core.Terminal;
 /// </summary>
 public class ProcessManager : IProcessManager
 {
-    private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
-    private const IntPtr PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
     private readonly object _processLock = new();
-    private COORD _currentSize;
+    private Process.ConPtyNative.COORD _currentSize;
     private bool _disposed;
     private IntPtr _inputReadHandle = IntPtr.Zero;
     private IntPtr _inputWriteHandle = IntPtr.Zero;
     private IntPtr _outputReadHandle = IntPtr.Zero;
     private Task? _outputReadTask;
     private IntPtr _outputWriteHandle = IntPtr.Zero;
-    private Process? _process;
+    private SysProcess? _process;
 
     private IntPtr _pseudoConsole = IntPtr.Zero;
     private CancellationTokenSource? _readCancellationSource;
@@ -29,57 +38,17 @@ public class ProcessManager : IProcessManager
     /// <summary>
     ///     Gets whether a shell process is currently running.
     /// </summary>
-    public bool IsRunning
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                if (_process == null)
-                {
-                    return false;
-                }
-
-                try
-                {
-                    return !_process.HasExited;
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process has been disposed
-                    return false;
-                }
-            }
-        }
-    }
+    public bool IsRunning => ProcessStateManager.IsRunning(_process, _processLock);
 
     /// <summary>
     ///     Gets the process ID of the running shell, or null if no process is running.
     /// </summary>
-    public int? ProcessId
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                return _process?.Id;
-            }
-        }
-    }
+    public int? ProcessId => ProcessStateManager.GetProcessId(_process, _processLock);
 
     /// <summary>
     ///     Gets the exit code of the last process, or null if no process has exited.
     /// </summary>
-    public int? ExitCode
-    {
-        get
-        {
-            lock (_processLock)
-            {
-                return _process?.HasExited == true ? _process.ExitCode : null;
-            }
-        }
-    }
+    public int? ExitCode => ProcessStateManager.GetExitCode(_process, _processLock);
 
     /// <summary>
     ///     Event raised when data is received from the shell process stdout/stderr.
@@ -126,104 +95,53 @@ public class ProcessManager : IProcessManager
         try
         {
             // Store terminal size
-            _currentSize = new COORD((short)options.InitialWidth, (short)options.InitialHeight);
+            _currentSize = new ConPtyNative.COORD((short)options.InitialWidth, (short)options.InitialHeight);
 
-            // Create communication pipes
-            if (!CreatePipe(out _inputReadHandle, out _inputWriteHandle, IntPtr.Zero, 0))
-            {
-                throw new ProcessStartException($"Failed to create input pipe: {Marshal.GetLastWin32Error()}");
-            }
-
-            if (!CreatePipe(out _outputReadHandle, out _outputWriteHandle, IntPtr.Zero, 0))
-            {
-                CleanupHandles();
-                throw new ProcessStartException($"Failed to create output pipe: {Marshal.GetLastWin32Error()}");
-            }
-
-            // Create pseudoconsole
-            int result = CreatePseudoConsole(_currentSize, _inputReadHandle, _outputWriteHandle, 0, out _pseudoConsole);
-            if (result != 0)
-            {
-                CleanupHandles();
-                throw new ProcessStartException($"Failed to create pseudoconsole: {result}");
-            }
-
-            // Close the handles that were passed to the pseudoconsole (as per Microsoft docs)
-            CloseHandle(_inputReadHandle);
-            CloseHandle(_outputWriteHandle);
-            _inputReadHandle = IntPtr.Zero;
-            _outputWriteHandle = IntPtr.Zero;
+            // Create communication pipes and pseudoconsole
+            var pipeHandles = ConPtyPipeManager.CreatePipesAndPseudoConsole(_currentSize);
+            _inputWriteHandle = pipeHandles.InputWriteHandle;
+            _outputReadHandle = pipeHandles.OutputReadHandle;
+            _pseudoConsole = pipeHandles.PseudoConsole;
 
             // Prepare startup information
-            var startupInfo = new STARTUPINFOEX();
-            startupInfo.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
+            var startupInfo = StartupInfoBuilder.Create();
 
-            // Initialize process thread attribute list
-            IntPtr attributeListSize = IntPtr.Zero;
-            InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref attributeListSize);
-
-            startupInfo.lpAttributeList = Marshal.AllocHGlobal(attributeListSize);
-            if (!InitializeProcThreadAttributeList(startupInfo.lpAttributeList, 1, 0, ref attributeListSize))
+            // Initialize process thread attribute list with pseudoconsole
+            try
             {
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
-                CleanupPseudoConsole();
-                throw new ProcessStartException($"Failed to initialize attribute list: {Marshal.GetLastWin32Error()}");
+                startupInfo.lpAttributeList = AttributeListBuilder.CreateAttributeListWithPseudoConsole(_pseudoConsole);
             }
-
-            // Set pseudoconsole attribute
-            if (!UpdateProcThreadAttribute(
-                    startupInfo.lpAttributeList,
-                    0,
-                    PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                    _pseudoConsole,
-                    IntPtr.Size,
-                    IntPtr.Zero,
-                    IntPtr.Zero))
+            catch (ProcessStartException)
             {
-                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
-                throw new ProcessStartException(
-                    $"Failed to set pseudoconsole attribute: {Marshal.GetLastWin32Error()}");
+                throw;
             }
 
             // Resolve shell command
-            (string shellPath, string shellArgs) = ResolveShellCommand(options);
+            (string shellPath, string shellArgs) = ShellCommandResolver.ResolveShellCommand(options);
             string commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
 
             // Create the process
-            var processInfo = new PROCESS_INFORMATION();
-            if (!CreateProcessW(
-                    null,
-                    commandLine,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    false,
-                    EXTENDED_STARTUPINFO_PRESENT,
-                    IntPtr.Zero,
-                    options.WorkingDirectory ?? Environment.CurrentDirectory,
-                    ref startupInfo,
-                    out processInfo))
+            ConPtyNative.PROCESS_INFORMATION processInfo;
+            try
             {
-                int error = Marshal.GetLastWin32Error();
-                DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-                Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+                processInfo = ProcessLifecycleManager.CreateProcess(
+                    commandLine,
+                    options.WorkingDirectory ?? Environment.CurrentDirectory,
+                    ref startupInfo);
+            }
+            catch
+            {
+                AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
-                throw new ProcessStartException($"Failed to create process: {error}");
+                throw;
             }
 
             // Clean up startup info
-            DeleteProcThreadAttributeList(startupInfo.lpAttributeList);
-            Marshal.FreeHGlobal(startupInfo.lpAttributeList);
+            AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
 
             // Wrap the process handle in a Process object for lifecycle management
-            var process = Process.GetProcessById(processInfo.dwProcessId);
-            process.EnableRaisingEvents = true;
-            process.Exited += OnProcessExited;
-
-            // Close process and thread handles (we have the Process object now)
-            CloseHandle(processInfo.hProcess);
-            CloseHandle(processInfo.hThread);
+            var process = ProcessLifecycleManager.WrapProcessHandle(processInfo, OnProcessExited);
 
             lock (_processLock)
             {
@@ -235,23 +153,15 @@ public class ProcessManager : IProcessManager
             CancellationToken readToken = _readCancellationSource.Token;
             _outputReadTask = ReadOutputAsync(readToken);
 
-            // Wait a short time to ensure the process started successfully
-            await Task.Delay(100, cancellationToken);
-
-            // Check if process exited immediately
+            // Validate that the process started successfully
             try
             {
-                if (process.HasExited)
-                {
-                    int exitCode = process.ExitCode;
-                    CleanupProcess();
-                    throw new ProcessStartException(
-                        $"Shell process exited immediately with code {exitCode}: {shellPath}", shellPath);
-                }
+                await ProcessLifecycleManager.ValidateProcessStartAsync(process, shellPath, cancellationToken);
             }
-            catch (InvalidOperationException)
+            catch
             {
-                // Process has already exited and been disposed - let the exit handler deal with cleanup
+                CleanupProcess();
+                throw;
             }
         }
         catch (Exception ex) when (!(ex is ProcessStartException))
@@ -270,57 +180,20 @@ public class ProcessManager : IProcessManager
     {
         ThrowIfDisposed();
 
-        Process? processToStop = null;
-        CancellationTokenSource? cancellationSource = null;
+        SysProcess? processToStop;
+        CancellationTokenSource? cancellationSource;
+        Task? readTask;
 
         lock (_processLock)
         {
             processToStop = _process;
             cancellationSource = _readCancellationSource;
-        }
-
-        if (processToStop == null)
-        {
-            return; // No process running
+            readTask = _outputReadTask;
         }
 
         try
         {
-            // Cancel read operations
-            cancellationSource?.Cancel();
-
-            // Try graceful shutdown first
-            if (!processToStop.HasExited)
-            {
-                try
-                {
-                    // For ConPTY processes, we can try CloseMainWindow first, then Kill if needed
-                    processToStop.CloseMainWindow();
-
-                    // Wait a short time for graceful shutdown
-                    if (!processToStop.WaitForExit(2000))
-                    {
-                        processToStop.Kill(true);
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process already exited
-                }
-            }
-
-            // Wait for read task to complete
-            if (_outputReadTask != null)
-            {
-                try
-                {
-                    await _outputReadTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected when cancellation is requested
-                }
-            }
+            await ProcessLifecycleManager.StopProcessGracefullyAsync(processToStop, cancellationSource, readTask);
         }
         finally
         {
@@ -338,43 +211,14 @@ public class ProcessManager : IProcessManager
     {
         ThrowIfDisposed();
 
-        Process? currentProcess;
+        SysProcess? currentProcess;
         lock (_processLock)
         {
             currentProcess = _process;
         }
 
-        if (currentProcess == null || currentProcess.HasExited)
-        {
-            throw new InvalidOperationException("No process is currently running");
-        }
-
-        if (_inputWriteHandle == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Input handle is not available");
-        }
-
-        try
-        {
-            byte[] buffer = data.ToArray();
-            if (!WriteFile(_inputWriteHandle, buffer, (uint)buffer.Length, out uint bytesWritten, IntPtr.Zero))
-            {
-                int error = Marshal.GetLastWin32Error();
-                int processId = currentProcess.Id;
-                var writeException =
-                    new ProcessWriteException($"Failed to write to ConPTY input: Win32 error {error}", processId);
-                OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
-                throw writeException;
-            }
-        }
-        catch (Exception ex) when (!(ex is ProcessWriteException))
-        {
-            int processId = currentProcess.Id;
-            var writeException =
-                new ProcessWriteException($"Failed to write to ConPTY input: {ex.Message}", ex, processId);
-            OnProcessError(new ProcessErrorEventArgs(writeException, writeException.Message, processId));
-            throw writeException;
-        }
+        ProcessStateManager.ValidateProcessRunning(currentProcess, _inputWriteHandle);
+        ConPtyInputWriter.Write(data, _inputWriteHandle, currentProcess!, args => OnProcessError(args));
     }
 
     /// <summary>
@@ -390,8 +234,16 @@ public class ProcessManager : IProcessManager
             return;
         }
 
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        Write(bytes.AsSpan());
+        ThrowIfDisposed();
+
+        SysProcess? currentProcess;
+        lock (_processLock)
+        {
+            currentProcess = _process;
+        }
+
+        ProcessStateManager.ValidateProcessRunning(currentProcess, _inputWriteHandle);
+        ConPtyInputWriter.Write(text, _inputWriteHandle, currentProcess!, args => OnProcessError(args));
     }
 
     /// <summary>
@@ -411,24 +263,16 @@ public class ProcessManager : IProcessManager
             throw new PlatformNotSupportedException("ConPTY resizing is only supported on Windows");
         }
 
-        Process? currentProcess;
+        SysProcess? currentProcess;
         lock (_processLock)
         {
             currentProcess = _process;
         }
 
-        if (currentProcess == null || currentProcess.HasExited)
-        {
-            throw new InvalidOperationException("No process is currently running");
-        }
+        ProcessStateManager.ValidateProcessForResize(currentProcess, _pseudoConsole);
 
-        if (_pseudoConsole == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Pseudoconsole is not available");
-        }
-
-        var newSize = new COORD((short)width, (short)height);
-        int result = ResizePseudoConsole(_pseudoConsole, newSize);
+        var newSize = new ConPtyNative.COORD((short)width, (short)height);
+        int result = ConPtyNative.ResizePseudoConsole(_pseudoConsole, newSize);
 
         if (result != 0)
         {
@@ -459,325 +303,18 @@ public class ProcessManager : IProcessManager
         }
     }
 
-    // Windows ConPTY P/Invoke declarations
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int CreatePseudoConsole(COORD size, IntPtr hInput, IntPtr hOutput, uint dwFlags,
-        out IntPtr phPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern int ResizePseudoConsole(IntPtr hPC, COORD size);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern void ClosePseudoConsole(IntPtr hPC);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CreatePipe(out IntPtr hReadPipe, out IntPtr hWritePipe, IntPtr lpPipeAttributes,
-        uint nSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool InitializeProcThreadAttributeList(IntPtr lpAttributeList, int dwAttributeCount,
-        int dwFlags, ref IntPtr lpSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool UpdateProcThreadAttribute(IntPtr lpAttributeList, uint dwFlags, IntPtr Attribute,
-        IntPtr lpValue, IntPtr cbSize, IntPtr lpPreviousValue, IntPtr lpReturnSize);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool DeleteProcThreadAttributeList(IntPtr lpAttributeList);
-
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CreateProcessW(
-        string? lpApplicationName,
-        string lpCommandLine,
-        IntPtr lpProcessAttributes,
-        IntPtr lpThreadAttributes,
-        bool bInheritHandles,
-        uint dwCreationFlags,
-        IntPtr lpEnvironment,
-        string? lpCurrentDirectory,
-        ref STARTUPINFOEX lpStartupInfo,
-        out PROCESS_INFORMATION lpProcessInformation);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool ReadFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToRead,
-        out uint lpNumberOfBytesRead, IntPtr lpOverlapped);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool WriteFile(IntPtr hFile, byte[] lpBuffer, uint nNumberOfBytesToWrite,
-        out uint lpNumberOfBytesWritten, IntPtr lpOverlapped);
-
-    /// <summary>
-    ///     Resolves the shell command and arguments based on the launch options.
-    /// </summary>
-    /// <param name="options">The launch options</param>
-    /// <returns>A tuple of shell path and arguments string</returns>
-    /// <exception cref="ProcessStartException">Thrown if the shell cannot be resolved</exception>
-    private static (string shellPath, string arguments) ResolveShellCommand(ProcessLaunchOptions options)
-    {
-        (string shellPath, var argsArray) = options.ShellType switch
-        {
-            ShellType.Auto => ResolveAutoShell(options),
-            ShellType.Wsl => ResolveWsl(options),
-            ShellType.PowerShell => ResolvePowerShell(options),
-            ShellType.PowerShellCore => ResolvePowerShellCore(options),
-            ShellType.Cmd => ResolveCmd(options),
-            ShellType.Custom => ResolveCustomShell(options),
-            _ => throw new ProcessStartException($"Unsupported shell type: {options.ShellType}")
-        };
-
-        string arguments = argsArray?.Length > 0 ? string.Join(" ", argsArray) : string.Empty;
-        return (shellPath, arguments);
-    }
-
-    /// <summary>
-    ///     Resolves the best shell for the current platform automatically.
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolveAutoShell(ProcessLaunchOptions options)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            // Try WSL first (new default), then PowerShell, then cmd
-            try
-            {
-                return ResolveWsl(options);
-            }
-            catch
-            {
-                try
-                {
-                    return ResolvePowerShell(options);
-                }
-                catch
-                {
-                    return ResolveCmd(options);
-                }
-            }
-        }
-
-        // Try user's preferred shell, then common shells
-        string? shell = Environment.GetEnvironmentVariable("SHELL");
-        if (!string.IsNullOrEmpty(shell) && File.Exists(shell))
-        {
-            return (shell, options.Arguments?.ToArray() ?? Array.Empty<string>());
-        }
-
-        // Try common shells
-        string[] commonShells = ["zsh", "bash", "sh"];
-        foreach (string shellName in commonShells)
-        {
-            string? shellPath = FindExecutableInPath(shellName);
-            if (shellPath != null)
-            {
-                return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-            }
-        }
-
-        throw new ProcessStartException("No suitable shell found on this system");
-    }
-
-    /// <summary>
-    ///     Resolves Windows Subsystem for Linux (wsl.exe).
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolveWsl(ProcessLaunchOptions options)
-    {
-        string? shellPath = FindExecutableInPath("wsl.exe") ?? FindExecutableInPath("wsl");
-
-        if (shellPath == null)
-        {
-            // Try common WSL installation paths
-            string[] wslPaths = [
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "wsl.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "wsl.exe")
-            ];
-
-            foreach (string path in wslPaths)
-            {
-                if (File.Exists(path))
-                {
-                    shellPath = path;
-                    break;
-                }
-            }
-        }
-
-        if (shellPath == null || !File.Exists(shellPath))
-        {
-            throw new ProcessStartException("WSL (Windows Subsystem for Linux) not found. Please install WSL2 from the Microsoft Store or enable the Windows feature.", shellPath);
-        }
-
-        return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-    }
-
-    /// <summary>
-    ///     Resolves Windows PowerShell (powershell.exe).
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolvePowerShell(ProcessLaunchOptions options)
-    {
-        string shellPath = FindExecutableInPath("powershell.exe") ??
-                           Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-                               "WindowsPowerShell", "v1.0", "powershell.exe");
-
-        if (!File.Exists(shellPath))
-        {
-            throw new ProcessStartException("PowerShell not found", shellPath);
-        }
-
-        return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-    }
-
-    /// <summary>
-    ///     Resolves PowerShell Core (pwsh.exe).
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolvePowerShellCore(ProcessLaunchOptions options)
-    {
-        string? shellPath = FindExecutableInPath("pwsh.exe") ?? FindExecutableInPath("pwsh");
-
-        if (shellPath == null || !File.Exists(shellPath))
-        {
-            throw new ProcessStartException("PowerShell Core (pwsh) not found", shellPath);
-        }
-
-        return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-    }
-
-    /// <summary>
-    ///     Resolves Windows Command Prompt (cmd.exe).
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolveCmd(ProcessLaunchOptions options)
-    {
-        string shellPath = FindExecutableInPath("cmd.exe") ??
-                           Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
-
-        if (!File.Exists(shellPath))
-        {
-            throw new ProcessStartException("Command Prompt not found", shellPath);
-        }
-
-        return (shellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-    }
-
-    /// <summary>
-    ///     Resolves a custom shell path.
-    /// </summary>
-    private static (string shellPath, string[] arguments) ResolveCustomShell(ProcessLaunchOptions options)
-    {
-        if (string.IsNullOrEmpty(options.CustomShellPath))
-        {
-            throw new ProcessStartException("Custom shell path is required when using ShellType.Custom");
-        }
-
-        if (!File.Exists(options.CustomShellPath))
-        {
-            throw new ProcessStartException($"Custom shell not found: {options.CustomShellPath}",
-                options.CustomShellPath);
-        }
-
-        return (options.CustomShellPath, options.Arguments?.ToArray() ?? Array.Empty<string>());
-    }
-
-    /// <summary>
-    ///     Finds an executable in the system PATH.
-    /// </summary>
-    /// <param name="executableName">The executable name to find</param>
-    /// <returns>The full path to the executable, or null if not found</returns>
-    private static string? FindExecutableInPath(string executableName)
-    {
-        string? pathVariable = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathVariable))
-        {
-            return null;
-        }
-
-        string[] paths = pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (string path in paths)
-        {
-            try
-            {
-                string fullPath = Path.Combine(path, executableName);
-                if (File.Exists(fullPath))
-                {
-                    return fullPath;
-                }
-
-                // On Windows, also try with .exe extension if not already present
-                if (OperatingSystem.IsWindows() && !executableName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    string exePath = fullPath + ".exe";
-                    if (File.Exists(exePath))
-                    {
-                        return exePath;
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore errors accessing individual paths
-            }
-        }
-
-        return null;
-    }
-
     /// <summary>
     ///     Reads data from the ConPTY output pipe asynchronously and raises DataReceived events.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     private async Task ReadOutputAsync(CancellationToken cancellationToken)
     {
-        const int bufferSize = 4096;
-        byte[] buffer = new byte[bufferSize];
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _outputReadHandle != IntPtr.Zero)
-            {
-                if (ReadFile(_outputReadHandle, buffer, bufferSize, out uint bytesRead, IntPtr.Zero))
-                {
-                    if (bytesRead == 0)
-                    {
-                        // End of stream
-                        break;
-                    }
-
-                    // Create a copy of the data to avoid buffer reuse issues
-                    byte[] data = new byte[bytesRead];
-                    Array.Copy(buffer, 0, data, 0, (int)bytesRead);
-
-                    // Raise the DataReceived event (ConPTY output is never "error" stream)
-                    OnDataReceived(new DataReceivedEventArgs(data));
-                }
-                else
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    if (error == 109) // ERROR_BROKEN_PIPE
-                    {
-                        // Process has exited
-                        break;
-                    }
-
-                    OnProcessError(new ProcessErrorEventArgs(
-                        new InvalidOperationException($"ReadFile failed with error {error}"),
-                        $"Error reading from ConPTY output: Win32 error {error}",
-                        ProcessId));
-                    break;
-                }
-
-                // Small delay to prevent tight loop
-                await Task.Delay(1, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when cancellation is requested
-        }
-        catch (Exception ex)
-        {
-            OnProcessError(new ProcessErrorEventArgs(ex, $"Error reading from ConPTY output: {ex.Message}", ProcessId));
-        }
+        await ConPtyOutputPump.ReadOutputAsync(
+            _outputReadHandle,
+            () => ProcessId,
+            data => OnDataReceived(new DataReceivedEventArgs(data)),
+            (exception, message) => OnProcessError(new ProcessErrorEventArgs(exception, message, ProcessId)),
+            cancellationToken);
     }
 
     /// <summary>
@@ -785,17 +322,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnProcessExited(object? sender, EventArgs e)
     {
-        if (sender is Process process)
-        {
-            int exitCode = process.ExitCode;
-            int processId = process.Id;
-
-            // Clean up resources
-            CleanupProcess();
-
-            // Raise the ProcessExited event
-            ProcessExited?.Invoke(this, new ProcessExitedEventArgs(exitCode, processId));
-        }
+        ProcessEvents.HandleProcessExited(sender, e, CleanupProcess, ProcessExited, this);
     }
 
     /// <summary>
@@ -803,7 +330,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnDataReceived(DataReceivedEventArgs args)
     {
-        DataReceived?.Invoke(this, args);
+        ProcessEvents.RaiseDataReceived(DataReceived, this, args);
     }
 
     /// <summary>
@@ -811,7 +338,7 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void OnProcessError(ProcessErrorEventArgs args)
     {
-        ProcessError?.Invoke(this, args);
+        ProcessEvents.RaiseProcessError(ProcessError, this, args);
     }
 
     /// <summary>
@@ -825,12 +352,8 @@ public class ProcessManager : IProcessManager
             _readCancellationSource?.Dispose();
             _readCancellationSource = null;
 
-            if (_process != null)
-            {
-                _process.Exited -= OnProcessExited;
-                _process.Dispose();
-                _process = null;
-            }
+            ProcessCleanup.CleanupProcess(_process, OnProcessExited);
+            _process = null;
 
             _outputReadTask = null;
 
@@ -843,13 +366,13 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void CleanupPseudoConsole()
     {
-        if (_pseudoConsole != IntPtr.Zero)
-        {
-            ClosePseudoConsole(_pseudoConsole);
-            _pseudoConsole = IntPtr.Zero;
-        }
+        ProcessCleanup.CleanupPseudoConsole(_pseudoConsole, _inputReadHandle, _inputWriteHandle, _outputReadHandle, _outputWriteHandle);
 
-        CleanupHandles();
+        _pseudoConsole = IntPtr.Zero;
+        _inputWriteHandle = IntPtr.Zero;
+        _outputReadHandle = IntPtr.Zero;
+        _inputReadHandle = IntPtr.Zero;
+        _outputWriteHandle = IntPtr.Zero;
     }
 
     /// <summary>
@@ -857,29 +380,12 @@ public class ProcessManager : IProcessManager
     /// </summary>
     private void CleanupHandles()
     {
-        if (_inputWriteHandle != IntPtr.Zero)
-        {
-            CloseHandle(_inputWriteHandle);
-            _inputWriteHandle = IntPtr.Zero;
-        }
+        ProcessCleanup.CleanupHandles(_inputReadHandle, _inputWriteHandle, _outputReadHandle, _outputWriteHandle);
 
-        if (_outputReadHandle != IntPtr.Zero)
-        {
-            CloseHandle(_outputReadHandle);
-            _outputReadHandle = IntPtr.Zero;
-        }
-
-        if (_inputReadHandle != IntPtr.Zero)
-        {
-            CloseHandle(_inputReadHandle);
-            _inputReadHandle = IntPtr.Zero;
-        }
-
-        if (_outputWriteHandle != IntPtr.Zero)
-        {
-            CloseHandle(_outputWriteHandle);
-            _outputWriteHandle = IntPtr.Zero;
-        }
+        _inputWriteHandle = IntPtr.Zero;
+        _outputReadHandle = IntPtr.Zero;
+        _inputReadHandle = IntPtr.Zero;
+        _outputWriteHandle = IntPtr.Zero;
     }
 
     /// <summary>
@@ -891,57 +397,5 @@ public class ProcessManager : IProcessManager
         {
             throw new ObjectDisposedException(nameof(ProcessManager));
         }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct COORD
-    {
-        public short X;
-        public short Y;
-
-        public COORD(short x, short y)
-        {
-            X = x;
-            Y = y;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct STARTUPINFOEX
-    {
-        public STARTUPINFO StartupInfo;
-        public IntPtr lpAttributeList;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct STARTUPINFO
-    {
-        public int cb;
-        public string lpReserved;
-        public string lpDesktop;
-        public string lpTitle;
-        public int dwX;
-        public int dwY;
-        public int dwXSize;
-        public int dwYSize;
-        public int dwXCountChars;
-        public int dwYCountChars;
-        public int dwFillAttribute;
-        public int dwFlags;
-        public short wShowWindow;
-        public short cbReserved2;
-        public IntPtr lpReserved2;
-        public IntPtr hStdInput;
-        public IntPtr hStdOutput;
-        public IntPtr hStdError;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PROCESS_INFORMATION
-    {
-        public IntPtr hProcess;
-        public IntPtr hThread;
-        public int dwProcessId;
-        public int dwThreadId;
     }
 }

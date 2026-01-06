@@ -47,9 +47,8 @@ public class InputRoutingProperties
             (sessionCount, inputText, targetSessionIndex) =>
             {
 
-                var x = "abc";
-                Assert.That(x, Is.EqualTo("xyz"), "Should have scrollback from primary screen");
-
+                // var x = "abc";
+                // Assert.That(x, Is.EqualTo("xyz"), "Should have scrollback from primary screen");
 
                 // Bound the target session index to valid range
                 var actualTargetIndex = targetSessionIndex % sessionCount;

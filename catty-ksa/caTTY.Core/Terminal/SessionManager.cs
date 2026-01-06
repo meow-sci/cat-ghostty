@@ -15,11 +15,10 @@ public class SessionManager : IDisposable
     private Guid? _activeSessionId;
     private readonly object _lock = new();
     private bool _disposed = false;
-    private (int cols, int rows) _lastKnownTerminalDimensions;
 
     // Configuration
     private readonly int _maxSessions;
-    private ProcessLaunchOptions _defaultLaunchOptions;
+    private readonly SessionDimensionTracker _dimensionTracker;
 
     /// <summary>
     ///     Creates a new session manager with the specified configuration.
@@ -28,14 +27,10 @@ public class SessionManager : IDisposable
     /// <param name="defaultLaunchOptions">Default options for launching new sessions</param>
     public SessionManager(int maxSessions = 20, ProcessLaunchOptions? defaultLaunchOptions = null)
     {
-        if (maxSessions <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxSessions), "Maximum sessions must be greater than zero");
-        }
+        SessionValidator.ValidateMaxSessions(maxSessions);
 
         _maxSessions = maxSessions;
-        _defaultLaunchOptions = defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault();
-        _lastKnownTerminalDimensions = (_defaultLaunchOptions.InitialWidth, _defaultLaunchOptions.InitialHeight);
+        _dimensionTracker = new SessionDimensionTracker(defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault());
     }
 
     /// <summary>
@@ -44,34 +39,14 @@ public class SessionManager : IDisposable
     /// <param name="launchOptions">New default launch options</param>
     public void UpdateDefaultLaunchOptions(ProcessLaunchOptions launchOptions)
     {
-        ArgumentNullException.ThrowIfNull(launchOptions);
-
-        lock (_lock)
-        {
-            // Preserve the last-known terminal dimensions when switching shell configuration.
-            // Shell switching should not reset the terminal size back to the options' defaults.
-            var lastKnown = _lastKnownTerminalDimensions;
-
-            _defaultLaunchOptions = launchOptions;
-            _defaultLaunchOptions.InitialWidth = lastKnown.cols;
-            _defaultLaunchOptions.InitialHeight = lastKnown.rows;
-        }
+        _dimensionTracker.UpdateDefaultLaunchOptions(launchOptions);
     }
 
     /// <summary>
     ///     Gets the most recently known terminal dimensions (cols, rows).
     ///     Used to seed new sessions so they start at the current UI size instead of a fixed default.
     /// </summary>
-    public (int cols, int rows) LastKnownTerminalDimensions
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return _lastKnownTerminalDimensions;
-            }
-        }
-    }
+    public (int cols, int rows) LastKnownTerminalDimensions => _dimensionTracker.LastKnownTerminalDimensions;
 
     /// <summary>
     ///     Updates the manager's notion of the current terminal dimensions.
@@ -81,63 +56,14 @@ public class SessionManager : IDisposable
     /// <param name="rows">Terminal height in rows</param>
     public void UpdateLastKnownTerminalDimensions(int cols, int rows)
     {
-        if (cols < 1 || cols > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(cols), "Width must be between 1 and 1000");
-        }
-
-        if (rows < 1 || rows > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(rows), "Height must be between 1 and 1000");
-        }
-
-        lock (_lock)
-        {
-            _lastKnownTerminalDimensions = (cols, rows);
-            _defaultLaunchOptions.InitialWidth = cols;
-            _defaultLaunchOptions.InitialHeight = rows;
-        }
-    }
-
-    private static ProcessLaunchOptions CloneLaunchOptions(ProcessLaunchOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-
-        return new ProcessLaunchOptions
-        {
-            ShellType = options.ShellType,
-            CustomShellPath = options.CustomShellPath,
-            Arguments = new List<string>(options.Arguments),
-            WorkingDirectory = options.WorkingDirectory,
-            EnvironmentVariables = new Dictionary<string, string>(options.EnvironmentVariables),
-            InitialWidth = options.InitialWidth,
-            InitialHeight = options.InitialHeight,
-            CreateWindow = options.CreateWindow,
-            UseShellExecute = options.UseShellExecute
-        };
-    }
-
-    private ProcessLaunchOptions GetDefaultLaunchOptionsSnapshot()
-    {
-        lock (_lock)
-        {
-            return CloneLaunchOptions(_defaultLaunchOptions);
-        }
+        _dimensionTracker.UpdateLastKnownTerminalDimensions(cols, rows);
     }
 
     /// <summary>
     ///     Gets the current default launch options.
     /// </summary>
-    public ProcessLaunchOptions DefaultLaunchOptions
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return _defaultLaunchOptions;
-            }
-        }
-    }
+    public ProcessLaunchOptions DefaultLaunchOptions => _dimensionTracker.DefaultLaunchOptions;
+
 
     /// <summary>
     ///     Event raised when a new session is created.
@@ -192,13 +118,7 @@ public class SessionManager : IDisposable
     /// </summary>
     public int SessionCount
     {
-        get
-        {
-            lock (_lock)
-            {
-                return _sessions.Count;
-            }
-        }
+        get { lock (_lock) { return _sessions.Count; } }
     }
 
     /// <summary>
@@ -216,90 +136,50 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (_sessions.Count >= _maxSessions)
-            {
-                throw new InvalidOperationException($"Maximum number of sessions ({_maxSessions}) reached");
-            }
+            SessionValidator.ValidateMaxSessionsNotReached(_sessions.Count, _maxSessions);
         }
 
         var sessionId = Guid.NewGuid();
-        var sessionTitle = title ?? GenerateSessionTitle();
-
-        // Ensure the terminal emulator and PTY process start with the same dimensions.
-        // If launchOptions is null, use the last-known/default size (updated via resize handlers).
-        ProcessLaunchOptions effectiveLaunchOptions = launchOptions != null
-            ? CloneLaunchOptions(launchOptions)
-            : GetDefaultLaunchOptionsSnapshot();
-
-        // Always start new sessions at the last-known UI size.
-        // This prevents shell changes (WSL/PowerShell/Cmd) from reverting to 80x24/80x25 defaults.
-        var lastKnown = LastKnownTerminalDimensions;
-        effectiveLaunchOptions.InitialWidth = lastKnown.cols;
-        effectiveLaunchOptions.InitialHeight = lastKnown.rows;
-
-        // var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight);
-
-        var router = new RpcCommandRouter(NullLogger.Instance);
-        var responseGenerator = new RpcResponseGenerator();
-        var _outputBuffer = new List<byte[]>();
-
-        var rpcHandler = new RpcHandler(
-            router,
-            responseGenerator,
-            bytes => _outputBuffer.Add(bytes),
-            NullLogger.Instance);
-
-        var registry = new GameActionRegistry(router, NullLogger.Instance, null);
-        registry.RegisterVehicleCommands();
-
-
-        var terminal = new TerminalEmulator(effectiveLaunchOptions.InitialWidth, effectiveLaunchOptions.InitialHeight, 2500, NullLogger.Instance, rpcHandler);
-
-
-
-        var processManager = new ProcessManager();
-
-        var session = new TerminalSession(sessionId, sessionTitle, terminal, processManager);
-
-        // Wire up session events
-        session.StateChanged += OnSessionStateChanged;
-        session.TitleChanged += OnSessionTitleChanged;
-        session.ProcessExited += OnSessionProcessExited;
-
-        TerminalSession? previousActiveSession = null;
-
+        string sessionTitle;
         lock (_lock)
         {
-            _sessions[sessionId] = session;
-            _sessionOrder.Add(sessionId);
-
-            // Deactivate current session
-            if (_activeSessionId.HasValue && _sessions.TryGetValue(_activeSessionId.Value, out var currentSession))
-            {
-                previousActiveSession = currentSession;
-                currentSession.Deactivate();
-            }
-
-            _activeSessionId = sessionId;
+            sessionTitle = title ?? SessionTitleGenerator.GenerateSessionTitle(_sessions.Count);
         }
+
+        ProcessLaunchOptions effectiveLaunchOptions = LaunchOptionsPreparator.PrepareEffectiveLaunchOptions(
+            launchOptions,
+            _dimensionTracker);
+
+        TerminalSession session;
+        SessionRegistrar.RegistrationState? registrationState = null;
 
         try
         {
-            await session.InitializeAsync(effectiveLaunchOptions, cancellationToken);
-            session.Activate();
+            // Create and initialize session
+            session = await SessionCreator.CreateSessionAsync(
+                sessionId,
+                sessionTitle,
+                effectiveLaunchOptions,
+                OnSessionStateChanged,
+                OnSessionTitleChanged,
+                OnSessionProcessExited,
+                cancellationToken);
 
-            // Update session settings with process information after successful initialization
-            var processId = session.ProcessManager.ProcessId;
-            var isRunning = session.ProcessManager.IsRunning;
-            session.UpdateProcessState(processId, isRunning);
-
-            // Update session settings with terminal dimensions
-            session.UpdateTerminalDimensions(session.Terminal.Width, session.Terminal.Height);
+            // Add session to manager and switch active session
+            lock (_lock)
+            {
+                registrationState = SessionRegistrar.RegisterSession(
+                    sessionId,
+                    session,
+                    _sessions,
+                    _sessionOrder,
+                    ref _activeSessionId);
+            }
 
             LogSessionLifecycleEvent($"Successfully created session {sessionId} with title '{sessionTitle}'");
 
             SessionCreated?.Invoke(this, new SessionCreatedEventArgs(session));
-            ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(previousActiveSession, session));
+            ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(registrationState.PreviousActiveSession, session));
 
             return session;
         }
@@ -310,41 +190,13 @@ public class SessionManager : IDisposable
             // Comprehensive cleanup on failure
             lock (_lock)
             {
-                _sessions.Remove(sessionId);
-                _sessionOrder.Remove(sessionId);
-                if (_activeSessionId == sessionId)
-                {
-                    _activeSessionId = null;
-                    // Restore previous active session if it exists
-                    if (previousActiveSession != null)
-                    {
-                        _activeSessionId = previousActiveSession.Id;
-                        previousActiveSession.Activate();
-                        LogSessionLifecycleEvent($"Restored previous active session {previousActiveSession.Id} after creation failure");
-                    }
-                }
-            }
-
-            // Unsubscribe from events to prevent memory leaks
-            try
-            {
-                session.StateChanged -= OnSessionStateChanged;
-                session.TitleChanged -= OnSessionTitleChanged;
-                session.ProcessExited -= OnSessionProcessExited;
-            }
-            catch (Exception unsubscribeEx)
-            {
-                LogSessionLifecycleEvent($"Error unsubscribing from session {sessionId} events during cleanup", unsubscribeEx);
-            }
-
-            // Dispose session resources safely
-            try
-            {
-                session.Dispose();
-            }
-            catch (Exception disposeEx)
-            {
-                LogSessionLifecycleEvent($"Error disposing session {sessionId} during cleanup", disposeEx);
+                SessionRegistrar.HandleCreationFailure(
+                    sessionId,
+                    _sessions,
+                    _sessionOrder,
+                    ref _activeSessionId,
+                    registrationState?.PreviousActiveSession,
+                    LogSessionLifecycleEvent);
             }
 
             // Re-throw with more context for the caller
@@ -364,28 +216,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out var targetSession))
-            {
-                throw new ArgumentException($"Session {sessionId} not found", nameof(sessionId));
-            }
-
-            if (_activeSessionId == sessionId)
-            {
-                return; // Already active
-            }
-
-            var previousSession = _activeSessionId.HasValue && _sessions.TryGetValue(_activeSessionId.Value, out var prev)
-                ? prev
-                : null;
-
-            // Deactivate current session
-            previousSession?.Deactivate();
-
-            // Activate target session
-            _activeSessionId = sessionId;
-            targetSession.Activate();
-
-            ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(previousSession, targetSession));
+            SessionSwitcher.SwitchToSession(sessionId, _sessions, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
@@ -401,87 +232,25 @@ public class SessionManager : IDisposable
     {
         ThrowIfDisposed();
 
-        TerminalSession? sessionToClose = null;
-        TerminalSession? newActiveSession = null;
+        SessionCloser.CloseSessionState? state;
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out sessionToClose))
-            {
-                return; // Session doesn't exist
-            }
-
-            // Prevent closing the last session
-            if (_sessions.Count == 1)
-            {
-                throw new InvalidOperationException("Cannot close the last remaining session");
-            }
-
-            _sessions.Remove(sessionId);
-            _sessionOrder.Remove(sessionId);
-
-            // If this was the active session, find a new active session
-            if (_activeSessionId == sessionId)
-            {
-                _activeSessionId = null;
-
-                // Find the next session in order, or the previous one
-                var remainingIds = _sessionOrder.Where(id => _sessions.ContainsKey(id)).ToList();
-                if (remainingIds.Any())
-                {
-                    var newActiveId = remainingIds.First();
-                    _activeSessionId = newActiveId;
-                    newActiveSession = _sessions[newActiveId];
-                }
-            }
+            state = SessionCloser.PrepareClose(sessionId, _sessions, _sessionOrder, ref _activeSessionId);
         }
 
-        // Perform cleanup outside the lock
-        try
+        if (state != null)
         {
-            LogSessionLifecycleEvent($"Closing session {sessionId}");
-
-            // Unsubscribe from events
-            sessionToClose.StateChanged -= OnSessionStateChanged;
-            sessionToClose.TitleChanged -= OnSessionTitleChanged;
-            sessionToClose.ProcessExited -= OnSessionProcessExited;
-
-            await sessionToClose.CloseAsync(cancellationToken);
-
-            LogSessionLifecycleEvent($"Successfully closed session {sessionId}");
-            SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
-
-            if (newActiveSession != null)
-            {
-                newActiveSession.Activate();
-                LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after closing {sessionId}");
-                ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
-            }
-        }
-        catch (Exception ex)
-        {
-            LogSessionLifecycleEvent($"Error closing session {sessionId}", ex);
-
-            // Even if closing failed, the session has been removed from the manager
-            // Still notify about the closure and active session change
-            try
-            {
-                SessionClosed?.Invoke(this, new SessionClosedEventArgs(sessionToClose));
-
-                if (newActiveSession != null)
-                {
-                    newActiveSession.Activate();
-                    LogSessionLifecycleEvent($"Activated session {newActiveSession.Id} after failed close of {sessionId}");
-                    ActiveSessionChanged?.Invoke(this, new ActiveSessionChangedEventArgs(sessionToClose, newActiveSession));
-                }
-            }
-            catch (Exception eventEx)
-            {
-                LogSessionLifecycleEvent($"Error raising events after failed session {sessionId} close", eventEx);
-            }
-
-            // Don't re-throw - session cleanup errors should not prevent operation
-            // The session has been removed from the manager regardless
+            await SessionCloser.PerformCleanupAsync(
+                sessionId,
+                state,
+                OnSessionStateChanged,
+                OnSessionTitleChanged,
+                OnSessionProcessExited,
+                SessionClosed,
+                ActiveSessionChanged,
+                LogSessionLifecycleEvent,
+                cancellationToken);
         }
     }
 
@@ -495,16 +264,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (_sessions.Count <= 1 || !_activeSessionId.HasValue)
-            {
-                return;
-            }
-
-            var currentIndex = _sessionOrder.IndexOf(_activeSessionId.Value);
-            var nextIndex = (currentIndex + 1) % _sessionOrder.Count;
-            var nextSessionId = _sessionOrder[nextIndex];
-
-            SwitchToSession(nextSessionId);
+            SessionSwitcher.SwitchToNextSession(_sessions, _sessionOrder, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
@@ -518,16 +278,7 @@ public class SessionManager : IDisposable
 
         lock (_lock)
         {
-            if (_sessions.Count <= 1 || !_activeSessionId.HasValue)
-            {
-                return;
-            }
-
-            var currentIndex = _sessionOrder.IndexOf(_activeSessionId.Value);
-            var prevIndex = currentIndex == 0 ? _sessionOrder.Count - 1 : currentIndex - 1;
-            var prevSessionId = _sessionOrder[prevIndex];
-
-            SwitchToSession(prevSessionId);
+            SessionSwitcher.SwitchToPreviousSession(_sessions, _sessionOrder, ref _activeSessionId, ActiveSessionChanged);
         }
     }
 
@@ -545,100 +296,39 @@ public class SessionManager : IDisposable
     {
         ThrowIfDisposed();
 
-        TerminalSession? session;
+        SessionRestarter.RestartSessionState state;
 
         lock (_lock)
         {
-            if (!_sessions.TryGetValue(sessionId, out session))
-            {
-                throw new ArgumentException($"Session {sessionId} not found", nameof(sessionId));
-            }
-
-            // Can only restart sessions that have terminated processes
-            if (session.ProcessManager.IsRunning)
-            {
-                throw new InvalidOperationException("Cannot restart a session with a running process");
-            }
+            state = SessionRestarter.PrepareRestart(sessionId, _sessions);
         }
 
-        try
-        {
-            LogSessionLifecycleEvent($"Restarting session {sessionId}");
-
-            // Clear the terminal screen for the restart
-            session.Terminal.ScreenBuffer.Clear();
-
-            // Start a new process with the same or provided launch options
-            await session.ProcessManager.StartAsync(launchOptions ?? _defaultLaunchOptions, cancellationToken);
-
-            // Update session state and settings
-            session.UpdateProcessState(session.ProcessManager.ProcessId, session.ProcessManager.IsRunning);
-
-            LogSessionLifecycleEvent($"Successfully restarted session {sessionId}");
-
-            // If this session was not active, we don't need to change its state
-            // The session will remain in its current state (Active/Inactive)
-        }
-        catch (Exception ex)
-        {
-            LogSessionLifecycleEvent($"Failed to restart session {sessionId}", ex);
-
-            // Update session settings to reflect restart failure
-            session.UpdateProcessState(null, false, null);
-            throw new InvalidOperationException($"Failed to restart session {sessionId}: {ex.Message}", ex);
-        }
+        await SessionRestarter.PerformRestartAsync(
+            sessionId,
+            state,
+            launchOptions ?? _dimensionTracker.DefaultLaunchOptions,
+            LogSessionLifecycleEvent,
+            cancellationToken);
     }
 
     /// <summary>
     ///     Applies font configuration changes to all sessions simultaneously.
-    ///     This method ensures consistent font settings across all terminal sessions.
+    ///     Font configuration is applied at the display layer (TerminalController).
+    ///     This method serves as an API coordination point.
     /// </summary>
     /// <param name="fontConfig">The font configuration to apply to all sessions</param>
     /// <exception cref="ArgumentNullException">Thrown if fontConfig is null</exception>
     /// <exception cref="ObjectDisposedException">Thrown if manager has been disposed</exception>
     public void ApplyFontConfigToAllSessions(object fontConfig)
     {
-        if (fontConfig == null)
-        {
-            throw new ArgumentNullException(nameof(fontConfig));
-        }
-
+        ArgumentNullException.ThrowIfNull(fontConfig);
         ThrowIfDisposed();
-
-        List<TerminalSession> sessionsToUpdate;
-
-        lock (_lock)
-        {
-            // Create a snapshot of sessions to avoid holding the lock during updates
-            sessionsToUpdate = _sessions.Values.ToList();
-        }
-
-        // Apply font configuration to each session outside the lock
-        foreach (var session in sessionsToUpdate)
-        {
-            try
-            {
-                // Font configuration is applied at the display layer
-                // The session itself doesn't need to know about font details
-                // This method serves as a coordination point for triggering
-                // terminal resize operations when font metrics change
-
-                // The actual font application happens in the TerminalController
-                // which will call TriggerTerminalResizeForAllSessions
-            }
-            catch (Exception ex)
-            {
-                // Log error but continue with other sessions
-                // UI components can handle error reporting through events
-                Console.WriteLine($"SessionManager: Error applying font config to session {session.Id}: {ex.Message}");
-            }
-        }
+        // Font configuration is applied at the display layer (TerminalController)
     }
 
     /// <summary>
     ///     Triggers terminal resize for all sessions when font metrics change.
-    ///     This method should be called after font configuration changes to ensure
-    ///     all sessions recalculate their dimensions with new character metrics.
+    ///     Kept for API compatibility. Actual resize logic is in TerminalController.
     /// </summary>
     /// <param name="newCharacterWidth">New character width in pixels</param>
     /// <param name="newLineHeight">New line height in pixels</param>
@@ -647,155 +337,37 @@ public class SessionManager : IDisposable
     public void TriggerTerminalResizeForAllSessions(float newCharacterWidth, float newLineHeight, (float width, float height) windowSize)
     {
         ThrowIfDisposed();
-
-        // This method is kept for API compatibility but the actual resize logic
-        // is handled by the TerminalController which has access to ImGui context
-        // and proper dimension calculation methods
-
-        // The TerminalController will call TriggerTerminalResizeForAllSessions()
-        // which iterates through all sessions and resizes them appropriately
+        // Actual resize logic is handled by TerminalController
     }
 
-    /// <summary>
-    ///     Generates a unique session title based on current session count.
-    /// </summary>
-    /// <returns>A unique session title</returns>
-    private string GenerateSessionTitle()
-    {
-        lock (_lock)
-        {
-            var sessionNumber = _sessions.Count + 1;
-            return $"Terminal {sessionNumber}";
-        }
-    }
 
-    /// <summary>
-    ///     Handles session state change events.
-    /// </summary>
-    private void OnSessionStateChanged(object? sender, SessionStateChangedEventArgs e)
-    {
-        if (sender is TerminalSession session)
-        {
-            // Log session state changes for debugging and monitoring
-            LogSessionLifecycleEvent($"Session {session.Id} state changed to {e.NewState}", e.Error);
+    /// <summary>Handles session state change events.</summary>
+    private void OnSessionStateChanged(object? sender, SessionStateChangedEventArgs e) =>
+        SessionEventBridge.HandleSessionStateChanged(sender, e, LogSessionLifecycleEvent);
 
-            // Handle failed session states
-            if (e.NewState == SessionState.Failed && e.Error != null)
-            {
-                LogSessionLifecycleEvent($"Session {session.Id} failed during operation", e.Error);
+    /// <summary>Handles session title change events.</summary>
+    private void OnSessionTitleChanged(object? sender, SessionTitleChangedEventArgs e) =>
+        SessionEventBridge.HandleSessionTitleChanged(sender, e, LogSessionLifecycleEvent);
 
-                // Attempt graceful cleanup of failed session resources
-                try
-                {
-                    // Don't dispose immediately - let the session remain for potential restart
-                    // Just ensure process resources are cleaned up
-                    if (session.ProcessManager.IsRunning)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await session.ProcessManager.StopAsync();
-                            }
-                            catch (Exception cleanupEx)
-                            {
-                                LogSessionLifecycleEvent($"Error cleaning up failed session {session.Id} process", cleanupEx);
-                            }
-                        });
-                    }
-                }
-                catch (Exception cleanupEx)
-                {
-                    LogSessionLifecycleEvent($"Error during failed session {session.Id} cleanup", cleanupEx);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    ///     Handles session title change events.
-    /// </summary>
-    private void OnSessionTitleChanged(object? sender, SessionTitleChangedEventArgs e)
-    {
-        if (sender is TerminalSession session)
-        {
-            LogSessionLifecycleEvent($"Session {session.Id} title changed from '{e.OldTitle}' to '{e.NewTitle}'");
-        }
-    }
-
-    /// <summary>
-    ///     Handles session process exit events.
-    /// </summary>
-    private void OnSessionProcessExited(object? sender, SessionProcessExitedEventArgs e)
-    {
-        if (sender is TerminalSession session)
-        {
-            LogSessionLifecycleEvent($"Session {session.Id} process {e.ProcessId} exited with code {e.ExitCode}");
-
-            // Update session state to reflect process exit
-            // The session itself handles updating its settings with exit code
-            // We just need to ensure the session state is properly managed
-
-            // If the session is still active but process exited, mark it as inactive
-            // This allows the user to see the exit status while keeping the session available
-            if (session.State == SessionState.Active)
-            {
-                // Don't change to inactive automatically - let user see the exit status
-                // The session will remain active but with a terminated process
-            }
-        }
-    }
+    /// <summary>Handles session process exit events.</summary>
+    private void OnSessionProcessExited(object? sender, SessionProcessExitedEventArgs e) =>
+        SessionEventBridge.HandleSessionProcessExited(sender, e, LogSessionLifecycleEvent);
 
     /// <summary>
     ///     Logs session lifecycle events for debugging and monitoring.
-    ///     Uses quiet operation principles - only logs when explicitly enabled or for errors.
     /// </summary>
-    /// <param name="message">The log message</param>
-    /// <param name="exception">Optional exception to log</param>
-    private void LogSessionLifecycleEvent(string message, Exception? exception = null)
-    {
-        // Follow quiet operation requirements - only log errors or when debug is enabled
-        // Normal session operations should produce no output
-        if (exception != null)
-        {
-            // Always log errors for debugging
-            Console.WriteLine($"SessionManager Error: {message}");
-            if (exception != null)
-            {
-                Console.WriteLine($"SessionManager Exception: {exception.Message}");
-            }
-        }
-        // For non-error events, only log if debug mode is enabled
-        // This could be controlled by a configuration setting in the future
-        else if (IsDebugLoggingEnabled())
-        {
-            Console.WriteLine($"SessionManager: {message}");
-        }
-    }
+    private void LogSessionLifecycleEvent(string message, Exception? exception = null) =>
+        SessionLogging.LogSessionLifecycleEvent(message, exception);
 
     /// <summary>
     ///     Determines if debug logging is enabled for session lifecycle events.
-    ///     Currently always returns false to maintain quiet operation.
-    ///     Can be enhanced with configuration in the future.
     /// </summary>
-    /// <returns>True if debug logging should be enabled</returns>
-    private bool IsDebugLoggingEnabled()
-    {
-        // For now, maintain quiet operation by default
-        // This could be controlled by environment variables or configuration
-        return false;
-    }
+    private bool IsDebugLoggingEnabled() => SessionLogging.IsDebugLoggingEnabled();
 
     /// <summary>
     ///     Throws ObjectDisposedException if the manager has been disposed.
     /// </summary>
-    private void ThrowIfDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(SessionManager));
-        }
-    }
+    private void ThrowIfDisposed() => SessionValidator.ThrowIfDisposed(_disposed, nameof(SessionManager));
 
     /// <summary>
     ///     Disposes the session manager and all its sessions.
@@ -808,31 +380,14 @@ public class SessionManager : IDisposable
 
             lock (_lock)
             {
-                var sessionCount = _sessions.Count;
-                LogSessionLifecycleEvent($"Disposing {sessionCount} sessions");
-
-                foreach (var session in _sessions.Values)
-                {
-                    try
-                    {
-                        LogSessionLifecycleEvent($"Disposing session {session.Id}");
-
-                        // Unsubscribe from events
-                        session.StateChanged -= OnSessionStateChanged;
-                        session.TitleChanged -= OnSessionTitleChanged;
-                        session.ProcessExited -= OnSessionProcessExited;
-
-                        session.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        LogSessionLifecycleEvent($"Error disposing session {session.Id}", ex);
-                        // Continue with other sessions even if one fails
-                    }
-                }
-                _sessions.Clear();
-                _sessionOrder.Clear();
-                _activeSessionId = null;
+                SessionDisposer.DisposeAllSessions(
+                    _sessions,
+                    _sessionOrder,
+                    ref _activeSessionId,
+                    OnSessionStateChanged,
+                    OnSessionTitleChanged,
+                    OnSessionProcessExited,
+                    LogSessionLifecycleEvent);
             }
 
             LogSessionLifecycleEvent("SessionManager disposed successfully");

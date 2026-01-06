@@ -23,7 +23,7 @@ public class Utf8DebuggingTests
     public void Debug_InvalidUtf8Byte153()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         // (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process invalid UTF-8 byte 153 (0x99)
@@ -55,7 +55,7 @@ public class Utf8DebuggingTests
     public void Debug_MixedUtf8AndControl()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         // (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process "Hello Worldpiñata"
@@ -87,7 +87,7 @@ public class Utf8DebuggingTests
     public void Debug_WideCharacter()
     {
         // Arrange
-        var terminal = new TerminalEmulator(80, 24);
+        var terminal = TerminalEmulator.Create(80, 24);
         (int Row, int Col) initialCursor = (terminal.Cursor.Row, terminal.Cursor.Col);
 
         // Act - Process Chinese character "好"

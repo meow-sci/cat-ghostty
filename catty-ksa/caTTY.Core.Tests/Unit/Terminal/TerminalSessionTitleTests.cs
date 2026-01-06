@@ -21,7 +21,7 @@ public class TerminalSessionTitleTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
         _processManager = new caTTY.Core.Tests.Property.MockProcessManager();
         _session = new TerminalSession(Guid.NewGuid(), "Initial Title", _terminal, _processManager);
         

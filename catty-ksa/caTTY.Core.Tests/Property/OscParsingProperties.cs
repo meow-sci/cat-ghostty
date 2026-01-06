@@ -162,7 +162,7 @@ public class OscParsingProperties
             if (command != 0 && command != 1 && command != 2) return true;
             if (terminator != "BEL" && terminator != "ST") return true;
             // Arrange
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]{command};{title}{terminatorBytes}";
 
@@ -228,7 +228,7 @@ public class OscParsingProperties
             if (string.IsNullOrEmpty(base64Data)) return true;
 
             // Arrange
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};{base64Data}{terminatorBytes}";
 
@@ -284,7 +284,7 @@ public class OscParsingProperties
         return Prop.ForAll(ClipboardSelectionArb, OscTerminatorArb, (selection, terminator) =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};?{terminatorBytes}";
 
@@ -327,7 +327,7 @@ public class OscParsingProperties
         return Prop.ForAll(ClipboardSelectionArb, OscTerminatorArb, (selection, terminator) =>
         {
             // Arrange
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string oscSequence = $"\x1b]52;{selection};{terminatorBytes}";
 
@@ -372,7 +372,7 @@ public class OscParsingProperties
             // Only test valid terminators
             if (terminator != "BEL" && terminator != "ST") return true;
             // Arrange
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
 
             // Create potentially malformed OSC sequence
@@ -421,7 +421,7 @@ public class OscParsingProperties
         return Prop.ForAll(ValidOscCommandArb, OscTerminatorArb, (command, terminator) =>
         {
             // Arrange - Create OSC sequence with very long payload (exceeding 1024 char limit)
-            var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+            var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
             string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
             string longPayload = new string('A', 2000); // Exceeds MaxOscPayloadLength
             string oscSequence = $"\x1b]{command};{longPayload}{terminatorBytes}";
@@ -502,7 +502,7 @@ public class OscParsingProperties
             try
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+                var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
                 string textWithoutLink = "XYZ"; // Fixed text for second part
 
@@ -594,7 +594,7 @@ public class OscParsingProperties
             try
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+                var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
 
                 // Act - Set first hyperlink, write char, set second hyperlink, write char
@@ -659,7 +659,7 @@ public class OscParsingProperties
             try
             {
                 // Arrange
-                var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+                var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
 
                 // Create OSC 8 sequence with parameters: ESC ] 8 ; [params] ; [url] BEL/ST
@@ -735,7 +735,7 @@ public class OscParsingProperties
             try
             {
                 // Arrange - Create terminal and capture initial state
-                var terminal = new TerminalEmulator(80, 24, NullLogger.Instance);
+                var terminal = TerminalEmulator.Create(80, 24, NullLogger.Instance);
                 string terminatorBytes = terminator == "BEL" ? "\x07" : "\x1b\\";
 
                 // Capture initial state

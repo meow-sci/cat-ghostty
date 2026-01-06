@@ -47,7 +47,7 @@ public class ScreenClearingProperties
             const int cursorCol = 8;
 
             // Arrange: Create terminal and fill with test character
-            using var terminal = new TerminalEmulator(width, height);
+            using var terminal = TerminalEmulator.Create(width, height);
             FillScreenWithCharacter(terminal, fillChar, width, height);
 
             // Position cursor at test position
@@ -109,7 +109,7 @@ public class ScreenClearingProperties
             const int cursorCol = 8;
 
             // Arrange: Create terminal and fill with test character
-            using var terminal = new TerminalEmulator(width, height);
+            using var terminal = TerminalEmulator.Create(width, height);
             FillScreenWithCharacter(terminal, fillChar, width, height);
 
             // Position cursor at test position
@@ -168,7 +168,7 @@ public class ScreenClearingProperties
             const int cursorCol = 8;
 
             // Arrange: Create terminal
-            using var terminal = new TerminalEmulator(width, height);
+            using var terminal = TerminalEmulator.Create(width, height);
 
             // Position cursor at test position
             terminal.Write($"\x1b[{cursorRow + 1};{cursorCol + 1}H");
@@ -213,8 +213,8 @@ public class ScreenClearingProperties
             const int cursorCol = 8;
 
             // Arrange: Create two identical terminals
-            using var terminal1 = new TerminalEmulator(width, height);
-            using var terminal2 = new TerminalEmulator(width, height);
+            using var terminal1 = TerminalEmulator.Create(width, height);
+            using var terminal2 = TerminalEmulator.Create(width, height);
 
             // Fill both with same character
             FillScreenWithCharacter(terminal1, fillChar, width, height);
@@ -263,7 +263,7 @@ public class ScreenClearingProperties
             const int cursorCol = 8;
 
             // Arrange: Create terminal and fill with test character
-            using var terminal = new TerminalEmulator(width, height);
+            using var terminal = TerminalEmulator.Create(width, height);
             FillScreenWithCharacter(terminal, fillChar, width, height);
 
             // Position cursor at test position

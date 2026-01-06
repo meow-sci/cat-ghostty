@@ -1,4 +1,3 @@
-using System.Text;
 using caTTY.Core.Parsing;
 using caTTY.Core.Types;
 using caTTY.Core.Managers;
@@ -15,35 +14,254 @@ namespace caTTY.Core.Terminal;
 /// </summary>
 public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
 {
-    private readonly ILogger _logger;
-    private readonly Parser _parser;
-    private readonly IScreenBufferManager _screenBufferManager;
-    private readonly ICursorManager _cursorManager;
-    private readonly IModeManager _modeManager;
-    private readonly IAttributeManager _attributeManager;
-    private readonly IScrollbackManager _scrollbackManager;
-    private readonly IScrollbackBuffer _scrollbackBuffer;
-    private readonly IAlternateScreenManager _alternateScreenManager;
-    private readonly ICharacterSetManager _characterSetManager;
+    private ILogger _logger;
+    private Parser _parser;
+    private IScreenBufferManager _screenBufferManager;
+    private ICursorManager _cursorManager;
+    private IModeManager _modeManager;
+    private IAttributeManager _attributeManager;
+    private IScrollbackManager _scrollbackManager;
+    private IScrollbackBuffer _scrollbackBuffer;
+    private IAlternateScreenManager _alternateScreenManager;
+    private ICharacterSetManager _characterSetManager;
+
+    // Operation classes
+    private EmulatorOps.TerminalViewportOps _viewportOps;
+    private EmulatorOps.TerminalResizeOps _resizeOps;
+    private EmulatorOps.TerminalCursorMovementOps _cursorMovementOps;
+    private EmulatorOps.TerminalCursorSaveRestoreOps _cursorSaveRestoreOps;
+    private EmulatorOps.TerminalCursorStyleOps _cursorStyleOps;
+    private EmulatorOps.TerminalEraseInDisplayOps _eraseInDisplayOps;
+    private EmulatorOps.TerminalEraseInLineOps _eraseInLineOps;
+    private EmulatorOps.TerminalSelectiveEraseInDisplayOps _selectiveEraseInDisplayOps;
+    private EmulatorOps.TerminalSelectiveEraseInLineOps _selectiveEraseInLineOps;
+    private EmulatorOps.TerminalScrollOps _scrollOps;
+    private EmulatorOps.TerminalScrollRegionOps _scrollRegionOps;
+    private EmulatorOps.TerminalInsertLinesOps _insertLinesOps;
+    private EmulatorOps.TerminalDeleteLinesOps _deleteLinesOps;
+    private EmulatorOps.TerminalInsertCharsOps _insertCharsOps;
+    private EmulatorOps.TerminalDeleteCharsOps _deleteCharsOps;
+    private EmulatorOps.TerminalEraseCharsOps _eraseCharsOps;
+    private EmulatorOps.TerminalInsertModeOps _insertModeOps;
+    private EmulatorOps.TerminalAlternateScreenOps _alternateScreenOps;
+    private EmulatorOps.TerminalDecModeOps _decModeOps;
+    private EmulatorOps.TerminalPrivateModesOps _privateModesOps;
+    private EmulatorOps.TerminalBracketedPasteOps _bracketedPasteOps;
+    private EmulatorOps.TerminalOscTitleIconOps _oscTitleIconOps;
+    private EmulatorOps.TerminalOscWindowManipulationOps _oscWindowManipulationOps;
+    private EmulatorOps.TerminalOscClipboardOps _oscClipboardOps;
+    private EmulatorOps.TerminalOscHyperlinkOps _oscHyperlinkOps;
+    private EmulatorOps.TerminalOscColorQueryOps _oscColorQueryOps;
+    private EmulatorOps.TerminalCharsetDesignationOps _charsetDesignationOps;
+    private EmulatorOps.TerminalCharsetTranslationOps _charsetTranslationOps;
+    private EmulatorOps.TerminalLineFeedOps _lineFeedOps;
+    private EmulatorOps.TerminalIndexOps _indexOps;
+    private EmulatorOps.TerminalCarriageReturnOps _carriageReturnOps;
+    private EmulatorOps.TerminalBellOps _bellOps;
+    private EmulatorOps.TerminalBackspaceOps _backspaceOps;
+    private EmulatorOps.TerminalTabOps _tabOps;
+    private EmulatorOps.TerminalResponseOps _responseOps;
+    private EmulatorOps.TerminalScreenUpdateOps _screenUpdateOps;
+    private EmulatorOps.TerminalTitleIconEventsOps _titleIconEventsOps;
+    private EmulatorOps.TerminalInputOps _inputOps;
+    private EmulatorOps.TerminalResetOps _resetOps;
 
     // Optional RPC components for game integration
-    private readonly IRpcHandler? _rpcHandler;
+    private IRpcHandler? _rpcHandler;
 
     private bool _disposed;
 
     /// <summary>
+    ///     Internal constructor used by builder.
+    /// </summary>
+    internal TerminalEmulator()
+    {
+        // Fields will be initialized by Initialize method called from builder
+        // Suppress nullability warnings - fields are initialized immediately by builder
+        State = null!;
+        ScreenBuffer = null!;
+        Cursor = null!;
+        _scrollbackBuffer = null!;
+        _scrollbackManager = null!;
+        _screenBufferManager = null!;
+        _cursorManager = null!;
+        _modeManager = null!;
+        _attributeManager = null!;
+        _alternateScreenManager = null!;
+        _characterSetManager = null!;
+        _viewportOps = null!;
+        _resizeOps = null!;
+        _cursorMovementOps = null!;
+        _cursorSaveRestoreOps = null!;
+        _cursorStyleOps = null!;
+        _eraseInDisplayOps = null!;
+        _eraseInLineOps = null!;
+        _selectiveEraseInDisplayOps = null!;
+        _selectiveEraseInLineOps = null!;
+        _scrollOps = null!;
+        _scrollRegionOps = null!;
+        _insertLinesOps = null!;
+        _deleteLinesOps = null!;
+        _insertCharsOps = null!;
+        _deleteCharsOps = null!;
+        _eraseCharsOps = null!;
+        _insertModeOps = null!;
+        _alternateScreenOps = null!;
+        _decModeOps = null!;
+        _privateModesOps = null!;
+        _bracketedPasteOps = null!;
+        _oscTitleIconOps = null!;
+        _oscWindowManipulationOps = null!;
+        _oscClipboardOps = null!;
+        _oscHyperlinkOps = null!;
+        _oscColorQueryOps = null!;
+        _charsetDesignationOps = null!;
+        _charsetTranslationOps = null!;
+        _lineFeedOps = null!;
+        _indexOps = null!;
+        _carriageReturnOps = null!;
+        _bellOps = null!;
+        _backspaceOps = null!;
+        _tabOps = null!;
+        _responseOps = null!;
+        _screenUpdateOps = null!;
+        _titleIconEventsOps = null!;
+        _inputOps = null!;
+        _resetOps = null!;
+        _parser = null!;
+        _logger = null!;
+    }
+
+    /// <summary>
+    ///     Initializes all fields. Called by TerminalEmulatorBuilder after construction.
+    /// </summary>
+    internal void Initialize(
+        ICursor cursor,
+        TerminalState state,
+        IScreenBuffer screenBuffer,
+        IScrollbackBuffer scrollbackBuffer,
+        IScrollbackManager scrollbackManager,
+        IScreenBufferManager screenBufferManager,
+        ICursorManager cursorManager,
+        IModeManager modeManager,
+        IAttributeManager attributeManager,
+        IAlternateScreenManager alternateScreenManager,
+        ICharacterSetManager characterSetManager,
+        EmulatorOps.TerminalViewportOps viewportOps,
+        EmulatorOps.TerminalResizeOps resizeOps,
+        EmulatorOps.TerminalCursorMovementOps cursorMovementOps,
+        EmulatorOps.TerminalCursorSaveRestoreOps cursorSaveRestoreOps,
+        EmulatorOps.TerminalCursorStyleOps cursorStyleOps,
+        EmulatorOps.TerminalEraseInDisplayOps eraseInDisplayOps,
+        EmulatorOps.TerminalEraseInLineOps eraseInLineOps,
+        EmulatorOps.TerminalSelectiveEraseInDisplayOps selectiveEraseInDisplayOps,
+        EmulatorOps.TerminalSelectiveEraseInLineOps selectiveEraseInLineOps,
+        EmulatorOps.TerminalScrollOps scrollOps,
+        EmulatorOps.TerminalScrollRegionOps scrollRegionOps,
+        EmulatorOps.TerminalInsertLinesOps insertLinesOps,
+        EmulatorOps.TerminalDeleteLinesOps deleteLinesOps,
+        EmulatorOps.TerminalInsertCharsOps insertCharsOps,
+        EmulatorOps.TerminalDeleteCharsOps deleteCharsOps,
+        EmulatorOps.TerminalEraseCharsOps eraseCharsOps,
+        EmulatorOps.TerminalInsertModeOps insertModeOps,
+        EmulatorOps.TerminalAlternateScreenOps alternateScreenOps,
+        EmulatorOps.TerminalDecModeOps decModeOps,
+        EmulatorOps.TerminalPrivateModesOps privateModesOps,
+        EmulatorOps.TerminalBracketedPasteOps bracketedPasteOps,
+        EmulatorOps.TerminalOscTitleIconOps oscTitleIconOps,
+        EmulatorOps.TerminalOscWindowManipulationOps oscWindowManipulationOps,
+        EmulatorOps.TerminalOscClipboardOps oscClipboardOps,
+        EmulatorOps.TerminalOscHyperlinkOps oscHyperlinkOps,
+        EmulatorOps.TerminalOscColorQueryOps oscColorQueryOps,
+        EmulatorOps.TerminalCharsetDesignationOps charsetDesignationOps,
+        EmulatorOps.TerminalCharsetTranslationOps charsetTranslationOps,
+        EmulatorOps.TerminalLineFeedOps lineFeedOps,
+        EmulatorOps.TerminalIndexOps indexOps,
+        EmulatorOps.TerminalCarriageReturnOps carriageReturnOps,
+        EmulatorOps.TerminalBellOps bellOps,
+        EmulatorOps.TerminalBackspaceOps backspaceOps,
+        EmulatorOps.TerminalTabOps tabOps,
+        EmulatorOps.TerminalResponseOps responseOps,
+        EmulatorOps.TerminalScreenUpdateOps screenUpdateOps,
+        EmulatorOps.TerminalTitleIconEventsOps titleIconEventsOps,
+        EmulatorOps.TerminalInputOps inputOps,
+        EmulatorOps.TerminalResetOps resetOps,
+        Parser parser,
+        IRpcHandler? rpcHandler,
+        ILogger logger)
+    {
+        Cursor = cursor;
+        State = state;
+        ScreenBuffer = screenBuffer;
+        _scrollbackBuffer = scrollbackBuffer;
+        _scrollbackManager = scrollbackManager;
+        _screenBufferManager = screenBufferManager;
+        _cursorManager = cursorManager;
+        _modeManager = modeManager;
+        _attributeManager = attributeManager;
+        _alternateScreenManager = alternateScreenManager;
+        _characterSetManager = characterSetManager;
+        _viewportOps = viewportOps;
+        _resizeOps = resizeOps;
+        _cursorMovementOps = cursorMovementOps;
+        _cursorSaveRestoreOps = cursorSaveRestoreOps;
+        _cursorStyleOps = cursorStyleOps;
+        _eraseInDisplayOps = eraseInDisplayOps;
+        _eraseInLineOps = eraseInLineOps;
+        _selectiveEraseInDisplayOps = selectiveEraseInDisplayOps;
+        _selectiveEraseInLineOps = selectiveEraseInLineOps;
+        _scrollOps = scrollOps;
+        _scrollRegionOps = scrollRegionOps;
+        _insertLinesOps = insertLinesOps;
+        _deleteLinesOps = deleteLinesOps;
+        _insertCharsOps = insertCharsOps;
+        _deleteCharsOps = deleteCharsOps;
+        _eraseCharsOps = eraseCharsOps;
+        _insertModeOps = insertModeOps;
+        _alternateScreenOps = alternateScreenOps;
+        _decModeOps = decModeOps;
+        _privateModesOps = privateModesOps;
+        _bracketedPasteOps = bracketedPasteOps;
+        _oscTitleIconOps = oscTitleIconOps;
+        _oscWindowManipulationOps = oscWindowManipulationOps;
+        _oscClipboardOps = oscClipboardOps;
+        _oscHyperlinkOps = oscHyperlinkOps;
+        _oscColorQueryOps = oscColorQueryOps;
+        _charsetDesignationOps = charsetDesignationOps;
+        _charsetTranslationOps = charsetTranslationOps;
+        _lineFeedOps = lineFeedOps;
+        _indexOps = indexOps;
+        _carriageReturnOps = carriageReturnOps;
+        _bellOps = bellOps;
+        _backspaceOps = backspaceOps;
+        _tabOps = tabOps;
+        _responseOps = responseOps;
+        _screenUpdateOps = screenUpdateOps;
+        _titleIconEventsOps = titleIconEventsOps;
+        _inputOps = inputOps;
+        _resetOps = resetOps;
+        _parser = parser;
+        _rpcHandler = rpcHandler;
+        _logger = logger;
+        _disposed = false;
+    }
+
+    /// <summary>
     ///     Creates a new terminal emulator with the specified dimensions.
+    ///     Uses TerminalEmulatorBuilder for initialization.
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, ILogger? logger = null) : this(width, height, 1000, logger, null)
+    public static TerminalEmulator Create(int width, int height, ILogger? logger = null)
     {
+        return TerminalEmulatorBuilder.Build(width, height, 1000, logger, null);
     }
 
     /// <summary>
     ///     Creates a new terminal emulator with the specified dimensions, scrollback, and optional RPC handler.
+    ///     Uses TerminalEmulatorBuilder for initialization.
     /// </summary>
     /// <param name="width">Width in columns</param>
     /// <param name="height">Height in rows</param>
@@ -51,89 +269,15 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public TerminalEmulator(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
+    public static TerminalEmulator Create(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
     {
-        if (width < 1 || width > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be between 1 and 1000");
-        }
-
-        if (height < 1 || height > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height), "Height must be between 1 and 1000");
-        }
-
-        if (scrollbackLines < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(scrollbackLines), "Scrollback lines cannot be negative");
-        }
-
-        Cursor = new Cursor();
-        State = new TerminalState(width, height);
-
-        // Use a dual buffer so alternate-screen applications (htop/vim/less/etc.)
-        // don't corrupt primary screen content and scrollback behavior.
-        ScreenBuffer = new DualScreenBuffer(width, height, () => State.IsAlternateScreenActive);
-        _logger = logger ?? NullLogger.Instance;
-        _rpcHandler = rpcHandler;
-
-        // Initialize scrollback infrastructure
-        _scrollbackBuffer = new ScrollbackBuffer(scrollbackLines, width);
-        _scrollbackManager = new ScrollbackManager(scrollbackLines, width);
-
-        // Initialize managers
-        _screenBufferManager = new ScreenBufferManager(ScreenBuffer);
-        _cursorManager = new CursorManager(Cursor);
-        _modeManager = new ModeManager();
-        _attributeManager = new AttributeManager();
-        _characterSetManager = new CharacterSetManager(State);
-        _alternateScreenManager = new AlternateScreenManager(State, _cursorManager, (DualScreenBuffer)ScreenBuffer);
-
-        // Set up scrollback integration
-        _screenBufferManager.SetScrollbackIntegration(
-            row => _scrollbackManager.AddLine(row),
-            () => State.IsAlternateScreenActive
-        );
-
-        // Initialize parser with terminal handlers and optional RPC components
-        var handlers = new TerminalParserHandlers(this, _logger, _rpcHandler);
-        var parserOptions = new ParserOptions
-        {
-            Handlers = handlers,
-            Logger = _logger,
-            EmitNormalBytesDuringEscapeSequence = false,
-            ProcessC0ControlsDuringEscapeSequence = true,
-            CursorPositionProvider = this
-        };
-
-        // Wire RPC components if RPC handler is provided
-        if (_rpcHandler != null)
-        {
-            // Create RPC components for integration
-            // Note: These would typically be injected, but for clean integration we create them here
-            var rpcSequenceDetector = new RpcSequenceDetector();
-            var rpcSequenceParser = new RpcSequenceParser();
-
-            parserOptions.RpcSequenceDetector = rpcSequenceDetector;
-            parserOptions.RpcSequenceParser = rpcSequenceParser;
-            parserOptions.RpcHandler = _rpcHandler;
-
-            _logger.LogDebug("RPC functionality enabled for terminal emulator");
-        }
-        else
-        {
-            _logger.LogDebug("RPC functionality disabled - no RPC handler provided");
-        }
-
-        _parser = new Parser(parserOptions);
-
-        _disposed = false;
+        return TerminalEmulatorBuilder.Build(width, height, scrollbackLines, logger, rpcHandler);
     }
 
     /// <summary>
     ///     Gets the current terminal state.
     /// </summary>
-    public TerminalState State { get; }
+    public TerminalState State { get; private set; }
 
     /// <summary>
     ///     Gets the screen buffer manager for buffer operations.
@@ -173,12 +317,12 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <summary>
     ///     Gets the current screen buffer for rendering.
     /// </summary>
-    public IScreenBuffer ScreenBuffer { get; }
+    public IScreenBuffer ScreenBuffer { get; private set; }
 
     /// <summary>
     ///     Gets the current cursor state.
     /// </summary>
-    public ICursor Cursor { get; }
+    public ICursor Cursor { get; private set; }
 
     /// <summary>
     /// Gets the current cursor row position (0-based) for tracing purposes.
@@ -228,12 +372,16 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <summary>
     ///     Event raised when the window title is changed via OSC sequences.
     /// </summary>
+#pragma warning disable CS0067 // Event is used via helper method
     public event EventHandler<TitleChangeEventArgs>? TitleChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     ///     Event raised when the icon name is changed via OSC sequences.
     /// </summary>
+#pragma warning disable CS0067 // Event is used via helper method
     public event EventHandler<IconNameChangeEventArgs>? IconNameChanged;
+#pragma warning restore CS0067
 
     /// <summary>
     ///     Event raised when a clipboard operation is requested via OSC 52 sequences.
@@ -247,18 +395,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="data">The raw byte data to process</param>
     public void Write(ReadOnlySpan<byte> data)
     {
-        ThrowIfDisposed();
-
-        if (data.IsEmpty)
-        {
-            return;
-        }
-
-        // Use parser for proper UTF-8 decoding and escape sequence handling
-        _parser.PushBytes(data);
-
-        // Notify that the screen has been updated
-        OnScreenUpdated();
+        _inputOps.Write(data);
     }
 
     /// <summary>
@@ -267,16 +404,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="text">The text to process</param>
     public void Write(string text)
     {
-        ThrowIfDisposed();
-
-        if (string.IsNullOrEmpty(text))
-        {
-            return;
-        }
-
-        // Convert string to UTF-8 bytes and process
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
-        Write(bytes.AsSpan());
+        _inputOps.Write(text);
     }
 
     /// <summary>
@@ -290,103 +418,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void Resize(int width, int height)
     {
         ThrowIfDisposed();
-
-        if (width < 1 || width > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width), "Width must be between 1 and 1000");
-        }
-
-        if (height < 1 || height > 1000)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height), "Height must be between 1 and 1000");
-        }
-
-        // If dimensions are the same, no work needed
-        if (width == Width && height == Height)
-        {
-            return;
-        }
-
-        // Save current cursor position for preservation
-        int oldCursorX = _cursorManager.Column;
-        int oldCursorY = _cursorManager.Row;
-        int oldWidth = Width;
-        int oldHeight = Height;
-
-        // Handle scrollback updates during resize
-        // If height is decreasing and cursor is below the new height,
-        // we need to push the excess rows to scrollback
-        if (height < oldHeight && oldCursorY >= height)
-        {
-            // Calculate how many rows need to be moved to scrollback
-            int excessRows = oldHeight - height;
-
-            // Push the top rows to scrollback to preserve content
-            for (int row = 0; row < excessRows; row++)
-            {
-                var rowSpan = _screenBufferManager.GetRow(row);
-                if (!rowSpan.IsEmpty)
-                {
-                    _scrollbackManager.AddLine(rowSpan);
-                }
-            }
-        }
-
-        // Resize the screen buffer (this preserves content according to the simple policy)
-        _screenBufferManager.Resize(width, height);
-
-        // Update terminal state dimensions
-        State.Resize(width, height);
-
-        // Preserve cursor position with intelligent clamping
-        int newCursorX = Math.Min(oldCursorX, width - 1);
-        int newCursorY;
-
-        if (height < oldHeight)
-        {
-            // Height decreased - adjust cursor position
-            int rowsLost = oldHeight - height;
-            newCursorY = Math.Max(0, oldCursorY - rowsLost);
-        }
-        else
-        {
-            // Height increased or same - keep cursor position
-            newCursorY = Math.Min(oldCursorY, height - 1);
-        }
-
-        // Update cursor position
-        _cursorManager.MoveTo(newCursorY, newCursorX);
-
-        // Update scroll region to match new dimensions if it was full-screen
-        if (State.ScrollTop == 0 && State.ScrollBottom == oldHeight - 1)
-        {
-            State.ScrollTop = 0;
-            State.ScrollBottom = height - 1;
-        }
-        else
-        {
-            // Clamp existing scroll region to new dimensions
-            State.ScrollTop = Math.Min(State.ScrollTop, height - 1);
-            State.ScrollBottom = Math.Min(State.ScrollBottom, height - 1);
-
-            // Ensure scroll region is still valid
-            if (State.ScrollTop >= State.ScrollBottom)
-            {
-                State.ScrollTop = 0;
-                State.ScrollBottom = height - 1;
-            }
-        }
-
-        // Update tab stops array to match new width
-        State.ResizeTabStops(width);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Notify that the screen has been updated
-        OnScreenUpdated();
+        _resizeOps.Resize(width, height);
     }
 
     /// <summary>
@@ -410,8 +442,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportUp(int lines)
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollUp(lines);
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportUp(lines);
     }
 
     /// <summary>
@@ -422,8 +453,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportDown(int lines)
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollDown(lines);
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportDown(lines);
     }
 
     /// <summary>
@@ -433,8 +463,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportToTop()
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollToTop();
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportToTop();
     }
 
     /// <summary>
@@ -444,8 +473,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     public void ScrollViewportToBottom()
     {
         ThrowIfDisposed();
-        _scrollbackManager.ScrollToBottom();
-        OnScreenUpdated();
+        _viewportOps.ScrollViewportToBottom();
     }
 
     /// <summary>
@@ -467,9 +495,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     public void FlushIncompleteSequences()
     {
-        ThrowIfDisposed();
-        _parser.FlushIncompleteSequences();
-        OnScreenUpdated();
+        _inputOps.FlushIncompleteSequences();
     }
 
     /// <summary>
@@ -503,74 +529,26 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     In raw terminal mode, LF only moves down without changing column position.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleLineFeed()
-    {
-        // Clear wrap pending and move cursor down
-        _cursorManager.SetWrapPending(false);
-
-        // Move cursor down one line
-        if (_cursorManager.Row + 1 > State.ScrollBottom)
-        {
-            // At bottom of scroll region - need to scroll up by one line within the region
-            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-            _cursorManager.MoveTo(State.ScrollBottom, _cursorManager.Column);
-        }
-        else
-        {
-            _cursorManager.MoveTo(_cursorManager.Row + 1, _cursorManager.Column);
-        }
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleLineFeed() => _lineFeedOps.HandleLineFeed();
 
     /// <summary>
     ///     Handles index operation (ESC D) - move cursor down one line without changing column.
     ///     Used by ESC D sequence.
     /// </summary>
-    internal void HandleIndex()
-    {
-        if (Cursor.Row < Height - 1)
-        {
-            // Move cursor down one row, keep same column
-            Cursor.SetPosition(Cursor.Row + 1, Cursor.Col);
-        }
-        else
-        {
-            // At bottom row - need to scroll up by one line
-            _screenBufferManager.ScrollUpInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-            // Cursor stays at the bottom row
-        }
-
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-        State.WrapPending = false;
-    }
+    internal void HandleIndex() => _indexOps.HandleIndex();
 
     /// <summary>
     ///     Handles a carriage return (CR) character - move to column 0.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleCarriageReturn()
-    {
-        _cursorManager.MoveTo(_cursorManager.Row, 0);
-        _cursorManager.SetWrapPending(false);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleCarriageReturn() => _carriageReturnOps.HandleCarriageReturn();
 
     /// <summary>
     ///     Handles a bell character (BEL) - emit bell event for notification.
     /// </summary>
     internal void HandleBell()
     {
-        OnBell();
+        _bellOps.HandleBell();
     }
 
     /// <summary>
@@ -578,193 +556,33 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Handles empty titles and title reset.
     /// </summary>
     /// <param name="title">The new window title</param>
-    internal void SetWindowTitle(string title)
-    {
-        title ??= string.Empty;
-        State.WindowProperties.Title = title;
-        OnTitleChanged(title);
-    }
+    internal void SetWindowTitle(string title) => _oscTitleIconOps.SetWindowTitle(title);
 
     /// <summary>
     ///     Sets the icon name and emits an icon name change event.
     ///     Handles empty icon names and icon name reset.
     /// </summary>
     /// <param name="iconName">The new icon name</param>
-    internal void SetIconName(string iconName)
-    {
-        iconName ??= string.Empty;
-        State.WindowProperties.IconName = iconName;
-        OnIconNameChanged(iconName);
-    }
+    internal void SetIconName(string iconName) => _oscTitleIconOps.SetIconName(iconName);
 
     /// <summary>
     ///     Sets both window title and icon name to the same value.
     ///     Emits both title change and icon name change events.
     /// </summary>
     /// <param name="title">The new title and icon name</param>
-    internal void SetTitleAndIcon(string title)
-    {
-        title ??= string.Empty;
-        State.WindowProperties.Title = title;
-        State.WindowProperties.IconName = title;
-        OnTitleChanged(title);
-        OnIconNameChanged(title);
-    }
+    internal void SetTitleAndIcon(string title) => _oscTitleIconOps.SetTitleAndIcon(title);
 
     /// <summary>
     ///     Gets the current window title.
     /// </summary>
     /// <returns>The current window title</returns>
-    internal string GetWindowTitle()
-    {
-        return State.WindowProperties.Title;
-    }
+    internal string GetWindowTitle() => _oscTitleIconOps.GetWindowTitle();
 
     /// <summary>
     ///     Gets the current icon name.
     /// </summary>
     /// <returns>The current icon name</returns>
-    internal string GetIconName()
-    {
-        return State.WindowProperties.IconName;
-    }
-
-    /// <summary>
-    ///     Gets the current foreground color for color queries.
-    ///     Returns the current SGR foreground color or default terminal theme color.
-    /// </summary>
-    /// <returns>RGB color values for the current foreground color</returns>
-    internal (byte Red, byte Green, byte Blue) GetCurrentForegroundColor()
-    {
-        var currentAttributes = _attributeManager.CurrentAttributes;
-
-        // If a specific foreground color is set in SGR attributes, use it
-        if (currentAttributes.ForegroundColor.HasValue)
-        {
-            var color = currentAttributes.ForegroundColor.Value;
-            return color.Type switch
-            {
-                ColorType.Rgb => (color.Red, color.Green, color.Blue),
-                ColorType.Named => GetNamedColorRgb(color.NamedColor, isBackground: false),
-                ColorType.Indexed => GetIndexedColorRgb(color.Index, isBackground: false),
-                _ => GetDefaultForegroundColor()
-            };
-        }
-
-        // Return default terminal foreground color
-        return GetDefaultForegroundColor();
-    }
-
-    /// <summary>
-    ///     Gets the current background color for color queries.
-    ///     Returns the current SGR background color or default terminal theme color.
-    /// </summary>
-    /// <returns>RGB color values for the current background color</returns>
-    internal (byte Red, byte Green, byte Blue) GetCurrentBackgroundColor()
-    {
-        var currentAttributes = _attributeManager.CurrentAttributes;
-
-        // If a specific background color is set in SGR attributes, use it
-        if (currentAttributes.BackgroundColor.HasValue)
-        {
-            var color = currentAttributes.BackgroundColor.Value;
-            return color.Type switch
-            {
-                ColorType.Rgb => (color.Red, color.Green, color.Blue),
-                ColorType.Named => GetNamedColorRgb(color.NamedColor, isBackground: true),
-                ColorType.Indexed => GetIndexedColorRgb(color.Index, isBackground: true),
-                _ => GetDefaultBackgroundColor()
-            };
-        }
-
-        // Return default terminal background color
-        return GetDefaultBackgroundColor();
-    }
-
-    /// <summary>
-    ///     Gets the default foreground color (typically white or light gray).
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetDefaultForegroundColor()
-    {
-        // Standard terminal default foreground (light gray)
-        return (192, 192, 192);
-    }
-
-    /// <summary>
-    ///     Gets the default background color (typically black or dark).
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetDefaultBackgroundColor()
-    {
-        // Standard terminal default background (black)
-        return (0, 0, 0);
-    }
-
-    /// <summary>
-    ///     Converts a named color to RGB values.
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetNamedColorRgb(NamedColor namedColor, bool isBackground)
-    {
-        return namedColor switch
-        {
-            NamedColor.Black => (0, 0, 0),
-            NamedColor.Red => (128, 0, 0),
-            NamedColor.Green => (0, 128, 0),
-            NamedColor.Yellow => (128, 128, 0),
-            NamedColor.Blue => (0, 0, 128),
-            NamedColor.Magenta => (128, 0, 128),
-            NamedColor.Cyan => (0, 128, 128),
-            NamedColor.White => (192, 192, 192),
-            NamedColor.BrightBlack => (128, 128, 128),
-            NamedColor.BrightRed => (255, 0, 0),
-            NamedColor.BrightGreen => (0, 255, 0),
-            NamedColor.BrightYellow => (255, 255, 0),
-            NamedColor.BrightBlue => (0, 0, 255),
-            NamedColor.BrightMagenta => (255, 0, 255),
-            NamedColor.BrightCyan => (0, 255, 255),
-            NamedColor.BrightWhite => (255, 255, 255),
-            _ => isBackground ? GetDefaultBackgroundColor() : GetDefaultForegroundColor()
-        };
-    }
-
-    /// <summary>
-    ///     Converts an indexed color (0-255) to RGB values using standard terminal palette.
-    /// </summary>
-    private static (byte Red, byte Green, byte Blue) GetIndexedColorRgb(int index, bool isBackground)
-    {
-        // Standard 16 colors (0-15)
-        if (index < 16)
-        {
-            var namedColor = (NamedColor)index;
-            return GetNamedColorRgb(namedColor, isBackground);
-        }
-
-        // 216 color cube (16-231): 6x6x6 RGB cube
-        if (index >= 16 && index <= 231)
-        {
-            int cubeIndex = index - 16;
-            int r = (cubeIndex / 36) % 6;
-            int g = (cubeIndex / 6) % 6;
-            int b = cubeIndex % 6;
-
-            // Convert 0-5 range to 0-255 range
-            byte red = (byte)(r == 0 ? 0 : 55 + r * 40);
-            byte green = (byte)(g == 0 ? 0 : 55 + g * 40);
-            byte blue = (byte)(b == 0 ? 0 : 55 + b * 40);
-
-            return (red, green, blue);
-        }
-
-        // Grayscale ramp (232-255): 24 shades of gray
-        if (index >= 232 && index <= 255)
-        {
-            int grayLevel = 8 + (index - 232) * 10;
-            byte gray = (byte)Math.Min(255, grayLevel);
-            return (gray, gray, gray);
-        }
-
-        // Invalid index - return default
-        return isBackground ? GetDefaultBackgroundColor() : GetDefaultForegroundColor();
-    }
+    internal string GetIconName() => _oscTitleIconOps.GetIconName();
 
     /// <summary>
     ///     Handles window manipulation sequences (CSI Ps t).
@@ -775,82 +593,25 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="parameters">Additional parameters for the operation</param>
     internal void HandleWindowManipulation(int operation, int[] parameters)
     {
-        switch (operation)
-        {
-            case 22:
-                // Push title/icon name to stack
-                if (parameters.Length >= 1)
-                {
-                    int subOperation = parameters[0];
-                    if (subOperation == 1)
-                    {
-                        // CSI 22;1t - Push icon name to stack
-                        State.IconNameStack.Add(State.WindowProperties.IconName);
-                        _logger.LogDebug("Pushed icon name to stack: \"{IconName}\"", State.WindowProperties.IconName);
-                    }
-                    else if (subOperation == 2)
-                    {
-                        // CSI 22;2t - Push window title to stack
-                        State.TitleStack.Add(State.WindowProperties.Title);
-                        _logger.LogDebug("Pushed window title to stack: \"{Title}\"", State.WindowProperties.Title);
-                    }
-                }
-                break;
-
-            case 23:
-                // Pop title/icon name from stack
-                if (parameters.Length >= 1)
-                {
-                    int subOperation = parameters[0];
-                    if (subOperation == 1)
-                    {
-                        // CSI 23;1t - Pop icon name from stack
-                        if (State.IconNameStack.Count > 0)
-                        {
-                            string poppedIconName = State.IconNameStack[^1];
-                            State.IconNameStack.RemoveAt(State.IconNameStack.Count - 1);
-                            SetIconName(poppedIconName);
-                            _logger.LogDebug("Popped icon name from stack: \"{IconName}\"", poppedIconName);
-                        }
-                        else
-                        {
-                            _logger.LogDebug("Attempted to pop icon name from empty stack");
-                        }
-                    }
-                    else if (subOperation == 2)
-                    {
-                        // CSI 23;2t - Pop window title from stack
-                        if (State.TitleStack.Count > 0)
-                        {
-                            string poppedTitle = State.TitleStack[^1];
-                            State.TitleStack.RemoveAt(State.TitleStack.Count - 1);
-                            SetWindowTitle(poppedTitle);
-                            _logger.LogDebug("Popped window title from stack: \"{Title}\"", poppedTitle);
-                        }
-                        else
-                        {
-                            _logger.LogDebug("Attempted to pop window title from empty stack");
-                        }
-                    }
-                }
-                break;
-
-            case 18:
-                // Terminal size query - respond with current dimensions
-                string sizeResponse = DeviceResponses.GenerateTerminalSizeResponse(Height, Width);
-                EmitResponse(sizeResponse);
-                _logger.LogDebug("Terminal size query response: {Response}", sizeResponse);
-                break;
-
-            default:
-                // Other window manipulation commands - gracefully ignore
-                // This includes minimize (2), restore (1), resize (8), etc.
-                // These are not applicable in a game context and should be ignored
-                _logger.LogDebug("Window manipulation operation {Operation} with params [{Parameters}] - gracefully ignored",
-                    operation, string.Join(", ", parameters));
-                break;
-        }
+        _oscWindowManipulationOps.HandleWindowManipulation(operation, parameters);
     }
+
+    /// <summary>
+    ///     Gets the current foreground color for color queries.
+    ///     Returns the current SGR foreground color or default terminal theme color.
+    /// </summary>
+    /// <returns>RGB color values for the current foreground color</returns>
+    internal (byte Red, byte Green, byte Blue) GetCurrentForegroundColor()
+        => _oscColorQueryOps.GetCurrentForegroundColor();
+
+    /// <summary>
+    ///     Gets the current background color for color queries.
+    ///     Returns the current SGR background color or default terminal theme color.
+    /// </summary>
+    /// <returns>RGB color values for the current background color</returns>
+    internal (byte Red, byte Green, byte Blue) GetCurrentBackgroundColor()
+        => _oscColorQueryOps.GetCurrentBackgroundColor();
+
 
     /// <summary>
     ///     Handles clipboard operations from OSC 52 sequences.
@@ -858,94 +619,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     and emits clipboard events for game integration.
     /// </summary>
     /// <param name="payload">The OSC 52 payload (selection;data)</param>
-    internal void HandleClipboard(string payload)
-    {
-        if (string.IsNullOrEmpty(payload))
-        {
-            return;
-        }
-
-        // OSC 52 format: ESC ] 52 ; selection ; data BEL/ST
-        // where selection can be: c (clipboard), p (primary), s (secondary), 0-7 (cut buffers)
-        // and data can be: base64 encoded data, ? (query), or empty (clear)
-
-        // Parse selection target and data
-        string[] parts = payload.Split(';', 3); // Limit to 3 parts to handle data with semicolons
-        if (parts.Length < 2)
-        {
-            _logger.LogWarning("Invalid OSC 52 format: missing selection or data part");
-            return;
-        }
-
-        string selectionTarget = parts[1];
-        string? data = parts.Length > 2 ? parts[2] : null;
-
-        // Validate selection target
-        if (string.IsNullOrEmpty(selectionTarget))
-        {
-            _logger.LogWarning("Invalid OSC 52: empty selection target");
-            return;
-        }
-
-        // Handle clipboard query
-        if (data == "?")
-        {
-            OnClipboardRequest(selectionTarget, null, isQuery: true);
-            _logger.LogDebug("Clipboard query for selection: {Selection}", selectionTarget);
-            return;
-        }
-
-        // Handle clipboard clear
-        if (string.IsNullOrEmpty(data))
-        {
-            OnClipboardRequest(selectionTarget, string.Empty, isQuery: false);
-            _logger.LogDebug("Clipboard clear for selection: {Selection}", selectionTarget);
-            return;
-        }
-
-        // Handle clipboard data - decode from base64
-        try
-        {
-            // Apply safety limit: cap base64 data length before decoding
-            const int MaxBase64Length = 4096; // ~3KB decoded data
-            if (data.Length > MaxBase64Length)
-            {
-                _logger.LogWarning("OSC 52 base64 data too long ({Length} > {Max}), ignoring",
-                    data.Length, MaxBase64Length);
-                return;
-            }
-
-            // Decode base64 data
-            byte[] decodedBytes = Convert.FromBase64String(data);
-
-            // Apply safety limit: cap decoded data size
-            const int MaxDecodedSize = 2048; // 2KB max decoded size
-            if (decodedBytes.Length > MaxDecodedSize)
-            {
-                _logger.LogWarning("OSC 52 decoded data too large ({Size} > {Max}), ignoring",
-                    decodedBytes.Length, MaxDecodedSize);
-                return;
-            }
-
-            // Convert to UTF-8 string
-            string decodedText = System.Text.Encoding.UTF8.GetString(decodedBytes);
-
-            // Emit clipboard event
-            OnClipboardRequest(selectionTarget, decodedText, isQuery: false);
-            _logger.LogDebug("Clipboard data for selection {Selection}: {Length} bytes",
-                selectionTarget, decodedBytes.Length);
-        }
-        catch (FormatException)
-        {
-            // Invalid base64 - ignore gracefully
-            _logger.LogWarning("OSC 52 invalid base64 data, ignoring gracefully");
-        }
-        catch (Exception ex)
-        {
-            // Other decoding errors - ignore gracefully
-            _logger.LogWarning(ex, "OSC 52 clipboard decoding error, ignoring gracefully");
-        }
-    }
+    internal void HandleClipboard(string payload) => _oscClipboardOps.HandleClipboard(payload);
 
     /// <summary>
     ///     Handles hyperlink operations from OSC 8 sequences.
@@ -953,88 +627,18 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Clears hyperlink state when empty URL is provided.
     /// </summary>
     /// <param name="url">The hyperlink URL, or empty string to clear hyperlink state</param>
-    internal void HandleHyperlink(string url)
-    {
-        // OSC 8 format: ESC ] 8 ; [params] ; [url] BEL/ST
-        // where params can include id=<id> and other key=value pairs
-        // For now, we only handle the URL part and ignore parameters
-
-        if (string.IsNullOrEmpty(url))
-        {
-            // Clear hyperlink state - OSC 8 ;; ST
-            _attributeManager.SetHyperlinkUrl(null);
-            State.CurrentHyperlinkUrl = null;
-            _logger.LogDebug("Cleared hyperlink state");
-        }
-        else
-        {
-            // Set hyperlink URL for subsequent characters
-            _attributeManager.SetHyperlinkUrl(url);
-            State.CurrentHyperlinkUrl = url;
-            _logger.LogDebug("Set hyperlink URL: {Url}", url);
-        }
-    }
+    internal void HandleHyperlink(string url) => _oscHyperlinkOps.HandleHyperlink(url);
 
     /// <summary>
     ///     Handles a backspace character (BS) - move cursor one position left if not at column 0.
     ///     Uses cursor manager for proper cursor management.
     /// </summary>
-    internal void HandleBackspace()
-    {
-        _cursorManager.SetWrapPending(false);
-
-        if (_cursorManager.Column > 0)
-        {
-            _cursorManager.MoveLeft(1);
-        }
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void HandleBackspace() => _backspaceOps.HandleBackspace();
 
     /// <summary>
     ///     Handles a tab character - move to next tab stop using terminal state.
     /// </summary>
-    internal void HandleTab()
-    {
-        // Sync state with cursor
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear wrap pending state since we're moving the cursor
-        State.WrapPending = false;
-
-        // Find next tab stop
-        int nextTabStop = -1;
-        for (int col = State.CursorX + 1; col < Width; col++)
-        {
-            if (col < State.TabStops.Length && State.TabStops[col])
-            {
-                nextTabStop = col;
-                break;
-            }
-        }
-
-        // If no tab stop found, go to right edge
-        if (nextTabStop == -1)
-        {
-            nextTabStop = Width - 1;
-        }
-
-        // Move cursor to the tab stop
-        State.CursorX = nextTabStop;
-
-        // Handle wrap pending if we're at the right edge and auto-wrap is enabled
-        if (State.CursorX >= Width - 1 && State.AutoWrapMode)
-        {
-            State.WrapPending = true;
-        }
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
-    }
+    internal void HandleTab() => _tabOps.HandleTab();
 
     /// <summary>
     ///     Writes a character at the current cursor position and advances the cursor.
@@ -1097,7 +701,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
         {
             // Insert mode: shift existing characters right before writing new character
             int charactersToShift = isWide ? 2 : 1;
-            ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
+            _insertModeOps.ShiftCharactersRight(_cursorManager.Row, _cursorManager.Column, charactersToShift);
         }
 
         var cell = new Cell(character, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection, _attributeManager.CurrentHyperlinkUrl, isWide);
@@ -1158,62 +762,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     }
 
     /// <summary>
-    ///     Shifts characters to the right on the current line to make space for insertion.
-    ///     Used when insert mode is enabled to shift existing characters before writing new ones.
-    /// </summary>
-    /// <param name="row">The row to shift characters on</param>
-    /// <param name="startColumn">The column to start shifting from</param>
-    /// <param name="shiftAmount">Number of positions to shift (1 for normal chars, 2 for wide chars)</param>
-    private void ShiftCharactersRight(int row, int startColumn, int shiftAmount)
-    {
-        // Bounds checking
-        if (row < 0 || row >= Height || startColumn < 0 || startColumn >= Width)
-        {
-            return;
-        }
-
-        // Calculate how many characters we can actually shift
-        int availableSpace = Width - startColumn;
-        if (availableSpace <= shiftAmount)
-        {
-            // Not enough space to shift - clear from cursor to end of line
-            for (int col = startColumn; col < Width; col++)
-            {
-                var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
-                _screenBufferManager.SetCell(row, col, emptyCell);
-            }
-            return;
-        }
-
-        // Shift characters to the right, starting from the rightmost character
-        // Work backwards to avoid overwriting characters we haven't moved yet
-        for (int col = Width - 1 - shiftAmount; col >= startColumn; col--)
-        {
-            int targetCol = col + shiftAmount;
-            if (targetCol < Width)
-            {
-                // Get the cell to move
-                var sourceCell = _screenBufferManager.GetCell(row, col);
-                _screenBufferManager.SetCell(row, targetCol, sourceCell);
-            }
-        }
-
-        // Clear the positions where we're about to insert
-        for (int col = startColumn; col < startColumn + shiftAmount && col < Width; col++)
-        {
-            var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false, null, false);
-            _screenBufferManager.SetCell(row, col, emptyCell);
-        }
-    }
-
-    /// <summary>
     ///     Emits a response string back to the shell process.
     ///     Used for device queries and other terminal responses.
     /// </summary>
     /// <param name="responseText">The response text to emit</param>
     internal void EmitResponse(string responseText)
     {
-        OnResponseEmitted(responseText);
+        _responseOps.EmitResponse(responseText);
     }
 
     /// <summary>
@@ -1221,8 +776,64 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     private void OnScreenUpdated()
     {
-        ScreenUpdated?.Invoke(this, new ScreenUpdatedEventArgs());
+        _screenUpdateOps.OnScreenUpdated();
     }
+
+    /// <summary>
+    ///     Internal helper for builder - gets the parser instance.
+    /// </summary>
+    internal Parser GetParser() => _parser;
+
+    /// <summary>
+    ///     Internal helper for builder - throws if disposed.
+    /// </summary>
+    internal void ThrowIfDisposedInternal() => ThrowIfDisposed();
+
+    /// <summary>
+    ///     Internal helper for builder - calls OnScreenUpdated.
+    /// </summary>
+    internal void OnScreenUpdatedInternal() => OnScreenUpdated();
+
+    /// <summary>
+    ///     Internal helper for builder - raises OnBell event.
+    /// </summary>
+    internal void OnBellInternal() => OnBell();
+
+    /// <summary>
+    ///     Internal helper for builder - raises ScreenUpdated event with args.
+    /// </summary>
+    internal void OnScreenUpdatedEvent(ScreenUpdatedEventArgs e) => ScreenUpdated?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises TitleChanged event with string.
+    /// </summary>
+    internal void OnTitleChangedEvent(string title) => OnTitleChanged(title);
+
+    /// <summary>
+    ///     Internal helper for builder - raises IconNameChanged event with string.
+    /// </summary>
+    internal void OnIconNameChangedEvent(string iconName) => OnIconNameChanged(iconName);
+
+    /// <summary>
+    ///     Internal helper for builder - raises ClipboardRequest event.
+    /// </summary>
+    internal void OnClipboardRequestInternal(string selectionTarget, string? data, bool isQuery) =>
+        OnClipboardRequest(selectionTarget, data, isQuery);
+
+    /// <summary>
+    ///     Internal helper for builder - raises ResponseEmitted event with args.
+    /// </summary>
+    internal void OnResponseEmittedEvent(ResponseEmittedEventArgs e) => ResponseEmitted?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises TitleChanged event with event args.
+    /// </summary>
+    internal void RaiseTitleChanged(TitleChangeEventArgs e) => TitleChanged?.Invoke(this, e);
+
+    /// <summary>
+    ///     Internal helper for builder - raises IconNameChanged event with event args.
+    /// </summary>
+    internal void RaiseIconNameChanged(IconNameChangeEventArgs e) => IconNameChanged?.Invoke(this, e);
 
     /// <summary>
     ///     Raises the ResponseEmitted event.
@@ -1230,7 +841,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="responseData">The response data to emit</param>
     protected void OnResponseEmitted(ReadOnlyMemory<byte> responseData)
     {
-        ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseData));
+        _responseOps.OnResponseEmitted(responseData);
     }
 
     /// <summary>
@@ -1239,7 +850,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="responseText">The response text to emit</param>
     protected void OnResponseEmitted(string responseText)
     {
-        ResponseEmitted?.Invoke(this, new ResponseEmittedEventArgs(responseText));
+        _responseOps.OnResponseEmitted(responseText);
     }
 
     /// <summary>
@@ -1249,21 +860,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="lines">Number of lines to scroll up (default: 1)</param>
     internal void ScrollScreenUp(int lines = 1)
     {
-        if (lines <= 0)
-        {
-            return; // Do nothing for zero or negative lines
-        }
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for proper scrollback integration
-        _screenBufferManager.ScrollUpInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollOps.ScrollScreenUp(lines);
     }
 
     /// <summary>
@@ -1273,21 +870,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="lines">Number of lines to scroll down (default: 1)</param>
     internal void ScrollScreenDown(int lines = 1)
     {
-        if (lines <= 0)
-        {
-            return; // Do nothing for zero or negative lines
-        }
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for proper scrollback integration
-        _screenBufferManager.ScrollDownInRegion(lines, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollOps.ScrollScreenDown(lines);
     }
 
     /// <summary>
@@ -1298,35 +881,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="bottom">Bottom boundary (1-indexed, null for default)</param>
     internal void SetScrollRegion(int? top, int? bottom)
     {
-        // DECSTBM - Set Top and Bottom Margins
-        if (top == null && bottom == null)
-        {
-            // Reset to full screen
-            State.ScrollTop = 0;
-            State.ScrollBottom = Height - 1;
-        }
-        else
-        {
-            // Convert from 1-indexed to 0-indexed and validate bounds
-            int newTop = top.HasValue ? Math.Max(0, Math.Min(Height - 1, top.Value - 1)) : 0;
-            int newBottom = bottom.HasValue ? Math.Max(0, Math.Min(Height - 1, bottom.Value - 1)) : Height - 1;
-
-            // Ensure top < bottom
-            if (newTop < newBottom)
-            {
-                State.ScrollTop = newTop;
-                State.ScrollBottom = newBottom;
-            }
-        }
-
-        // Move cursor to home position within scroll region (following TypeScript behavior)
-        _cursorManager.MoveTo(State.ScrollTop, 0);
-        _cursorManager.SetWrapPending(false);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _scrollRegionOps.SetScrollRegion(top, bottom);
     }
 
     /// <summary>
@@ -1336,115 +891,9 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="enabled">True to enable, false to disable</param>
     internal void SetDecMode(int mode, bool enabled)
     {
-        // Update the mode manager first
-        _modeManager.SetPrivateMode(mode, enabled);
-
-        switch (mode)
-        {
-            case 6: // DECOM - Origin Mode
-                State.SetOriginMode(enabled);
-                // Sync with cursor manager after origin mode change
-                _cursorManager.MoveTo(State.CursorY, State.CursorX);
-                _cursorManager.SetWrapPending(State.WrapPending);
-                break;
-
-            case 7: // DECAWM - Auto Wrap Mode
-                State.SetAutoWrapMode(enabled);
-                // Clear wrap pending when auto-wrap mode is disabled (matches TypeScript)
-                if (!enabled)
-                {
-                    _cursorManager.SetWrapPending(false);
-                }
-                // Sync with cursor manager after auto wrap mode change
-                _cursorManager.SetWrapPending(State.WrapPending);
-                break;
-
-            case 25: // DECTCEM - Text Cursor Enable Mode
-                State.CursorVisible = enabled;
-                _cursorManager.Visible = enabled;
-                break;
-
-            case 1: // DECCKM - Application Cursor Keys
-                State.ApplicationCursorKeys = enabled;
-                break;
-
-            case 47: // Alternate Screen Buffer
-            case 1047: // Alternate Screen Buffer with cursor save
-            case 1049: // Alternate Screen Buffer with cursor save and clear
-                HandleAlternateScreenMode(mode, enabled);
-                break;
-
-            case 1000: // VT200 mouse tracking (click)
-            case 1002: // button-event tracking (drag)
-            case 1003: // any-event tracking (motion)
-                State.SetMouseTrackingMode(mode, enabled);
-                break;
-
-            case 1006: // SGR mouse encoding
-                State.MouseSgrEncodingEnabled = enabled;
-                break;
-
-            case 2004: // Bracketed paste mode
-                State.BracketedPasteMode = enabled;
-                break;
-
-            case 2027: // UTF-8 Mode
-                State.Utf8Mode = enabled;
-                _characterSetManager.SetUtf8Mode(enabled);
-                break;
-
-            default:
-                _logger.LogDebug("Unknown DEC mode {Mode} {Action}", mode, enabled ? "set" : "reset");
-                break;
-        }
+        _decModeOps.SetDecMode(mode, enabled);
     }
 
-    private void HandleAlternateScreenMode(int mode, bool enabled)
-    {
-        if (enabled)
-        {
-            switch (mode)
-            {
-                case 47: // Basic alternate screen
-                    _alternateScreenManager.ActivateAlternate();
-                    break;
-                case 1047: // Alternate screen with cursor save
-                    _alternateScreenManager.ActivateAlternateWithCursorSave();
-                    break;
-                case 1049: // Alternate screen with cursor save and clear
-                    _alternateScreenManager.ActivateAlternateWithClearAndCursorSave();
-                    break;
-            }
-        }
-        else
-        {
-            // Store whether we were in alternate screen before deactivation
-            bool wasAlternate = State.IsAlternateScreenActive;
-
-            switch (mode)
-            {
-                case 47: // Basic alternate screen
-                    _alternateScreenManager.DeactivateAlternate();
-                    break;
-                case 1047: // Alternate screen with cursor restore
-                case 1049: // Alternate screen with cursor restore
-                    _alternateScreenManager.DeactivateAlternateWithCursorRestore();
-                    break;
-            }
-
-            // Leaving a full-screen TUI should restore the prompt/cursor at the bottom
-            // (matches catty-web controller behavior).
-            if (wasAlternate)
-            {
-                _scrollbackManager.ScrollToBottom();
-            }
-        }
-
-        // Sync cursor manager with terminal state after buffer switching
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
 
     /// <summary>
     ///     Moves the cursor up by the specified number of lines.
@@ -1452,20 +901,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of lines to move up (minimum 1)</param>
     internal void MoveCursorUp(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveUp(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorUp(count);
     }
 
     /// <summary>
@@ -1474,20 +910,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of lines to move down (minimum 1)</param>
     internal void MoveCursorDown(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveDown(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorDown(count);
     }
 
     /// <summary>
@@ -1496,20 +919,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of columns to move forward (minimum 1)</param>
     internal void MoveCursorForward(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveRight(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorForward(count);
     }
 
     /// <summary>
@@ -1518,20 +928,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of columns to move backward (minimum 1)</param>
     internal void MoveCursorBackward(int count)
     {
-        count = Math.Max(1, count);
-        _cursorManager.MoveLeft(count);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Use terminal state clamping to respect scroll regions and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.MoveCursorBackward(count);
     }
 
     /// <summary>
@@ -1541,26 +938,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
     internal void SetCursorPosition(int row, int column)
     {
-        // Map row parameter based on origin mode (following TypeScript mapRowParamToCursorY)
-        int baseRow = State.OriginMode ? State.ScrollTop : 0;
-        int targetRow = baseRow + (row - 1);
-
-        // Convert column from 1-based to 0-based
-        int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
-
-        _cursorManager.MoveTo(targetRow, targetCol);
-
-        // Sync cursor manager position to terminal state
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Clamp cursor to respect scroll region and origin mode
-        State.ClampCursor();
-
-        // Sync back to cursor manager after clamping
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.SetWrapPending(State.WrapPending);
+        _cursorMovementOps.SetCursorPosition(row, column);
     }
 
     /// <summary>
@@ -1570,15 +948,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="column">Target column (1-based, will be converted to 0-based)</param>
     internal void SetCursorColumn(int column)
     {
-        // Convert from 1-based to 0-based coordinates and clamp to bounds
-        int targetCol = Math.Max(0, Math.Min(Width - 1, column - 1));
-
-        _cursorManager.MoveTo(_cursorManager.Row, targetCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _cursorMovementOps.SetCursorColumn(column);
     }
 
     /// <summary>
@@ -1588,52 +958,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
     internal void ClearDisplay(int mode)
     {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of display
-                ClearLine(0); // Clear from cursor to end of current line
-                // Clear all lines below cursor
-                for (int row = _cursorManager.Row + 1; row < Height; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        _screenBufferManager.SetCell(row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 1: // From start of display to cursor
-                // Clear all lines above cursor
-                for (int row = 0; row < _cursorManager.Row; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        _screenBufferManager.SetCell(row, col, emptyCell);
-                    }
-                }
-                ClearLine(1); // Clear from start of current line to cursor
-                break;
-
-            case 2: // Entire display
-                _screenBufferManager.Clear();
-                break;
-
-            case 3: // Entire display and scrollback (xterm extension)
-                // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
-                _screenBufferManager.Clear();
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _eraseInDisplayOps.ClearDisplay(mode);
     }
 
     /// <summary>
@@ -1643,46 +968,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
     internal void ClearLine(int mode)
     {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Bounds check
-        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
-        {
-            return;
-        }
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of line
-                for (int col = _cursorManager.Column; col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-
-            case 1: // From start of line to cursor
-                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-
-            case 2: // Entire line
-                for (int col = 0; col < Width; col++)
-                {
-                    _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                }
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _eraseInLineOps.ClearLine(mode);
     }
 
     /// <summary>
@@ -1693,72 +979,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="mode">Erase mode: 0=cursor to end, 1=start to cursor, 2=entire screen, 3=entire screen and scrollback</param>
     internal void ClearDisplaySelective(int mode)
     {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of display
-                ClearLineSelective(0); // Clear from cursor to end of current line
-                // Clear all lines below cursor
-                for (int row = _cursorManager.Row + 1; row < Height; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        Cell currentCell = _screenBufferManager.GetCell(row, col);
-                        if (!currentCell.IsProtected)
-                        {
-                            _screenBufferManager.SetCell(row, col, emptyCell);
-                        }
-                    }
-                }
-                break;
-
-            case 1: // From start of display to cursor
-                // Clear all lines above cursor
-                for (int row = 0; row < _cursorManager.Row; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        Cell currentCell = _screenBufferManager.GetCell(row, col);
-                        if (!currentCell.IsProtected)
-                        {
-                            _screenBufferManager.SetCell(row, col, emptyCell);
-                        }
-                    }
-                }
-                ClearLineSelective(1); // Clear from start of current line to cursor
-                break;
-
-            case 2: // Entire display
-            case 3: // Entire display and scrollback (xterm extension)
-                if (mode == 3)
-                {
-                    // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
-                }
-
-                // Clear entire display selectively
-                for (int row = 0; row < Height; row++)
-                {
-                    for (int col = 0; col < Width; col++)
-                    {
-                        Cell currentCell = _screenBufferManager.GetCell(row, col);
-                        if (!currentCell.IsProtected)
-                        {
-                            _screenBufferManager.SetCell(row, col, emptyCell);
-                        }
-                    }
-                }
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _selectiveEraseInDisplayOps.ClearDisplaySelective(mode);
     }
 
     /// <summary>
@@ -1767,61 +988,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Only erases unprotected cells, preserving protected cells.
     /// </summary>
     /// <param name="mode">Erase mode: 0=cursor to end of line, 1=start of line to cursor, 2=entire line</param>
-    internal void ClearLineSelective(int mode)
-    {
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Bounds check
-        if (_cursorManager.Row < 0 || _cursorManager.Row >= Height)
-        {
-            return;
-        }
-
-        // Create empty cell with current SGR attributes (unprotected)
-        var emptyCell = new Cell(' ', _attributeManager.CurrentAttributes, false);
-
-        switch (mode)
-        {
-            case 0: // From cursor to end of line
-                for (int col = _cursorManager.Column; col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 1: // From start of line to cursor
-                for (int col = 0; col <= _cursorManager.Column && col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-
-            case 2: // Entire line
-                for (int col = 0; col < Width; col++)
-                {
-                    Cell currentCell = _screenBufferManager.GetCell(_cursorManager.Row, col);
-                    if (!currentCell.IsProtected)
-                    {
-                        _screenBufferManager.SetCell(_cursorManager.Row, col, emptyCell);
-                    }
-                }
-                break;
-        }
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void ClearLineSelective(int mode) => _selectiveEraseInLineOps.ClearLineSelective(mode);
 
     /// <summary>
     ///     Sets the character protection attribute for subsequently written characters.
@@ -1839,10 +1006,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void SaveCursorPosition()
     {
-        _cursorManager.SavePosition();
-
-        // Also save in terminal state for compatibility
-        State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
+        _cursorSaveRestoreOps.SaveCursorPosition();
     }
 
     /// <summary>
@@ -1851,18 +1015,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void RestoreCursorPosition()
     {
-        _cursorManager.RestorePosition();
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-
-        // Update saved cursor in state for compatibility
-        if (State.SavedCursor.HasValue)
-        {
-            State.SavedCursor = (_cursorManager.Column, _cursorManager.Row);
-        }
+        _cursorSaveRestoreOps.RestoreCursorPosition();
     }
 
     /// <summary>
@@ -1872,10 +1025,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void SaveCursorPositionAnsi()
     {
-        // Save current cursor position in ANSI saved cursor field
-        State.AnsiSavedCursor = (_cursorManager.Column, _cursorManager.Row);
-
-        _logger.LogDebug("ANSI cursor saved at position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
+        _cursorSaveRestoreOps.SaveCursorPositionAnsi();
     }
 
     /// <summary>
@@ -1885,30 +1035,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void RestoreCursorPositionAnsi()
     {
-        if (State.AnsiSavedCursor.HasValue)
-        {
-            var (savedX, savedY) = State.AnsiSavedCursor.Value;
-
-            // Validate and clamp the saved position to current buffer dimensions
-            int clampedX = Math.Max(0, Math.Min(savedX, Width - 1));
-            int clampedY = Math.Max(0, Math.Min(savedY, Height - 1));
-
-            // Move cursor to the saved position
-            _cursorManager.MoveTo(clampedY, clampedX);
-            _cursorManager.SetWrapPending(false);
-
-            // Sync state with cursor manager
-            State.CursorX = _cursorManager.Column;
-            State.CursorY = _cursorManager.Row;
-            State.WrapPending = _cursorManager.WrapPending;
-
-            _logger.LogDebug("ANSI cursor restored to position ({X}, {Y})", _cursorManager.Column, _cursorManager.Row);
-        }
-        else
-        {
-            // No saved position - this is a no-op (following xterm behavior)
-            _logger.LogDebug("ANSI cursor restore called but no saved position available");
-        }
+        _cursorSaveRestoreOps.RestoreCursorPositionAnsi();
     }
 
     /// <summary>
@@ -1917,159 +1044,40 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     internal void HandleReverseIndex()
     {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear wrap pending state
-        State.WrapPending = false;
-
-        if (State.CursorY <= State.ScrollTop)
-        {
-            // At top of scroll region - scroll the region down
-            State.CursorY = State.ScrollTop;
-            _screenBufferManager.ScrollDownInRegion(1, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes);
-        }
-        else
-        {
-            // Move cursor up one line
-            State.CursorY = Math.Max(State.ScrollTop, State.CursorY - 1);
-        }
-
-        // Update cursor to match state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
+        _scrollOps.HandleReverseIndex();
     }
 
     /// <summary>
     ///     Sets a tab stop at the current cursor position.
     ///     Implements ESC H (Horizontal Tab Set) sequence.
     /// </summary>
-    internal void SetTabStopAtCursor()
-    {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Set tab stop at current cursor position
-        if (State.CursorX >= 0 && State.CursorX < State.TabStops.Length)
-        {
-            State.TabStops[State.CursorX] = true;
-        }
-    }
+    internal void SetTabStopAtCursor() => _tabOps.SetTabStopAtCursor();
 
     /// <summary>
     ///     Moves cursor forward to the next tab stop.
     ///     Implements CSI I (Cursor Forward Tab) sequence.
     /// </summary>
     /// <param name="count">Number of tab stops to move forward</param>
-    internal void CursorForwardTab(int count)
-    {
-        // Clear wrap pending state first
-        _cursorManager.SetWrapPending(false);
-
-        int n = Math.Max(1, count);
-        int currentCol = _cursorManager.Column;
-
-        if (currentCol < 0)
-        {
-            currentCol = 0;
-        }
-
-        for (int i = 0; i < n; i++)
-        {
-            int nextStop = -1;
-            for (int x = currentCol + 1; x < Width; x++)
-            {
-                if (x < State.TabStops.Length && State.TabStops[x])
-                {
-                    nextStop = x;
-                    break;
-                }
-            }
-
-            currentCol = nextStop == -1 ? Width - 1 : nextStop;
-        }
-
-        // Update cursor position through cursor manager
-        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void CursorForwardTab(int count) => _tabOps.CursorForwardTab(count);
 
     /// <summary>
     ///     Moves cursor backward to the previous tab stop.
     ///     Implements CSI Z (Cursor Backward Tab) sequence.
     /// </summary>
     /// <param name="count">Number of tab stops to move backward</param>
-    internal void CursorBackwardTab(int count)
-    {
-        // Clear wrap pending state first
-        _cursorManager.SetWrapPending(false);
-
-        int n = Math.Max(1, count);
-        int currentCol = _cursorManager.Column;
-
-        if (currentCol < 0)
-        {
-            currentCol = 0;
-        }
-
-        for (int i = 0; i < n; i++)
-        {
-            int prevStop = -1;
-            for (int x = currentCol - 1; x >= 0; x--)
-            {
-                if (x < State.TabStops.Length && State.TabStops[x])
-                {
-                    prevStop = x;
-                    break;
-                }
-            }
-
-            currentCol = prevStop == -1 ? 0 : prevStop;
-        }
-
-        // Update cursor position through cursor manager
-        _cursorManager.MoveTo(_cursorManager.Row, currentCol);
-
-        // Sync state with cursor manager
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void CursorBackwardTab(int count) => _tabOps.CursorBackwardTab(count);
 
     /// <summary>
     ///     Clears the tab stop at the current cursor position.
     ///     Implements CSI g (Tab Clear) sequence with mode 0.
     /// </summary>
-    internal void ClearTabStopAtCursor()
-    {
-        // Sync cursor with state
-        State.CursorX = Cursor.Col;
-        State.CursorY = Cursor.Row;
-
-        // Clear tab stop at current cursor position
-        if (State.CursorX >= 0 && State.CursorX < State.TabStops.Length)
-        {
-            State.TabStops[State.CursorX] = false;
-        }
-    }
+    internal void ClearTabStopAtCursor() => _tabOps.ClearTabStopAtCursor();
 
     /// <summary>
     ///     Clears all tab stops.
     ///     Implements CSI 3 g (Tab Clear) sequence with mode 3.
     /// </summary>
-    internal void ClearAllTabStops()
-    {
-        // Clear all tab stops
-        for (int i = 0; i < State.TabStops.Length; i++)
-        {
-            State.TabStops[i] = false;
-        }
-    }
+    internal void ClearAllTabStops() => _tabOps.ClearAllTabStops();
 
     /// <summary>
     ///     Inserts blank lines at the cursor position within the scroll region.
@@ -2080,18 +1088,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="count">Number of lines to insert (minimum 1)</param>
     internal void InsertLinesInRegion(int count)
     {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for line insertion within scroll region
-        _screenBufferManager.InsertLinesInRegion(count, _cursorManager.Row, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
+        _insertLinesOps.InsertLinesInRegion(count);
     }
 
     /// <summary>
@@ -2101,21 +1098,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     at the bottom of the scroll region.
     /// </summary>
     /// <param name="count">Number of lines to delete (minimum 1)</param>
-    internal void DeleteLinesInRegion(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for line deletion within scroll region
-        _screenBufferManager.DeleteLinesInRegion(count, _cursorManager.Row, State.ScrollTop, State.ScrollBottom, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void DeleteLinesInRegion(int count) =>
+        _deleteLinesOps.DeleteLinesInRegion(count);
 
     /// <summary>
     ///     Inserts blank characters at the cursor position within the current line.
@@ -2124,21 +1108,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     that would go beyond the line end are lost.
     /// </summary>
     /// <param name="count">Number of characters to insert (minimum 1)</param>
-    internal void InsertCharactersInLine(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for character insertion within current line
-        _screenBufferManager.InsertCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void InsertCharactersInLine(int count) =>
+        _insertCharsOps.InsertCharactersInLine(count);
 
     /// <summary>
     ///     Deletes characters at the cursor position within the current line.
@@ -2147,21 +1118,8 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     are added at the end of the line.
     /// </summary>
     /// <param name="count">Number of characters to delete (minimum 1)</param>
-    internal void DeleteCharactersInLine(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for character deletion within current line
-        _screenBufferManager.DeleteCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void DeleteCharactersInLine(int count) =>
+        _deleteCharsOps.DeleteCharactersInLine(count);
 
     /// <summary>
     ///     Erases characters at the cursor position within the current line.
@@ -2170,102 +1128,21 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Does not move the cursor or shift other characters.
     /// </summary>
     /// <param name="count">Number of characters to erase (minimum 1)</param>
-    internal void EraseCharactersInLine(int count)
-    {
-        count = Math.Max(1, count);
-
-        // Clear wrap pending state
-        _cursorManager.SetWrapPending(false);
-
-        // Use screen buffer manager for character erasure within current line
-        _screenBufferManager.EraseCharactersInLine(count, _cursorManager.Row, _cursorManager.Column, _attributeManager.CurrentAttributes, _attributeManager.CurrentCharacterProtection);
-
-        // Sync state with managers
-        State.CursorX = _cursorManager.Column;
-        State.CursorY = _cursorManager.Row;
-        State.WrapPending = _cursorManager.WrapPending;
-    }
+    internal void EraseCharactersInLine(int count) =>
+        _eraseCharsOps.EraseCharactersInLine(count);
 
     /// <summary>
     ///     Resets the terminal to its initial state.
     ///     Implements ESC c (Reset to Initial State) sequence.
     /// </summary>
-    internal void ResetToInitialState()
-    {
-        // Reset terminal state
-        State.Reset();
-
-        // Clear the screen buffer
-        ScreenBuffer.Clear();
-
-        // Update cursor to match reset state
-        Cursor.SetPosition(State.CursorY, State.CursorX);
-
-        // Reset cursor manager style to match state
-        _cursorManager.Style = State.CursorStyle;
-    }
+    internal void ResetToInitialState() => _resetOps.ResetToInitialState();
 
     /// <summary>
     ///     Performs a soft reset of the terminal.
     ///     Implements CSI ! p (DECSTR - DEC Soft Terminal Reset) sequence.
     ///     Resets terminal modes and state without clearing the screen buffer or cursor position.
     /// </summary>
-    public void SoftReset()
-    {
-        // Reset cursor position to home (0,0)
-        State.CursorX = 0;
-        State.CursorY = 0;
-
-        // Clear saved cursor positions
-        State.SavedCursor = null;
-        State.AnsiSavedCursor = null;
-
-        // Reset wrap pending state
-        State.WrapPending = false;
-
-        // Reset cursor style and visibility to defaults
-        State.CursorStyle = CursorStyle.BlinkingBlock;
-        State.CursorVisible = true;
-
-        // Reset terminal modes to defaults
-        State.ApplicationCursorKeys = false;
-        State.OriginMode = false;
-        State.AutoWrapMode = true;
-
-        // Reset scroll region to full screen
-        State.ScrollTop = 0;
-        State.ScrollBottom = Height - 1;
-
-        // Reset character protection to unprotected
-        State.CurrentCharacterProtection = false;
-        _attributeManager.CurrentCharacterProtection = false;
-
-        // Reset SGR attributes to defaults
-        State.CurrentSgrState = SgrAttributes.Default;
-        _attributeManager.ResetAttributes();
-
-        // Reset character sets to defaults (ASCII)
-        State.CharacterSets = new CharacterSetState();
-
-        // Reset UTF-8 mode to enabled
-        State.Utf8Mode = true;
-
-        // Reset tab stops to default (every 8 columns)
-        State.InitializeTabStops(Width);
-
-        // Update cursor manager to match reset state
-        _cursorManager.MoveTo(State.CursorY, State.CursorX);
-        _cursorManager.Visible = State.CursorVisible;
-        _cursorManager.Style = State.CursorStyle;
-
-        // Update mode manager to match reset state
-        _modeManager.AutoWrapMode = State.AutoWrapMode;
-        _modeManager.ApplicationCursorKeys = State.ApplicationCursorKeys;
-        _modeManager.CursorVisible = State.CursorVisible;
-        _modeManager.OriginMode = State.OriginMode;
-
-        _logger.LogDebug("Soft reset completed - modes and state reset without clearing screen");
-    }
+    public void SoftReset() => _resetOps.SoftReset();
 
     /// <summary>
     ///     Designates a character set to a specific G slot.
@@ -2274,36 +1151,19 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="slot">The G slot to designate (G0, G1, G2, G3)</param>
     /// <param name="charset">The character set identifier</param>
     internal void DesignateCharacterSet(string slot, string charset)
-    {
-        CharacterSetKey slotKey = slot switch
-        {
-            "G0" => CharacterSetKey.G0,
-            "G1" => CharacterSetKey.G1,
-            "G2" => CharacterSetKey.G2,
-            "G3" => CharacterSetKey.G3,
-            _ => CharacterSetKey.G0
-        };
-
-        _characterSetManager.DesignateCharacterSet(slotKey, charset);
-    }
+        => _charsetDesignationOps.DesignateCharacterSet(slot, charset);
 
     /// <summary>
     ///     Handles shift-in (SI) control character.
     ///     Switches active character set to G0.
     /// </summary>
-    internal void HandleShiftIn()
-    {
-        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G0);
-    }
+    internal void HandleShiftIn() => _charsetTranslationOps.HandleShiftIn();
 
     /// <summary>
     ///     Handles shift-out (SO) control character.
     ///     Switches active character set to G1.
     /// </summary>
-    internal void HandleShiftOut()
-    {
-        _characterSetManager.SwitchCharacterSet(CharacterSetKey.G1);
-    }
+    internal void HandleShiftOut() => _charsetTranslationOps.HandleShiftOut();
 
     /// <summary>
     ///     Translates a character according to the current character set.
@@ -2311,19 +1171,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="ch">The character to translate</param>
     /// <returns>The translated character string</returns>
-    internal string TranslateCharacter(char ch)
-    {
-        return _characterSetManager.TranslateCharacter(ch);
-    }
+    internal string TranslateCharacter(char ch) => _charsetTranslationOps.TranslateCharacter(ch);
 
     /// <summary>
     ///     Generates a character set query response.
     /// </summary>
     /// <returns>The character set query response string</returns>
-    internal string GenerateCharacterSetQueryResponse()
-    {
-        return _characterSetManager.GenerateCharacterSetQueryResponse();
-    }
+    internal string GenerateCharacterSetQueryResponse() => _charsetTranslationOps.GenerateCharacterSetQueryResponse();
 
     /// <summary>
     ///     Raises the Bell event.
@@ -2337,19 +1191,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     ///     Raises the TitleChanged event.
     /// </summary>
     /// <param name="newTitle">The new window title</param>
-    private void OnTitleChanged(string newTitle)
-    {
-        TitleChanged?.Invoke(this, new TitleChangeEventArgs(newTitle));
-    }
+    private void OnTitleChanged(string newTitle) => _titleIconEventsOps.OnTitleChanged(newTitle);
 
     /// <summary>
     ///     Raises the IconNameChanged event.
     /// </summary>
     /// <param name="newIconName">The new icon name</param>
-    private void OnIconNameChanged(string newIconName)
-    {
-        IconNameChanged?.Invoke(this, new IconNameChangeEventArgs(newIconName));
-    }
+    private void OnIconNameChanged(string newIconName) => _titleIconEventsOps.OnIconNameChanged(newIconName);
 
     /// <summary>
     ///     Raises the ClipboardRequest event.
@@ -2379,8 +1227,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="modes">Array of private mode numbers to save</param>
     internal void SavePrivateModes(int[] modes)
     {
-        // Save the current state of each specified mode
-        _modeManager.SavePrivateModes(modes);
+        _privateModesOps.SavePrivateModes(modes);
     }
 
     /// <summary>
@@ -2389,8 +1236,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="modes">Array of private mode numbers to restore</param>
     internal void RestorePrivateModes(int[] modes)
     {
-        // Restore the saved state of each specified mode
-        _modeManager.RestorePrivateModes(modes);
+        _privateModesOps.RestorePrivateModes(modes);
     }
 
     /// <summary>
@@ -2399,14 +1245,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="style">Cursor style parameter from DECSCUSR sequence (0-6)</param>
     public void SetCursorStyle(int style)
     {
-        // Validate and normalize cursor style using the new enum system
-        CursorStyle validatedStyle = CursorStyleExtensions.ValidateStyle(style);
-
-        // Update cursor manager
-        _cursorManager.Style = validatedStyle;
-
-        // Update terminal state
-        State.CursorStyle = validatedStyle;
+        _cursorStyleOps.SetCursorStyle(style);
     }
 
     /// <summary>
@@ -2415,11 +1254,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="style">The cursor style to set</param>
     public void SetCursorStyle(CursorStyle style)
     {
-        // Update cursor manager
-        _cursorManager.Style = style;
-
-        // Update terminal state
-        State.CursorStyle = style;
+        _cursorStyleOps.SetCursorStyle(style);
     }
 
     /// <summary>
@@ -2429,11 +1264,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="enabled">True to enable insert mode, false to disable</param>
     public void SetInsertMode(bool enabled)
     {
-        // Update mode manager
-        _modeManager.InsertMode = enabled;
-
-        // Update terminal state for compatibility
-        _modeManager.SetMode(4, enabled);
+        _insertModeOps.SetInsertMode(enabled);
     }
 
     /// <summary>
@@ -2444,20 +1275,7 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="pasteContent">The content to be pasted</param>
     /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
-    public string WrapPasteContent(string pasteContent)
-    {
-        if (string.IsNullOrEmpty(pasteContent))
-        {
-            return pasteContent;
-        }
-
-        if (State.BracketedPasteMode)
-        {
-            return $"\x1b[200~{pasteContent}\x1b[201~";
-        }
-
-        return pasteContent;
-    }
+    public string WrapPasteContent(string pasteContent) => _bracketedPasteOps.WrapPasteContent(pasteContent);
 
     /// <summary>
     ///     Wraps paste content with bracketed paste escape sequences if bracketed paste mode is enabled.
@@ -2465,29 +1283,13 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// </summary>
     /// <param name="pasteContent">The content to be pasted</param>
     /// <returns>The paste content, optionally wrapped with bracketed paste markers</returns>
-    public string WrapPasteContent(ReadOnlySpan<char> pasteContent)
-    {
-        if (pasteContent.IsEmpty)
-        {
-            return string.Empty;
-        }
-
-        if (State.BracketedPasteMode)
-        {
-            return $"\x1b[200~{pasteContent.ToString()}\x1b[201~";
-        }
-
-        return pasteContent.ToString();
-    }
+    public string WrapPasteContent(ReadOnlySpan<char> pasteContent) => _bracketedPasteOps.WrapPasteContent(pasteContent);
 
     /// <summary>
     ///     Checks if bracketed paste mode is currently enabled.
     ///     This is a convenience method for external components that need to check paste mode state.
     /// </summary>
     /// <returns>True if bracketed paste mode is enabled, false otherwise</returns>
-    public bool IsBracketedPasteModeEnabled()
-    {
-        return State.BracketedPasteMode;
-    }
+    public bool IsBracketedPasteModeEnabled() => _bracketedPasteOps.IsBracketedPasteModeEnabled();
 
 }

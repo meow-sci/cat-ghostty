@@ -17,7 +17,7 @@ public class AlternateScreenIsolationTests
     [SetUp]
     public void SetUp()
     {
-        _terminal = new TerminalEmulator(80, 24, 1000, NullLogger.Instance);
+        _terminal = TerminalEmulator.Create(80, 24, 1000, NullLogger.Instance);
     }
 
     [TearDown]
