@@ -208,6 +208,12 @@ internal class TerminalUiRender
           // Pre-compute whether this row might have any selection overlap
           bool rowMightHaveSelection = currentSelection.RowMightBeSelected(row);
 
+          // EARLY EXIT: Skip rows with no content and no selection
+          if (!rowMightHaveSelection && !RowHasContent(rowSpan))
+          {
+            continue;
+          }
+
           for (int col = 0; col < colsToRender; col++)
           {
 //            _perfWatch.Start("RenderCell");
@@ -708,5 +714,31 @@ internal class TerminalUiRender
     {
 //      _perfWatch.Stop("RenderDashedUnderline");
     }
+  }
+
+  /// <summary>
+  ///     Checks if a row has any content that requires rendering.
+  ///     Returns true if any cell has a non-space character or non-default attributes.
+  /// </summary>
+  [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+  private static bool RowHasContent(ReadOnlySpan<Cell> rowSpan)
+  {
+    for (int i = 0; i < rowSpan.Length; i++)
+    {
+      ref readonly var cell = ref rowSpan[i];
+
+      // Non-empty character?
+      if (cell.Character != ' ' && cell.Character != '\0')
+        return true;
+
+      // Has explicit background color? (needs to draw background)
+      if (cell.Attributes.BackgroundColor.HasValue)
+        return true;
+
+      // Has attributes that affect empty cells? (inverse makes spaces visible)
+      if (cell.Attributes.Inverse)
+        return true;
+    }
+    return false;
   }
 }
