@@ -136,10 +136,38 @@ internal class TerminalUiRender
           uint runColorU32 = 0;
           ImFontPtr runFont = default;
 
+          // Background run tracking for batching contiguous same-color backgrounds
+          int bgRunStartCol = -1;
+          int bgRunLength = 0;
+          uint bgRunColorU32 = 0;
+
+          void FlushBackgroundRun()
+          {
+            if (bgRunLength <= 0)
+              return;
+
+            float bgX = terminalDrawPos.X + (bgRunStartCol * currentCharacterWidth);
+            float bgY = terminalDrawPos.Y + (row * currentLineHeight);
+            float bgWidth = bgRunLength * currentCharacterWidth;
+            float bgHeight = currentLineHeight;
+
+            drawList.AddRectFilled(
+              new float2(bgX, bgY),
+              new float2(bgX + bgWidth, bgY + bgHeight),
+              bgRunColorU32
+            );
+
+            bgRunLength = 0;
+            bgRunStartCol = -1;
+          }
+
           void FlushRun()
           {
             if (runLength <= 0)
               return;
+
+            // IMPORTANT: Flush backgrounds BEFORE text to ensure correct draw order
+            FlushBackgroundRun();
 
 //            _perfWatch.Start("RenderCell.FlushRun");
 
@@ -276,7 +304,10 @@ internal class TerminalUiRender
 
               foregroundColors[col] = fgColor;
 
-              // Apply selection highlighting or draw background only when needed
+              // Determine if this cell needs a background and batch drawing
+              uint cellBgColorU32 = 0;
+              bool needsBackground = false;
+
               if (isSelected)
               {
 //                _perfWatch.Start("RenderCell.DrawSelection");
@@ -289,18 +320,40 @@ internal class TerminalUiRender
                 fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
                 foregroundColors[col] = fgColor;
 
-                // Always draw background for selected cells
-                var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-                drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                cellBgColorU32 = ImGui.ColorConvertFloat4ToU32(bgColor);
+                needsBackground = true;
 //                _perfWatch.Stop("RenderCell.DrawSelection");
               }
               else if (cell.Attributes.BackgroundColor.HasValue)
               {
 //                _perfWatch.Start("RenderCell.DrawBackground");
-                // Only draw background when SGR sequences have set a specific background color
-                var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-                drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+                cellBgColorU32 = ImGui.ColorConvertFloat4ToU32(bgColor);
+                needsBackground = true;
 //                _perfWatch.Stop("RenderCell.DrawBackground");
+              }
+
+              // Batch background drawing
+              if (needsBackground)
+              {
+                bool canExtendRun = bgRunLength > 0
+                    && col == bgRunStartCol + bgRunLength
+                    && cellBgColorU32 == bgRunColorU32;
+
+                if (canExtendRun)
+                {
+                  bgRunLength++;
+                }
+                else
+                {
+                  FlushBackgroundRun();
+                  bgRunStartCol = col;
+                  bgRunLength = 1;
+                  bgRunColorU32 = cellBgColorU32;
+                }
+              }
+              else
+              {
+                FlushBackgroundRun();
               }
 
               // Draw character if not space or null (batched into runs)
@@ -361,7 +414,10 @@ internal class TerminalUiRender
             }
           }
 
+          // FlushRun internally calls FlushBackgroundRun first to ensure correct draw order
           FlushRun();
+          // Final background flush in case there's a trailing background with no text
+          FlushBackgroundRun();
         }
       }
       finally
