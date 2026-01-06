@@ -140,19 +140,26 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderCell(ImDrawListPtr drawList, float2 windowPos, int row, int col, Cell cell, float currentCharacterWidth, float currentLineHeight, TextSelection currentSelection)
   {
-    float x = windowPos.X + (col * currentCharacterWidth);
-    float y = windowPos.Y + (row * currentLineHeight);
-    var pos = new float2(x, y);
+    _perfWatch.Start("RenderCell");
+    try
+    {
+      float x = windowPos.X + (col * currentCharacterWidth);
+      float y = windowPos.Y + (row * currentLineHeight);
+      var pos = new float2(x, y);
 
-    // Check if this cell is selected
-    bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
+      // Check if this cell is selected
+      bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
 
-    // Resolve colors using the new color resolution system
-    float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
-    float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+      // Resolve colors using the new color resolution system
+      _perfWatch.Start("ColorResolver.Resolve");
+      float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
+      float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+      _perfWatch.Stop("ColorResolver.Resolve");
 
-    // Apply SGR attributes to colors
-    var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
+      // Apply SGR attributes to colors
+      _perfWatch.Start("StyleManager.ApplyAttributes");
+      var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
+      _perfWatch.Stop("StyleManager.ApplyAttributes");
 
     // Apply foreground opacity to foreground colors and cell background opacity to background colors
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
@@ -183,34 +190,45 @@ internal class TerminalUiRender
     // Note: When no SGR background color is set and cell is not selected,
     // the ImGui window background (theme background) will show through
 
-    // Draw character if not space or null
-    if (cell.Character != ' ' && cell.Character != '\0')
+      // Draw character if not space or null
+      if (cell.Character != ' ' && cell.Character != '\0')
+      {
+        // Select appropriate font based on SGR attributes
+        _perfWatch.Start("Font.SelectAndRender");
+        var font = _fonts.SelectFont(cell.Attributes);
+
+        // Draw the character with selected font using proper PushFont/PopFont pattern
+        ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
+        try
+        {
+          drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+        }
+        finally
+        {
+          ImGui.PopFont();
+        }
+        _perfWatch.Stop("Font.SelectAndRender");
+
+        // Draw underline if needed (but not for selected text to avoid visual clutter)
+        if (!isSelected && StyleManager.ShouldRenderUnderline(cell.Attributes))
+        {
+          _perfWatch.Start("RenderDecorations");
+          RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
+          _perfWatch.Stop("RenderDecorations");
+        }
+
+        // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
+        if (!isSelected && StyleManager.ShouldRenderStrikethrough(cell.Attributes))
+        {
+          _perfWatch.Start("RenderDecorations");
+          RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
+          _perfWatch.Stop("RenderDecorations");
+        }
+      }
+    }
+    finally
     {
-      // Select appropriate font based on SGR attributes
-      var font = _fonts.SelectFont(cell.Attributes);
-
-      // Draw the character with selected font using proper PushFont/PopFont pattern
-      ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
-      try
-      {
-        drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
-      }
-      finally
-      {
-        ImGui.PopFont();
-      }
-
-      // Draw underline if needed (but not for selected text to avoid visual clutter)
-      if (!isSelected && StyleManager.ShouldRenderUnderline(cell.Attributes))
-      {
-        RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
-      }
-
-      // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
-      if (!isSelected && StyleManager.ShouldRenderStrikethrough(cell.Attributes))
-      {
-        RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
-      }
+      _perfWatch.Stop("RenderCell");
     }
   }
 
