@@ -32,14 +32,14 @@ public class ColorResolver
     /// <returns>ImGui float4 color value</returns>
     public float4 Resolve(caTTY.Core.Types.Color? color, bool isBackground = false)
     {
-        _perfWatch.Start("ColorResolver.Resolve");
+//        _perfWatch.Start("ColorResolver.Resolve");
         try
         {
             if (!color.HasValue)
             {
-                _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+//                _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
                 var result = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
-                _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+//                _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
                 return result;
             }
 
@@ -47,33 +47,33 @@ public class ColorResolver
             switch (color.Value.Type)
             {
                 case ColorType.Named:
-                    _perfWatch.Start("ColorResolver.Resolve.Named");
+//                    _perfWatch.Start("ColorResolver.Resolve.Named");
                     resolved = ResolveNamedColor(color.Value.NamedColor);
-                    _perfWatch.Stop("ColorResolver.Resolve.Named");
+//                    _perfWatch.Stop("ColorResolver.Resolve.Named");
                     return resolved;
                     
                 case ColorType.Indexed:
-                    _perfWatch.Start("ColorResolver.Resolve.Indexed");
+//                    _perfWatch.Start("ColorResolver.Resolve.Indexed");
                     resolved = ResolveIndexedColor(color.Value.Index);
-                    _perfWatch.Stop("ColorResolver.Resolve.Indexed");
+//                    _perfWatch.Stop("ColorResolver.Resolve.Indexed");
                     return resolved;
                     
                 case ColorType.Rgb:
-                    _perfWatch.Start("ColorResolver.Resolve.Rgb");
+//                    _perfWatch.Start("ColorResolver.Resolve.Rgb");
                     resolved = ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue);
-                    _perfWatch.Stop("ColorResolver.Resolve.Rgb");
+//                    _perfWatch.Stop("ColorResolver.Resolve.Rgb");
                     return resolved;
                     
                 default:
-                    _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+//                    _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
                     resolved = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
-                    _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+//                    _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
                     return resolved;
             }
         }
         finally
         {
-            _perfWatch.Stop("ColorResolver.Resolve");
+//            _perfWatch.Stop("ColorResolver.Resolve");
         }
     }
 
@@ -82,7 +82,7 @@ public class ColorResolver
     /// </summary>
     private float4 ResolveNamedColor(NamedColor namedColor)
     {
-        _perfWatch.Start("ColorResolver.ResolveNamedColor.ThemeLookup");
+//        _perfWatch.Start("ColorResolver.ResolveNamedColor.ThemeLookup");
         var result = namedColor switch
         {
             NamedColor.Black => ThemeManager.ResolveThemeColor(0),
@@ -103,7 +103,7 @@ public class ColorResolver
             NamedColor.BrightWhite => ThemeManager.ResolveThemeColor(15),
             _ => ThemeManager.GetDefaultForeground()
         };
-        _perfWatch.Stop("ColorResolver.ResolveNamedColor.ThemeLookup");
+//        _perfWatch.Stop("ColorResolver.ResolveNamedColor.ThemeLookup");
         return result;
     }
 
@@ -115,27 +115,27 @@ public class ColorResolver
         // Standard 16 colors (0-15) - use theme colors
         if (index <= 15)
         {
-            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Theme");
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Theme");
             var result = ThemeManager.ResolveThemeColor(index);
-            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Theme");
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Theme");
             return result;
         }
 
         // 216 color cube (16-231)
         if (index >= 16 && index <= 231)
         {
-            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Cube");
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Cube");
             var result = GetCubeColor(index - 16);
-            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Cube");
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Cube");
             return result;
         }
 
         // Grayscale ramp (232-255)
         if (index >= 232 && index <= 255)
         {
-            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Grayscale");
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Grayscale");
             var result = GetGrayscaleColor(index - 232);
-            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Grayscale");
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Grayscale");
             return result;
         }
 

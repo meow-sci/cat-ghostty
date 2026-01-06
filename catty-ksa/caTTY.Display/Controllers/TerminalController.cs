@@ -376,7 +376,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   public void Render()
   {
-    _perfWatch.Start("TerminalController.Render");
+   _perfWatch.Start("TerminalController.Render");
     try
     {
       if (!_isVisible)
@@ -387,8 +387,8 @@ public class TerminalController : ITerminalController
       // Ensure fonts are loaded before rendering (deferred loading)
       _fonts.EnsureFontsLoaded();
 
-    // Push UI font for menus (always Hack Regular 32.0f)
-    _fonts.PushUIFont(out bool uiFontUsed);
+      // Push UI font for menus (always Hack Regular 32.0f)
+      _fonts.PushUIFont(out bool uiFontUsed);
 
     try
     {
@@ -462,7 +462,7 @@ public class TerminalController : ITerminalController
     }
     finally
     {
-      _perfWatch.Stop("TerminalController.Render");
+     _perfWatch.Stop("TerminalController.Render");
       _perfWatch.OnFrameEnd();
     }
   }
@@ -845,7 +845,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalContent()
   {
-    _perfWatch.Start("RenderTerminalContent");
+//    _perfWatch.Start("RenderTerminalContent");
     try
     {
       _render.RenderTerminalContent(
@@ -861,7 +861,7 @@ public class TerminalController : ITerminalController
     }
     finally
     {
-      _perfWatch.Stop("RenderTerminalContent");
+//      _perfWatch.Stop("RenderTerminalContent");
     }
   }
 
@@ -1039,7 +1039,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalCanvas()
   {
-    _perfWatch.Start("RenderTerminalCanvas");
+//    _perfWatch.Start("RenderTerminalCanvas");
     try
     {
       // Pop UI font before rendering terminal content
@@ -1057,7 +1057,7 @@ public class TerminalController : ITerminalController
     }
     finally
     {
-      _perfWatch.Stop("RenderTerminalCanvas");
+//      _perfWatch.Stop("RenderTerminalCanvas");
     }
   }
 

@@ -59,9 +59,9 @@ internal class TerminalUiRender
     }
 
     // Push terminal content font for this rendering section
-    _perfWatch.Start("Font.Push");
+//    _perfWatch.Start("Font.Push");
     _fonts.PushTerminalContentFont(out bool terminalFontUsed);
-    _perfWatch.Stop("Font.Push");
+//    _perfWatch.Stop("Font.Push");
 
     try
     {
@@ -89,7 +89,7 @@ internal class TerminalUiRender
       // No need to draw a separate terminal background rectangle
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
-      _perfWatch.Start("GetViewportRows");
+//      _perfWatch.Start("GetViewportRows");
       
       // Ensure screen buffer cache is the right size
       int terminalRowCount = activeSession.Terminal.Height;
@@ -113,10 +113,10 @@ internal class TerminalUiRender
           _viewportRowsCache
       );
       var viewportRows = _viewportRowsCache;
-      _perfWatch.Stop("GetViewportRows");
+//      _perfWatch.Stop("GetViewportRows");
 
       // Render each cell from the viewport content
-      _perfWatch.Start("CellRenderingLoop");
+//      _perfWatch.Start("CellRenderingLoop");
       int terminalWidthCells = activeSession.Terminal.Width;
       char[] runChars = ArrayPool<char>.Shared.Rent(Math.Max(terminalWidthCells, 1));
       float4[] foregroundColors = ArrayPool<float4>.Shared.Rent(Math.Max(terminalWidthCells, 1));
@@ -141,33 +141,33 @@ internal class TerminalUiRender
             if (runLength <= 0)
               return;
 
-            _perfWatch.Start("RenderCell.FlushRun");
+//            _perfWatch.Start("RenderCell.FlushRun");
 
             float runX = terminalDrawPos.X + (runStartCol * currentCharacterWidth);
             float runY = terminalDrawPos.Y + (row * currentLineHeight);
             var runPos = new float2(runX, runY);
 
-            _perfWatch.Start("Font.SelectAndRender");
-            _perfWatch.Start("Font.SelectAndRender.PushFont");
+//            _perfWatch.Start("Font.SelectAndRender");
+//            _perfWatch.Start("Font.SelectAndRender.PushFont");
             ImGui.PushFont(runFont, _fonts.CurrentFontConfig.FontSize);
-            _perfWatch.Stop("Font.SelectAndRender.PushFont");
+//            _perfWatch.Stop("Font.SelectAndRender.PushFont");
             try
             {
-              _perfWatch.Start("Font.SelectAndRender.AddText");
+//              _perfWatch.Start("Font.SelectAndRender.AddText");
               string text = new string(runChars, 0, runLength);
               drawList.AddText(runPos, runColorU32, text);
-              _perfWatch.Stop("Font.SelectAndRender.AddText");
+//              _perfWatch.Stop("Font.SelectAndRender.AddText");
             }
             finally
             {
-              _perfWatch.Start("Font.SelectAndRender.PopFont");
+//              _perfWatch.Start("Font.SelectAndRender.PopFont");
               ImGui.PopFont();
-              _perfWatch.Stop("Font.SelectAndRender.PopFont");
-              _perfWatch.Stop("Font.SelectAndRender");
+//              _perfWatch.Stop("Font.SelectAndRender.PopFont");
+//              _perfWatch.Stop("Font.SelectAndRender");
             }
 
             // Decorations must be drawn after text to preserve existing draw order.
-            _perfWatch.Start("RenderCell.FlushRun.DecorationsLoop");
+//            _perfWatch.Start("RenderCell.FlushRun.DecorationsLoop");
             for (int i = 0; i < runLength; i++)
             {
               int col = runStartCol + i;
@@ -185,32 +185,32 @@ internal class TerminalUiRender
 
               if (_styleManager.ShouldRenderUnderline(attrs))
               {
-                _perfWatch.Start("RenderDecorations");
+//                _perfWatch.Start("RenderDecorations");
                 RenderUnderline(drawList, pos, attrs, fgColor, currentCharacterWidth, currentLineHeight);
-                _perfWatch.Stop("RenderDecorations");
+//                _perfWatch.Stop("RenderDecorations");
               }
 
               if (_styleManager.ShouldRenderStrikethrough(attrs))
               {
-                _perfWatch.Start("RenderDecorations");
+//                _perfWatch.Start("RenderDecorations");
                 RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
-                _perfWatch.Stop("RenderDecorations");
+//                _perfWatch.Stop("RenderDecorations");
               }
             }
 
-            _perfWatch.Stop("RenderCell.FlushRun.DecorationsLoop");
+//            _perfWatch.Stop("RenderCell.FlushRun.DecorationsLoop");
 
             runLength = 0;
 
-            _perfWatch.Stop("RenderCell.FlushRun");
+//            _perfWatch.Stop("RenderCell.FlushRun");
           }
 
           for (int col = 0; col < colsToRender; col++)
           {
-            _perfWatch.Start("RenderCell");
+//            _perfWatch.Start("RenderCell");
             try
             {
-              _perfWatch.Start("RenderCell.Setup");
+//              _perfWatch.Start("RenderCell.Setup");
               float x = terminalDrawPos.X + (col * currentCharacterWidth);
               float y = terminalDrawPos.Y + (row * currentLineHeight);
               var pos = new float2(x, y);
@@ -218,7 +218,7 @@ internal class TerminalUiRender
               Cell cell = rowSpan[col];
 
               // Check if this cell is selected
-              _perfWatch.Start("RenderCell.SelectionCheck");
+//              _perfWatch.Start("RenderCell.SelectionCheck");
               bool isSelected;
               if (currentSelection.IsEmpty)
               {
@@ -226,37 +226,37 @@ internal class TerminalUiRender
               }
               else
               {
-                _perfWatch.Start("RenderCell.SelectionCheck.Contains");
+//                _perfWatch.Start("RenderCell.SelectionCheck.Contains");
                 isSelected = currentSelection.Contains(row, col);
-                _perfWatch.Stop("RenderCell.SelectionCheck.Contains");
+//                _perfWatch.Stop("RenderCell.SelectionCheck.Contains");
               }
-              _perfWatch.Stop("RenderCell.SelectionCheck");
+//              _perfWatch.Stop("RenderCell.SelectionCheck");
 
               isSelectedByCol[col] = isSelected;
               cellAttributes[col] = cell.Attributes;
-              _perfWatch.Stop("RenderCell.Setup");
+//              _perfWatch.Stop("RenderCell.Setup");
 
               // Resolve colors using the new color resolution system
-              _perfWatch.Start("RenderCell.ResolveColors");
+//              _perfWatch.Start("RenderCell.ResolveColors");
               float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
               float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
-              _perfWatch.Stop("RenderCell.ResolveColors");
+//              _perfWatch.Stop("RenderCell.ResolveColors");
 
               // Apply SGR attributes to colors
               var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
               // Apply foreground opacity to foreground colors and cell background opacity to background colors
-              _perfWatch.Start("RenderCell.ApplyOpacity");
+//              _perfWatch.Start("RenderCell.ApplyOpacity");
               fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
               bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
-              _perfWatch.Stop("RenderCell.ApplyOpacity");
+//              _perfWatch.Stop("RenderCell.ApplyOpacity");
 
               foregroundColors[col] = fgColor;
 
               // Apply selection highlighting or draw background only when needed
               if (isSelected)
               {
-                _perfWatch.Start("RenderCell.DrawSelection");
+//                _perfWatch.Start("RenderCell.DrawSelection");
                 // Use selection colors - invert foreground and background for selected text
                 var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
                 var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
@@ -269,28 +269,28 @@ internal class TerminalUiRender
                 // Always draw background for selected cells
                 var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
                 drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-                _perfWatch.Stop("RenderCell.DrawSelection");
+//                _perfWatch.Stop("RenderCell.DrawSelection");
               }
               else if (cell.Attributes.BackgroundColor.HasValue)
               {
-                _perfWatch.Start("RenderCell.DrawBackground");
+//                _perfWatch.Start("RenderCell.DrawBackground");
                 // Only draw background when SGR sequences have set a specific background color
                 var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
                 drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-                _perfWatch.Stop("RenderCell.DrawBackground");
+//                _perfWatch.Stop("RenderCell.DrawBackground");
               }
 
               // Draw character if not space or null (batched into runs)
               if (cell.Character != ' ' && cell.Character != '\0')
               {
-                _perfWatch.Start("RenderCell.RunBatching");
-                _perfWatch.Start("Font.SelectAndRender.SelectFont");
+//                _perfWatch.Start("RenderCell.RunBatching");
+//                _perfWatch.Start("Font.SelectAndRender.SelectFont");
                 var font = _fonts.SelectFont(cell.Attributes);
-                _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+//                _perfWatch.Stop("Font.SelectAndRender.SelectFont");
 
-                _perfWatch.Start("RenderCell.ConvertFgToU32");
+//                _perfWatch.Start("RenderCell.ConvertFgToU32");
                 uint fgU32 = ImGui.ColorConvertFloat4ToU32(foregroundColors[col]);
-                _perfWatch.Stop("RenderCell.ConvertFgToU32");
+//                _perfWatch.Stop("RenderCell.ConvertFgToU32");
 
                 if (runLength == 0)
                 {
@@ -302,12 +302,12 @@ internal class TerminalUiRender
                 }
                 else
                 {
-                  _perfWatch.Start("RenderCell.RunBatching.MergeDecision");
+//                  _perfWatch.Start("RenderCell.RunBatching.MergeDecision");
                   bool isContiguous = col == runStartCol + runLength;
                   bool sameFont = runFont.Equals(font);
                   bool sameColor = runColorU32 == fgU32;
 
-                  _perfWatch.Stop("RenderCell.RunBatching.MergeDecision");
+//                  _perfWatch.Stop("RenderCell.RunBatching.MergeDecision");
 
                   if (isContiguous && sameFont && sameColor)
                   {
@@ -325,7 +325,7 @@ internal class TerminalUiRender
                   }
                 }
 
-                _perfWatch.Stop("RenderCell.RunBatching");
+//                _perfWatch.Stop("RenderCell.RunBatching");
               }
               else
               {
@@ -334,7 +334,7 @@ internal class TerminalUiRender
             }
             finally
             {
-              _perfWatch.Stop("RenderCell");
+//              _perfWatch.Stop("RenderCell");
             }
           }
 
@@ -348,19 +348,19 @@ internal class TerminalUiRender
         ArrayPool<SgrAttributes>.Shared.Return(cellAttributes);
         ArrayPool<bool>.Shared.Return(isSelectedByCol);
       }
-      _perfWatch.Stop("CellRenderingLoop");
+//      _perfWatch.Stop("CellRenderingLoop");
 
       // Render cursor
-      _perfWatch.Start("RenderCursor");
+//      _perfWatch.Start("RenderCursor");
       RenderCursor(drawList, terminalDrawPos, activeSession, currentCharacterWidth, currentLineHeight);
-      _perfWatch.Stop("RenderCursor");
+//      _perfWatch.Stop("RenderCursor");
 
       // Handle mouse input only when the invisible button is hovered/active
       if (terminalHovered || terminalActive)
       {
-        _perfWatch.Start("HandleMouseInput");
+//        _perfWatch.Start("HandleMouseInput");
         handleMouseInputForTerminal();
-        _perfWatch.Stop("HandleMouseInput");
+//        _perfWatch.Stop("HandleMouseInput");
       }
 
       // Also handle mouse tracking for applications (this works regardless of hover state)
@@ -377,37 +377,37 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderCell(ImDrawListPtr drawList, float2 windowPos, int row, int col, Cell cell, float currentCharacterWidth, float currentLineHeight, TextSelection currentSelection)
   {
-    _perfWatch.Start("RenderCell");
+//    _perfWatch.Start("RenderCell");
     try
     {
-      _perfWatch.Start("RenderCell.Setup");
+//      _perfWatch.Start("RenderCell.Setup");
       float x = windowPos.X + (col * currentCharacterWidth);
       float y = windowPos.Y + (row * currentLineHeight);
       var pos = new float2(x, y);
 
       // Check if this cell is selected
       bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
-      _perfWatch.Stop("RenderCell.Setup");
+//      _perfWatch.Stop("RenderCell.Setup");
 
       // Resolve colors using the new color resolution system
-      _perfWatch.Start("RenderCell.ResolveColors");
+//      _perfWatch.Start("RenderCell.ResolveColors");
       float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
       float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
-      _perfWatch.Stop("RenderCell.ResolveColors");
+//      _perfWatch.Stop("RenderCell.ResolveColors");
 
       // Apply SGR attributes to colors
       var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
     // Apply foreground opacity to foreground colors and cell background opacity to background colors
-    _perfWatch.Start("RenderCell.ApplyOpacity");
+//    _perfWatch.Start("RenderCell.ApplyOpacity");
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
     bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
-    _perfWatch.Stop("RenderCell.ApplyOpacity");
+//    _perfWatch.Stop("RenderCell.ApplyOpacity");
 
     // Apply selection highlighting or draw background only when needed
     if (isSelected)
     {
-      _perfWatch.Start("RenderCell.DrawSelection");
+//      _perfWatch.Start("RenderCell.DrawSelection");
       // Use selection colors - invert foreground and background for selected text
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
@@ -419,16 +419,16 @@ internal class TerminalUiRender
       // Always draw background for selected cells
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-      _perfWatch.Stop("RenderCell.DrawSelection");
+//      _perfWatch.Stop("RenderCell.DrawSelection");
     }
     else if (cell.Attributes.BackgroundColor.HasValue)
     {
-      _perfWatch.Start("RenderCell.DrawBackground");
+//      _perfWatch.Start("RenderCell.DrawBackground");
       // Only draw background when SGR sequences have set a specific background color
       // This allows the theme background to show through for cells without explicit background colors
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-      _perfWatch.Stop("RenderCell.DrawBackground");
+//      _perfWatch.Stop("RenderCell.DrawBackground");
     }
     // Note: When no SGR background color is set and cell is not selected,
     // the ImGui window background (theme background) will show through
@@ -437,49 +437,49 @@ internal class TerminalUiRender
       if (cell.Character != ' ' && cell.Character != '\0')
       {
         // Select appropriate font based on SGR attributes
-        _perfWatch.Start("Font.SelectAndRender");
-        _perfWatch.Start("Font.SelectAndRender.SelectFont");
+//        _perfWatch.Start("Font.SelectAndRender");
+//        _perfWatch.Start("Font.SelectAndRender.SelectFont");
         var font = _fonts.SelectFont(cell.Attributes);
-        _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+//        _perfWatch.Stop("Font.SelectAndRender.SelectFont");
 
         // Draw the character with selected font using proper PushFont/PopFont pattern
-        _perfWatch.Start("Font.SelectAndRender.PushFont");
+//        _perfWatch.Start("Font.SelectAndRender.PushFont");
         ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
-        _perfWatch.Stop("Font.SelectAndRender.PushFont");
+//        _perfWatch.Stop("Font.SelectAndRender.PushFont");
         try
         {
-          _perfWatch.Start("Font.SelectAndRender.AddText");
+//          _perfWatch.Start("Font.SelectAndRender.AddText");
           drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
-          _perfWatch.Stop("Font.SelectAndRender.AddText");
+//          _perfWatch.Stop("Font.SelectAndRender.AddText");
         }
         finally
         {
-          _perfWatch.Start("Font.SelectAndRender.PopFont");
+//          _perfWatch.Start("Font.SelectAndRender.PopFont");
           ImGui.PopFont();
-          _perfWatch.Stop("Font.SelectAndRender.PopFont");
+//          _perfWatch.Stop("Font.SelectAndRender.PopFont");
         }
-        _perfWatch.Stop("Font.SelectAndRender");
+//        _perfWatch.Stop("Font.SelectAndRender");
 
         // Draw underline if needed (but not for selected text to avoid visual clutter)
         if (!isSelected && _styleManager.ShouldRenderUnderline(cell.Attributes))
         {
-          _perfWatch.Start("RenderDecorations");
+//          _perfWatch.Start("RenderDecorations");
           RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
-          _perfWatch.Stop("RenderDecorations");
+//          _perfWatch.Stop("RenderDecorations");
         }
 
         // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
         if (!isSelected && _styleManager.ShouldRenderStrikethrough(cell.Attributes))
         {
-          _perfWatch.Start("RenderDecorations");
+//          _perfWatch.Start("RenderDecorations");
           RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
-          _perfWatch.Stop("RenderDecorations");
+//          _perfWatch.Stop("RenderDecorations");
         }
       }
     }
     finally
     {
-      _perfWatch.Stop("RenderCell");
+//      _perfWatch.Stop("RenderCell");
     }
   }
 
@@ -526,7 +526,7 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    _perfWatch.Start("RenderUnderline");
+//    _perfWatch.Start("RenderUnderline");
     try
     {
       float4 underlineColor = _styleManager.GetUnderlineColor(attributes, foregroundColor);
@@ -577,7 +577,7 @@ internal class TerminalUiRender
     }
     finally
     {
-      _perfWatch.Stop("RenderUnderline");
+//      _perfWatch.Stop("RenderUnderline");
     }
   }
 
@@ -586,7 +586,7 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    _perfWatch.Start("RenderStrikethrough");
+//    _perfWatch.Start("RenderStrikethrough");
     try
     {
       // Apply foreground opacity to strikethrough color
@@ -599,7 +599,7 @@ internal class TerminalUiRender
     }
     finally
     {
-      _perfWatch.Stop("RenderStrikethrough");
+//      _perfWatch.Stop("RenderStrikethrough");
     }
   }
 
@@ -638,7 +638,7 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    _perfWatch.Start("RenderDottedUnderline");
+//    _perfWatch.Start("RenderDottedUnderline");
     try
     {
       float underlineY = pos.Y + currentLineHeight - 2;
@@ -659,7 +659,7 @@ internal class TerminalUiRender
     }
     finally
     {
-      _perfWatch.Stop("RenderDottedUnderline");
+//      _perfWatch.Stop("RenderDottedUnderline");
     }
   }
 
@@ -668,7 +668,7 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    _perfWatch.Start("RenderDashedUnderline");
+//    _perfWatch.Start("RenderDashedUnderline");
     try
     {
       float underlineY = pos.Y + currentLineHeight - 2;
@@ -689,7 +689,7 @@ internal class TerminalUiRender
     }
     finally
     {
-      _perfWatch.Stop("RenderDashedUnderline");
+//      _perfWatch.Stop("RenderDashedUnderline");
     }
   }
 }

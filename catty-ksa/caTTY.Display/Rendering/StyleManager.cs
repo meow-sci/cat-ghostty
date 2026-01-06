@@ -36,7 +36,7 @@ public class StyleManager
         float4 baseForeground,
         float4 baseBackground)
     {
-        _perfWatch.Start("StyleManager.ApplyAttributes");
+//        _perfWatch.Start("StyleManager.ApplyAttributes");
         try
         {
             float4 foreground = baseForeground;
@@ -70,7 +70,7 @@ public class StyleManager
         }
         finally
         {
-            _perfWatch.Stop("StyleManager.ApplyAttributes");
+//            _perfWatch.Stop("StyleManager.ApplyAttributes");
         }
     }
 

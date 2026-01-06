@@ -32,7 +32,7 @@ public class CursorRenderer
     /// <param name="blinkInterval">Blink interval in milliseconds</param>
     public void UpdateBlinkState(int blinkInterval = 500)
     {
-        _perfWatch.Start("CursorRenderer.UpdateBlinkState");
+//        _perfWatch.Start("CursorRenderer.UpdateBlinkState");
         try
         {
             DateTime currentTime = DateTime.Now;
@@ -44,7 +44,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.UpdateBlinkState");
+//            _perfWatch.Stop("CursorRenderer.UpdateBlinkState");
         }
     }
 
@@ -69,7 +69,7 @@ public class CursorRenderer
         float4 cursorColor,
         bool isAtBottom)
     {
-        _perfWatch.Start("CursorRenderer.RenderCursor");
+//        _perfWatch.Start("CursorRenderer.RenderCursor");
         try
         {
             // Don't render cursor if not visible or scrolled back in history
@@ -91,7 +91,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderCursor");
+//            _perfWatch.Stop("CursorRenderer.RenderCursor");
         }
     }
 
@@ -112,7 +112,7 @@ public class CursorRenderer
         CursorShape shape,
         float4 cursorColor)
     {
-        _perfWatch.Start("CursorRenderer.RenderCursorShape");
+//        _perfWatch.Start("CursorRenderer.RenderCursorShape");
         try
         {
             uint color = ImGui.ColorConvertFloat4ToU32(cursorColor);
@@ -143,7 +143,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderCursorShape");
+//            _perfWatch.Stop("CursorRenderer.RenderCursorShape");
         }
     }
 
@@ -157,7 +157,7 @@ public class CursorRenderer
         float lineHeight,
         uint color)
     {
-        _perfWatch.Start("CursorRenderer.RenderBlockCursor");
+//        _perfWatch.Start("CursorRenderer.RenderBlockCursor");
         try
         {
             var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
@@ -165,7 +165,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderBlockCursor");
+//            _perfWatch.Stop("CursorRenderer.RenderBlockCursor");
         }
     }
 
@@ -179,7 +179,7 @@ public class CursorRenderer
         float lineHeight,
         uint color)
     {
-        _perfWatch.Start("CursorRenderer.RenderBlockHollowCursor");
+//        _perfWatch.Start("CursorRenderer.RenderBlockHollowCursor");
         try
         {
             var endPos = new float2(position.X + characterWidth, position.Y + lineHeight);
@@ -187,7 +187,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderBlockHollowCursor");
+//            _perfWatch.Stop("CursorRenderer.RenderBlockHollowCursor");
         }
     }
 
@@ -201,7 +201,7 @@ public class CursorRenderer
         float lineHeight,
         uint color)
     {
-        _perfWatch.Start("CursorRenderer.RenderUnderlineCursor");
+//        _perfWatch.Start("CursorRenderer.RenderUnderlineCursor");
         try
         {
             const float underlineThickness = 2.0f;
@@ -211,7 +211,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderUnderlineCursor");
+//            _perfWatch.Stop("CursorRenderer.RenderUnderlineCursor");
         }
     }
 
@@ -225,7 +225,7 @@ public class CursorRenderer
         float lineHeight,
         uint color)
     {
-        _perfWatch.Start("CursorRenderer.RenderBarCursor");
+//        _perfWatch.Start("CursorRenderer.RenderBarCursor");
         try
         {
             const float barThickness = 2.0f;
@@ -235,7 +235,7 @@ public class CursorRenderer
         }
         finally
         {
-            _perfWatch.Stop("CursorRenderer.RenderBarCursor");
+//            _perfWatch.Stop("CursorRenderer.RenderBarCursor");
         }
     }
 

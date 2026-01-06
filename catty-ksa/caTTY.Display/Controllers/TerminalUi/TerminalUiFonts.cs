@@ -69,7 +69,7 @@ internal class TerminalUiFonts
   /// </summary>
   public void EnsureFontsLoaded()
   {
-    _perfWatch.Start("TerminalUiFonts.EnsureFontsLoaded");
+//    _perfWatch.Start("TerminalUiFonts.EnsureFontsLoaded");
     try
     {
       if (_fontsLoaded)
@@ -103,7 +103,7 @@ internal class TerminalUiFonts
     }
     finally
     {
-      _perfWatch.Stop("TerminalUiFonts.EnsureFontsLoaded");
+//      _perfWatch.Stop("TerminalUiFonts.EnsureFontsLoaded");
     }
   }
 
@@ -118,7 +118,7 @@ internal class TerminalUiFonts
   /// <returns>The appropriate font pointer for the attributes</returns>
   public ImFontPtr SelectFont(Core.Types.SgrAttributes attributes)
   {
-    _perfWatch.Start("TerminalUiFonts.SelectFont");
+//    _perfWatch.Start("TerminalUiFonts.SelectFont");
     try
     {
       if (attributes.Bold && attributes.Italic)
@@ -132,7 +132,7 @@ internal class TerminalUiFonts
     }
     finally
     {
-      _perfWatch.Stop("TerminalUiFonts.SelectFont");
+//      _perfWatch.Stop("TerminalUiFonts.SelectFont");
     }
   }
 
