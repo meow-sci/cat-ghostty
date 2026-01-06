@@ -12,6 +12,7 @@ namespace caTTY.Display.Controllers.TerminalUi;
 internal class TerminalUiFonts
 {
   private readonly TerminalRenderingConfig _config;
+  private readonly Performance.PerformanceStopwatch _perfWatch;
   private TerminalFontConfig _fontConfig;
 
   // Font loader handles font discovery and loading
@@ -34,10 +35,11 @@ internal class TerminalUiFonts
   public float CurrentLineHeight => _metricsCalculator.CurrentLineHeight;
   public float CurrentFontSize { get; private set; }
 
-  public TerminalUiFonts(TerminalRenderingConfig config, TerminalFontConfig fontConfig, string currentFontFamily)
+  public TerminalUiFonts(TerminalRenderingConfig config, TerminalFontConfig fontConfig, string currentFontFamily, Performance.PerformanceStopwatch perfWatch)
   {
     _config = config ?? throw new ArgumentNullException(nameof(config));
     _fontConfig = fontConfig ?? throw new ArgumentNullException(nameof(fontConfig));
+    _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
 
     // Initialize font loader
     _fontLoader = new FontLoader(_fontConfig);
@@ -67,33 +69,41 @@ internal class TerminalUiFonts
   /// </summary>
   public void EnsureFontsLoaded()
   {
-    if (_fontsLoaded)
-    {
-      return;
-    }
-
+    _perfWatch.Start("TerminalUiFonts.EnsureFontsLoaded");
     try
     {
-      // Load fonts from ImGui font system
-      LoadFonts();
+      if (_fontsLoaded)
+      {
+        return;
+      }
 
-      // Calculate character metrics from loaded fonts
-      CalculateCharacterMetrics();
+      try
+      {
+        // Load fonts from ImGui font system
+        LoadFonts();
 
-      // Log configuration for debugging
-      LogFontConfiguration();
+        // Calculate character metrics from loaded fonts
+        CalculateCharacterMetrics();
 
-      _fontsLoaded = true;
+        // Log configuration for debugging
+        LogFontConfiguration();
+
+        _fontsLoaded = true;
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Font loading error: {ex.Message}");
+
+        // Set fallback values to prevent crashes
+        _metricsCalculator.ResetToDefaults();
+
+        // Mark as loaded to prevent repeated attempts
+        _fontsLoaded = true;
+      }
     }
-    catch (Exception ex)
+    finally
     {
-      Console.WriteLine($"Font loading error: {ex.Message}");
-
-      // Set fallback values to prevent crashes
-      _metricsCalculator.ResetToDefaults();
-
-      // Mark as loaded to prevent repeated attempts
-      _fontsLoaded = true;
+      _perfWatch.Stop("TerminalUiFonts.EnsureFontsLoaded");
     }
   }
 
@@ -108,14 +118,22 @@ internal class TerminalUiFonts
   /// <returns>The appropriate font pointer for the attributes</returns>
   public ImFontPtr SelectFont(Core.Types.SgrAttributes attributes)
   {
-    if (attributes.Bold && attributes.Italic)
-      return _fontLoader.BoldItalicFont;
-    else if (attributes.Bold)
-      return _fontLoader.BoldFont;
-    else if (attributes.Italic)
-      return _fontLoader.ItalicFont;
-    else
-      return _fontLoader.RegularFont;
+    _perfWatch.Start("TerminalUiFonts.SelectFont");
+    try
+    {
+      if (attributes.Bold && attributes.Italic)
+        return _fontLoader.BoldItalicFont;
+      else if (attributes.Bold)
+        return _fontLoader.BoldFont;
+      else if (attributes.Italic)
+        return _fontLoader.ItalicFont;
+      else
+        return _fontLoader.RegularFont;
+    }
+    finally
+    {
+      _perfWatch.Stop("TerminalUiFonts.SelectFont");
+    }
   }
 
   private void LogFontConfiguration() => Console.WriteLine($"Font Config: {_fontConfig.RegularFontName} @ {_fontConfig.FontSize}pt, CharWidth: {CurrentCharacterWidth:F1}, LineHeight: {CurrentLineHeight:F1}");
