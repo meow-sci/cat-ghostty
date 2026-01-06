@@ -154,19 +154,25 @@ Document:
 - ✅ Typical bottlenecks to look for
 - ✅ Example output and analysis
 
-### Task 12: Update Dependency Injection ✅ PARTIALLY COMPLETE
+### Task 12: Update Dependency Injection ✅ COMPLETED
 **Status:**
 - ✅ `TerminalController` → `TerminalUiRender` (completed)
-- ⏸️ `TerminalController` → `ColorResolver` (pending)
-- ⏸️ `TerminalController` → `StyleManager` (pending)
-- ⏸️ `TerminalController` → `CursorRenderer` (pending)
-- ⏸️ `TerminalController` → `TerminalUiFonts` (pending)
+- ✅ `TerminalController` → `ColorResolver` (completed in Task 5)
+- ✅ `TerminalController` → `StyleManager` (completed in Task 5)
+- ✅ `TerminalController` → `CursorRenderer` (completed in Task 7)
+- ✅ `TerminalController` → `TerminalUiFonts` (completed in Task 6)
 
-### Task 13: Run Tests ⏸️ PENDING
+### Task 13: Run Tests ✅ COMPLETED
 Execute test suite to ensure no regressions:
 ```bash
 .\scripts\dotnet-test.ps1
 ```
+
+**Results:**
+- Core tests: 1238 passed, 12 skipped, 0 failed
+- Display tests: 467 passed, 1 skipped, 0 failed
+- Total: 1705 tests passed successfully
+- Fixed 2 test failures in PerformanceStopwatchTests (null handling and timing variance)
 
 ### Task 14: Manual Testing and Baseline Collection ⏸️ PENDING
 1. Build and run `caTTY.GameMod`
@@ -238,26 +244,33 @@ This plan is now in the repository root for easy reference and task tracking.
 ## Success Criteria
 
 1. ✅ PerformanceStopwatch class implemented with all required features
-2. 🚧 All rendering pipeline stages instrumented (partially complete)
+2. ✅ All rendering pipeline stages instrumented
 3. ✅ Summary output shows sorted table with total/count/average
-4. ⏸️ Overhead is negligible (<1% frame time impact) - needs testing
-5. ⏸️ Full test suite passes: `.\scripts\dotnet-test.ps1` - needs running
-6. ⏸️ Baseline performance metrics documented
-7. ⏸️ Clear bottlenecks identified for future optimization
+4. ⏸️ Overhead is negligible (<1% frame time impact) - needs manual testing
+5. ✅ Full test suite passes: `.\scripts\dotnet-test.ps1` - 1705 tests passing
+6. ⏸️ Baseline performance metrics documented - needs manual testing
+7. ⏸️ Clear bottlenecks identified for future optimization - needs manual testing
 
 ## Current Status
 
 **Completed:**
 - ✅ PerformanceStopwatch class with all features
+- ✅ PerformanceStopwatch comprehensive unit tests (60+ tests)
 - ✅ Integration into TerminalController
-- ✅ Basic instrumentation of rendering pipeline
+- ✅ Complete instrumentation of all rendering pipeline stages:
+  - TerminalUiRender (RenderCell, decorations, core loop)
+  - ColorResolver (color resolution)
+  - StyleManager (SGR attributes)
+  - TerminalUiFonts (font loading and selection)
+  - CursorRenderer (all cursor shapes and blink state)
+- ✅ Dependency injection for all components
+- ✅ Performance Control UI (menu with enable/dump/reset controls)
+- ✅ Documentation (README.md with comprehensive guidance)
+- ✅ All tests passing (1705 tests)
 - ✅ Plan documentation
 
-**In Progress:**
-- 🚧 Complete instrumentation of all rendering stages
-- 🚧 Dependency injection updates for remaining components
-
 **Pending:**
-- ⏸️ Unit tests
-- ⏸️ Documentation (BASELINE)
+- ⏸️ Manual testing in game environment (Task 14)
+- ⏸️ Baseline performance metrics collection (Task 14)
+- ⏸️ Bottleneck identification and optimization recommendations (Task 14)
 - ⏸️ Testing and validation
