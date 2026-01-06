@@ -5,6 +5,7 @@ using caTTY.Core.Managers;
 using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers.TerminalUi.Menus;
+using caTTY.Display.Performance;
 using caTTY.Display.Rendering;
 using caTTY.Display.Utils;
 
@@ -24,6 +25,7 @@ internal class TerminalUiSettingsPanel
   private readonly FontMenuRenderer _fontMenuRenderer;
   private readonly ThemeMenuRenderer _themeMenuRenderer;
   private readonly GeneralSettingsMenuRenderer _generalSettingsMenuRenderer;
+  private readonly PerformanceMenuRenderer _performanceMenuRenderer;
 
   public TerminalUiSettingsPanel(
     TerminalController controller,
@@ -31,12 +33,14 @@ internal class TerminalUiSettingsPanel
     ThemeConfiguration themeConfig,
     TerminalUiFonts fonts,
     TerminalUiSelection selection,
-    Action triggerTerminalResizeForAllSessions)
+    Action triggerTerminalResizeForAllSessions,
+    PerformanceStopwatch perfWatch)
   {
     if (controller == null) throw new ArgumentNullException(nameof(controller));
     if (fonts == null) throw new ArgumentNullException(nameof(fonts));
     if (selection == null) throw new ArgumentNullException(nameof(selection));
     if (triggerTerminalResizeForAllSessions == null) throw new ArgumentNullException(nameof(triggerTerminalResizeForAllSessions));
+    if (perfWatch == null) throw new ArgumentNullException(nameof(perfWatch));
 
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _themeConfig = themeConfig ?? throw new ArgumentNullException(nameof(themeConfig));
@@ -46,11 +50,12 @@ internal class TerminalUiSettingsPanel
     _fontMenuRenderer = new FontMenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
     _themeMenuRenderer = new ThemeMenuRenderer(themeConfig);
     _generalSettingsMenuRenderer = new GeneralSettingsMenuRenderer(themeConfig, sessionManager);
+    _performanceMenuRenderer = new PerformanceMenuRenderer(perfWatch);
   }
 
   /// <summary>
   /// Renders the menu bar by coordinating all menu renderers.
-  /// Delegates to File, Edit, Sessions, Font, Theme, and Settings menu renderers.
+  /// Delegates to File, Edit, Sessions, Font, Theme, Performance, and Settings menu renderers.
   /// </summary>
   public void RenderMenuBar()
   {
@@ -63,6 +68,7 @@ internal class TerminalUiSettingsPanel
         _sessionsMenuRenderer.Render();
         _fontMenuRenderer.Render();
         _themeMenuRenderer.Render();
+        _performanceMenuRenderer.Render();
         _generalSettingsMenuRenderer.Render();
       }
       finally

@@ -125,14 +125,15 @@ Unit tests covering:
 - ✅ Instrument `RenderDottedUnderline()`
 - ✅ Instrument `RenderDashedUnderline()`
 
-### Task 9: Add Performance Control UI ⏸️ PENDING
+### Task 9: Add Performance Control UI ✅ COMPLETED
 **File**: `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+**File**: `caTTY.Display/Controllers/TerminalUi/Menus/PerformanceMenuRenderer.cs` (new file)
 
 Add menu items for performance tracing control:
-- ⏸️ "Enable Tracing" checkbox
-- ⏸️ "Dump Now" menu item
-- ⏸️ "Reset Counters" menu item
-- ⏸️ "Auto-dump Interval" input field
+- ✅ "Enable Tracing" checkbox
+- ✅ "Dump Now" menu item
+- ✅ "Reset Counters" menu item
+- ✅ "Auto-dump Interval" input field
 
 ### Task 10: Add Console Output Formatting ✅ COMPLETED
 **File**: `caTTY.Display/Performance/PerformanceStopwatch.cs`
@@ -194,7 +195,8 @@ This plan is now in the repository root for easy reference and task tracking.
 - ⏸️ `caTTY.Display/Rendering/StyleManager.cs`
 - ⏸️ `caTTY.Display/Controllers/TerminalUi/TerminalUiFonts.cs`
 - ⏸️ `caTTY.Display/Rendering/CursorRenderer.cs`
-- ⏸️ `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+- ✅ `caTTY.Display/Controllers/TerminalUi/TerminalUiSettingsPanel.cs`
+- ✅ `caTTY.Display/Controllers/TerminalUi/Menus/PerformanceMenuRenderer.cs` (new file)
 
 ## Implementation Notes
 

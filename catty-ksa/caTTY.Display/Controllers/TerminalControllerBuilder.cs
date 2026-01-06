@@ -149,7 +149,8 @@ internal class TerminalControllerBuilder
       _themeConfig,
       _fonts,
       _selection,
-      triggerTerminalResizeForAllSessions);
+      triggerTerminalResizeForAllSessions,
+      controller.PerfWatch);
 
     // Initialize events subsystem
     _events = new TerminalUiEvents(
