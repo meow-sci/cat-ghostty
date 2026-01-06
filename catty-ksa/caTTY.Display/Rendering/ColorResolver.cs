@@ -37,16 +37,39 @@ public class ColorResolver
         {
             if (!color.HasValue)
             {
-                return isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
+                _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+                var result = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
+                _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+                return result;
             }
 
-            return color.Value.Type switch
+            float4 resolved;
+            switch (color.Value.Type)
             {
-                ColorType.Named => ResolveNamedColor(color.Value.NamedColor),
-                ColorType.Indexed => ResolveIndexedColor(color.Value.Index),
-                ColorType.Rgb => ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue),
-                _ => isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground()
-            };
+                case ColorType.Named:
+                    _perfWatch.Start("ColorResolver.Resolve.Named");
+                    resolved = ResolveNamedColor(color.Value.NamedColor);
+                    _perfWatch.Stop("ColorResolver.Resolve.Named");
+                    return resolved;
+                    
+                case ColorType.Indexed:
+                    _perfWatch.Start("ColorResolver.Resolve.Indexed");
+                    resolved = ResolveIndexedColor(color.Value.Index);
+                    _perfWatch.Stop("ColorResolver.Resolve.Indexed");
+                    return resolved;
+                    
+                case ColorType.Rgb:
+                    _perfWatch.Start("ColorResolver.Resolve.Rgb");
+                    resolved = ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue);
+                    _perfWatch.Stop("ColorResolver.Resolve.Rgb");
+                    return resolved;
+                    
+                default:
+                    _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+                    resolved = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
+                    _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+                    return resolved;
+            }
         }
         finally
         {
@@ -59,7 +82,8 @@ public class ColorResolver
     /// </summary>
     private float4 ResolveNamedColor(NamedColor namedColor)
     {
-        return namedColor switch
+        _perfWatch.Start("ColorResolver.ResolveNamedColor.ThemeLookup");
+        var result = namedColor switch
         {
             NamedColor.Black => ThemeManager.ResolveThemeColor(0),
             NamedColor.Red => ThemeManager.ResolveThemeColor(1),
@@ -79,6 +103,8 @@ public class ColorResolver
             NamedColor.BrightWhite => ThemeManager.ResolveThemeColor(15),
             _ => ThemeManager.GetDefaultForeground()
         };
+        _perfWatch.Stop("ColorResolver.ResolveNamedColor.ThemeLookup");
+        return result;
     }
 
     /// <summary>
@@ -89,19 +115,28 @@ public class ColorResolver
         // Standard 16 colors (0-15) - use theme colors
         if (index <= 15)
         {
-            return ThemeManager.ResolveThemeColor(index);
+            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Theme");
+            var result = ThemeManager.ResolveThemeColor(index);
+            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Theme");
+            return result;
         }
 
         // 216 color cube (16-231)
         if (index >= 16 && index <= 231)
         {
-            return GetCubeColor(index - 16);
+            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Cube");
+            var result = GetCubeColor(index - 16);
+            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Cube");
+            return result;
         }
 
         // Grayscale ramp (232-255)
         if (index >= 232 && index <= 255)
         {
-            return GetGrayscaleColor(index - 232);
+            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Grayscale");
+            var result = GetGrayscaleColor(index - 232);
+            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Grayscale");
+            return result;
         }
 
         // Invalid index, return default

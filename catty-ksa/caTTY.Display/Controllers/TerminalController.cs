@@ -1077,7 +1077,7 @@ public class TerminalController : ITerminalController
   ///     Get the current performance summary as a formatted string.
   /// </summary>
   /// <returns>Formatted performance summary</returns>
-  public string GetPerformanceSummary() => _perfWatch.GetSummary();
+  public string GetPerformanceSummary() => _perfWatch.GetSummaryExclusive();
 
 }
 

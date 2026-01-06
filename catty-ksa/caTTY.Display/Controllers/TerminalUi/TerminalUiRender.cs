@@ -147,27 +147,34 @@ internal class TerminalUiRender
     _perfWatch.Start("RenderCell");
     try
     {
+      _perfWatch.Start("RenderCell.Setup");
       float x = windowPos.X + (col * currentCharacterWidth);
       float y = windowPos.Y + (row * currentLineHeight);
       var pos = new float2(x, y);
 
       // Check if this cell is selected
       bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
+      _perfWatch.Stop("RenderCell.Setup");
 
       // Resolve colors using the new color resolution system
+      _perfWatch.Start("RenderCell.ResolveColors");
       float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
       float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
+      _perfWatch.Stop("RenderCell.ResolveColors");
 
       // Apply SGR attributes to colors
       var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
     // Apply foreground opacity to foreground colors and cell background opacity to background colors
+    _perfWatch.Start("RenderCell.ApplyOpacity");
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
     bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
+    _perfWatch.Stop("RenderCell.ApplyOpacity");
 
     // Apply selection highlighting or draw background only when needed
     if (isSelected)
     {
+      _perfWatch.Start("RenderCell.DrawSelection");
       // Use selection colors - invert foreground and background for selected text
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
@@ -179,13 +186,16 @@ internal class TerminalUiRender
       // Always draw background for selected cells
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+      _perfWatch.Stop("RenderCell.DrawSelection");
     }
     else if (cell.Attributes.BackgroundColor.HasValue)
     {
+      _perfWatch.Start("RenderCell.DrawBackground");
       // Only draw background when SGR sequences have set a specific background color
       // This allows the theme background to show through for cells without explicit background colors
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+      _perfWatch.Stop("RenderCell.DrawBackground");
     }
     // Note: When no SGR background color is set and cell is not selected,
     // the ImGui window background (theme background) will show through
@@ -195,17 +205,25 @@ internal class TerminalUiRender
       {
         // Select appropriate font based on SGR attributes
         _perfWatch.Start("Font.SelectAndRender");
+        _perfWatch.Start("Font.SelectAndRender.SelectFont");
         var font = _fonts.SelectFont(cell.Attributes);
+        _perfWatch.Stop("Font.SelectAndRender.SelectFont");
 
         // Draw the character with selected font using proper PushFont/PopFont pattern
+        _perfWatch.Start("Font.SelectAndRender.PushFont");
         ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
+        _perfWatch.Stop("Font.SelectAndRender.PushFont");
         try
         {
+          _perfWatch.Start("Font.SelectAndRender.AddText");
           drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
+          _perfWatch.Stop("Font.SelectAndRender.AddText");
         }
         finally
         {
+          _perfWatch.Start("Font.SelectAndRender.PopFont");
           ImGui.PopFont();
+          _perfWatch.Stop("Font.SelectAndRender.PopFont");
         }
         _perfWatch.Stop("Font.SelectAndRender");
 
