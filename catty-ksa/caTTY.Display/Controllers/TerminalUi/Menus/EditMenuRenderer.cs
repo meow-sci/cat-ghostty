@@ -1,7 +1,6 @@
 using System;
 using Brutal.ImGuiApi;
 using caTTY.Display.Controllers.TerminalUi;
-using caTTY.Display.Utils;
 
 namespace caTTY.Display.Controllers.TerminalUi.Menus;
 
@@ -11,14 +10,13 @@ namespace caTTY.Display.Controllers.TerminalUi.Menus;
 /// </summary>
 internal class EditMenuRenderer
 {
-  private readonly TerminalController _controller;
   private readonly TerminalUiSelection _selection;
 
   public EditMenuRenderer(
     TerminalController controller,
     TerminalUiSelection selection)
   {
-    _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+    ArgumentNullException.ThrowIfNull(controller);
     _selection = selection ?? throw new ArgumentNullException(nameof(selection));
   }
 
@@ -33,19 +31,19 @@ internal class EditMenuRenderer
       {
         // Copy - enabled only when selection exists
         bool hasSelection = !_selection.GetCurrentSelection().IsEmpty;
-        if (ImGui.MenuItem("Copy", "", false, hasSelection))
+        if (ImGui.MenuItem("Copy", "Ctrl+C", false, hasSelection))
         {
           _selection.CopySelectionToClipboard();
         }
 
         // Paste - always enabled
-        if (ImGui.MenuItem("Paste"))
+        if (ImGui.MenuItem("Paste", "Ctrl+V"))
         {
-          PasteFromClipboard();
+          _selection.PasteFromClipboard();
         }
 
         // Select All - always enabled
-        if (ImGui.MenuItem("Select All"))
+        if (ImGui.MenuItem("Select All", "Ctrl+A"))
         {
           SelectAllText();
         }
@@ -54,26 +52,6 @@ internal class EditMenuRenderer
       {
         ImGui.EndMenu();
       }
-    }
-  }
-
-  /// <summary>
-  /// Pastes text from the clipboard to the terminal.
-  /// </summary>
-  private void PasteFromClipboard()
-  {
-    try
-    {
-      string? clipboardText = ClipboardManager.GetText();
-      if (!string.IsNullOrEmpty(clipboardText))
-      {
-        _controller.SendToProcess(clipboardText);
-        Console.WriteLine($"TerminalController: Pasted {clipboardText.Length} characters from clipboard");
-      }
-    }
-    catch (Exception ex)
-    {
-      Console.WriteLine($"TerminalController: Error pasting from clipboard: {ex.Message}");
     }
   }
 

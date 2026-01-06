@@ -46,7 +46,8 @@ internal class TerminalUiRender
     out float2 lastTerminalOrigin,
     out float2 lastTerminalSize,
     Action handleMouseInputForTerminal,
-    Action handleMouseTrackingForApplications)
+    Action handleMouseTrackingForApplications,
+    Action renderContextMenu)
   {
     var activeSession = sessionManager.ActiveSession;
     if (activeSession == null)
@@ -81,6 +82,13 @@ internal class TerminalUiRender
       ImGui.InvisibleButton("terminal_content", new float2(terminalWidth, terminalHeight));
       bool terminalHovered = ImGui.IsItemHovered();
       bool terminalActive = ImGui.IsItemActive();
+
+      // Open context menu popup on right-click of the invisible button
+      // MUST be called immediately after InvisibleButton while it's still the "last item"
+      if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+      {
+        ImGui.OpenPopup("terminal_context_menu");
+      }
 
       // Get the draw position after the invisible button
       float2 terminalDrawPos = windowPos;
@@ -455,6 +463,10 @@ internal class TerminalUiRender
         handleMouseInputForTerminal();
 //        _perfWatch.Stop("HandleMouseInput");
       }
+
+      // ALWAYS render the context menu popup (even when not hovering)
+      // This is necessary because when the popup is open, we're no longer hovering the terminal
+      renderContextMenu();
 
       // Also handle mouse tracking for applications (this works regardless of hover state)
       handleMouseTrackingForApplications();

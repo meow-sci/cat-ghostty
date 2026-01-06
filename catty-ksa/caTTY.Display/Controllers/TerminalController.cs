@@ -856,13 +856,22 @@ public class TerminalController : ITerminalController
         out _lastTerminalOrigin,
         out _lastTerminalSize,
         HandleMouseInputForTerminal,
-        HandleMouseTrackingForApplications
+        HandleMouseTrackingForApplications,
+        RenderContextMenu
       );
     }
     finally
     {
 //      _perfWatch.Stop("RenderTerminalContent");
     }
+  }
+
+  /// <summary>
+  /// Renders the right-click context menu for copy/paste operations.
+  /// </summary>
+  private void RenderContextMenu()
+  {
+    _selection.RenderContextMenu();
   }
 
 
@@ -977,6 +986,14 @@ public class TerminalController : ITerminalController
   public bool CopySelectionToClipboard()
   {
     return _selection.CopySelectionToClipboard();
+  }
+
+  /// <summary>
+  /// Pastes text from the clipboard to the terminal.
+  /// </summary>
+  public void PasteFromClipboard()
+  {
+    _selection.PasteFromClipboard();
   }
 
   /// <summary>

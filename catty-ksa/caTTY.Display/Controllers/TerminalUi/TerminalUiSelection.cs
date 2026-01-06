@@ -23,6 +23,9 @@ public class TerminalUiSelection
   private bool _isSelecting = false;
   private SelectionPosition _selectionStartPosition;
 
+  // Context menu
+  private const string ContextMenuPopupId = "terminal_context_menu";
+
   public TerminalUiSelection(
       TerminalController controller,
       SessionManager sessionManager,
@@ -96,11 +99,9 @@ public class TerminalUiSelection
       HandleSelectionMouseUp();
     }
 
-    // Handle right-click for copy (alternative to Ctrl+C)
-    if (ImGui.IsMouseClicked(ImGuiMouseButton.Right) && !_currentSelection.IsEmpty)
-    {
-      CopySelectionToClipboard();
-    }
+    // Note: Context menu is rendered separately via RenderContextMenu() which is called
+    // unconditionally from TerminalController to ensure the popup renders even when
+    // the mouse is no longer hovering the terminal area
 
     // Handle keyboard shortcuts for selection
     if (io.KeyCtrl)
@@ -115,12 +116,70 @@ public class TerminalUiSelection
       {
         CopySelectionToClipboard();
       }
+      // Ctrl+V: Paste from clipboard
+      else if (ImGui.IsKeyPressed(ImGuiKey.V))
+      {
+        PasteFromClipboard();
+      }
     }
 
     // Clear selection on Escape
     if (ImGui.IsKeyPressed(ImGuiKey.Escape))
     {
       ClearSelection();
+    }
+  }
+
+  /// <summary>
+  /// Renders the right-click context menu with Copy and Paste options.
+  /// The popup is opened via ImGui.OpenPopup in TerminalUiRender when the terminal invisible button is right-clicked.
+  /// Must be called every frame to render the popup when it's open.
+  /// </summary>
+  public void RenderContextMenu()
+  {
+    // The popup is opened in TerminalUiRender.RenderTerminalContent immediately after the InvisibleButton
+    // We just need to render it here if it's open
+    if (ImGui.BeginPopup(ContextMenuPopupId))
+    {
+      try
+      {
+        // Copy - enabled only when selection exists
+        bool hasSelection = !_currentSelection.IsEmpty;
+        if (ImGui.MenuItem("Copy", "", false, hasSelection))
+        {
+          CopySelectionToClipboard();
+        }
+
+        // Paste - always enabled
+        if (ImGui.MenuItem("Paste"))
+        {
+          PasteFromClipboard();
+        }
+      }
+      finally
+      {
+        ImGui.EndPopup();
+      }
+    }
+  }
+
+  /// <summary>
+  /// Pastes text from the clipboard to the terminal.
+  /// </summary>
+  public void PasteFromClipboard()
+  {
+    try
+    {
+      string? clipboardText = ClipboardManager.GetText();
+      if (!string.IsNullOrEmpty(clipboardText))
+      {
+        _controller.SendToProcess(clipboardText);
+        Console.WriteLine($"TerminalUiSelection: Pasted {clipboardText.Length} characters from clipboard");
+      }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"TerminalUiSelection: Error pasting from clipboard: {ex.Message}");
     }
   }
 
