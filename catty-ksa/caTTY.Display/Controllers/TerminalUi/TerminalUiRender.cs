@@ -206,9 +206,7 @@ internal class TerminalUiRender
           }
 
           // Pre-compute whether this row might have any selection overlap
-          bool rowMightHaveSelection = !currentSelection.IsEmpty &&
-              row >= currentSelection.Start.Row &&
-              row <= currentSelection.End.Row;
+          bool rowMightHaveSelection = currentSelection.RowMightBeSelected(row);
 
           for (int col = 0; col < colsToRender; col++)
           {
