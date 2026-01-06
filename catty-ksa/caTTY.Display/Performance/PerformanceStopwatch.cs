@@ -46,9 +46,10 @@ public class PerformanceStopwatch
     /// Record high-precision start timestamp for a task (no-op if !Enabled).
     /// </summary>
     /// <param name="taskName">Name of the task to measure</param>
-    public void Start(string taskName)
+    public void Start(string? taskName)
     {
         if (!Enabled) return;
+        if (taskName == null) return;
 
         var ticks = Stopwatch.GetTimestamp();
         lock (_lock)
@@ -61,9 +62,10 @@ public class PerformanceStopwatch
     /// Record high-precision end timestamp for a task (no-op if !Enabled).
     /// </summary>
     /// <param name="taskName">Name of the task to measure</param>
-    public void Stop(string taskName)
+    public void Stop(string? taskName)
     {
         if (!Enabled) return;
+        if (taskName == null) return;
 
         var endTicks = Stopwatch.GetTimestamp();
         lock (_lock)

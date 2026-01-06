@@ -323,15 +323,15 @@ public class PerformanceStopwatchTests
         _stopwatch.Enabled = true;
 
         _stopwatch.Start("FastTask");
-        Thread.Sleep(1);
+        Thread.Sleep(2);
         _stopwatch.Stop("FastTask");
 
         _stopwatch.Start("SlowTask");
-        Thread.Sleep(10);
+        Thread.Sleep(20);
         _stopwatch.Stop("SlowTask");
 
         _stopwatch.Start("MediumTask");
-        Thread.Sleep(5);
+        Thread.Sleep(10);
         _stopwatch.Stop("MediumTask");
 
         // Act
