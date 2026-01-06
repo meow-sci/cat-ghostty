@@ -1,3 +1,4 @@
+using System;
 using caTTY.Core.Types;
 using Brutal.Numerics;
 
@@ -7,8 +8,22 @@ namespace caTTY.Display.Rendering;
 /// Style manager for handling text styling and attribute application.
 /// Based on TypeScript DomStyleManager implementation.
 /// </summary>
-public static class StyleManager
+public class StyleManager
 {
+    private readonly Performance.PerformanceStopwatch _perfWatch;
+    private readonly ColorResolver _colorResolver;
+
+    /// <summary>
+    /// Initializes a new instance of the StyleManager class.
+    /// </summary>
+    /// <param name="perfWatch">Performance stopwatch for timing measurements</param>
+    /// <param name="colorResolver">Color resolver for resolving underline colors</param>
+    public StyleManager(Performance.PerformanceStopwatch perfWatch, ColorResolver colorResolver)
+    {
+        _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
+        _colorResolver = colorResolver ?? throw new ArgumentNullException(nameof(colorResolver));
+    }
+
     /// <summary>
     /// Apply SGR attributes to colors and return the final rendering colors.
     /// </summary>
@@ -16,39 +31,47 @@ public static class StyleManager
     /// <param name="baseForeground">Base foreground color</param>
     /// <param name="baseBackground">Base background color</param>
     /// <returns>Tuple of (foreground, background) colors with attributes applied</returns>
-    public static (float4 foreground, float4 background) ApplyAttributes(
-        SgrAttributes attributes, 
-        float4 baseForeground, 
+    public (float4 foreground, float4 background) ApplyAttributes(
+        SgrAttributes attributes,
+        float4 baseForeground,
         float4 baseBackground)
     {
-        float4 foreground = baseForeground;
-        float4 background = baseBackground;
-
-        // Apply bold (brighten foreground)
-        if (attributes.Bold)
+        _perfWatch.Start("StyleManager.ApplyAttributes");
+        try
         {
-            foreground = BrightenColor(foreground, 1.3f);
-        }
+            float4 foreground = baseForeground;
+            float4 background = baseBackground;
 
-        // Apply faint/dim (darken foreground)
-        if (attributes.Faint)
+            // Apply bold (brighten foreground)
+            if (attributes.Bold)
+            {
+                foreground = BrightenColor(foreground, 1.3f);
+            }
+
+            // Apply faint/dim (darken foreground)
+            if (attributes.Faint)
+            {
+                foreground = DarkenColor(foreground, 0.7f);
+            }
+
+            // Apply inverse (swap foreground and background)
+            if (attributes.Inverse)
+            {
+                (foreground, background) = (background, foreground);
+            }
+
+            // Apply hidden (make foreground same as background)
+            if (attributes.Hidden)
+            {
+                foreground = background;
+            }
+
+            return (foreground, background);
+        }
+        finally
         {
-            foreground = DarkenColor(foreground, 0.7f);
+            _perfWatch.Stop("StyleManager.ApplyAttributes");
         }
-
-        // Apply inverse (swap foreground and background)
-        if (attributes.Inverse)
-        {
-            (foreground, background) = (background, foreground);
-        }
-
-        // Apply hidden (make foreground same as background)
-        if (attributes.Hidden)
-        {
-            foreground = background;
-        }
-
-        return (foreground, background);
     }
 
     /// <summary>
@@ -57,7 +80,7 @@ public static class StyleManager
     /// <param name="color">Original color</param>
     /// <param name="factor">Brightness factor (>1.0 brightens, <1.0 darkens)</param>
     /// <returns>Brightened color</returns>
-    public static float4 BrightenColor(float4 color, float factor)
+    public float4 BrightenColor(float4 color, float factor)
     {
         return new float4(
             Math.Min(1.0f, color.X * factor),
@@ -73,7 +96,7 @@ public static class StyleManager
     /// <param name="color">Original color</param>
     /// <param name="factor">Darkness factor (0.0-1.0, where 0.0 is black)</param>
     /// <returns>Darkened color</returns>
-    public static float4 DarkenColor(float4 color, float factor)
+    public float4 DarkenColor(float4 color, float factor)
     {
         return new float4(
             color.X * factor,
@@ -88,7 +111,7 @@ public static class StyleManager
     /// </summary>
     /// <param name="attributes">SGR attributes</param>
     /// <returns>True if underline should be rendered</returns>
-    public static bool ShouldRenderUnderline(SgrAttributes attributes)
+    public bool ShouldRenderUnderline(SgrAttributes attributes)
     {
         return attributes.Underline && attributes.UnderlineStyle != UnderlineStyle.None;
     }
@@ -99,14 +122,14 @@ public static class StyleManager
     /// <param name="attributes">SGR attributes</param>
     /// <param name="foregroundColor">Current foreground color</param>
     /// <returns>Color to use for underline</returns>
-    public static float4 GetUnderlineColor(SgrAttributes attributes, float4 foregroundColor)
+    public float4 GetUnderlineColor(SgrAttributes attributes, float4 foregroundColor)
     {
         if (attributes.UnderlineColor.HasValue)
         {
-            var resolvedColor = ColorResolver.Resolve(attributes.UnderlineColor.Value, false);
+            var resolvedColor = _colorResolver.Resolve(attributes.UnderlineColor.Value, false);
             return resolvedColor;
         }
-        
+
         return foregroundColor;
     }
 
@@ -115,7 +138,7 @@ public static class StyleManager
     /// </summary>
     /// <param name="style">Underline style</param>
     /// <returns>Thickness in pixels</returns>
-    public static float GetUnderlineThickness(UnderlineStyle style)
+    public float GetUnderlineThickness(UnderlineStyle style)
     {
         return style switch
         {
@@ -133,7 +156,7 @@ public static class StyleManager
     /// </summary>
     /// <param name="attributes">SGR attributes</param>
     /// <returns>True if strikethrough should be rendered</returns>
-    public static bool ShouldRenderStrikethrough(SgrAttributes attributes)
+    public bool ShouldRenderStrikethrough(SgrAttributes attributes)
     {
         return attributes.Strikethrough;
     }
@@ -143,7 +166,7 @@ public static class StyleManager
     /// </summary>
     /// <param name="attributes">SGR attributes</param>
     /// <returns>True if blink should be applied</returns>
-    public static bool ShouldApplyBlink(SgrAttributes attributes)
+    public bool ShouldApplyBlink(SgrAttributes attributes)
     {
         return attributes.Blink;
     }
@@ -154,7 +177,7 @@ public static class StyleManager
     /// <param name="color">Base color</param>
     /// <param name="mode">Rendering mode</param>
     /// <returns>Modified color</returns>
-    public static float4 ApplyRenderingMode(float4 color, RenderingMode mode)
+    public float4 ApplyRenderingMode(float4 color, RenderingMode mode)
     {
         return mode switch
         {
@@ -168,7 +191,7 @@ public static class StyleManager
     /// <summary>
     /// Blend color with selection background.
     /// </summary>
-    private static float4 BlendWithSelection(float4 color)
+    private float4 BlendWithSelection(float4 color)
     {
         var selectionColor = ThemeManager.GetSelectionColor();
         // Simple alpha blend with selection color
@@ -183,7 +206,7 @@ public static class StyleManager
     /// <summary>
     /// Blend color with cursor background.
     /// </summary>
-    private static float4 BlendWithCursor(float4 color)
+    private float4 BlendWithCursor(float4 color)
     {
         var cursorColor = ThemeManager.GetCursorColor();
         // Invert for cursor visibility

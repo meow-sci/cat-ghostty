@@ -43,6 +43,8 @@ internal class TerminalControllerBuilder
 
   // Rendering components
   private CursorRenderer? _cursorRenderer;
+  private ColorResolver? _colorResolver;
+  private StyleManager? _styleManager;
 
   /// <summary>
   ///     Creates a new builder with the specified dependencies.
@@ -75,8 +77,12 @@ internal class TerminalControllerBuilder
     // Initialize cursor renderer
     _cursorRenderer = new CursorRenderer();
 
+    // Initialize color and style managers
+    _colorResolver = new ColorResolver(controller.PerfWatch);
+    _styleManager = new StyleManager(controller.PerfWatch, _colorResolver);
+
     // Initialize render subsystem
-    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch);
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _colorResolver, _styleManager);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);

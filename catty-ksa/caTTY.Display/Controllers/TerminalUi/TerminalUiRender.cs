@@ -17,12 +17,16 @@ internal class TerminalUiRender
   private readonly TerminalUiFonts _fonts;
   private readonly CursorRenderer _cursorRenderer;
   private readonly Performance.PerformanceStopwatch _perfWatch;
+  private readonly ColorResolver _colorResolver;
+  private readonly StyleManager _styleManager;
 
-  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch)
+  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, ColorResolver colorResolver, StyleManager styleManager)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _cursorRenderer = cursorRenderer ?? throw new ArgumentNullException(nameof(cursorRenderer));
     _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
+    _colorResolver = colorResolver ?? throw new ArgumentNullException(nameof(colorResolver));
+    _styleManager = styleManager ?? throw new ArgumentNullException(nameof(styleManager));
   }
 
   /// <summary>
@@ -151,15 +155,11 @@ internal class TerminalUiRender
       bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
 
       // Resolve colors using the new color resolution system
-      _perfWatch.Start("ColorResolver.Resolve");
-      float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
-      float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
-      _perfWatch.Stop("ColorResolver.Resolve");
+      float4 baseForeground = _colorResolver.Resolve(cell.Attributes.ForegroundColor, false);
+      float4 baseBackground = _colorResolver.Resolve(cell.Attributes.BackgroundColor, true);
 
       // Apply SGR attributes to colors
-      _perfWatch.Start("StyleManager.ApplyAttributes");
-      var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
-      _perfWatch.Stop("StyleManager.ApplyAttributes");
+      var (fgColor, bgColor) = _styleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
 
     // Apply foreground opacity to foreground colors and cell background opacity to background colors
     fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
@@ -210,7 +210,7 @@ internal class TerminalUiRender
         _perfWatch.Stop("Font.SelectAndRender");
 
         // Draw underline if needed (but not for selected text to avoid visual clutter)
-        if (!isSelected && StyleManager.ShouldRenderUnderline(cell.Attributes))
+        if (!isSelected && _styleManager.ShouldRenderUnderline(cell.Attributes))
         {
           _perfWatch.Start("RenderDecorations");
           RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
@@ -218,7 +218,7 @@ internal class TerminalUiRender
         }
 
         // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
-        if (!isSelected && StyleManager.ShouldRenderStrikethrough(cell.Attributes))
+        if (!isSelected && _styleManager.ShouldRenderStrikethrough(cell.Attributes))
         {
           _perfWatch.Start("RenderDecorations");
           RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
@@ -275,9 +275,9 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    float4 underlineColor = StyleManager.GetUnderlineColor(attributes, foregroundColor);
+    float4 underlineColor = _styleManager.GetUnderlineColor(attributes, foregroundColor);
     underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
-    float thickness = StyleManager.GetUnderlineThickness(attributes.UnderlineStyle);
+    float thickness = _styleManager.GetUnderlineThickness(attributes.UnderlineStyle);
 
     float underlineY = pos.Y + currentLineHeight - 2;
     var underlineStart = new float2(pos.X, underlineY);
