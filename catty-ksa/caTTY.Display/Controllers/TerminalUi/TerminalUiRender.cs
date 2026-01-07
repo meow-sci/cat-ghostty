@@ -47,7 +47,8 @@ internal class TerminalUiRender
     out float2 lastTerminalSize,
     Action handleMouseInputForTerminal,
     Action handleMouseTrackingForApplications,
-    Action renderContextMenu)
+    Action renderContextMenu,
+    bool drawBackground)
   {
     var activeSession = sessionManager.ActiveSession;
     if (activeSession == null)
@@ -93,8 +94,20 @@ internal class TerminalUiRender
       // Get the draw position after the invisible button
       float2 terminalDrawPos = windowPos;
 
-      // Note: Terminal background is now handled by ImGui window background color
-      // No need to draw a separate terminal background rectangle
+      // Note: Terminal background is now handled manually since window bg is transparent
+      // Draw a separate terminal background rectangle for the content area
+      if (drawBackground)
+      {
+        float4 themeBg = ThemeManager.GetDefaultBackground();
+        themeBg = OpacityManager.ApplyBackgroundOpacity(themeBg);
+        uint themeBgU32 = ImGui.ColorConvertFloat4ToU32(themeBg);
+        
+        drawList.AddRectFilled(
+            terminalDrawPos,
+            terminalDrawPos + new float2(terminalWidth, terminalHeight),
+            themeBgU32
+        );
+      }
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
 //      _perfWatch.Start("GetViewportRows");

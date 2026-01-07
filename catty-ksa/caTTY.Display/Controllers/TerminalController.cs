@@ -404,17 +404,9 @@ public class TerminalController : ITerminalController
 
     try
     {
-      // Create terminal window with menu bar and theme background
-      // Set window background to theme background color with opacity
-      float4 themeBg = ThemeManager.GetDefaultBackground();
-      themeBg = OpacityManager.ApplyBackgroundOpacity(themeBg);
-      ImGui.PushStyleColor(ImGuiCol.WindowBg, themeBg);
-
-      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
-
       // Determine if UI should be visible
       // Key insight: When popup menus are open, they take focus away from the main window.
-      // So we need to show UI if: (focused AND hovered) OR menus/popups are open
+      // so we need to show UI if: (focused AND hovered) OR menus/popups are open
       // The menu/popup checks are OUTSIDE the HasFocus check because popups steal focus
 
       // Check if ANY popup is open (includes context menus, not just menu bar menus)
@@ -431,6 +423,33 @@ public class TerminalController : ITerminalController
                           _areMenusOpen || 
                           isAnyPopupOpen || 
                           isTabAreaActive;
+
+      // Determine window background based on UI visibility
+      float4 windowBgColor;
+      if (shouldShowUI)
+      {
+          // UI Shown: Use theme background (opaque/semi-transparent)
+          float4 themeBg = ThemeManager.GetDefaultBackground();
+          windowBgColor = OpacityManager.ApplyBackgroundOpacity(themeBg);
+      }
+      else
+      {
+          // UI Hidden: Use fully transparent background so menu/tab areas show game world
+          windowBgColor = new float4(0.0f, 0.0f, 0.0f, 0.0f);
+      }
+
+      ImGui.PushStyleColor(ImGuiCol.WindowBg, windowBgColor);
+
+      // Only make menu bar transparent when UI is hidden
+      // When UI is shown, we want the default opaque/grey menu bar ("solid like before")
+      int numColorPushes = 1; // Always pushing WindowBg
+      if (!shouldShowUI)
+      {
+          ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new float4(0.0f, 0.0f, 0.0f, 0.0f));
+          numColorPushes++;
+      }
+
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
 
       // Hide border when UI should not be shown
       float borderSize = shouldShowUI ? 1.0f : 0.0f;
@@ -509,7 +528,10 @@ public class TerminalController : ITerminalController
       uiFontUsed = false; // Mark as popped
 
       // Render terminal canvas
-      RenderTerminalCanvas();
+      // Pass !shouldShowUI as drawBackground flag
+      // When UI is hidden (window transparent), we MUST draw manual background
+      // When UI is shown (window opaque), we should NOT draw manual background (use window bg)
+      RenderTerminalCanvas(!shouldShowUI);
 
       // Push UI font again for focus indicators
       _fonts.PushUIFont(out uiFontUsed);
@@ -550,8 +572,8 @@ public class TerminalController : ITerminalController
 
       ImGui.End();
 
-        // Pop the window background color style
-        ImGui.PopStyleColor();
+        // Pop the window background and (optional) menu bar background color styles
+        ImGui.PopStyleColor(numColorPushes);
       }
       finally
       {
@@ -972,7 +994,7 @@ public class TerminalController : ITerminalController
   /// <summary>
   ///     Renders the terminal screen content.
   /// </summary>
-  private void RenderTerminalContent()
+  private void RenderTerminalContent(bool drawBackground)
   {
 //    _perfWatch.Start("RenderTerminalContent");
     try
@@ -986,7 +1008,8 @@ public class TerminalController : ITerminalController
         out _lastTerminalSize,
         HandleMouseInputForTerminal,
         HandleMouseTrackingForApplications,
-        RenderContextMenu
+        RenderContextMenu,
+        drawBackground
       );
     }
     finally
@@ -1183,7 +1206,11 @@ public class TerminalController : ITerminalController
   /// Renders the terminal canvas for multi-session UI layout.
   /// This method provides terminal display within the session management framework.
   /// </summary>
-  private void RenderTerminalCanvas()
+  /// <summary>
+  /// Renders the terminal canvas for multi-session UI layout.
+  /// This method provides terminal display within the session management framework.
+  /// </summary>
+  private void RenderTerminalCanvas(bool drawBackground)
   {
 //    _perfWatch.Start("RenderTerminalCanvas");
     try
@@ -1192,7 +1219,7 @@ public class TerminalController : ITerminalController
       // Note: This assumes UI font was pushed before calling this method
 
       // Render terminal content directly without additional UI elements
-      RenderTerminalContent();
+      RenderTerminalContent(drawBackground);
     }
     catch (Exception ex)
     {
