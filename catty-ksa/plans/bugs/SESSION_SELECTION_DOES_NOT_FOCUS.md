@@ -1,0 +1,1 @@
+When switching to a session (clicking on tab or session menu item) focus is not set to the line discipline.
