@@ -1,4 +1,5 @@
 using System;
+using caTTY.Core.Terminal;
 using caTTY.Display.Controllers.TerminalUi;
 using float2 = Brutal.Numerics.float2;
 
@@ -11,14 +12,17 @@ namespace caTTY.Display.Controllers.TerminalUi.Resize;
 internal class TerminalDimensionCalculator
 {
   private readonly TerminalUiFonts _fonts;
+  private readonly SessionManager _sessionManager;
 
   /// <summary>
   ///     Creates a new TerminalDimensionCalculator.
   /// </summary>
   /// <param name="fonts">Font manager for accessing character metrics</param>
-  public TerminalDimensionCalculator(TerminalUiFonts fonts)
+  /// <param name="sessionManager">Session manager for accessing session count</param>
+  public TerminalDimensionCalculator(TerminalUiFonts fonts, SessionManager sessionManager)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
+    _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
   }
 
   /// <summary>
@@ -34,7 +38,7 @@ internal class TerminalDimensionCalculator
   /// <summary>
   ///     Calculates optimal terminal dimensions based on available window space.
   ///     Uses character metrics to determine how many columns and rows can fit.
-  ///     Accounts for the complete UI layout structure: menu bar, tab area, terminal info, and padding.
+  ///     Accounts for the complete UI layout structure: menu bar, tab area (when 2+ sessions), terminal info, and padding.
   ///     Matches the approach used in the TypeScript implementation and playground experiments.
   /// </summary>
   /// <param name="availableSize">The available window content area size</param>
@@ -44,9 +48,10 @@ internal class TerminalDimensionCalculator
     try
     {
       // Calculate UI overhead for multi-session UI layout
-      // Multi-session UI includes menu bar and tab area
+      // Multi-session UI includes menu bar and conditionally tab area
+      int sessionCount = _sessionManager.Sessions.Count;
       float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
-      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
+      float tabAreaHeight = CalculateTabAreaHeight(sessionCount); // 0.0f when 1 session, ~50.0f when 2+ sessions
       float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // Top and bottom padding
 
       float totalUIOverheadHeight = menuBarHeight + tabAreaHeight + windowPadding;
@@ -94,15 +99,21 @@ internal class TerminalDimensionCalculator
 
   /// <summary>
   /// Calculates the current tab area height based on the number of terminal instances.
-  /// Uses constrained sizing to prevent excessive height growth.
+  /// Returns 0 when there is only one session (tab bar is hidden).
+  /// Returns the fixed TAB_AREA_HEIGHT constant when there are 2+ sessions.
   /// </summary>
   /// <param name="tabCount">Number of terminal tabs (defaults to 1 for current single terminal)</param>
-  /// <returns>Tab area height in pixels</returns>
+  /// <returns>Tab area height in pixels (0 when tabCount <= 1, 50.0f when tabCount >= 2)</returns>
   public static float CalculateTabAreaHeight(int tabCount = 1)
   {
-    float baseHeight = LayoutConstants.MIN_TAB_AREA_HEIGHT;
-    float extraHeight = Math.Max(0, (tabCount - 1) * LayoutConstants.TAB_HEIGHT_PER_EXTRA_TAB);
-    return Math.Min(LayoutConstants.MAX_TAB_AREA_HEIGHT, baseHeight + extraHeight);
+    // Don't include tab area height when there's only one session
+    if (tabCount <= 1)
+    {
+      return 0.0f;
+    }
+
+    // When there are 2+ sessions, use the fixed constant to match original behavior
+    return LayoutConstants.TAB_AREA_HEIGHT; // 50.0f
   }
 
   /// <summary>

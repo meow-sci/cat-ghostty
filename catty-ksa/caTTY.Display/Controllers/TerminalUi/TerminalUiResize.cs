@@ -24,7 +24,7 @@ internal class TerminalUiResize
     if (fonts == null) throw new ArgumentNullException(nameof(fonts));
 
     // Initialize components
-    _dimensionCalculator = new TerminalDimensionCalculator(fonts);
+    _dimensionCalculator = new TerminalDimensionCalculator(fonts, sessionManager);
     _sessionResizeApplicator = new SessionResizeApplicator(sessionManager);
     _autoSizeSnapper = new WindowAutoSizeSnapper();
 
@@ -32,13 +32,14 @@ internal class TerminalUiResize
     Action<int, int> onResizeComplete = (cols, rows) =>
     {
       // Calculate header height to match what CalculateTerminalDimensions uses:
-      // Menu bar + Tab area + Window padding (top & bottom)
+      // Menu bar + Tab area (conditional on session count) + Window padding (top & bottom)
       // This MUST match the calculation in TerminalDimensionCalculator.CalculateTerminalDimensions
+      int sessionCount = sessionManager.Sessions.Count;
       float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
-      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
+      float tabAreaHeight = CalculateTabAreaHeight(sessionCount); // 0.0f when 1 session, ~50.0f when 2+ sessions
       float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // 20.0f (top + bottom)
 
-      float headerHeight = menuBarHeight + tabAreaHeight + windowPadding;  // 95.0f total
+      float headerHeight = menuBarHeight + tabAreaHeight + windowPadding;
 
       TriggerSnapToSize(cols, rows, headerHeight);
     };

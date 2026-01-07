@@ -15,17 +15,21 @@ internal class TerminalUiTabs
 {
   private readonly TerminalController _controller;
   private readonly SessionManager _sessionManager;
+  private readonly Action _triggerResizeForAllSessions;
   private Guid? _lastActiveSessionId;
+  private int _lastSessionCount = 0;
 
   /// <summary>
   ///     Creates a new tabs subsystem instance.
   /// </summary>
   /// <param name="controller">The parent terminal controller</param>
   /// <param name="sessionManager">The session manager instance</param>
-  public TerminalUiTabs(TerminalController controller, SessionManager sessionManager)
+  /// <param name="triggerResizeForAllSessions">Callback to trigger resize for all sessions</param>
+  public TerminalUiTabs(TerminalController controller, SessionManager sessionManager, Action triggerResizeForAllSessions)
   {
     _controller = controller ?? throw new ArgumentNullException(nameof(controller));
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+    _triggerResizeForAllSessions = triggerResizeForAllSessions ?? throw new ArgumentNullException(nameof(triggerResizeForAllSessions));
   }
 
   /// <summary>
@@ -39,6 +43,7 @@ internal class TerminalUiTabs
   /// <summary>
   /// Renders the tab area using real ImGui tabs for session management.
   /// Includes add button and context menus for tab operations.
+  /// When there is only one session, the tab bar is not rendered.
   /// </summary>
   public void RenderTabArea()
   {
@@ -46,6 +51,28 @@ internal class TerminalUiTabs
     {
       var sessions = _sessionManager.Sessions;
       var activeSession = _sessionManager.ActiveSession;
+      int currentSessionCount = sessions.Count;
+
+      // Detect if tab bar visibility changed (crossing 1/2 session boundary)
+      // This happens when going from 1 session (no tab bar) to 2+ (tab bar shown)
+      // or vice versa. We need to trigger a resize because the available terminal
+      // height changes by ~50px when the tab bar appears/disappears.
+      bool tabBarVisibilityChanged =
+        (_lastSessionCount <= 1 && currentSessionCount >= 2) ||
+        (_lastSessionCount >= 2 && currentSessionCount <= 1);
+
+      if (tabBarVisibilityChanged)
+      {
+        _triggerResizeForAllSessions();
+      }
+
+      _lastSessionCount = currentSessionCount;
+
+      // Don't render tab bar when there's only one session
+      if (sessions.Count <= 1)
+      {
+        return;
+      }
 
       // Detect if active session changed (for tab synchronization)
       bool activeSessionChanged = activeSession?.Id != _lastActiveSessionId;

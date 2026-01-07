@@ -142,7 +142,7 @@ internal class TerminalControllerBuilder
     _resize = new TerminalUiResize(_sessionManager, _fonts);
 
     // Initialize tabs subsystem
-    _tabs = new TerminalUiTabs(controller, _sessionManager);
+    _tabs = new TerminalUiTabs(controller, _sessionManager, triggerTerminalResizeForAllSessions);
 
     // Initialize settings panel subsystem
     _settingsPanel = new TerminalUiSettingsPanel(
