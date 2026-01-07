@@ -316,14 +316,14 @@ public class OscParser : IOscParser
         Implemented = true
       },
       8 => ParseOsc8Hyperlink(raw, terminator, command, textParam),
-      // Custom OSC 1010: JSON action commands for KSA game integration
-      1010 => new XtermOscMessage
+      // Private-use OSC commands (1000+) are handled by the RPC layer
+      >= 1000 => new XtermOscMessage
       {
-        Type = "osc.jsonAction",
+        Type = "osc.private",
         Raw = raw,
         Terminator = terminator,
         Command = command,
-        Payload = textParam, // JSON payload
+        Payload = textParam,
         Implemented = true
       },
       _ => null

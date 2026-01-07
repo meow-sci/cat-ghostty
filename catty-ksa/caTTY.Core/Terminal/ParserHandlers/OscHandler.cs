@@ -1,31 +1,25 @@
-using System.Text.Json;
+using caTTY.Core.Rpc;
 using caTTY.Core.Types;
-using KSA;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Terminal.ParserHandlers;
 
 /// <summary>
 ///     Handles OSC (Operating System Command) sequence processing.
+///     Implements standard ECMA-48/xterm OSC sequences and delegates
+///     private-use commands (1000+) to the RPC layer.
 /// </summary>
 internal class OscHandler
 {
     private readonly ILogger _logger;
     private readonly TerminalEmulator _terminal;
+    private readonly IOscRpcHandler? _oscRpcHandler;
 
-    /// <summary>
-    ///     Known action names for JSON dispatch.
-    /// </summary>
-    private static class Actions
-    {
-        public const string EngineIgnite = "engine_ignite";
-        public const string EngineShutdown = "engine_shutdown";
-    }
-
-    public OscHandler(TerminalEmulator terminal, ILogger logger)
+    public OscHandler(TerminalEmulator terminal, ILogger logger, IOscRpcHandler? oscRpcHandler = null)
     {
         _terminal = terminal;
         _logger = logger;
+        _oscRpcHandler = oscRpcHandler;
     }
 
     public void HandleOsc(OscMessage message)
@@ -107,71 +101,18 @@ internal class OscHandler
                 _logger.LogDebug("Query background color response: {Response}", backgroundResponse);
                 break;
 
-            case "osc.jsonAction":
-                // OSC 1010: Custom JSON action command for KSA game integration
-                HandleJsonActionCommand(message.Payload);
-                break;
-
             default:
-                // Log unhandled xterm OSC sequences for debugging
-                _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+                // Check if this is a private-use command (1000+) for RPC handling
+                if (_oscRpcHandler != null && message.Command >= 1000)
+                {
+                    _oscRpcHandler.HandleCommand(message.Command, message.Payload);
+                }
+                else
+                {
+                    // Log unhandled xterm OSC sequences for debugging
+                    _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+                }
                 break;
-        }
-    }
-
-    /// <summary>
-    ///     Handles JSON action commands from OSC 1010 sequences.
-    ///     Format: ESC ] 1010 ; {"action":"action_name"} BEL/ST
-    /// </summary>
-    private void HandleJsonActionCommand(string? payload)
-    {
-        if (string.IsNullOrEmpty(payload))
-        {
-            _logger.LogWarning("OSC 1010: JSON action command received with empty payload");
-            return;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(payload);
-            var root = document.RootElement;
-
-            if (!root.TryGetProperty("action", out var actionElement))
-            {
-                _logger.LogWarning("OSC 1010: JSON payload missing 'action' property: {Payload}", payload);
-                return;
-            }
-
-            string? action = actionElement.GetString();
-            if (string.IsNullOrEmpty(action))
-            {
-                _logger.LogWarning("OSC 1010: JSON 'action' property is empty");
-                return;
-            }
-
-            _logger.LogInformation("OSC 1010: Executing action '{Action}'", action);
-
-            // Dispatch to the appropriate handler
-            switch (action)
-            {
-                case Actions.EngineIgnite:
-                    Program.ControlledVehicle?.SetEnum(VehicleEngine.MainIgnite);
-                    _logger.LogDebug("OSC 1010: Engine ignite command executed");
-                    break;
-
-                case Actions.EngineShutdown:
-                    Program.ControlledVehicle?.SetEnum(VehicleEngine.MainShutdown);
-                    _logger.LogDebug("OSC 1010: Engine shutdown command executed");
-                    break;
-
-                default:
-                    _logger.LogWarning("OSC 1010: Unknown action '{Action}'", action);
-                    break;
-            }
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogWarning("OSC 1010: Failed to parse JSON payload: {Error}. Payload: {Payload}", ex.Message, payload);
         }
     }
 }

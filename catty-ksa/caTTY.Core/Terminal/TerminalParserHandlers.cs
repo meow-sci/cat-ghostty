@@ -29,15 +29,17 @@ internal class TerminalParserHandlers : IParserHandlers
     private readonly CsiDispatcher _csiDispatcher;
     private readonly C0Handler _c0Handler;
     private readonly EscHandler _escHandler;
+    private readonly IOscRpcHandler _oscRpcHandler;
 
     public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null)
     {
         _terminal = terminal;
         _logger = logger;
         _rpcHandler = rpcHandler;
+        _oscRpcHandler = new OscRpcHandler(logger);
         _sgrHandler = new SgrHandler(terminal, logger);
         _dcsHandler = new DcsHandler(terminal, logger);
-        _oscHandler = new OscHandler(terminal, logger);
+        _oscHandler = new OscHandler(terminal, logger, _oscRpcHandler);
         _csiCursorHandler = new CsiCursorHandler(terminal, logger);
         _csiEraseHandler = new CsiEraseHandler(terminal);
         _csiScrollHandler = new CsiScrollHandler(terminal);
