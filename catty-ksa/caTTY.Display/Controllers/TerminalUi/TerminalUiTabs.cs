@@ -20,6 +20,12 @@ internal class TerminalUiTabs
   private int _lastSessionCount = 0;
 
   /// <summary>
+  ///     Gets whether the tab area is currently being hovered or interacted with.
+  ///     Used to keep the UI visible when interacting with tabs.
+  /// </summary>
+  public bool IsTabAreaActive { get; internal set; }
+
+  /// <summary>
   ///     Creates a new tabs subsystem instance.
   /// </summary>
   /// <param name="controller">The parent terminal controller</param>
@@ -92,6 +98,9 @@ internal class TerminalUiTabs
       {
         if (childBegun)
         {
+          // Track if tab area child window is hovered (must check while inside child)
+          bool isChildHovered = ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows);
+
           // Add button on the left with fixed width
           float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
@@ -216,6 +225,16 @@ internal class TerminalUiTabs
               }
             }
           }
+
+          // Update interaction state before ending child window
+          // This captures hover/active state while we're still in the child context
+          bool isAnyItemHoveredInChild = ImGui.IsAnyItemHovered();
+          bool isAnyItemActiveInChild = ImGui.IsAnyItemActive();
+          IsTabAreaActive = isChildHovered || isAnyItemHoveredInChild || isAnyItemActiveInChild;
+        }
+        else
+        {
+          IsTabAreaActive = false;
         }
       }
       finally

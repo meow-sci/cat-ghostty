@@ -323,6 +323,18 @@ public class TerminalController : ITerminalController
   private bool _wasFocusedLastFrame = false;
 
   /// <summary>
+  ///     Gets whether the terminal window was hovered in the previous frame.
+  ///     Used to determine whether to show menu bar and borders (starts true to show UI initially).
+  /// </summary>
+  private bool _wasHoveredLastFrame = true;
+
+  /// <summary>
+  ///     Tracks whether menus are currently open.
+  ///     Used to keep the menu bar visible while navigating menus.
+  /// </summary>
+  private bool _areMenusOpen = false;
+
+  /// <summary>
   ///     Gets whether input capture is currently active.
   ///     When true, terminal should suppress game hotkeys bound to typing.
   /// </summary>
@@ -399,8 +411,27 @@ public class TerminalController : ITerminalController
       ImGui.PushStyleColor(ImGuiCol.WindowBg, themeBg);
 
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
-      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
-      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoTitleBar;
+
+      // Determine if UI should be visible
+      // Key insight: When popup menus are open, they take focus away from the main window.
+      // So we need to show UI if: (focused AND hovered) OR menus/popups are open
+      // The menu/popup checks are OUTSIDE the HasFocus check because popups steal focus
+
+      // Check if ANY popup is open (includes context menus, not just menu bar menus)
+      bool isAnyPopupOpen = ImGui.IsPopupOpen("", ImGuiPopupFlags.AnyPopupId | ImGuiPopupFlags.AnyPopupLevel);
+
+      // Check if tab area is being interacted with (tracked from previous frame since tabs render after this check)
+      bool isTabAreaActive = _tabs.IsTabAreaActive;
+
+      bool shouldShowUI = (HasFocus && _wasHoveredLastFrame) || _areMenusOpen || isAnyPopupOpen || isTabAreaActive;
+
+      // Hide border when UI should not be shown
+      float borderSize = shouldShowUI ? 1.0f : 0.0f;
+      ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, borderSize);
+
+      // ALWAYS include MenuBar flag to reserve space - we render it transparent when hidden
+      // This keeps the terminal canvas position stable
+      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.MenuBar;
 
       // Snap window size to exactly fit terminal content after resize operations
       if (_resize.ShouldSnapThisFrame)
@@ -423,15 +454,42 @@ public class TerminalController : ITerminalController
       // This ensures the game doesn't process keyboard input when terminal is focused
       ManageInputCapture();
 
-      // Render menu bar (uses UI font) - preserved for accessibility
-      _settingsPanel.RenderMenuBar();
+      // Always render menu bar area to reserve space, but only show content when UI should be visible
+      if (shouldShowUI)
+      {
+        _settingsPanel.RenderMenuBar();
+      }
+      else
+      {
+        // Render empty menu bar to reserve space (keeps terminal canvas position stable)
+        if (ImGui.BeginMenuBar())
+        {
+          ImGui.EndMenuBar();
+        }
+        // Reset menu state since we're not rendering actual menus
+        _settingsPanel.IsAnyMenuOpen = false;
+      }
 
-      // Render tab area for session management
-
+      // Always render tab area space, but only show content when UI should be visible
       ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new float2(4.0f, 0.0f));
       ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, new float2(4.0f, 0.0f));
-      RenderTabArea();
-      // ImGui.PopStyleVar();
+      if (shouldShowUI)
+      {
+        RenderTabArea();
+      }
+      else
+      {
+        // Only reserve space for tab area when there are 2+ sessions (tab bar is only shown then)
+        if (_sessionManager.SessionCount >= 2)
+        {
+          ImGui.Dummy(new float2(0, LayoutConstants.TAB_AREA_HEIGHT));
+        }
+        // Reset tab area active state since we're not rendering the tab area
+        // This prevents stale state from keeping UI visible indefinitely
+        _tabs.IsTabAreaActive = false;
+      }
+      ImGui.PopStyleVar();
+      ImGui.PopStyleVar();
 
       // Handle window resize detection and terminal resizing
       _resize.HandleWindowResize();
@@ -445,20 +503,43 @@ public class TerminalController : ITerminalController
 
       // Render terminal canvas
       RenderTerminalCanvas();
-      ImGui.PopStyleVar();
-      ImGui.PopStyleVar();
 
       // Push UI font again for focus indicators
       _fonts.PushUIFont(out uiFontUsed);
 
-      // Render focus indicators (uses UI font)
-      RenderFocusIndicators();
+      // Render focus indicators only when UI should be visible (uses UI font)
+      if (shouldShowUI)
+      {
+        RenderFocusIndicators();
+      }
 
       // Handle input if focused
       if (HasFocus)
       {
         HandleInput();
       }
+
+      // Track hover state for next frame (to determine menu/border visibility)
+      // Keep UI visible when: window is hovered, OR any interaction is happening (mouse down, menu open, etc.)
+
+      // Check if mouse is within the window bounds
+      float2 mousePos = ImGui.GetMousePos();
+      float2 windowMin = ImGui.GetWindowPos();
+      float2 windowMax = windowMin + ImGui.GetWindowSize();
+      bool isMouseInWindowBounds = mousePos.X >= windowMin.X && mousePos.X <= windowMax.X &&
+                                    mousePos.Y >= windowMin.Y && mousePos.Y <= windowMax.Y;
+
+      bool isAnyItemHovered = ImGui.IsAnyItemHovered(); // Detects when mouse is over menu items, buttons, etc.
+      // Include mouse released to keep UI visible during click release frame (needed for tab close button, etc.)
+      bool isInteracting = ImGui.IsMouseDown(ImGuiMouseButton.Left) || ImGui.IsMouseDown(ImGuiMouseButton.Right) ||
+                           ImGui.IsMouseReleased(ImGuiMouseButton.Left) || ImGui.IsMouseReleased(ImGuiMouseButton.Right) ||
+                           ImGui.IsAnyItemActive();
+
+      // Update menu state from settings panel (which now properly tracks BeginMenu return values)
+      _areMenusOpen = _settingsPanel.IsAnyMenuOpen;
+
+      // Keep UI visible if mouse is in window, items are hovered, or user is interacting
+      _wasHoveredLastFrame = isMouseInWindowBounds || isAnyItemHovered || isInteracting;
 
       ImGui.End();
 

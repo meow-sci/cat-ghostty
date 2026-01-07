@@ -30,9 +30,11 @@ internal class FontMenuRenderer
   /// <summary>
   /// Renders the Font menu with font size slider and font family selection options.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Font"))
+    bool isOpen = ImGui.BeginMenu("Font");
+    if (isOpen)
     {
       try
       {
@@ -65,6 +67,7 @@ internal class FontMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 
   /// <summary>

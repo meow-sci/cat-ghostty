@@ -22,9 +22,11 @@ internal class PerformanceMenuRenderer
   /// <summary>
   /// Renders the Performance menu with tracing controls.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Performance"))
+    bool isOpen = ImGui.BeginMenu("Performance");
+    if (isOpen)
     {
       try
       {
@@ -108,5 +110,6 @@ internal class PerformanceMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 }

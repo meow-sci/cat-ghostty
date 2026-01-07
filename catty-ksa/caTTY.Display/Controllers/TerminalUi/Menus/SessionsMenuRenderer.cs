@@ -23,9 +23,11 @@ internal class SessionsMenuRenderer
   /// Renders the Sessions menu with a list of all terminal sessions.
   /// Shows a checkmark for the currently active session and allows clicking to switch sessions.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Sessions"))
+    bool isOpen = ImGui.BeginMenu("Sessions");
+    if (isOpen)
     {
       try
       {
@@ -87,5 +89,6 @@ internal class SessionsMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 }

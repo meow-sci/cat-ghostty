@@ -23,9 +23,11 @@ internal class EditMenuRenderer
   /// <summary>
   /// Renders the Edit menu with text operations.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Edit"))
+    bool isOpen = ImGui.BeginMenu("Edit");
+    if (isOpen)
     {
       try
       {
@@ -53,6 +55,7 @@ internal class EditMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 
   /// <summary>

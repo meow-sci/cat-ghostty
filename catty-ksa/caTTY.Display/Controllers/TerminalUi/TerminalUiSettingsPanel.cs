@@ -27,6 +27,11 @@ internal class TerminalUiSettingsPanel
   private readonly GeneralSettingsMenuRenderer _generalSettingsMenuRenderer;
   private readonly PerformanceMenuRenderer _performanceMenuRenderer;
 
+  /// <summary>
+  /// Gets or sets whether any menu is currently open in the menu bar.
+  /// </summary>
+  public bool IsAnyMenuOpen { get; internal set; }
+
   public TerminalUiSettingsPanel(
     TerminalController controller,
     SessionManager sessionManager,
@@ -63,18 +68,27 @@ internal class TerminalUiSettingsPanel
     {
       try
       {
-        _fileMenuRenderer.Render();
-        _editMenuRenderer.Render();
-        _sessionsMenuRenderer.Render();
-        _fontMenuRenderer.Render();
-        _themeMenuRenderer.Render();
-        _performanceMenuRenderer.Render();
-        _generalSettingsMenuRenderer.Render();
+        // Track if any menu is open by collecting BeginMenu return values from all menu renderers
+        bool fileMenuOpen = _fileMenuRenderer.Render();
+        bool editMenuOpen = _editMenuRenderer.Render();
+        bool sessionsMenuOpen = _sessionsMenuRenderer.Render();
+        bool fontMenuOpen = _fontMenuRenderer.Render();
+        bool themeMenuOpen = _themeMenuRenderer.Render();
+        bool perfMenuOpen = _performanceMenuRenderer.Render();
+        bool settingsMenuOpen = _generalSettingsMenuRenderer.Render();
+
+        // Set IsAnyMenuOpen to true if ANY menu is currently open
+        IsAnyMenuOpen = fileMenuOpen || editMenuOpen || sessionsMenuOpen || fontMenuOpen || themeMenuOpen || perfMenuOpen || settingsMenuOpen;
       }
       finally
       {
         ImGui.EndMenuBar();
       }
+    }
+    else
+    {
+      // Menu bar is not visible, so no menus can be open
+      IsAnyMenuOpen = false;
     }
   }
 

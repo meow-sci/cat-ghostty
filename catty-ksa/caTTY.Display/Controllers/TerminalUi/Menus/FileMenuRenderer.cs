@@ -26,9 +26,11 @@ internal class FileMenuRenderer
   /// <summary>
   /// Renders the File menu with terminal management options.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("File"))
+    bool isOpen = ImGui.BeginMenu("File");
+    if (isOpen)
     {
       try
       {
@@ -77,5 +79,6 @@ internal class FileMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 }

@@ -31,9 +31,11 @@ internal class GeneralSettingsMenuRenderer
   /// Renders the Settings menu with separate background and foreground opacity controls.
   /// Provides sliders for independent opacity adjustment with immediate visual feedback.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Settings"))
+    bool isOpen = ImGui.BeginMenu("Settings");
+    if (isOpen)
     {
       try
       {
@@ -208,6 +210,7 @@ internal class GeneralSettingsMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 
   /// <summary>

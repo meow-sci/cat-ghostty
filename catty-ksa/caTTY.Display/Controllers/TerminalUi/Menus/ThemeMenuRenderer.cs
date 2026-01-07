@@ -24,9 +24,11 @@ internal class ThemeMenuRenderer
   /// Renders the Theme menu with theme selection options.
   /// Displays all available themes including built-in and TOML-loaded themes.
   /// </summary>
-  public void Render()
+  /// <returns>True if the menu is currently open, false otherwise.</returns>
+  public bool Render()
   {
-    if (ImGui.BeginMenu("Theme"))
+    bool isOpen = ImGui.BeginMenu("Theme");
+    if (isOpen)
     {
       try
       {
@@ -127,6 +129,7 @@ internal class ThemeMenuRenderer
         ImGui.EndMenu();
       }
     }
+    return isOpen;
   }
 
   /// <summary>
