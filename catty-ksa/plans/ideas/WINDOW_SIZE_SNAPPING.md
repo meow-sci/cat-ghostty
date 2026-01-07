@@ -1,0 +1,1 @@
+After resize action finishes, flip window auto size to content on for one tick, then disable, to get auto sizing to terminal size
