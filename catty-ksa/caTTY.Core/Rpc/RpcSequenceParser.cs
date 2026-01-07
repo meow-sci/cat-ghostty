@@ -110,56 +110,47 @@ public class RpcSequenceParser : IRpcSequenceParser
         }
 
         // Remove the final character to get the parameter portion
-        var paramPortion = parameterString[..^1];
+        var paramPortion = parameterString[..^1].ToString();
         
         // Split by semicolon to get parameters
-        var parameterList = new List<int>();
-        var currentParam = new StringBuilder();
+        var parts = paramPortion.Split(';');
         
-        foreach (char c in paramPortion)
+        // We need at least 2 parts (command ID and version)
+        if (parts.Length < 2)
         {
-            if (c == ';')
-            {
-                // Parse the current parameter
-                if (currentParam.Length > 0 && int.TryParse(currentParam.ToString(), out int value))
-                {
-                    parameterList.Add(value);
-                }
-                else
-                {
-                    // Invalid parameter - treat as 0 for graceful handling
-                    parameterList.Add(0);
-                }
-                currentParam.Clear();
-            }
-            else if (char.IsDigit(c))
-            {
-                currentParam.Append(c);
-            }
-            else
-            {
-                // Invalid character in parameter - handle gracefully by ignoring
-                continue;
-            }
+            return false;
         }
 
-        // Handle the last parameter if there's no trailing semicolon
-        if (currentParam.Length > 0)
+        var parameterList = new List<int>();
+        
+        // Parse command ID (first part) - handle gracefully
+        if (!int.TryParse(parts[0], out int commandId))
         {
-            if (int.TryParse(currentParam.ToString(), out int value))
+            // Treat invalid command ID as 0 for graceful handling
+            commandId = 0;
+        }
+        parameterList.Add(commandId);
+        
+        // Parse version (second part) - handle gracefully
+        if (!int.TryParse(parts[1], out int version))
+        {
+            // Invalid version - treat as 0 for graceful handling
+            version = 0;
+        }
+        parameterList.Add(version);
+        
+        // Parse remaining parts as numeric parameters
+        for (int i = 2; i < parts.Length; i++)
+        {
+            if (int.TryParse(parts[i], out int value))
             {
                 parameterList.Add(value);
             }
             else
             {
+                // Invalid numeric parameter - treat as 0 for graceful handling
                 parameterList.Add(0);
             }
-        }
-
-        // We need at least 2 parameters (command ID and version)
-        if (parameterList.Count < 2)
-        {
-            return false;
         }
 
         parameters = new RpcParameters

@@ -31,7 +31,8 @@ public class GameActionRegistry : IGameActionRegistry
     {
         _logger.LogDebug("Registering default vehicle control commands");
 
-        // Engine Control Commands (1001-1010)
+        // Engine Control Commands (1001-1009)
+        // Note: Command 1010 (JSON actions) is handled via OSC sequences, not CSI RPC
         RegisterCustomCommand(1001, new IgniteMainThrottleCommand());
         RegisterCustomCommand(1002, new ShutdownMainEngineCommand());
 
@@ -189,6 +190,8 @@ public class GameActionRegistry : IGameActionRegistry
             ExpectedStringParameterCount = 0,
             Description = "Shutdown Main Engine - No parameters required"
         }.AsSecuritySensitive("Engine shutdown is a critical safety operation"));
+
+        // Note: Command 1010 (JSON actions) is handled via DCS sequences, not CSI RPC
 
         // GetThrottleStatus (2001) - No parameters expected
         _parameterValidator.RegisterValidationRules(2001, new RpcParameterValidationRules

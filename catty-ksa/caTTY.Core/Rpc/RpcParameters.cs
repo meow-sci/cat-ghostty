@@ -16,6 +16,12 @@ public record RpcParameters
     public string[] StringParameters { get; init; } = Array.Empty<string>();
 
     /// <summary>
+    /// JSON payload string for commands that accept arbitrary JSON data (e.g., command 1010).
+    /// This is parsed separately from the standard parameter structure.
+    /// </summary>
+    public string? JsonPayload { get; init; }
+
+    /// <summary>
     /// Extended parameters for complex commands (for future extensibility).
     /// </summary>
     public Dictionary<string, object> ExtendedParameters { get; init; } = new();
