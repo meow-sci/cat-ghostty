@@ -46,6 +46,21 @@ internal class GeneralSettingsMenuRenderer
         ImGui.Text("Display Settings");
         ImGui.Separator();
 
+        // UI Hiding Option
+        bool hideUi = _themeConfig.HideUiWhenNotHovered;
+        if (ImGui.Checkbox("Hide UI when not hovered", ref hideUi))
+        {
+          _themeConfig.HideUiWhenNotHovered = hideUi;
+          _themeConfig.Save();
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          ImGui.SetTooltip("When enabled, the window border and menu bar are hidden when the mouse is not\nhovering over the window (while focused). This provides a cleaner, borderless look.");
+        }
+
+        ImGui.Spacing();
+
         // Background Opacity Section
         ImGui.Text("Background Opacity:");
         int currentBgOpacityPercent = OpacityManager.GetBackgroundOpacityPercentage();

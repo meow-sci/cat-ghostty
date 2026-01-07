@@ -23,6 +23,12 @@ public class ThemeConfiguration
     public float BackgroundOpacity { get; set; } = 1.0f;
 
     /// <summary>
+    /// Whether to hide the window border and menu bar when the mouse is not hovered over the window.
+    /// Defaults to true for a cleaner look.
+    /// </summary>
+    public bool HideUiWhenNotHovered { get; set; } = true;
+
+    /// <summary>
     /// Foreground opacity setting for terminal text colors (0.0 to 1.0).
     /// </summary>
     public float ForegroundOpacity { get; set; } = 1.0f;

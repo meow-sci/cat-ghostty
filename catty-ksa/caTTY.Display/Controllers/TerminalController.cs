@@ -423,7 +423,14 @@ public class TerminalController : ITerminalController
       // Check if tab area is being interacted with (tracked from previous frame since tabs render after this check)
       bool isTabAreaActive = _tabs.IsTabAreaActive;
 
-      bool shouldShowUI = (HasFocus && _wasHoveredLastFrame) || _areMenusOpen || isAnyPopupOpen || isTabAreaActive;
+      // Determine UI visibility
+      // If HideUiWhenNotHovered is false (feature disabled), UI is always visible.
+      // Otherwise, UI is visible only when focused and hovered (or menus/popups/tabs active)
+      bool shouldShowUI = !_themeConfig.HideUiWhenNotHovered || 
+                          (HasFocus && _wasHoveredLastFrame) || 
+                          _areMenusOpen || 
+                          isAnyPopupOpen || 
+                          isTabAreaActive;
 
       // Hide border when UI should not be shown
       float borderSize = shouldShowUI ? 1.0f : 0.0f;
