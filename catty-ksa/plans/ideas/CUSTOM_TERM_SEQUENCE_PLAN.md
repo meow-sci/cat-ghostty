@@ -1,4 +1,6 @@
 
+# Vehicle actions
+
 public enum VehicleEngine{  MainIgnite,  MainShutdown,}
 
 public enum FlightComputerAction{  [XmlEnum("None")] None,  [XmlEnum("DeleteNextBurn")] DeleteNextBurn,  [XmlEnum("WarpToNextBurn")] WarpToNextBurn,}
@@ -16,3 +18,23 @@ public enum FlightComputerRollMode{  Decoupled,  Up,  Down,}
 public enum FlightComputerAttitudeMode{  Manual,  Auto,}
 
 public enum FlightComputerManualThrustMode{  Direct,  Pulse,}
+
+# global actions
+
+if (KSA.Input.Matches(glfwKeyEvent, InputAction.ToggleFps))
+{
+  GameSettings.Current.Interface.FrameStatistics = !GameSettings.Current.Interface.FrameStatistics;
+
+}
+if (KSA.Input.Matches(glfwKeyEvent, InputAction.ToggleUi))
+{
+  Program.DrawUI = !Program.DrawUI;
+}
+
+            Universe.IncreaseSimulationSpeed();
+            Universe.DecreaseSimulationSpeed();
+            Universe.ResetSimulationSpeed();
+              Universe.SeekNextVehicle(SeekDirection.Forward);
+            Universe.SeekNextVehicle(SeekDirection.Backward);
+            Universe.SeekNextCelestial(SeekDirection.Forward);
+            Universe.SeekNextCelestial(SeekDirection.Backward);

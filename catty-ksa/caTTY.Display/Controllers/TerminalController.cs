@@ -400,8 +400,18 @@ public class TerminalController : ITerminalController
 
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
-      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar;
+      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoTitleBar;
+
+      // Snap window size to exactly fit terminal content after resize operations
+      if (_resize.ShouldSnapThisFrame)
+      {
+        float2 targetSize = _resize.TargetWindowSize;
+        ImGui.SetNextWindowSize(targetSize, ImGuiCond.Always);
+        _resize.ClearSnap();
+      }
+
       ImGui.Begin("Terminal", ref _isVisible, windowFlags);
+
       ImGui.PopStyleVar();
       ImGui.PopStyleVar();
 
