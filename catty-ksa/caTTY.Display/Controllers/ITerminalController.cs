@@ -86,6 +86,11 @@ public interface ITerminalController : IDisposable
     bool CopySelectionToClipboard();
 
     /// <summary>
+    ///     Pastes text from the clipboard to the terminal.
+    /// </summary>
+    void PasteFromClipboard();
+
+    /// <summary>
     ///     Event raised when user input should be sent to the process.
     ///     The string contains the encoded bytes/escape sequences to send.
     /// </summary>

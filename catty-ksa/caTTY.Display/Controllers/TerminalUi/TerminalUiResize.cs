@@ -16,6 +16,7 @@ internal class TerminalUiResize
   private readonly TerminalDimensionCalculator _dimensionCalculator;
   private readonly FontResizeProcessor _fontResizeProcessor;
   private readonly SessionResizeApplicator _sessionResizeApplicator;
+  private readonly WindowAutoSizeSnapper _autoSizeSnapper;
 
   public TerminalUiResize(SessionManager sessionManager, TerminalUiFonts fonts)
   {
@@ -25,19 +26,37 @@ internal class TerminalUiResize
     // Initialize components
     _dimensionCalculator = new TerminalDimensionCalculator(fonts);
     _sessionResizeApplicator = new SessionResizeApplicator(sessionManager);
+    _autoSizeSnapper = new WindowAutoSizeSnapper();
+
+    // Create callback for when resize completes - triggers window snap
+    Action<int, int> onResizeComplete = (cols, rows) =>
+    {
+      // Calculate header height to match what CalculateTerminalDimensions uses:
+      // Menu bar + Tab area + Window padding (top & bottom)
+      // This MUST match the calculation in TerminalDimensionCalculator.CalculateTerminalDimensions
+      float menuBarHeight = LayoutConstants.MENU_BAR_HEIGHT;     // 25.0f
+      float tabAreaHeight = LayoutConstants.TAB_AREA_HEIGHT;     // 50.0f
+      float windowPadding = LayoutConstants.WINDOW_PADDING * 2;  // 20.0f (top + bottom)
+
+      float headerHeight = menuBarHeight + tabAreaHeight + windowPadding;  // 95.0f total
+
+      TriggerSnapToSize(cols, rows, headerHeight);
+    };
 
     // Initialize window resize handler with dependencies
     _windowResizeHandler = new WindowResizeHandler(
       sessionManager,
       _dimensionCalculator.CalculateTerminalDimensions,
-      _sessionResizeApplicator.ApplyTerminalDimensionsToAllSessions
+      _sessionResizeApplicator.ApplyTerminalDimensionsToAllSessions,
+      onResizeComplete
     );
 
     // Initialize font resize processor
     _fontResizeProcessor = new FontResizeProcessor(
       sessionManager,
       _dimensionCalculator,
-      _windowResizeHandler
+      _windowResizeHandler,
+      onResizeComplete
     );
   }
 
@@ -45,6 +64,41 @@ internal class TerminalUiResize
   ///     Gets whether a font-triggered resize is pending.
   /// </summary>
   public bool IsFontResizePending => _fontResizeProcessor.IsFontResizePending;
+
+  /// <summary>
+  ///     Gets whether a snap should occur this frame.
+  /// </summary>
+  public bool ShouldSnapThisFrame => _autoSizeSnapper.ShouldSnapThisFrame;
+
+  /// <summary>
+  ///     Gets the target window size for snapping.
+  /// </summary>
+  public float2 TargetWindowSize => _autoSizeSnapper.TargetWindowSize;
+
+  /// <summary>
+  ///     Clears the snap pending flag after it has been applied.
+  ///     Also notifies the resize handler to ignore window changes caused by the snap.
+  /// </summary>
+  public void ClearSnap()
+  {
+    _autoSizeSnapper.ClearSnap();
+    _windowResizeHandler.NotifySnapApplied();
+  }
+
+  /// <summary>
+  ///     Triggers window size snapping with current terminal dimensions and font metrics.
+  /// </summary>
+  /// <param name="cols">Terminal width in columns</param>
+  /// <param name="rows">Terminal height in rows</param>
+  /// <param name="headerHeight">Total height of headers (menu + tabs + settings)</param>
+  public void TriggerSnapToSize(int cols, int rows, float headerHeight)
+  {
+    // Get current font metrics
+    float charWidth = _dimensionCalculator.CharacterWidth;
+    float lineHeight = _dimensionCalculator.LineHeight;
+
+    _autoSizeSnapper.TriggerSnap(cols, rows, charWidth, lineHeight, headerHeight);
+  }
 
   /// <summary>
   ///     Handles window resize events by detecting size changes and triggering terminal dimension updates.

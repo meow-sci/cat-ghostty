@@ -43,8 +43,6 @@ internal class FontMetricsCalculator
   {
     try
     {
-      Console.WriteLine($"FontMetricsCalculator: Calculating character metrics using font size: {fontSize}");
-
       // Use the regular font for metric calculations
       ImGui.PushFont(regularFont, fontSize);
 
@@ -65,11 +63,11 @@ internal class FontMetricsCalculator
 
         // Calculate line height using a standard character
         var lineSize = ImGui.CalcTextSize("M");
-        // CRITICAL FIX: Use exact font height without extra spacing to prevent gaps between rows
-        // Terminal emulators should have tight line spacing with no gaps
-        _currentLineHeight = (float)Math.Round(lineSize.Y);
 
-        Console.WriteLine($"FontMetricsCalculator: Calculated metrics from font - CharWidth: {_currentCharacterWidth:F1}, LineHeight: {_currentLineHeight:F1}");
+        // CRITICAL: Don't round at all - use the exact value ImGui gives us
+        // Rounding causes mismatches between our calculations and ImGui's actual rendering
+        // ImGui uses the full fractional height when rendering text
+        _currentLineHeight = lineSize.Y;
       }
       finally
       {
@@ -83,8 +81,6 @@ internal class FontMetricsCalculator
       // Fallback to DPI-based metrics from config
       _currentCharacterWidth = _config.CharacterWidth;
       _currentLineHeight = _config.LineHeight;
-
-      Console.WriteLine($"FontMetricsCalculator: Using fallback metrics from config - CharWidth: {_currentCharacterWidth:F1}, LineHeight: {_currentLineHeight:F1}");
     }
   }
 

@@ -489,10 +489,29 @@ public class OscParserTests
     }
 
     [Test]
+    public void ProcessOscByte_PrivateCommandNumber_ReturnsImplementedMessage()
+    {
+        // Arrange - OSC with private-use command number (1000+)
+        // Commands 1000+ are used for private/application-specific purposes (e.g., RPC)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x30, 0x30, 0x3b, 0x74, 0x65, 0x73, 0x74 }; // ESC ] 1000;test
+        byte b = 0x07; // BEL
+
+        // Act
+        bool isComplete = _parser.ProcessOscByte(b, escapeSequence, out OscMessage? message);
+
+        // Assert - private commands are implemented and handled by RPC layer
+        Assert.That(isComplete, Is.True);
+        Assert.That(message, Is.Not.Null);
+        Assert.That(message!.XtermMessage, Is.Not.Null);
+        Assert.That(message.XtermMessage!.Type, Is.EqualTo("osc.private"));
+        Assert.That(message.XtermMessage.Implemented, Is.True);
+    }
+
+    [Test]
     public void ProcessOscByte_InvalidCommandNumber_ReturnsUnimplementedMessage()
     {
-        // Arrange - OSC with invalid command number (1000, > 999)
-        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x30, 0x30, 0x3b, 0x74, 0x65, 0x73, 0x74 }; // ESC ] 1000;test
+        // Arrange - OSC with invalid command number (10000, > 9999)
+        var escapeSequence = new List<byte> { 0x1b, 0x5d, 0x31, 0x30, 0x30, 0x30, 0x30, 0x3b, 0x74, 0x65, 0x73, 0x74 }; // ESC ] 10000;test
         byte b = 0x07; // BEL
 
         // Act

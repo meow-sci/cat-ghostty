@@ -1,0 +1,1 @@
+When there's only one session active dont paint the tab bar.

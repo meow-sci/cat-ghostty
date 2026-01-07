@@ -22,6 +22,16 @@ internal class TerminalDimensionCalculator
   }
 
   /// <summary>
+  ///     Gets the current character width from font metrics.
+  /// </summary>
+  public float CharacterWidth => _fonts.CurrentCharacterWidth;
+
+  /// <summary>
+  ///     Gets the current line height from font metrics.
+  /// </summary>
+  public float LineHeight => _fonts.CurrentLineHeight;
+
+  /// <summary>
   ///     Calculates optimal terminal dimensions based on available window space.
   ///     Uses character metrics to determine how many columns and rows can fit.
   ///     Accounts for the complete UI layout structure: menu bar, tab area, terminal info, and padding.

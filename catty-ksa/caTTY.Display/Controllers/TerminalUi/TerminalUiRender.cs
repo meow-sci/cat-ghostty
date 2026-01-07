@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Core.Types;
@@ -16,11 +18,21 @@ internal class TerminalUiRender
 {
   private readonly TerminalUiFonts _fonts;
   private readonly CursorRenderer _cursorRenderer;
+  private readonly Performance.PerformanceStopwatch _perfWatch;
+  private readonly CachedColorResolver _colorResolver;
+  private readonly StyleManager _styleManager;
+  
+  // Reusable buffers to avoid per-frame allocations
+  private ReadOnlyMemory<Cell>[] _screenBufferCache = [];
+  private readonly List<ReadOnlyMemory<Cell>> _viewportRowsCache = new(256);
 
-  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer)
+  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, CachedColorResolver colorResolver, StyleManager styleManager)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _cursorRenderer = cursorRenderer ?? throw new ArgumentNullException(nameof(cursorRenderer));
+    _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
+    _colorResolver = colorResolver ?? throw new ArgumentNullException(nameof(colorResolver));
+    _styleManager = styleManager ?? throw new ArgumentNullException(nameof(styleManager));
   }
 
   /// <summary>
@@ -34,7 +46,8 @@ internal class TerminalUiRender
     out float2 lastTerminalOrigin,
     out float2 lastTerminalSize,
     Action handleMouseInputForTerminal,
-    Action handleMouseTrackingForApplications)
+    Action handleMouseTrackingForApplications,
+    Action renderContextMenu)
   {
     var activeSession = sessionManager.ActiveSession;
     if (activeSession == null)
@@ -47,7 +60,9 @@ internal class TerminalUiRender
     }
 
     // Push terminal content font for this rendering section
+//    _perfWatch.Start("Font.Push");
     _fonts.PushTerminalContentFont(out bool terminalFontUsed);
+//    _perfWatch.Stop("Font.Push");
 
     try
     {
@@ -68,6 +83,13 @@ internal class TerminalUiRender
       bool terminalHovered = ImGui.IsItemHovered();
       bool terminalActive = ImGui.IsItemActive();
 
+      // Open context menu popup on right-click of the invisible button
+      // MUST be called immediately after InvisibleButton while it's still the "last item"
+      if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+      {
+        ImGui.OpenPopup("terminal_context_menu");
+      }
+
       // Get the draw position after the invisible button
       float2 terminalDrawPos = windowPos;
 
@@ -75,44 +97,381 @@ internal class TerminalUiRender
       // No need to draw a separate terminal background rectangle
 
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
-      var screenBuffer = new ReadOnlyMemory<Cell>[activeSession.Terminal.Height];
-      for (int i = 0; i < activeSession.Terminal.Height; i++)
+//      _perfWatch.Start("GetViewportRows");
+      
+      // Ensure screen buffer cache is the right size
+      int terminalRowCount = activeSession.Terminal.Height;
+      if (_screenBufferCache.Length != terminalRowCount)
       {
-        var rowSpan = activeSession.Terminal.ScreenBuffer.GetRow(i);
-        var rowArray = new Cell[rowSpan.Length];
-        rowSpan.CopyTo(rowArray);
-        screenBuffer[i] = rowArray.AsMemory();
+        _screenBufferCache = new ReadOnlyMemory<Cell>[terminalRowCount];
+      }
+      
+      // Get row memory references directly from ScreenBuffer - no allocation!
+      for (int i = 0; i < terminalRowCount; i++)
+      {
+        _screenBufferCache[i] = activeSession.Terminal.ScreenBuffer.GetRowMemory(i);
       }
 
       // Get the viewport rows that should be displayed (combines scrollback + screen buffer)
       var isAlternateScreenActive = ((TerminalEmulator)activeSession.Terminal).State.IsAlternateScreenActive;
-      var viewportRows = activeSession.Terminal.ScrollbackManager.GetViewportRows(
-          screenBuffer,
+      activeSession.Terminal.ScrollbackManager.GetViewportRowsNonAlloc(
+          _screenBufferCache,
           isAlternateScreenActive,
-          activeSession.Terminal.Height
+          terminalRowCount,
+          _viewportRowsCache
       );
+      var viewportRows = _viewportRowsCache;
+//      _perfWatch.Stop("GetViewportRows");
+
+      // Check if we're viewing the live screen buffer (not scrolled into scrollback history)
+      // This enables dirty row tracking optimization
+      // - In alternate screen mode: always viewing live buffer (no scrollback)
+      // - In primary screen mode: only when auto-scroll is enabled (not scrolled up)
+      bool isViewingLiveScreen = isAlternateScreenActive || activeSession.Terminal.IsAutoScrollEnabled;
+      bool canUseDirtyTracking = isViewingLiveScreen;
 
       // Render each cell from the viewport content
-      for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
-      {
-        var rowMemory = viewportRows[row];
-        var rowSpan = rowMemory.Span;
+//      _perfWatch.Start("CellRenderingLoop");
+      int terminalWidthCells = activeSession.Terminal.Width;
+      char[] runChars = ArrayPool<char>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      float4[] foregroundColors = ArrayPool<float4>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      SgrAttributes[] cellAttributes = ArrayPool<SgrAttributes>.Shared.Rent(Math.Max(terminalWidthCells, 1));
+      bool[] isSelectedByCol = ArrayPool<bool>.Shared.Rent(Math.Max(terminalWidthCells, 1));
 
-        for (int col = 0; col < Math.Min(rowSpan.Length, activeSession.Terminal.Width); col++)
+      try
+      {
+        for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
         {
-          Cell cell = rowSpan[col];
-          RenderCell(drawList, terminalDrawPos, row, col, cell, currentCharacterWidth, currentLineHeight, currentSelection);
+          var rowMemory = viewportRows[row];
+          var rowSpan = rowMemory.Span;
+          int colsToRender = Math.Min(rowSpan.Length, terminalWidthCells);
+
+          int runStartCol = 0;
+          int runLength = 0;
+          uint runColorU32 = 0;
+          ImFontPtr runFont = default;
+
+          // Background run tracking for batching contiguous same-color backgrounds
+          int bgRunStartCol = -1;
+          int bgRunLength = 0;
+          uint bgRunColorU32 = 0;
+
+          void FlushBackgroundRun()
+          {
+            if (bgRunLength <= 0)
+              return;
+
+            float bgX = terminalDrawPos.X + (bgRunStartCol * currentCharacterWidth);
+            float bgY = terminalDrawPos.Y + (row * currentLineHeight);
+            float bgWidth = bgRunLength * currentCharacterWidth;
+            float bgHeight = currentLineHeight;
+
+            drawList.AddRectFilled(
+              new float2(bgX, bgY),
+              new float2(bgX + bgWidth, bgY + bgHeight),
+              bgRunColorU32
+            );
+
+            bgRunLength = 0;
+            bgRunStartCol = -1;
+          }
+
+          void FlushRun()
+          {
+            if (runLength <= 0)
+              return;
+
+            // IMPORTANT: Flush backgrounds BEFORE text to ensure correct draw order
+            FlushBackgroundRun();
+
+//            _perfWatch.Start("RenderCell.FlushRun");
+
+            float runY = terminalDrawPos.Y + (row * currentLineHeight);
+
+//            _perfWatch.Start("Font.SelectAndRender");
+//            _perfWatch.Start("Font.SelectAndRender.PushFont");
+            ImGui.PushFont(runFont, _fonts.CurrentFontConfig.FontSize);
+//            _perfWatch.Stop("Font.SelectAndRender.PushFont");
+            try
+            {
+//              _perfWatch.Start("Font.SelectAndRender.AddText");
+              // Render each character at its exact grid position to prevent drift
+              // caused by font glyph advance widths not matching currentCharacterWidth.
+              // This fixes character shifting when selection changes run boundaries.
+              for (int i = 0; i < runLength; i++)
+              {
+                float charX = terminalDrawPos.X + ((runStartCol + i) * currentCharacterWidth);
+                var charPos = new float2(charX, runY);
+                drawList.AddText(charPos, runColorU32, runChars[i].ToString());
+              }
+//              _perfWatch.Stop("Font.SelectAndRender.AddText");
+            }
+            finally
+            {
+//              _perfWatch.Start("Font.SelectAndRender.PopFont");
+              ImGui.PopFont();
+//              _perfWatch.Stop("Font.SelectAndRender.PopFont");
+//              _perfWatch.Stop("Font.SelectAndRender");
+            }
+
+            // Decorations must be drawn after text to preserve existing draw order.
+//            _perfWatch.Start("RenderCell.FlushRun.DecorationsLoop");
+            for (int i = 0; i < runLength; i++)
+            {
+              int col = runStartCol + i;
+              if (col < 0 || col >= colsToRender)
+                continue;
+
+              if (isSelectedByCol[col])
+                continue;
+
+              var attrs = cellAttributes[col];
+              var fgColor = foregroundColors[col];
+              float x = terminalDrawPos.X + (col * currentCharacterWidth);
+              float y = terminalDrawPos.Y + (row * currentLineHeight);
+              var pos = new float2(x, y);
+
+              if (_styleManager.ShouldRenderUnderline(attrs))
+              {
+//                _perfWatch.Start("RenderDecorations");
+                RenderUnderline(drawList, pos, attrs, fgColor, currentCharacterWidth, currentLineHeight);
+//                _perfWatch.Stop("RenderDecorations");
+              }
+
+              if (_styleManager.ShouldRenderStrikethrough(attrs))
+              {
+//                _perfWatch.Start("RenderDecorations");
+                RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
+//                _perfWatch.Stop("RenderDecorations");
+              }
+            }
+
+//            _perfWatch.Stop("RenderCell.FlushRun.DecorationsLoop");
+
+            runLength = 0;
+
+//            _perfWatch.Stop("RenderCell.FlushRun");
+          }
+
+          // Pre-compute whether this row might have any selection overlap
+          bool rowMightHaveSelection = currentSelection.RowMightBeSelected(row);
+
+          // EARLY EXIT: Skip rows with no content and no selection
+          if (!rowMightHaveSelection && !RowHasContent(rowSpan))
+          {
+            continue;
+          }
+
+          // DIRTY ROW OPTIMIZATION: Skip clean rows that have no content requiring rendering
+          // This only applies when viewing the live screen buffer (not scrollback)
+          // Clean rows with no content can be safely skipped because nothing needs to be drawn
+          if (canUseDirtyTracking && !activeSession.Terminal.ScreenBuffer.IsRowDirty(row))
+          {
+            // Row hasn't changed since last render and has already been skipped
+            // (if it had content, it wouldn't pass the RowHasContent check above on future frames)
+            // For truly empty rows that haven't been modified, we can skip processing
+            if (!RowHasContent(rowSpan) && !rowMightHaveSelection)
+            {
+              continue;
+            }
+          }
+
+          for (int col = 0; col < colsToRender; col++)
+          {
+//            _perfWatch.Start("RenderCell");
+            try
+            {
+              Cell cell = rowSpan[col];
+
+              // EARLY EXIT: Skip completely default empty cells
+              // This is the most common case in typical terminal output
+              bool isEmptyChar = cell.Character == ' ' || cell.Character == '\0';
+              if (isEmptyChar && cell.Attributes.IsDefault)
+              {
+                // Quick selection check - only do full Contains() if row overlaps selection
+                if (!rowMightHaveSelection || !currentSelection.Contains(row, col))
+                {
+                  // Flush any pending text run before skipping
+                  FlushRun();
+                  continue;
+                }
+              }
+
+//              _perfWatch.Start("RenderCell.Setup");
+              float x = terminalDrawPos.X + (col * currentCharacterWidth);
+              float y = terminalDrawPos.Y + (row * currentLineHeight);
+              var pos = new float2(x, y);
+
+              // Check if this cell is selected
+//              _perfWatch.Start("RenderCell.SelectionCheck");
+              bool isSelected;
+              if (!rowMightHaveSelection)
+              {
+                isSelected = false;
+              }
+              else
+              {
+//                _perfWatch.Start("RenderCell.SelectionCheck.Contains");
+                isSelected = currentSelection.Contains(row, col);
+//                _perfWatch.Stop("RenderCell.SelectionCheck.Contains");
+              }
+//              _perfWatch.Stop("RenderCell.SelectionCheck");
+
+              isSelectedByCol[col] = isSelected;
+              cellAttributes[col] = cell.Attributes;
+//              _perfWatch.Stop("RenderCell.Setup");
+
+              // Resolve and process all colors in one fused call
+//              _perfWatch.Start("RenderCell.ResolveColors");
+              _colorResolver.ResolveCellColors(
+                  cell.Attributes,
+                  out uint fgColorU32,
+                  out uint cellBgColorU32,
+                  out bool needsBackground,
+                  out float4 fgColor);
+//              _perfWatch.Stop("RenderCell.ResolveColors");
+
+              foregroundColors[col] = fgColor;
+
+              // Handle selection - override colors if selected
+              if (isSelected)
+              {
+//                _perfWatch.Start("RenderCell.DrawSelection");
+                // Use selection colors - invert foreground and background for selected text
+                var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
+                var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
+
+                // Apply foreground opacity to selection foreground and cell background opacity to selection background
+                var bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+                fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
+                foregroundColors[col] = fgColor;
+
+                cellBgColorU32 = ImGui.ColorConvertFloat4ToU32(bgColor);
+                needsBackground = true;
+//                _perfWatch.Stop("RenderCell.DrawSelection");
+              }
+
+              // Batch background drawing
+              if (needsBackground)
+              {
+                bool canExtendRun = bgRunLength > 0
+                    && col == bgRunStartCol + bgRunLength
+                    && cellBgColorU32 == bgRunColorU32;
+
+                if (canExtendRun)
+                {
+                  bgRunLength++;
+                }
+                else
+                {
+                  FlushBackgroundRun();
+                  bgRunStartCol = col;
+                  bgRunLength = 1;
+                  bgRunColorU32 = cellBgColorU32;
+                }
+              }
+              else
+              {
+                FlushBackgroundRun();
+              }
+
+              // Draw character if not space or null (batched into runs)
+              if (cell.Character != ' ' && cell.Character != '\0')
+              {
+//                _perfWatch.Start("RenderCell.RunBatching");
+//                _perfWatch.Start("Font.SelectAndRender.SelectFont");
+                var font = _fonts.SelectFont(cell.Attributes);
+//                _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+
+//                _perfWatch.Start("RenderCell.ConvertFgToU32");
+                uint fgU32 = ImGui.ColorConvertFloat4ToU32(foregroundColors[col]);
+//                _perfWatch.Stop("RenderCell.ConvertFgToU32");
+
+                if (runLength == 0)
+                {
+                  runStartCol = col;
+                  runFont = font;
+                  runColorU32 = fgU32;
+                  runChars[0] = cell.Character;
+                  runLength = 1;
+                }
+                else
+                {
+//                  _perfWatch.Start("RenderCell.RunBatching.MergeDecision");
+                  bool isContiguous = col == runStartCol + runLength;
+                  bool sameFont = runFont.Equals(font);
+                  bool sameColor = runColorU32 == fgU32;
+
+//                  _perfWatch.Stop("RenderCell.RunBatching.MergeDecision");
+
+                  if (isContiguous && sameFont && sameColor)
+                  {
+                    runChars[runLength] = cell.Character;
+                    runLength++;
+                  }
+                  else
+                  {
+                    FlushRun();
+                    runStartCol = col;
+                    runFont = font;
+                    runColorU32 = fgU32;
+                    runChars[0] = cell.Character;
+                    runLength = 1;
+                  }
+                }
+
+//                _perfWatch.Stop("RenderCell.RunBatching");
+              }
+              else
+              {
+                FlushRun();
+              }
+            }
+            finally
+            {
+//              _perfWatch.Stop("RenderCell");
+            }
+          }
+
+          // FlushRun internally calls FlushBackgroundRun first to ensure correct draw order
+          FlushRun();
+          // Final background flush in case there's a trailing background with no text
+          FlushBackgroundRun();
         }
+      }
+      finally
+      {
+        ArrayPool<char>.Shared.Return(runChars);
+        ArrayPool<float4>.Shared.Return(foregroundColors);
+        ArrayPool<SgrAttributes>.Shared.Return(cellAttributes);
+        ArrayPool<bool>.Shared.Return(isSelectedByCol);
+      }
+//      _perfWatch.Stop("CellRenderingLoop");
+
+      // Clear dirty flags after rendering (only when viewing current screen, not scrollback)
+      // This marks all rows as "clean" so the next frame can detect new changes
+      if (canUseDirtyTracking)
+      {
+        // Only clear when viewing current screen buffer content (not scrolled into history)
+        activeSession.Terminal.ScreenBuffer.ClearDirtyFlags();
       }
 
       // Render cursor
+//      _perfWatch.Start("RenderCursor");
       RenderCursor(drawList, terminalDrawPos, activeSession, currentCharacterWidth, currentLineHeight);
+//      _perfWatch.Stop("RenderCursor");
 
       // Handle mouse input only when the invisible button is hovered/active
       if (terminalHovered || terminalActive)
       {
+//        _perfWatch.Start("HandleMouseInput");
         handleMouseInputForTerminal();
+//        _perfWatch.Stop("HandleMouseInput");
       }
+
+      // ALWAYS render the context menu popup (even when not hovering)
+      // This is necessary because when the popup is open, we're no longer hovering the terminal
+      renderContextMenu();
 
       // Also handle mouse tracking for applications (this works regardless of hover state)
       handleMouseTrackingForApplications();
@@ -128,77 +487,105 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderCell(ImDrawListPtr drawList, float2 windowPos, int row, int col, Cell cell, float currentCharacterWidth, float currentLineHeight, TextSelection currentSelection)
   {
-    float x = windowPos.X + (col * currentCharacterWidth);
-    float y = windowPos.Y + (row * currentLineHeight);
-    var pos = new float2(x, y);
+//    _perfWatch.Start("RenderCell");
+    try
+    {
+//      _perfWatch.Start("RenderCell.Setup");
+      float x = windowPos.X + (col * currentCharacterWidth);
+      float y = windowPos.Y + (row * currentLineHeight);
+      var pos = new float2(x, y);
 
-    // Check if this cell is selected
-    bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
+      // Check if this cell is selected
+      bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
+//      _perfWatch.Stop("RenderCell.Setup");
 
-    // Resolve colors using the new color resolution system
-    float4 baseForeground = ColorResolver.Resolve(cell.Attributes.ForegroundColor, false);
-    float4 baseBackground = ColorResolver.Resolve(cell.Attributes.BackgroundColor, true);
-
-    // Apply SGR attributes to colors
-    var (fgColor, bgColor) = StyleManager.ApplyAttributes(cell.Attributes, baseForeground, baseBackground);
-
-    // Apply foreground opacity to foreground colors and cell background opacity to background colors
-    fgColor = OpacityManager.ApplyForegroundOpacity(fgColor);
-    bgColor = OpacityManager.ApplyCellBackgroundOpacity(bgColor);
+      // Resolve and process all colors in one fused call
+//      _perfWatch.Start("RenderCell.ResolveColors");
+      _colorResolver.ResolveCellColors(
+          cell.Attributes,
+          out uint fgColorU32,
+          out uint bgColorU32,
+          out bool needsBackground,
+          out float4 fgColor);
+//      _perfWatch.Stop("RenderCell.ResolveColors");
 
     // Apply selection highlighting or draw background only when needed
     if (isSelected)
     {
+//      _perfWatch.Start("RenderCell.DrawSelection");
       // Use selection colors - invert foreground and background for selected text
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
 
       // Apply foreground opacity to selection foreground and cell background opacity to selection background
-      bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+      var bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
       fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
+      fgColorU32 = ImGui.ColorConvertFloat4ToU32(fgColor);
 
       // Always draw background for selected cells
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
       drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+//      _perfWatch.Stop("RenderCell.DrawSelection");
     }
-    else if (cell.Attributes.BackgroundColor.HasValue)
+    else if (needsBackground)
     {
+//      _perfWatch.Start("RenderCell.DrawBackground");
       // Only draw background when SGR sequences have set a specific background color
       // This allows the theme background to show through for cells without explicit background colors
       var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-      drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
+      drawList.AddRectFilled(pos, bgRect, bgColorU32);
+//      _perfWatch.Stop("RenderCell.DrawBackground");
     }
     // Note: When no SGR background color is set and cell is not selected,
     // the ImGui window background (theme background) will show through
 
-    // Draw character if not space or null
-    if (cell.Character != ' ' && cell.Character != '\0')
+      // Draw character if not space or null
+      if (cell.Character != ' ' && cell.Character != '\0')
+      {
+        // Select appropriate font based on SGR attributes
+//        _perfWatch.Start("Font.SelectAndRender");
+//        _perfWatch.Start("Font.SelectAndRender.SelectFont");
+        var font = _fonts.SelectFont(cell.Attributes);
+//        _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+
+        // Draw the character with selected font using proper PushFont/PopFont pattern
+//        _perfWatch.Start("Font.SelectAndRender.PushFont");
+        ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
+//        _perfWatch.Stop("Font.SelectAndRender.PushFont");
+        try
+        {
+//          _perfWatch.Start("Font.SelectAndRender.AddText");
+          drawList.AddText(pos, fgColorU32, cell.Character.ToString());
+//          _perfWatch.Stop("Font.SelectAndRender.AddText");
+        }
+        finally
+        {
+//          _perfWatch.Start("Font.SelectAndRender.PopFont");
+          ImGui.PopFont();
+//          _perfWatch.Stop("Font.SelectAndRender.PopFont");
+        }
+//        _perfWatch.Stop("Font.SelectAndRender");
+
+        // Draw underline if needed (but not for selected text to avoid visual clutter)
+        if (!isSelected && _styleManager.ShouldRenderUnderline(cell.Attributes))
+        {
+//          _perfWatch.Start("RenderDecorations");
+          RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
+//          _perfWatch.Stop("RenderDecorations");
+        }
+
+        // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
+        if (!isSelected && _styleManager.ShouldRenderStrikethrough(cell.Attributes))
+        {
+//          _perfWatch.Start("RenderDecorations");
+          RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
+//          _perfWatch.Stop("RenderDecorations");
+        }
+      }
+    }
+    finally
     {
-      // Select appropriate font based on SGR attributes
-      var font = _fonts.SelectFont(cell.Attributes);
-
-      // Draw the character with selected font using proper PushFont/PopFont pattern
-      ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
-      try
-      {
-        drawList.AddText(pos, ImGui.ColorConvertFloat4ToU32(fgColor), cell.Character.ToString());
-      }
-      finally
-      {
-        ImGui.PopFont();
-      }
-
-      // Draw underline if needed (but not for selected text to avoid visual clutter)
-      if (!isSelected && StyleManager.ShouldRenderUnderline(cell.Attributes))
-      {
-        RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
-      }
-
-      // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
-      if (!isSelected && StyleManager.ShouldRenderStrikethrough(cell.Attributes))
-      {
-        RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
-      }
+//      _perfWatch.Stop("RenderCell");
     }
   }
 
@@ -245,50 +632,58 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    float4 underlineColor = StyleManager.GetUnderlineColor(attributes, foregroundColor);
-    underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
-    float thickness = StyleManager.GetUnderlineThickness(attributes.UnderlineStyle);
-
-    float underlineY = pos.Y + currentLineHeight - 2;
-    var underlineStart = new float2(pos.X, underlineY);
-    var underlineEnd = new float2(pos.X + currentCharacterWidth, underlineY);
-
-    switch (attributes.UnderlineStyle)
+//    _perfWatch.Start("RenderUnderline");
+    try
     {
-      case UnderlineStyle.Single:
-        uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
-        float singleThickness = Math.Max(3.0f, thickness);
-        drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
-        break;
+      float4 underlineColor = _styleManager.GetUnderlineColor(attributes, foregroundColor);
+      underlineColor = OpacityManager.ApplyForegroundOpacity(underlineColor);
+      float thickness = _styleManager.GetUnderlineThickness(attributes.UnderlineStyle);
 
-      case UnderlineStyle.Double:
-        // Draw two lines for double underline with proper spacing
-        uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
-        float doubleThickness = Math.Max(3.0f, thickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      var underlineStart = new float2(pos.X, underlineY);
+      var underlineEnd = new float2(pos.X + currentCharacterWidth, underlineY);
 
-        // First line (bottom) - same position as single underline
-        drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
+      switch (attributes.UnderlineStyle)
+      {
+        case UnderlineStyle.Single:
+          uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+          float singleThickness = Math.Max(3.0f, thickness);
+          drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
+          break;
 
-        // Second line (top) - spaced 4 pixels above the first for better visibility
-        var doubleStart = new float2(pos.X, underlineY - 4);
-        var doubleEnd = new float2(pos.X + currentCharacterWidth, underlineY - 4);
-        drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
-        break;
+        case UnderlineStyle.Double:
+          // Draw two lines for double underline with proper spacing
+          uint doubleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
+          float doubleThickness = Math.Max(3.0f, thickness);
 
-      case UnderlineStyle.Curly:
-        // Draw wavy line using bezier curves for a smooth curly effect
-        RenderCurlyUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+          // First line (bottom) - same position as single underline
+          drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
 
-      case UnderlineStyle.Dotted:
-        // Draw dotted line using small segments with spacing
-        RenderDottedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+          // Second line (top) - spaced 4 pixels above the first for better visibility
+          var doubleStart = new float2(pos.X, underlineY - 4);
+          var doubleEnd = new float2(pos.X + currentCharacterWidth, underlineY - 4);
+          drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
+          break;
 
-      case UnderlineStyle.Dashed:
-        // Draw dashed line using longer segments with spacing
-        RenderDashedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
-        break;
+        case UnderlineStyle.Curly:
+          // Draw wavy line using bezier curves for a smooth curly effect
+          RenderCurlyUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+
+        case UnderlineStyle.Dotted:
+          // Draw dotted line using small segments with spacing
+          RenderDottedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+
+        case UnderlineStyle.Dashed:
+          // Draw dashed line using longer segments with spacing
+          RenderDashedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          break;
+      }
+    }
+    finally
+    {
+//      _perfWatch.Stop("RenderUnderline");
     }
   }
 
@@ -297,13 +692,21 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
-    // Apply foreground opacity to strikethrough color
-    foregroundColor = OpacityManager.ApplyForegroundOpacity(foregroundColor);
+//    _perfWatch.Start("RenderStrikethrough");
+    try
+    {
+      // Apply foreground opacity to strikethrough color
+      foregroundColor = OpacityManager.ApplyForegroundOpacity(foregroundColor);
 
-    float strikeY = pos.Y + (currentLineHeight / 2);
-    var strikeStart = new float2(pos.X, strikeY);
-    var strikeEnd = new float2(pos.X + currentCharacterWidth, strikeY);
-    drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+      float strikeY = pos.Y + (currentLineHeight / 2);
+      var strikeStart = new float2(pos.X, strikeY);
+      var strikeEnd = new float2(pos.X + currentCharacterWidth, strikeY);
+      drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+    }
+    finally
+    {
+//      _perfWatch.Stop("RenderStrikethrough");
+    }
   }
 
   /// <summary>
@@ -341,20 +744,28 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    float underlineY = pos.Y + currentLineHeight - 2;
-    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-    float dottedThickness = Math.Max(3.0f, thickness);
-
-    float dotSize = 3.0f; // Increased dot size for better visibility
-    float spacing = 3.0f; // Increased spacing for clearer separation
-    float totalStep = dotSize + spacing;
-
-    for (float x = pos.X; x < pos.X + currentCharacterWidth - dotSize; x += totalStep)
+//    _perfWatch.Start("RenderDottedUnderline");
+    try
     {
-      float dotEnd = Math.Min(x + dotSize, pos.X + currentCharacterWidth);
-      var dotStart = new float2(x, underlineY);
-      var dotEndPos = new float2(dotEnd, underlineY);
-      drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+      float dottedThickness = Math.Max(3.0f, thickness);
+
+      float dotSize = 3.0f; // Increased dot size for better visibility
+      float spacing = 3.0f; // Increased spacing for clearer separation
+      float totalStep = dotSize + spacing;
+
+      for (float x = pos.X; x < pos.X + currentCharacterWidth - dotSize; x += totalStep)
+      {
+        float dotEnd = Math.Min(x + dotSize, pos.X + currentCharacterWidth);
+        var dotStart = new float2(x, underlineY);
+        var dotEndPos = new float2(dotEnd, underlineY);
+        drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
+      }
+    }
+    finally
+    {
+//      _perfWatch.Stop("RenderDottedUnderline");
     }
   }
 
@@ -363,20 +774,54 @@ internal class TerminalUiRender
   /// </summary>
   public void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
   {
-    float underlineY = pos.Y + currentLineHeight - 2;
-    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-    float dashedThickness = Math.Max(3.0f, thickness);
-
-    float dashSize = 6.0f; // Increased dash length for better visibility
-    float spacing = 4.0f; // Increased spacing for clearer separation
-    float totalStep = dashSize + spacing;
-
-    for (float x = pos.X; x < pos.X + currentCharacterWidth - dashSize; x += totalStep)
+//    _perfWatch.Start("RenderDashedUnderline");
+    try
     {
-      float dashEnd = Math.Min(x + dashSize, pos.X + currentCharacterWidth);
-      var dashStart = new float2(x, underlineY);
-      var dashEndPos = new float2(dashEnd, underlineY);
-      drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+      float underlineY = pos.Y + currentLineHeight - 2;
+      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
+      float dashedThickness = Math.Max(3.0f, thickness);
+
+      float dashSize = 6.0f; // Increased dash length for better visibility
+      float spacing = 4.0f; // Increased spacing for clearer separation
+      float totalStep = dashSize + spacing;
+
+      for (float x = pos.X; x < pos.X + currentCharacterWidth - dashSize; x += totalStep)
+      {
+        float dashEnd = Math.Min(x + dashSize, pos.X + currentCharacterWidth);
+        var dashStart = new float2(x, underlineY);
+        var dashEndPos = new float2(dashEnd, underlineY);
+        drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
+      }
     }
+    finally
+    {
+//      _perfWatch.Stop("RenderDashedUnderline");
+    }
+  }
+
+  /// <summary>
+  ///     Checks if a row has any content that requires rendering.
+  ///     Returns true if any cell has a non-space character or non-default attributes.
+  /// </summary>
+  [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+  private static bool RowHasContent(ReadOnlySpan<Cell> rowSpan)
+  {
+    for (int i = 0; i < rowSpan.Length; i++)
+    {
+      ref readonly var cell = ref rowSpan[i];
+
+      // Non-empty character?
+      if (cell.Character != ' ' && cell.Character != '\0')
+        return true;
+
+      // Has explicit background color? (needs to draw background)
+      if (cell.Attributes.BackgroundColor.HasValue)
+        return true;
+
+      // Has attributes that affect empty cells? (inverse makes spaces visible)
+      if (cell.Attributes.Inverse)
+        return true;
+    }
+    return false;
   }
 }

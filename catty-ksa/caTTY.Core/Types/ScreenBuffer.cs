@@ -1,12 +1,30 @@
+using System.Collections;
+
 namespace caTTY.Core.Types;
 
 /// <summary>
-///     Implementation of IScreenBuffer using a simple 2D array of cells.
+///     Implementation of IScreenBuffer using a jagged array of cells.
+///     This allows GetRow() to return spans without allocation.
 ///     All cells are initialized to the default empty cell (space character).
+///     Includes dirty row tracking for incremental rendering optimization.
 /// </summary>
 public class ScreenBuffer : IScreenBuffer
 {
-    private readonly Cell[,] _cells;
+    private Cell[][] _rows;
+    private int _width;
+    private int _height;
+    
+    /// <summary>
+    ///     Tracks which rows have been modified since last ClearDirtyFlags().
+    ///     Used for incremental rendering optimization.
+    /// </summary>
+    private BitArray _dirtyRows;
+    
+    /// <summary>
+    ///     Cached flag indicating if any row is dirty.
+    ///     Avoids scanning the entire BitArray when no changes have occurred.
+    /// </summary>
+    private bool _anyRowDirty;
 
     /// <summary>
     ///     Creates a new screen buffer with the specified dimensions.
@@ -27,9 +45,19 @@ public class ScreenBuffer : IScreenBuffer
             throw new ArgumentOutOfRangeException(nameof(height), "Height must be at least 1");
         }
 
-        Width = width;
-        Height = height;
-        _cells = new Cell[height, width];
+        _width = width;
+        _height = height;
+        
+        // Use jagged array for efficient row access without allocation
+        _rows = new Cell[height][];
+        for (int row = 0; row < height; row++)
+        {
+            _rows[row] = new Cell[width];
+        }
+
+        // Initialize dirty tracking - all rows start dirty to force initial render
+        _dirtyRows = new BitArray(height, true);
+        _anyRowDirty = true;
 
         // Initialize all cells to empty (space character)
         Clear();
@@ -38,12 +66,12 @@ public class ScreenBuffer : IScreenBuffer
     /// <summary>
     ///     Gets the width of the screen buffer in columns.
     /// </summary>
-    public int Width { get; }
+    public int Width => _width;
 
     /// <summary>
     ///     Gets the height of the screen buffer in rows.
     /// </summary>
-    public int Height { get; }
+    public int Height => _height;
 
     /// <summary>
     ///     Gets the cell at the specified position.
@@ -59,7 +87,7 @@ public class ScreenBuffer : IScreenBuffer
             return Cell.Empty;
         }
 
-        return _cells[row, col];
+        return _rows[row][col];
     }
 
     /// <summary>
@@ -76,7 +104,8 @@ public class ScreenBuffer : IScreenBuffer
             return;
         }
 
-        _cells[row, col] = cell;
+        _rows[row][col] = cell;
+        MarkRowDirty(row);
     }
 
     /// <summary>
@@ -85,13 +114,15 @@ public class ScreenBuffer : IScreenBuffer
     public void Clear()
     {
         Cell emptyCell = Cell.Empty;
-        for (int row = 0; row < Height; row++)
+        for (int row = 0; row < _height; row++)
         {
-            for (int col = 0; col < Width; col++)
+            var rowData = _rows[row];
+            for (int col = 0; col < _width; col++)
             {
-                _cells[row, col] = emptyCell;
+                rowData[col] = emptyCell;
             }
         }
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -100,16 +131,18 @@ public class ScreenBuffer : IScreenBuffer
     /// <param name="row">The row index to clear</param>
     public void ClearRow(int row)
     {
-        if (row < 0 || row >= Height)
+        if (row < 0 || row >= _height)
         {
             return;
         }
 
         Cell emptyCell = Cell.Empty;
-        for (int col = 0; col < Width; col++)
+        var rowData = _rows[row];
+        for (int col = 0; col < _width; col++)
         {
-            _cells[row, col] = emptyCell;
+            rowData[col] = emptyCell;
         }
+        MarkRowDirty(row);
     }
 
     /// <summary>
@@ -122,10 +155,10 @@ public class ScreenBuffer : IScreenBuffer
     public void ClearRegion(int startRow, int startCol, int endRow, int endCol)
     {
         // Clamp coordinates to valid bounds
-        startRow = Math.Max(0, Math.Min(startRow, Height - 1));
-        startCol = Math.Max(0, Math.Min(startCol, Width - 1));
-        endRow = Math.Max(0, Math.Min(endRow, Height - 1));
-        endCol = Math.Max(0, Math.Min(endCol, Width - 1));
+        startRow = Math.Max(0, Math.Min(startRow, _height - 1));
+        startCol = Math.Max(0, Math.Min(startCol, _width - 1));
+        endRow = Math.Max(0, Math.Min(endRow, _height - 1));
+        endCol = Math.Max(0, Math.Min(endCol, _width - 1));
 
         // Ensure start <= end
         if (startRow > endRow || startCol > endCol)
@@ -136,34 +169,49 @@ public class ScreenBuffer : IScreenBuffer
         Cell emptyCell = Cell.Empty;
         for (int row = startRow; row <= endRow; row++)
         {
+            var rowData = _rows[row];
             for (int col = startCol; col <= endCol; col++)
             {
-                _cells[row, col] = emptyCell;
+                rowData[col] = emptyCell;
             }
+            MarkRowDirty(row);
         }
     }
 
     /// <summary>
     ///     Gets a read-only span of cells for the specified row.
     ///     Returns empty span if row is out of bounds.
+    ///     This method does NOT allocate - it returns a span directly over the internal row array.
     /// </summary>
     /// <param name="row">The row index</param>
     /// <returns>Read-only span of cells in the row</returns>
     public ReadOnlySpan<Cell> GetRow(int row)
     {
-        if (row < 0 || row >= Height)
+        if (row < 0 || row >= _height)
         {
             return ReadOnlySpan<Cell>.Empty;
         }
 
-        // Create an array for the row data since we can't create spans from 2D arrays directly
-        var rowData = new Cell[Width];
-        for (int col = 0; col < Width; col++)
+        // Return span directly from the jagged array row - no allocation!
+        return _rows[row].AsSpan();
+    }
+
+    /// <summary>
+    ///     Gets a read-only memory of cells for the specified row.
+    ///     Returns empty memory if row is out of bounds.
+    ///     This method does NOT allocate - it returns memory directly over the internal row array.
+    /// </summary>
+    /// <param name="row">The row index</param>
+    /// <returns>Read-only memory of cells in the row</returns>
+    public ReadOnlyMemory<Cell> GetRowMemory(int row)
+    {
+        if (row < 0 || row >= _height)
         {
-            rowData[col] = _cells[row, col];
+            return ReadOnlyMemory<Cell>.Empty;
         }
 
-        return new ReadOnlySpan<Cell>(rowData);
+        // Return memory directly from the jagged array row - no allocation!
+        return _rows[row].AsMemory();
     }
 
     /// <summary>
@@ -172,34 +220,36 @@ public class ScreenBuffer : IScreenBuffer
     /// <param name="lines">Number of lines to scroll up</param>
     public void ScrollUp(int lines)
     {
-        if (lines <= 0 || lines >= Height)
+        if (lines <= 0 || lines >= _height)
         {
             // If scrolling entire buffer or more, just clear it
-            if (lines >= Height)
+            if (lines >= _height)
             {
                 Clear();
             }
             return;
         }
 
-        // Move rows up
-        for (int row = 0; row < Height - lines; row++)
+        // Move row references up (efficient for jagged arrays - just swap references)
+        for (int row = 0; row < _height - lines; row++)
         {
-            for (int col = 0; col < Width; col++)
-            {
-                _cells[row, col] = _cells[row + lines, col];
-            }
+            // Swap the row arrays instead of copying cell by cell
+            (_rows[row], _rows[row + lines]) = (_rows[row + lines], _rows[row]);
         }
 
-        // Clear the bottom rows
+        // Clear the bottom rows (the old top rows that were swapped down)
         Cell emptyCell = Cell.Empty;
-        for (int row = Height - lines; row < Height; row++)
+        for (int row = _height - lines; row < _height; row++)
         {
-            for (int col = 0; col < Width; col++)
+            var rowData = _rows[row];
+            for (int col = 0; col < _width; col++)
             {
-                _cells[row, col] = emptyCell;
+                rowData[col] = emptyCell;
             }
         }
+        
+        // All rows have effectively changed after a scroll
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -208,34 +258,36 @@ public class ScreenBuffer : IScreenBuffer
     /// <param name="lines">Number of lines to scroll down</param>
     public void ScrollDown(int lines)
     {
-        if (lines <= 0 || lines >= Height)
+        if (lines <= 0 || lines >= _height)
         {
             // If scrolling entire buffer or more, just clear it
-            if (lines >= Height)
+            if (lines >= _height)
             {
                 Clear();
             }
             return;
         }
 
-        // Move rows down
-        for (int row = Height - 1; row >= lines; row--)
+        // Move row references down (efficient for jagged arrays - just swap references)
+        for (int row = _height - 1; row >= lines; row--)
         {
-            for (int col = 0; col < Width; col++)
-            {
-                _cells[row, col] = _cells[row - lines, col];
-            }
+            // Swap the row arrays instead of copying cell by cell
+            (_rows[row], _rows[row - lines]) = (_rows[row - lines], _rows[row]);
         }
 
-        // Clear the top rows
+        // Clear the top rows (the old bottom rows that were swapped up)
         Cell emptyCell = Cell.Empty;
         for (int row = 0; row < lines; row++)
         {
-            for (int col = 0; col < Width; col++)
+            var rowData = _rows[row];
+            for (int col = 0; col < _width; col++)
             {
-                _cells[row, col] = emptyCell;
+                rowData[col] = emptyCell;
             }
         }
+        
+        // All rows have effectively changed after a scroll
+        MarkAllRowsDirty();
     }
 
     /// <summary>
@@ -246,7 +298,7 @@ public class ScreenBuffer : IScreenBuffer
     /// <param name="endRow">Ending row (0-based, inclusive)</param>
     public void CopyTo(Span<Cell> destination, int startRow, int endRow)
     {
-        if (startRow < 0 || startRow >= Height || endRow < 0 || endRow >= Height)
+        if (startRow < 0 || startRow >= _height || endRow < 0 || endRow >= _height)
         {
             return;
         }
@@ -257,7 +309,7 @@ public class ScreenBuffer : IScreenBuffer
         }
 
         int rowCount = endRow - startRow + 1;
-        int totalCells = rowCount * Width;
+        int totalCells = rowCount * _width;
 
         if (destination.Length < totalCells)
         {
@@ -267,9 +319,10 @@ public class ScreenBuffer : IScreenBuffer
         int destIndex = 0;
         for (int row = startRow; row <= endRow; row++)
         {
-            for (int col = 0; col < Width; col++)
+            var rowData = _rows[row];
+            for (int col = 0; col < _width; col++)
             {
-                destination[destIndex++] = _cells[row, col];
+                destination[destIndex++] = rowData[col];
             }
         }
     }
@@ -295,62 +348,48 @@ public class ScreenBuffer : IScreenBuffer
         }
 
         // If dimensions are the same, no work needed
-        if (newWidth == Width && newHeight == Height)
+        if (newWidth == _width && newHeight == _height)
         {
             return;
         }
 
-        // Create new buffer with new dimensions
-        var newCells = new Cell[newHeight, newWidth];
-
-        // Initialize all new cells to empty
+        // Create new jagged array with new dimensions
+        var newRows = new Cell[newHeight][];
         Cell emptyCell = Cell.Empty;
+
+        // Initialize all new rows
         for (int row = 0; row < newHeight; row++)
         {
+            newRows[row] = new Cell[newWidth];
+            // Initialize to empty cells
             for (int col = 0; col < newWidth; col++)
             {
-                newCells[row, col] = emptyCell;
+                newRows[row][col] = emptyCell;
             }
         }
 
         // Copy existing content with preservation policy
-        int rowsToCopy = Math.Min(Height, newHeight);
-        int colsToCopy = Math.Min(Width, newWidth);
+        int rowsToCopy = Math.Min(_height, newHeight);
+        int colsToCopy = Math.Min(_width, newWidth);
 
         for (int row = 0; row < rowsToCopy; row++)
         {
+            var srcRow = _rows[row];
+            var dstRow = newRows[row];
             for (int col = 0; col < colsToCopy; col++)
             {
-                newCells[row, col] = _cells[row, col];
+                dstRow[col] = srcRow[col];
             }
-
-            // If new width is larger, pad the row with empty cells (already initialized above)
-            // If new width is smaller, truncation happens naturally by not copying beyond colsToCopy
         }
 
-        // Replace the old buffer with the new one
-        // Note: We can't directly replace the array reference since Width/Height are readonly
-        // Instead, we need to copy the new buffer back to the existing array
-        // This requires creating a new ScreenBuffer instance, which we'll handle in the manager
-
-        // For now, we'll use reflection to update the fields since this is an internal resize operation
-        var widthField = typeof(ScreenBuffer).GetField("<Width>k__BackingField", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var heightField = typeof(ScreenBuffer).GetField("<Height>k__BackingField", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var cellsField = typeof(ScreenBuffer).GetField("_cells", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        if (widthField != null && heightField != null && cellsField != null)
-        {
-            widthField.SetValue(this, newWidth);
-            heightField.SetValue(this, newHeight);
-            cellsField.SetValue(this, newCells);
-        }
-        else
-        {
-            throw new InvalidOperationException("Unable to resize buffer due to reflection failure");
-        }
+        // Update internal state
+        _rows = newRows;
+        _width = newWidth;
+        _height = newHeight;
+        
+        // Resize dirty tracking array and mark all rows as dirty
+        _dirtyRows = new BitArray(newHeight, true);
+        _anyRowDirty = true;
     }
 
     /// <summary>
@@ -361,6 +400,61 @@ public class ScreenBuffer : IScreenBuffer
     /// <returns>True if coordinates are valid, false otherwise</returns>
     public bool IsInBounds(int row, int col)
     {
-        return row >= 0 && row < Height && col >= 0 && col < Width;
+        return row >= 0 && row < _height && col >= 0 && col < _width;
+    }
+
+    /// <summary>
+    ///     Checks if the specified row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    /// </summary>
+    /// <param name="row">The row index</param>
+    /// <returns>True if the row has been modified, false otherwise</returns>
+    public bool IsRowDirty(int row)
+    {
+        if (row < 0 || row >= _height)
+        {
+            return false;
+        }
+        return _dirtyRows[row];
+    }
+
+    /// <summary>
+    ///     Checks if any row has been modified since the last call to <see cref="ClearDirtyFlags"/>.
+    /// </summary>
+    /// <returns>True if any row is dirty, false otherwise</returns>
+    public bool HasAnyDirtyRows()
+    {
+        return _anyRowDirty;
+    }
+
+    /// <summary>
+    ///     Clears all dirty flags, marking all rows as clean.
+    /// </summary>
+    public void ClearDirtyFlags()
+    {
+        _dirtyRows.SetAll(false);
+        _anyRowDirty = false;
+    }
+
+    /// <summary>
+    ///     Marks all rows as dirty, forcing a full re-render.
+    /// </summary>
+    public void MarkAllRowsDirty()
+    {
+        _dirtyRows.SetAll(true);
+        _anyRowDirty = true;
+    }
+
+    /// <summary>
+    ///     Marks a specific row as dirty.
+    /// </summary>
+    /// <param name="row">The row index to mark as dirty</param>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private void MarkRowDirty(int row)
+    {
+        if (row >= 0 && row < _height)
+        {
+            _dirtyRows[row] = true;
+            _anyRowDirty = true;
+        }
     }
 }

@@ -15,6 +15,7 @@ internal class FontResizeProcessor
   private readonly SessionManager _sessionManager;
   private readonly TerminalDimensionCalculator _dimensionCalculator;
   private readonly WindowResizeHandler _windowResizeHandler;
+  private readonly Action<int, int>? _onResizeComplete;
 
   // Font resize tracking
   private bool _fontResizePending = false; // Flag to trigger resize on next render frame
@@ -22,11 +23,13 @@ internal class FontResizeProcessor
   public FontResizeProcessor(
     SessionManager sessionManager,
     TerminalDimensionCalculator dimensionCalculator,
-    WindowResizeHandler windowResizeHandler)
+    WindowResizeHandler windowResizeHandler,
+    Action<int, int>? onResizeComplete = null)
   {
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _dimensionCalculator = dimensionCalculator ?? throw new ArgumentNullException(nameof(dimensionCalculator));
     _windowResizeHandler = windowResizeHandler ?? throw new ArgumentNullException(nameof(windowResizeHandler));
+    _onResizeComplete = onResizeComplete;
   }
 
   /// <summary>
@@ -142,6 +145,9 @@ internal class FontResizeProcessor
 
       Console.WriteLine($"TerminalController: Font-triggered terminal resize completed successfully");
       _fontResizePending = false; // Clear the flag
+
+      // Notify that resize is complete so snap can be triggered
+      _onResizeComplete?.Invoke(newCols, newRows);
     }
     catch (Exception ex)
     {
@@ -246,6 +252,13 @@ internal class FontResizeProcessor
       }
 
       Console.WriteLine($"TerminalController: Font-triggered resize completed for all sessions");
+
+      // Notify that resize is complete so snap can be triggered
+      // Use active session dimensions if available
+      if (active != null)
+      {
+        _onResizeComplete?.Invoke(active.Terminal.Width, active.Terminal.Height);
+      }
     }
     catch (Exception ex)
     {

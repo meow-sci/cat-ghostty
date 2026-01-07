@@ -113,4 +113,16 @@ public interface IScrollbackManager
     /// <param name="requestedRows">Number of rows to return</param>
     /// <returns>List of rows for display, with scrollback content first</returns>
     List<ReadOnlyMemory<Cell>> GetViewportRows(ReadOnlyMemory<Cell>[] screenBuffer, bool isAlternateScreenActive, int requestedRows);
+
+    /// <summary>
+    ///     Gets viewport rows combining scrollback and screen buffer content, using a pre-allocated result list.
+    ///     This overload avoids allocations by reusing the provided list and not copying row data.
+    ///     The returned ReadOnlyMemory references point directly to internal storage (scrollback) or the provided
+    ///     screen buffer, so they must not be stored beyond the current frame.
+    /// </summary>
+    /// <param name="screenBuffer">Current screen buffer (must remain valid while result is in use)</param>
+    /// <param name="isAlternateScreenActive">Whether alternate screen is active</param>
+    /// <param name="requestedRows">Number of rows to return</param>
+    /// <param name="result">Pre-allocated list to fill with row references (will be cleared first)</param>
+    void GetViewportRowsNonAlloc(ReadOnlyMemory<Cell>[] screenBuffer, bool isAlternateScreenActive, int requestedRows, List<ReadOnlyMemory<Cell>> result);
 }

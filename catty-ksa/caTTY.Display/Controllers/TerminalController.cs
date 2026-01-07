@@ -81,6 +81,9 @@ public class TerminalController : ITerminalController
   // Events subsystem
   private TerminalUiEvents _events = null!;
 
+  // Performance measurement
+  private readonly Performance.PerformanceStopwatch _perfWatch = new();
+
   // Font and rendering settings (now config-based)
   private bool _isVisible = true;
 
@@ -95,6 +98,10 @@ public class TerminalController : ITerminalController
   /// </summary>
   public static bool IsAnyTerminalActive => _numFocusedTerminals > 0 && _numVisibleTerminals > 0;
 
+  /// <summary>
+  ///     Gets the performance stopwatch for tracing and analysis.
+  /// </summary>
+  public Performance.PerformanceStopwatch PerfWatch => _perfWatch;
 
   /// <summary>
   ///     Initializes the controller with all subsystems.
@@ -369,16 +376,19 @@ public class TerminalController : ITerminalController
   /// </summary>
   public void Render()
   {
-    if (!_isVisible)
+   _perfWatch.Start("TerminalController.Render");
+    try
     {
-      return;
-    }
+      if (!_isVisible)
+      {
+        return;
+      }
 
-    // Ensure fonts are loaded before rendering (deferred loading)
-    _fonts.EnsureFontsLoaded();
+      // Ensure fonts are loaded before rendering (deferred loading)
+      _fonts.EnsureFontsLoaded();
 
-    // Push UI font for menus (always Hack Regular 32.0f)
-    _fonts.PushUIFont(out bool uiFontUsed);
+      // Push UI font for menus (always Hack Regular 32.0f)
+      _fonts.PushUIFont(out bool uiFontUsed);
 
     try
     {
@@ -390,8 +400,18 @@ public class TerminalController : ITerminalController
 
       ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new float2(0.0f, 0.0f));
       ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f);
-      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar;
+      var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoTitleBar;
+
+      // Snap window size to exactly fit terminal content after resize operations
+      if (_resize.ShouldSnapThisFrame)
+      {
+        float2 targetSize = _resize.TargetWindowSize;
+        ImGui.SetNextWindowSize(targetSize, ImGuiCond.Always);
+        _resize.ClearSnap();
+      }
+
       ImGui.Begin("Terminal", ref _isVisible, windowFlags);
+
       ImGui.PopStyleVar();
       ImGui.PopStyleVar();
 
@@ -442,12 +462,18 @@ public class TerminalController : ITerminalController
 
       ImGui.End();
 
-      // Pop the window background color style
-      ImGui.PopStyleColor();
+        // Pop the window background color style
+        ImGui.PopStyleColor();
+      }
+      finally
+      {
+        TerminalUiFonts.MaybePopFont(uiFontUsed);
+      }
     }
     finally
     {
-      TerminalUiFonts.MaybePopFont(uiFontUsed);
+     _perfWatch.Stop("TerminalController.Render");
+      _perfWatch.OnFrameEnd();
     }
   }
 
@@ -829,16 +855,33 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalContent()
   {
-    _render.RenderTerminalContent(
-      _sessionManager,
-      CurrentCharacterWidth,
-      CurrentLineHeight,
-      _selection.GetCurrentSelection(),
-      out _lastTerminalOrigin,
-      out _lastTerminalSize,
-      HandleMouseInputForTerminal,
-      HandleMouseTrackingForApplications
-    );
+//    _perfWatch.Start("RenderTerminalContent");
+    try
+    {
+      _render.RenderTerminalContent(
+        _sessionManager,
+        CurrentCharacterWidth,
+        CurrentLineHeight,
+        _selection.GetCurrentSelection(),
+        out _lastTerminalOrigin,
+        out _lastTerminalSize,
+        HandleMouseInputForTerminal,
+        HandleMouseTrackingForApplications,
+        RenderContextMenu
+      );
+    }
+    finally
+    {
+//      _perfWatch.Stop("RenderTerminalContent");
+    }
+  }
+
+  /// <summary>
+  /// Renders the right-click context menu for copy/paste operations.
+  /// </summary>
+  private void RenderContextMenu()
+  {
+    _selection.RenderContextMenu();
   }
 
 
@@ -956,6 +999,14 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
+  /// Pastes text from the clipboard to the terminal.
+  /// </summary>
+  public void PasteFromClipboard()
+  {
+    _selection.PasteFromClipboard();
+  }
+
+  /// <summary>
   /// Gets the current text selection.
   /// </summary>
   /// <returns>The current selection</returns>
@@ -1015,6 +1066,7 @@ public class TerminalController : ITerminalController
   /// </summary>
   private void RenderTerminalCanvas()
   {
+//    _perfWatch.Start("RenderTerminalCanvas");
     try
     {
       // Pop UI font before rendering terminal content
@@ -1030,7 +1082,29 @@ public class TerminalController : ITerminalController
       // Fallback: render a simple error message
       ImGui.Text("Terminal rendering error");
     }
+    finally
+    {
+//      _perfWatch.Stop("RenderTerminalCanvas");
+    }
   }
+
+  /// <summary>
+  ///     Enable or disable performance tracing.
+  /// </summary>
+  /// <param name="enabled">Whether to enable performance tracing</param>
+  public void EnablePerformanceTracing(bool enabled) => _perfWatch.Enabled = enabled;
+
+  /// <summary>
+  ///     Set the performance dump interval in frames.
+  /// </summary>
+  /// <param name="frames">Number of frames between auto-dumps</param>
+  public void SetPerformanceDumpInterval(int frames) => _perfWatch.DumpIntervalFrames = frames;
+
+  /// <summary>
+  ///     Get the current performance summary as a formatted string.
+  /// </summary>
+  /// <returns>Formatted performance summary</returns>
+  public string GetPerformanceSummary() => _perfWatch.GetSummaryExclusive();
 
 }
 

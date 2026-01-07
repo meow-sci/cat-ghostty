@@ -43,6 +43,8 @@ public sealed class DualScreenBuffer : IScreenBuffer
 
     public ReadOnlySpan<Cell> GetRow(int row) => Active.GetRow(row);
 
+    public ReadOnlyMemory<Cell> GetRowMemory(int row) => Active.GetRowMemory(row);
+
     public void ScrollUp(int lines) => Active.ScrollUp(lines);
 
     public void ScrollDown(int lines) => Active.ScrollDown(lines);
@@ -57,6 +59,14 @@ public sealed class DualScreenBuffer : IScreenBuffer
     }
 
     public bool IsInBounds(int row, int col) => Active.IsInBounds(row, col);
+
+    public bool IsRowDirty(int row) => Active.IsRowDirty(row);
+
+    public bool HasAnyDirtyRows() => Active.HasAnyDirtyRows();
+
+    public void ClearDirtyFlags() => Active.ClearDirtyFlags();
+
+    public void MarkAllRowsDirty() => Active.MarkAllRowsDirty();
 
     public void ClearAlternate()
     {

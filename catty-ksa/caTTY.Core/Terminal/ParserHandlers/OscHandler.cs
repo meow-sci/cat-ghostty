@@ -1,3 +1,4 @@
+using caTTY.Core.Rpc;
 using caTTY.Core.Types;
 using Microsoft.Extensions.Logging;
 
@@ -5,16 +6,20 @@ namespace caTTY.Core.Terminal.ParserHandlers;
 
 /// <summary>
 ///     Handles OSC (Operating System Command) sequence processing.
+///     Implements standard ECMA-48/xterm OSC sequences and delegates
+///     private-use commands (1000+) to the RPC layer.
 /// </summary>
 internal class OscHandler
 {
     private readonly ILogger _logger;
     private readonly TerminalEmulator _terminal;
+    private readonly IOscRpcHandler? _oscRpcHandler;
 
-    public OscHandler(TerminalEmulator terminal, ILogger logger)
+    public OscHandler(TerminalEmulator terminal, ILogger logger, IOscRpcHandler? oscRpcHandler = null)
     {
         _terminal = terminal;
         _logger = logger;
+        _oscRpcHandler = oscRpcHandler;
     }
 
     public void HandleOsc(OscMessage message)
@@ -97,8 +102,16 @@ internal class OscHandler
                 break;
 
             default:
-                // Log unhandled xterm OSC sequences for debugging
-                _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+                // Check if this is a private-use command (1000+) for RPC handling
+                if (_oscRpcHandler != null && message.Command >= 1000)
+                {
+                    _oscRpcHandler.HandleCommand(message.Command, message.Payload);
+                }
+                else
+                {
+                    // Log unhandled xterm OSC sequences for debugging
+                    _logger.LogDebug("Xterm OSC: {Type} - {Raw}", message.Type, message.Raw);
+                }
                 break;
         }
     }

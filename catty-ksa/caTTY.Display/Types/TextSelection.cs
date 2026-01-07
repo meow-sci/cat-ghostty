@@ -105,6 +105,20 @@ public readonly struct TextSelection : IEquatable<TextSelection>
     }
 
     /// <summary>
+    /// Returns true if the given row might contain selected cells.
+    /// This is a fast check that avoids per-cell Contains() calls for rows
+    /// entirely outside the selection range.
+    /// </summary>
+    /// <param name="row">The row to check (0-based)</param>
+    /// <returns>True if the row might contain selected cells, false if definitely not</returns>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public bool RowMightBeSelected(int row)
+    {
+        if (IsEmpty) return false;
+        return row >= Start.Row && row <= End.Row;
+    }
+
+    /// <summary>
     /// Extends this selection to include the specified position.
     /// </summary>
     /// <param name="position">The position to extend to</param>

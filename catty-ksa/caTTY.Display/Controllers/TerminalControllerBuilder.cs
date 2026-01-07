@@ -43,6 +43,9 @@ internal class TerminalControllerBuilder
 
   // Rendering components
   private CursorRenderer? _cursorRenderer;
+  private ColorResolver? _colorResolver;
+  private CachedColorResolver? _cachedColorResolver;
+  private StyleManager? _styleManager;
 
   /// <summary>
   ///     Creates a new builder with the specified dependencies.
@@ -68,15 +71,20 @@ internal class TerminalControllerBuilder
   public TerminalControllerBuilder BuildUiSubsystems(TerminalController controller)
   {
     // Initialize font subsystem
-    _fonts = new TerminalUiFonts(_config, _fontConfig, "Hack");
+    _fonts = new TerminalUiFonts(_config, _fontConfig, "Hack", controller.PerfWatch);
     _fonts.LoadFontSettingsInConstructor();
     _fonts.InitializeCurrentFontFamily();
 
     // Initialize cursor renderer
-    _cursorRenderer = new CursorRenderer();
+    _cursorRenderer = new CursorRenderer(controller.PerfWatch);
 
-    // Initialize render subsystem
-    _render = new TerminalUiRender(_fonts, _cursorRenderer);
+    // Initialize color and style managers
+    _colorResolver = new ColorResolver(controller.PerfWatch);
+    _cachedColorResolver = new CachedColorResolver(_colorResolver, controller.PerfWatch);
+    _styleManager = new StyleManager(controller.PerfWatch, _colorResolver);
+
+    // Initialize render subsystem - use CachedColorResolver for performance
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _cachedColorResolver, _styleManager);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);
@@ -143,7 +151,8 @@ internal class TerminalControllerBuilder
       _themeConfig,
       _fonts,
       _selection,
-      triggerTerminalResizeForAllSessions);
+      triggerTerminalResizeForAllSessions,
+      controller.PerfWatch);
 
     // Initialize events subsystem
     _events = new TerminalUiEvents(

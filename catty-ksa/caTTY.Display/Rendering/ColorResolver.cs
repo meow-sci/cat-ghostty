@@ -1,3 +1,4 @@
+using System;
 using caTTY.Core.Types;
 using Brutal.Numerics;
 
@@ -8,8 +9,19 @@ namespace caTTY.Display.Rendering;
 /// Handles ANSI colors, 256-color palette, and RGB colors.
 /// Based on TypeScript ColorResolver implementation.
 /// </summary>
-public static class ColorResolver
+public class ColorResolver
 {
+    private readonly Performance.PerformanceStopwatch _perfWatch;
+
+    /// <summary>
+    /// Initializes a new instance of the ColorResolver class.
+    /// </summary>
+    /// <param name="perfWatch">Performance stopwatch for timing measurements</param>
+    public ColorResolver(Performance.PerformanceStopwatch perfWatch)
+    {
+        _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
+    }
+
     // Note: Hardcoded colors removed - now using ThemeManager for dynamic theme support
 
     /// <summary>
@@ -18,28 +30,60 @@ public static class ColorResolver
     /// <param name="color">SGR color specification</param>
     /// <param name="isBackground">Whether this is a background color (affects defaults)</param>
     /// <returns>ImGui float4 color value</returns>
-    public static float4 Resolve(caTTY.Core.Types.Color? color, bool isBackground = false)
+    public float4 Resolve(caTTY.Core.Types.Color? color, bool isBackground = false)
     {
-        if (!color.HasValue)
+//        _perfWatch.Start("ColorResolver.Resolve");
+        try
         {
-            return isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
-        }
+            if (!color.HasValue)
+            {
+//                _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+                var result = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
+//                _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+                return result;
+            }
 
-        return color.Value.Type switch
+            float4 resolved;
+            switch (color.Value.Type)
+            {
+                case ColorType.Named:
+//                    _perfWatch.Start("ColorResolver.Resolve.Named");
+                    resolved = ResolveNamedColor(color.Value.NamedColor);
+//                    _perfWatch.Stop("ColorResolver.Resolve.Named");
+                    return resolved;
+                    
+                case ColorType.Indexed:
+//                    _perfWatch.Start("ColorResolver.Resolve.Indexed");
+                    resolved = ResolveIndexedColor(color.Value.Index);
+//                    _perfWatch.Stop("ColorResolver.Resolve.Indexed");
+                    return resolved;
+                    
+                case ColorType.Rgb:
+//                    _perfWatch.Start("ColorResolver.Resolve.Rgb");
+                    resolved = ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue);
+//                    _perfWatch.Stop("ColorResolver.Resolve.Rgb");
+                    return resolved;
+                    
+                default:
+//                    _perfWatch.Start("ColorResolver.Resolve.DefaultColor");
+                    resolved = isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground();
+//                    _perfWatch.Stop("ColorResolver.Resolve.DefaultColor");
+                    return resolved;
+            }
+        }
+        finally
         {
-            ColorType.Named => ResolveNamedColor(color.Value.NamedColor),
-            ColorType.Indexed => ResolveIndexedColor(color.Value.Index),
-            ColorType.Rgb => ResolveRgbColor(color.Value.Red, color.Value.Green, color.Value.Blue),
-            _ => isBackground ? ThemeManager.GetDefaultBackground() : ThemeManager.GetDefaultForeground()
-        };
+//            _perfWatch.Stop("ColorResolver.Resolve");
+        }
     }
 
     /// <summary>
     /// Resolve named ANSI color to float4 color using current theme.
     /// </summary>
-    private static float4 ResolveNamedColor(NamedColor namedColor)
+    private float4 ResolveNamedColor(NamedColor namedColor)
     {
-        return namedColor switch
+//        _perfWatch.Start("ColorResolver.ResolveNamedColor.ThemeLookup");
+        var result = namedColor switch
         {
             NamedColor.Black => ThemeManager.ResolveThemeColor(0),
             NamedColor.Red => ThemeManager.ResolveThemeColor(1),
@@ -59,29 +103,40 @@ public static class ColorResolver
             NamedColor.BrightWhite => ThemeManager.ResolveThemeColor(15),
             _ => ThemeManager.GetDefaultForeground()
         };
+//        _perfWatch.Stop("ColorResolver.ResolveNamedColor.ThemeLookup");
+        return result;
     }
 
     /// <summary>
     /// Resolve indexed color (256-color palette) to float4 color using current theme for ANSI colors.
     /// </summary>
-    private static float4 ResolveIndexedColor(byte index)
+    private float4 ResolveIndexedColor(byte index)
     {
         // Standard 16 colors (0-15) - use theme colors
         if (index <= 15)
         {
-            return ThemeManager.ResolveThemeColor(index);
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Theme");
+            var result = ThemeManager.ResolveThemeColor(index);
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Theme");
+            return result;
         }
 
         // 216 color cube (16-231)
         if (index >= 16 && index <= 231)
         {
-            return GetCubeColor(index - 16);
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Cube");
+            var result = GetCubeColor(index - 16);
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Cube");
+            return result;
         }
 
         // Grayscale ramp (232-255)
         if (index >= 232 && index <= 255)
         {
-            return GetGrayscaleColor(index - 232);
+//            _perfWatch.Start("ColorResolver.ResolveIndexedColor.Grayscale");
+            var result = GetGrayscaleColor(index - 232);
+//            _perfWatch.Stop("ColorResolver.ResolveIndexedColor.Grayscale");
+            return result;
         }
 
         // Invalid index, return default
@@ -93,7 +148,7 @@ public static class ColorResolver
     /// </summary>
     /// <param name="cubeIndex">Index in the color cube (0-215)</param>
     /// <returns>float4 color</returns>
-    private static float4 GetCubeColor(int cubeIndex)
+    private float4 GetCubeColor(int cubeIndex)
     {
         int r = cubeIndex / 36;
         int g = (cubeIndex % 36) / 6;
@@ -109,7 +164,7 @@ public static class ColorResolver
     /// </summary>
     /// <param name="grayIndex">Index in grayscale ramp (0-23)</param>
     /// <returns>float4 color</returns>
-    private static float4 GetGrayscaleColor(int grayIndex)
+    private float4 GetGrayscaleColor(int grayIndex)
     {
         float gray = (8 + grayIndex * 10) / 255.0f;
         return new float4(gray, gray, gray, 1.0f);
@@ -118,7 +173,7 @@ public static class ColorResolver
     /// <summary>
     /// Resolve RGB color to float4 color.
     /// </summary>
-    private static float4 ResolveRgbColor(byte red, byte green, byte blue)
+    private float4 ResolveRgbColor(byte red, byte green, byte blue)
     {
         return new float4(red / 255.0f, green / 255.0f, blue / 255.0f, 1.0f);
     }

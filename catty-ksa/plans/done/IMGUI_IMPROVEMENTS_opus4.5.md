@@ -537,3 +537,168 @@ git checkout -b feature/pre-imgui-pump          # Task 3 - Update StandaloneImGu
 Each can be merged independently and provides incremental improvement.
 
 **Refactor Bonus:** The service architecture makes Task 1 cleaner - you can add metrics just to `TerminalUiRender` without touching the main controller logic.
+
+---
+
+## Real-World Timing Analysis (January 2026)
+
+Based on actual profiling data from `IMGUI_TIMING_RESULTS.md`, the priorities for optimization differ significantly from the theoretical analysis above. Here's what the real data shows:
+
+### Timing Breakdown (60 frames, 80×176 viewport = 10,560 cells/frame)
+
+| Component | Time (ms) | % of Render | Calls | Avg (µs) |
+|-----------|-----------|-------------|-------|----------|
+| **Total Render** | 753.38 | 100% | 60 | 12,556 |
+| CellRenderingLoop | 730.51 | 96.9% | 60 | 12,175 |
+| └─ RenderCell | 688.65 | 91.4% | 633,600 | 1.09 |
+| &nbsp;&nbsp;&nbsp;└─ **ResolveColors** | **310.07** | **41.2%** | 633,600 | 0.49 |
+| &nbsp;&nbsp;&nbsp;└─ Font.SelectAndRender | 136.60 | 18.1% | 284,451 | 0.48 |
+| &nbsp;&nbsp;&nbsp;└─ ApplyOpacity | 29.11 | 3.9% | 633,600 | 0.05 |
+| &nbsp;&nbsp;&nbsp;└─ ApplyAttributes | 26.63 | 3.5% | 633,600 | 0.04 |
+| &nbsp;&nbsp;&nbsp;└─ Setup | 24.39 | 3.2% | 633,600 | 0.04 |
+| GetViewportRows | 16.16 | 2.1% | 60 | 269 |
+
+### Key Insight: Color Resolution is the #1 Hotspot
+
+**310ms (41%) of render time is spent in color resolution.** This was not emphasized in the original analysis.
+
+The `ColorResolver.Resolve` breakdown (1,267,200 calls = 2× per cell for fg/bg):
+
+| Sub-component | Time (ms) | Calls | Notes |
+|--------------|-----------|-------|-------|
+| DefaultColor path | 81.20 | 1,020,549 | 80% of cells use default colors |
+| Named color path | 40.86 | 246,651 | Theme lookups for ANSI colors |
+| ThemeLookup | 20.23 | 246,651 | Nested inside Named path |
+
+### Revised Priority Order for Real-World Gains
+
+Based on timing data, here's the **actual order of importance**:
+
+#### [DONE] 🔴 Priority 1: Color Resolution Caching (Potential: ~250ms savings, 33% of render)
+
+**Problem:** Every cell resolves fg/bg colors every frame, even though:
+- 80% of cells use default colors (same every frame)
+- Named colors (ANSI 0-15) are theme-dependent but rarely change
+- RGB colors are already final values
+
+**Solution:**
+1. **Cache default colors** - Resolve once per theme change, not per cell
+2. **Pre-resolve colors in snapshot** - Store `uint` ARGB values, not `TerminalColor` enums
+3. **Inline the hot path** - The default color path should be a simple field read
+
+```csharp
+// Current (slow): Every cell, every frame
+uint fg = _colorResolver.Resolve(cell.ForegroundColor, isForeground: true);
+
+// Optimized: Pre-resolved in snapshot
+uint fg = snapshotRow[col].ResolvedFgColor;  // Already computed
+```
+
+**Expected gain:** 200-250ms per 60 frames (~3.5ms/frame)
+
+#### 🟠 Priority 2: Font Operation Batching (Potential: ~100ms savings, 13% of render)
+
+**Problem:** 284,451 font operations per 60 frames (one per non-empty cell):
+- SelectFont: 32.52ms
+- PushFont: 12.94ms  
+- AddText: 19.97ms
+- PopFont: 11.49ms
+
+**Solution:** Batch consecutive cells with same font into text runs (Task 8 from original analysis):
+- Reduce 284,451 push/pop pairs to ~5,000-10,000 runs
+- Use `stackalloc` or pooled buffer for run text
+
+**Expected gain:** 80-100ms per 60 frames (~1.5ms/frame)
+
+#### 🟡 Priority 3: Opacity/Attribute Pre-computation (Potential: ~45ms savings, 6% of render)
+
+**Problem:** Every cell applies opacity and style attributes every frame.
+
+**Solution:** Pre-compute in snapshot:
+- Store final fg/bg colors with opacity already applied
+- Store attribute flags as pre-computed style bits
+
+**Expected gain:** 40-50ms per 60 frames (~0.75ms/frame)
+
+#### 🟢 Priority 4: GetViewportRows Optimization (Potential: ~10ms savings, 2% of render)
+
+**Problem:** 16.16ms per 60 frames in viewport row retrieval (allocations + copies).
+
+**Note:** This was **overemphasized** in the original analysis. While allocations cause GC pressure, the actual CPU time is only 2% of render. Still worth fixing, but lower priority than originally stated.
+
+**Expected gain:** 10-15ms per 60 frames (~0.2ms/frame)
+
+#### ⚪ Priority 5: Other Optimizations (Minimal gains)
+
+- **DrawBackground:** Only 1.59ms - already optimized (only draws non-default backgrounds)
+- **Thread safety / queuing:** Important for correctness but minimal perf impact
+- **Dirty row tracking:** Useful for partial updates but complex to implement
+
+### Updated Implementation Order
+
+| Order | Task | Expected Savings | Effort | ROI |
+|-------|------|------------------|--------|-----|
+| **1** | Color caching in snapshot | ~250ms (3.5ms/frame) | Medium | **High** |
+| **2** | Font batching (Task 8) | ~100ms (1.5ms/frame) | High | Medium |
+| **3** | Pre-compute opacity/attrs | ~45ms (0.75ms/frame) | Low | Medium |
+| **4** | Snapshot infrastructure (Task 7) | Enables above | High | Required |
+| **5** | GetViewportRows (Task 5) | ~10ms (0.2ms/frame) | Medium | Low |
+| **6** | Queue output (Task 2) | Correctness | Medium | Low perf |
+
+### New Task: Color Resolution Caching
+
+**Goal:** Eliminate per-cell color resolution during rendering.
+
+**Files to Edit:**
+- [caTTY.Display/Types/TerminalRenderSnapshot.cs](caTTY.Display/Types/TerminalRenderSnapshot.cs) (create)
+- [caTTY.Display/Controllers/TerminalUi/TerminalUiRender.cs](caTTY.Display/Controllers/TerminalUi/TerminalUiRender.cs)
+- [caTTY.Display/Rendering/ColorResolver.cs](caTTY.Display/Rendering/ColorResolver.cs) (or equivalent)
+
+**Changes:**
+1. Add resolved color fields to snapshot cell structure:
+   ```csharp
+   public struct ResolvedCell
+   {
+       public char Character;
+       public uint FgColor;      // Pre-resolved ARGB
+       public uint BgColor;      // Pre-resolved ARGB  
+       public CellAttributes Attributes;
+   }
+   ```
+
+2. Resolve colors once during snapshot build (in `Update()`):
+   ```csharp
+   // In snapshot builder
+   for (int col = 0; col < width; col++)
+   {
+       ref var cell = ref row[col];
+       resolvedRow[col] = new ResolvedCell
+       {
+           Character = cell.Character,
+           FgColor = ResolveColor(cell.ForegroundColor, true),
+           BgColor = ResolveColor(cell.BgColor, false),
+           Attributes = cell.Attributes
+       };
+   }
+   ```
+
+3. Cache default colors at theme load:
+   ```csharp
+   // Once per theme change
+   _cachedDefaultFg = ResolveColor(TerminalColor.Default, true);
+   _cachedDefaultBg = ResolveColor(TerminalColor.Default, false);
+   
+   // Hot path becomes:
+   uint fg = color.IsDefault ? _cachedDefaultFg : ResolveNonDefault(color);
+   ```
+
+### Summary: Theory vs Reality
+
+| Original Priority | Real-World Priority | Why Different |
+|-------------------|---------------------|---------------|
+| Allocations (high) | Color resolution (highest) | Timing shows CPU time in color ops, not allocation overhead |
+| GetViewportRows (high) | GetViewportRows (low) | Only 2% of actual render time |
+| Font batching (high) | Font batching (medium-high) | Correctly identified, 18% of time |
+| Thread safety (high) | Thread safety (correctness) | Important but not a perf bottleneck |
+
+**Bottom line:** Focus optimization efforts on **color resolution caching first**. This single change could reduce frame time by ~25-30%, from 12.5ms to ~9ms per frame.

@@ -316,6 +316,16 @@ public class OscParser : IOscParser
         Implemented = true
       },
       8 => ParseOsc8Hyperlink(raw, terminator, command, textParam),
+      // Private-use OSC commands (1000+) are handled by the RPC layer
+      >= 1000 => new XtermOscMessage
+      {
+        Type = "osc.private",
+        Raw = raw,
+        Terminator = terminator,
+        Command = command,
+        Payload = textParam,
+        Implemented = true
+      },
       _ => null
     };
   }
@@ -417,10 +427,12 @@ public class OscParser : IOscParser
 
   /// <summary>
   ///     Validates that a command number is within acceptable range.
+  ///     Standard xterm OSC codes are 0-119, but private/application use
+  ///     codes can go higher (e.g., 1010 for KSA JSON actions).
   /// </summary>
   private static bool IsValidCommandNumber(int commandNum)
   {
-    return commandNum >= 0 && commandNum <= 999;
+    return commandNum >= 0 && commandNum <= 9999;
   }
 
   /// <summary>
