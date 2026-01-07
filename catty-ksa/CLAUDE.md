@@ -69,9 +69,24 @@ The terminal emulator follows a multi-stage parsing and execution pipeline:
 - `Input/`: Keyboard encoding, bracketed paste mode
 - `Parsing/`: Escape sequence parsers (CSI, OSC, ESC, DCS)
 - `Terminal/`: Core terminal logic, process management, custom shell support
+- `Rpc/`: RPC mechanisms for game integration (both CSI and OSC-based)
 - `Tracing/`: SQLite-based logging for debugging (disabled by default, see caTTY.Core/Tracing/README.md)
 - `Types/`: Data structures (Cell, Cursor, ScreenBuffer, messages)
 - `Utils/`: Character classification, UTF-8 handling
+
+**Custom RPC Mechanisms:**
+- **CSI RPC**: Command sequences via CSI private-use functions (commands 1000+)
+  - Entry points: `Rpc/RpcHandler.cs`, `Rpc/RpcCommandRouter.cs`, `Rpc/GameActionRegistry.cs`
+  - Format: CSI-based with fire-and-forget or query patterns
+- **OSC RPC**: Uses OSC sequences in private-use range (1000+) for KSA game integration
+  - OSC 1010: JSON action commands (e.g., `ESC ] 1010 ; {"action":"engine_ignite"} BEL`)
+  - Entry points:
+    - `Parsing/OscParser.cs`: Marks OSC ≥1000 as `osc.private` type
+    - `Terminal/ParserHandlers/OscHandler.cs`: Standard OSC handling, delegates private commands to RPC layer
+    - `Rpc/IOscRpcHandler.cs`: RPC interface
+    - `Rpc/OscRpcHandler.cs`: JSON parsing and KSA action dispatch
+    - `Terminal/TerminalParserHandlers.cs`: Wires `OscRpcHandler` into OSC pipeline
+  - Why OSC instead of DCS: Windows ConPTY filters DCS sequences but passes OSC through
 
 ### Display Layer (caTTY.Display)
 
@@ -133,6 +148,18 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 4. Add unit tests in `caTTY.Core.Tests/`
 5. Run tests with `.\scripts\dotnet-test.ps1`
 
+### Adding a new RPC command (OSC-based)
+1. Add action constant to `Rpc/OscRpcHandler.cs` `Actions` class
+2. Add dispatch case in `OscRpcHandler.DispatchAction()`
+3. Add unit tests in `caTTY.Core.Tests/Unit/Rpc/OscRpcHandlerTests.cs`
+4. Use from shell: `echo -ne '\e]1010;{"action":"your_action"}\a'`
+
+### Adding a new RPC command (CSI-based)
+1. Create command handler implementing `IRpcCommandHandler` in `Rpc/`
+2. Register in `GameActionRegistry.RegisterVehicleCommands()` or custom registry
+3. Commands 1001-1999 are fire-and-forget, 2001-2999 are queries
+4. Add tests in `caTTY.Core.Tests/Unit/Rpc/`
+
 ### Testing terminal behavior
 1. Use `caTTY.TestApp` for quick console testing
 2. Add unit tests in `caTTY.Core.Tests/`
@@ -149,7 +176,6 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 - `Directory.Build.props`: Shared build configuration, KSA installation path
 - `.editorconfig`: C# formatting rules
 - `FEATURE_TRACKING.md`: VT100/xterm feature implementation status
-- `REAFCATOR_PLAN_WITHOUT_PARTIALS_SMALLER_FILES.md`: Detailed refactoring plan
 - `caTTY.Core/Tracing/README.md`: Tracing system documentation
 - `caTTY.GameMod/README.md`: Game mod installation and usage guide
 - `scripts/dotnet-test.ps1`: Test runner that suppresses verbose output and auto-parses results (MUST USE THIS)
