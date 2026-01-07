@@ -766,6 +766,37 @@ public class TerminalController : ITerminalController
   }
 
   /// <summary>
+  ///     Switches to a specific session and restores focus to the terminal.
+  ///     This is a convenience method that combines session switching with focus management.
+  /// </summary>
+  /// <param name="sessionId">The ID of the session to switch to</param>
+  public void SwitchToSessionAndFocus(Guid sessionId)
+  {
+    _sessionManager.SwitchToSession(sessionId);
+    ForceFocus();
+  }
+
+  /// <summary>
+  ///     Switches to the next session in tab order and restores focus to the terminal.
+  ///     This is a convenience method that combines session switching with focus management.
+  /// </summary>
+  public void SwitchToNextSessionAndFocus()
+  {
+    _sessionManager.SwitchToNextSession();
+    ForceFocus();
+  }
+
+  /// <summary>
+  ///     Switches to the previous session in tab order and restores focus to the terminal.
+  ///     This is a convenience method that combines session switching with focus management.
+  /// </summary>
+  public void SwitchToPreviousSessionAndFocus()
+  {
+    _sessionManager.SwitchToPreviousSession();
+    ForceFocus();
+  }
+
+  /// <summary>
   ///     Handles window resize detection and triggers terminal resizing when needed.
   ///     Matches the TypeScript implementation's approach of detecting display size changes
   ///     and updating both the headless terminal and the PTY process dimensions.

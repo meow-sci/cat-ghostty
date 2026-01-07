@@ -10,10 +10,12 @@ namespace caTTY.Display.Controllers.TerminalUi.Menus;
 /// </summary>
 internal class SessionsMenuRenderer
 {
+  private readonly TerminalController _controller;
   private readonly SessionManager _sessionManager;
 
-  public SessionsMenuRenderer(SessionManager sessionManager)
+  public SessionsMenuRenderer(TerminalController controller, SessionManager sessionManager)
   {
+    _controller = controller ?? throw new ArgumentNullException(nameof(controller));
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
   }
 
@@ -54,7 +56,7 @@ internal class SessionsMenuRenderer
             {
               if (!isActive)
               {
-                _sessionManager.SwitchToSession(session.Id);
+                _controller.SwitchToSessionAndFocus(session.Id);
               }
             }
 

@@ -15,6 +15,7 @@ internal class TerminalUiTabs
 {
   private readonly TerminalController _controller;
   private readonly SessionManager _sessionManager;
+  private Guid? _lastActiveSessionId;
 
   /// <summary>
   ///     Creates a new tabs subsystem instance.
@@ -45,6 +46,13 @@ internal class TerminalUiTabs
     {
       var sessions = _sessionManager.Sessions;
       var activeSession = _sessionManager.ActiveSession;
+
+      // Detect if active session changed (for tab synchronization)
+      bool activeSessionChanged = activeSession?.Id != _lastActiveSessionId;
+      if (activeSession != null)
+      {
+        _lastActiveSessionId = activeSession.Id;
+      }
 
       // Get available width for tab area
       float availableWidth = ImGui.GetContentRegionAvail().X;
@@ -98,8 +106,12 @@ internal class TerminalUiTabs
                   // Use unique ID for each tab
                   string tabId = $"{tabLabel}##tab_{session.Id}";
 
-                  // Don't use SetSelected flag - let ImGui handle tab selection naturally
-                  ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags.None;
+                  // Use SetSelected flag only when active session just changed (to sync ImGui with SessionManager)
+                  // This ensures programmatic session switches (File menu, Sessions menu) update the tab UI
+                  // Without causing infinite loops from using SetSelected every frame
+                  ImGuiTabItemFlags tabFlags = (isActive && activeSessionChanged)
+                    ? ImGuiTabItemFlags.SetSelected
+                    : ImGuiTabItemFlags.None;
 
                   bool tabOpen = true;
                   if (ImGui.BeginTabItem(tabId, ref tabOpen, tabFlags))
@@ -107,11 +119,12 @@ internal class TerminalUiTabs
                     try
                     {
                       // If this tab is being rendered and it's not the current active session, switch to it
-                      // This only happens when user actually clicks the tab, not when we force selection
-                      if (!isActive)
+                      // This happens when user clicks the tab directly
+                      // BUT: Don't switch if we just did a programmatic switch (activeSessionChanged),
+                      // because ImGui's tab selection lags one frame behind our SessionManager state
+                      if (!isActive && !activeSessionChanged)
                       {
-                        _sessionManager.SwitchToSession(session.Id);
-                        // Don't call ForceFocus() here as it's not needed for tab switching
+                        _controller.SwitchToSessionAndFocus(session.Id);
                       }
 
                       // Tab content is handled by the terminal canvas, so we don't render content here

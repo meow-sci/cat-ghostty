@@ -55,13 +55,13 @@ internal class FileMenuRenderer
         bool canNavigateSessions = _sessionManager.SessionCount > 1;
         if (ImGui.MenuItem("Next Terminal", "", false, canNavigateSessions))
         {
-          _sessionManager.SwitchToNextSession();
+          _controller.SwitchToNextSessionAndFocus();
         }
 
         // Previous Terminal - enabled when more than one session exists
         if (ImGui.MenuItem("Previous Terminal", "", false, canNavigateSessions))
         {
-          _sessionManager.SwitchToPreviousSession();
+          _controller.SwitchToPreviousSessionAndFocus();
         }
 
         ImGui.Separator();

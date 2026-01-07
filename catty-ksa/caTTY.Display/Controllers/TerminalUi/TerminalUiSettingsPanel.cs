@@ -46,7 +46,7 @@ internal class TerminalUiSettingsPanel
     _themeConfig = themeConfig ?? throw new ArgumentNullException(nameof(themeConfig));
     _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
     _editMenuRenderer = new EditMenuRenderer(controller, selection);
-    _sessionsMenuRenderer = new SessionsMenuRenderer(sessionManager);
+    _sessionsMenuRenderer = new SessionsMenuRenderer(controller, sessionManager);
     _fontMenuRenderer = new FontMenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
     _themeMenuRenderer = new ThemeMenuRenderer(themeConfig);
     _generalSettingsMenuRenderer = new GeneralSettingsMenuRenderer(themeConfig, sessionManager);
