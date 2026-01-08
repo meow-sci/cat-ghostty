@@ -163,6 +163,12 @@ public static class ThemeManager
     private static bool _initialized = false;
 
     /// <summary>
+    ///     Global version counter for theme changes.
+    ///     Used for render cache invalidation.
+    /// </summary>
+    public static int Version { get; private set; } = 1;
+
+    /// <summary>
     /// Default theme using Adventure.toml color values as the baseline.
     /// This serves as the fallback when no TOML themes are available.
     /// </summary>
@@ -363,6 +369,8 @@ public static class ThemeManager
                 _currentTheme = DefaultTheme;
                 ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
             }
+
+            Version++;
         }
     }
 
@@ -396,6 +404,8 @@ public static class ThemeManager
             // Notify listeners of theme change
             ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
 
+            Version++;
+
             return true;
         }
     }
@@ -416,6 +426,8 @@ public static class ThemeManager
 
             // Notify listeners of theme change
             ThemeChanged?.Invoke(null, new ThemeChangedEventArgs(previousTheme, _currentTheme));
+
+            Version++;
         }
     }
 

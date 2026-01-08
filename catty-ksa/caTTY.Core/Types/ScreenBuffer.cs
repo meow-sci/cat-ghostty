@@ -27,6 +27,11 @@ public class ScreenBuffer : IScreenBuffer
     private bool _anyRowDirty;
 
     /// <summary>
+    ///     Current content revision number.
+    /// </summary>
+    public long Revision { get; private set; }
+
+    /// <summary>
     ///     Creates a new screen buffer with the specified dimensions.
     ///     All cells are initialized to empty (space character).
     /// </summary>
@@ -442,6 +447,7 @@ public class ScreenBuffer : IScreenBuffer
     {
         _dirtyRows.SetAll(true);
         _anyRowDirty = true;
+        Revision++;
     }
 
     /// <summary>
@@ -455,6 +461,7 @@ public class ScreenBuffer : IScreenBuffer
         {
             _dirtyRows[row] = true;
             _anyRowDirty = true;
+            Revision++;
         }
     }
 }

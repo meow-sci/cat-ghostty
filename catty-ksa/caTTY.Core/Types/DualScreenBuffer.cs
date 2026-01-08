@@ -25,6 +25,26 @@ public sealed class DualScreenBuffer : IScreenBuffer
     public int Width => Active.Width;
     public int Height => Active.Height;
 
+    /// <summary>
+    ///     Gets the current content revision number.
+    ///     Combines the active buffer's revision with a high-bit flag for the alternate screen
+    ///     to ensure keys are distinct when switching buffers.
+    /// </summary>
+    public long Revision 
+    {
+        get
+        {
+            long rev = Active.Revision;
+            if (_isAlternateActive())
+            {
+                // Set the second highest bit to indicate alternate screen
+                // (Highest bit is sign bit, avoiding it just in case)
+                rev |= 0x4000000000000000;
+            }
+            return rev;
+        }
+    }
+
     public ScreenBuffer Primary => _primary;
     public ScreenBuffer Alternate => _alternate;
 

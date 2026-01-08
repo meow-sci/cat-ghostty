@@ -21,18 +21,20 @@ internal class TerminalUiRender
   private readonly Performance.PerformanceStopwatch _perfWatch;
   private readonly CachedColorResolver _colorResolver;
   private readonly StyleManager _styleManager;
+  private readonly TerminalViewportRenderCache? _renderCache;
   
   // Reusable buffers to avoid per-frame allocations
   private ReadOnlyMemory<Cell>[] _screenBufferCache = [];
   private readonly List<ReadOnlyMemory<Cell>> _viewportRowsCache = new(256);
 
-  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, CachedColorResolver colorResolver, StyleManager styleManager)
+  public TerminalUiRender(TerminalUiFonts fonts, CursorRenderer cursorRenderer, Performance.PerformanceStopwatch perfWatch, CachedColorResolver colorResolver, StyleManager styleManager, TerminalViewportRenderCache? renderCache = null)
   {
     _fonts = fonts ?? throw new ArgumentNullException(nameof(fonts));
     _cursorRenderer = cursorRenderer ?? throw new ArgumentNullException(nameof(cursorRenderer));
     _perfWatch = perfWatch ?? throw new ArgumentNullException(nameof(perfWatch));
     _colorResolver = colorResolver ?? throw new ArgumentNullException(nameof(colorResolver));
     _styleManager = styleManager ?? throw new ArgumentNullException(nameof(styleManager));
+    _renderCache = renderCache;
   }
 
   /// <summary>
@@ -108,7 +110,111 @@ internal class TerminalUiRender
             themeBgU32
         );
       }
+      
+      // Compute render key for caching
+      var renderKey = new TerminalRenderKey(
+          activeSession.Terminal.ScreenBuffer.Revision,
+          activeSession.Terminal.ViewportOffset,
+          ThemeManager.Version,
+          _fonts.CurrentFontSize,
+          currentCharacterWidth,
+          currentLineHeight,
+          activeSession.Terminal.Width,
+          activeSession.Terminal.Height,
+          0);
 
+      // Check for cache hit
+      bool cacheHit = _renderCache != null && _renderCache.IsValid(renderKey);
+      bool isCaching = false;
+      
+      // We need to ensure the viewport rows are populated if we are going to render selection overlay
+      // or if we are rendering grid content.
+      // If Cache Hit, we didn't call RenderGridContent, so we must populate manually if we have selection.
+      bool hasSelection = !currentSelection.IsEmpty && currentSelection.Start != currentSelection.End;
+
+      if (cacheHit)
+      {
+          // Draw from cache
+          _renderCache!.Draw(drawList, terminalDrawPos);
+          
+          // Draw selection overlay if needed
+          if (hasSelection)
+          {
+              PopulateViewportCache(activeSession);
+              RenderSelectionOverlay(activeSession, drawList, terminalDrawPos, currentCharacterWidth, currentLineHeight, currentSelection);
+          }
+      }
+      else
+      {
+          // If cache is available but invalid, try to capture
+          if (_renderCache != null)
+          {
+              isCaching = _renderCache.BeginCapture(renderKey);
+          }
+          
+          // If caching, we render WITHOUT selection (clean state)
+          // If not caching (slow path), we render WITH selection (inline)
+          var selectionForGrid = isCaching ? default(TextSelection) : currentSelection;
+          
+          if (isCaching)
+          {
+               // Capture Mode
+               if (_renderCache!.GetBackingStore() is CommandBufferBackingStore cmdStore)
+               {
+                   var target = cmdStore.GetTarget();
+                   if (target != null)
+                   {
+                       RenderGridContent(activeSession, target, terminalDrawPos, currentCharacterWidth, currentLineHeight, selectionForGrid);
+                   }
+               }
+               
+               _renderCache!.EndCapture();
+               // Draw the captured texture
+               _renderCache.Draw(drawList, terminalDrawPos);
+               
+               // Draw selection overlay on top
+               if (hasSelection)
+               {
+                    // Viewport cache is already populated by RenderGridContent
+                    RenderSelectionOverlay(activeSession, drawList, terminalDrawPos, currentCharacterWidth, currentLineHeight, currentSelection);
+               }
+          }
+          else
+          {
+               // Direct Mode
+               var target = new ImGuiDirectDrawTarget(drawList);
+               RenderGridContent(activeSession, target, terminalDrawPos, currentCharacterWidth, currentLineHeight, selectionForGrid);
+          }
+      }
+
+      // Render cursor
+//      _perfWatch.Start("RenderCursor");
+      RenderCursor(drawList, terminalDrawPos, activeSession, currentCharacterWidth, currentLineHeight);
+//      _perfWatch.Stop("RenderCursor");
+
+      // Handle mouse input only when the invisible button is hovered/active
+      if (terminalHovered || terminalActive)
+      {
+//        _perfWatch.Start("HandleMouseInput");
+        handleMouseInputForTerminal();
+//        _perfWatch.Stop("HandleMouseInput");
+      }
+
+      // ALWAYS render the context menu popup (even when not hovering)
+      // This is necessary because when the popup is open, we're no longer hovering the terminal
+      renderContextMenu();
+
+      // Also handle mouse tracking for applications (this works regardless of hover state)
+      handleMouseTrackingForApplications();
+    }
+    finally
+    {
+      TerminalUiFonts.MaybePopFont(terminalFontUsed);
+    }
+  }
+
+  private void PopulateViewportCache(TerminalSession activeSession)
+  {
       // Get viewport content from ScrollbackManager instead of directly from screen buffer
 //      _perfWatch.Start("GetViewportRows");
       
@@ -133,13 +239,25 @@ internal class TerminalUiRender
           terminalRowCount,
           _viewportRowsCache
       );
-      var viewportRows = _viewportRowsCache;
 //      _perfWatch.Stop("GetViewportRows");
+  }
+
+  private void RenderGridContent(
+      TerminalSession activeSession,
+      ITerminalDrawTarget target,
+      float2 terminalDrawPos,
+      float currentCharacterWidth,
+      float currentLineHeight,
+      TextSelection currentSelection)
+  {
+      PopulateViewportCache(activeSession);
+      var viewportRows = _viewportRowsCache;
 
       // Check if we're viewing the live screen buffer (not scrolled into scrollback history)
       // This enables dirty row tracking optimization
       // - In alternate screen mode: always viewing live buffer (no scrollback)
       // - In primary screen mode: only when auto-scroll is enabled (not scrolled up)
+      var isAlternateScreenActive = ((TerminalEmulator)activeSession.Terminal).State.IsAlternateScreenActive;
       bool isViewingLiveScreen = isAlternateScreenActive || activeSession.Terminal.IsAutoScrollEnabled;
       bool canUseDirtyTracking = isViewingLiveScreen;
 
@@ -179,7 +297,8 @@ internal class TerminalUiRender
             float bgWidth = bgRunLength * currentCharacterWidth;
             float bgHeight = currentLineHeight;
 
-            drawList.AddRectFilled(
+
+            target.AddRectFilled(
               new float2(bgX, bgY),
               new float2(bgX + bgWidth, bgY + bgHeight),
               bgRunColorU32
@@ -203,7 +322,7 @@ internal class TerminalUiRender
 
 //            _perfWatch.Start("Font.SelectAndRender");
 //            _perfWatch.Start("Font.SelectAndRender.PushFont");
-            ImGui.PushFont(runFont, _fonts.CurrentFontConfig.FontSize);
+            // ImGui.PushFont(runFont, _fonts.CurrentFontConfig.FontSize); // HANDLED BY TARGET IN ADDTEXT or recorded
 //            _perfWatch.Stop("Font.SelectAndRender.PushFont");
             try
             {
@@ -215,14 +334,14 @@ internal class TerminalUiRender
               {
                 float charX = terminalDrawPos.X + ((runStartCol + i) * currentCharacterWidth);
                 var charPos = new float2(charX, runY);
-                drawList.AddText(charPos, runColorU32, runChars[i].ToString());
+                target.AddText(charPos, runColorU32, runChars[i].ToString(), runFont, _fonts.CurrentFontConfig.FontSize);
               }
 //              _perfWatch.Stop("Font.SelectAndRender.AddText");
             }
             finally
             {
 //              _perfWatch.Start("Font.SelectAndRender.PopFont");
-              ImGui.PopFont();
+              // ImGui.PopFont(); // HANDLED BY TARGET or Implicit
 //              _perfWatch.Stop("Font.SelectAndRender.PopFont");
 //              _perfWatch.Stop("Font.SelectAndRender");
             }
@@ -247,14 +366,14 @@ internal class TerminalUiRender
               if (_styleManager.ShouldRenderUnderline(attrs))
               {
 //                _perfWatch.Start("RenderDecorations");
-                RenderUnderline(drawList, pos, attrs, fgColor, currentCharacterWidth, currentLineHeight);
+                RenderUnderline(target, pos, attrs, fgColor, currentCharacterWidth, currentLineHeight);
 //                _perfWatch.Stop("RenderDecorations");
               }
 
               if (_styleManager.ShouldRenderStrikethrough(attrs))
               {
 //                _perfWatch.Start("RenderDecorations");
-                RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
+                RenderStrikethrough(target, pos, fgColor, currentCharacterWidth, currentLineHeight);
 //                _perfWatch.Stop("RenderDecorations");
               }
             }
@@ -468,139 +587,76 @@ internal class TerminalUiRender
         // Only clear when viewing current screen buffer content (not scrolled into history)
         activeSession.Terminal.ScreenBuffer.ClearDirtyFlags();
       }
-
-      // Render cursor
-//      _perfWatch.Start("RenderCursor");
-      RenderCursor(drawList, terminalDrawPos, activeSession, currentCharacterWidth, currentLineHeight);
-//      _perfWatch.Stop("RenderCursor");
-
-      // Handle mouse input only when the invisible button is hovered/active
-      if (terminalHovered || terminalActive)
-      {
-//        _perfWatch.Start("HandleMouseInput");
-        handleMouseInputForTerminal();
-//        _perfWatch.Stop("HandleMouseInput");
-      }
-
-      // ALWAYS render the context menu popup (even when not hovering)
-      // This is necessary because when the popup is open, we're no longer hovering the terminal
-      renderContextMenu();
-
-      // Also handle mouse tracking for applications (this works regardless of hover state)
-      handleMouseTrackingForApplications();
-    }
-    finally
-    {
-      TerminalUiFonts.MaybePopFont(terminalFontUsed);
-    }
   }
 
-  /// <summary>
-  ///     Renders a single terminal cell.
-  /// </summary>
-  public void RenderCell(ImDrawListPtr drawList, float2 windowPos, int row, int col, Cell cell, float currentCharacterWidth, float currentLineHeight, TextSelection currentSelection)
+  private void RenderSelectionOverlay(
+      TerminalSession activeSession,
+      ImDrawListPtr drawList,
+      float2 terminalDrawPos,
+      float currentCharacterWidth,
+      float currentLineHeight,
+      TextSelection currentSelection)
   {
-//    _perfWatch.Start("RenderCell");
-    try
-    {
-//      _perfWatch.Start("RenderCell.Setup");
-      float x = windowPos.X + (col * currentCharacterWidth);
-      float y = windowPos.Y + (row * currentLineHeight);
-      var pos = new float2(x, y);
-
-      // Check if this cell is selected
-      bool isSelected = !currentSelection.IsEmpty && currentSelection.Contains(row, col);
-//      _perfWatch.Stop("RenderCell.Setup");
-
-      // Resolve and process all colors in one fused call
-//      _perfWatch.Start("RenderCell.ResolveColors");
-      _colorResolver.ResolveCellColors(
-          cell.Attributes,
-          out uint fgColorU32,
-          out uint bgColorU32,
-          out bool needsBackground,
-          out float4 fgColor);
-//      _perfWatch.Stop("RenderCell.ResolveColors");
-
-    // Apply selection highlighting or draw background only when needed
-    if (isSelected)
-    {
-//      _perfWatch.Start("RenderCell.DrawSelection");
-      // Use selection colors - invert foreground and background for selected text
+      var viewportRows = _viewportRowsCache;
+      int terminalWidthCells = activeSession.Terminal.Width;
+      
+      // Basic overlay implementation - loops through selection and redraws cells
+      // We can optimize this by only looping through selected rows
+      
+      // Selection Colors
       var selectionBg = new float4(0.3f, 0.5f, 0.8f, 0.7f); // Semi-transparent blue
       var selectionFg = new float4(1.0f, 1.0f, 1.0f, 1.0f); // White text
+      var finalBg = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
+      var finalFg = OpacityManager.ApplyForegroundOpacity(selectionFg);
+      uint bgColU32 = ImGui.ColorConvertFloat4ToU32(finalBg);
+      uint fgColU32 = ImGui.ColorConvertFloat4ToU32(finalFg);
+      
+      var fontSize = _fonts.CurrentFontConfig.FontSize;
 
-      // Apply foreground opacity to selection foreground and cell background opacity to selection background
-      var bgColor = OpacityManager.ApplyCellBackgroundOpacity(selectionBg);
-      fgColor = OpacityManager.ApplyForegroundOpacity(selectionFg);
-      fgColorU32 = ImGui.ColorConvertFloat4ToU32(fgColor);
-
-      // Always draw background for selected cells
-      var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-      drawList.AddRectFilled(pos, bgRect, ImGui.ColorConvertFloat4ToU32(bgColor));
-//      _perfWatch.Stop("RenderCell.DrawSelection");
-    }
-    else if (needsBackground)
-    {
-//      _perfWatch.Start("RenderCell.DrawBackground");
-      // Only draw background when SGR sequences have set a specific background color
-      // This allows the theme background to show through for cells without explicit background colors
-      var bgRect = new float2(x + currentCharacterWidth, y + currentLineHeight);
-      drawList.AddRectFilled(pos, bgRect, bgColorU32);
-//      _perfWatch.Stop("RenderCell.DrawBackground");
-    }
-    // Note: When no SGR background color is set and cell is not selected,
-    // the ImGui window background (theme background) will show through
-
-      // Draw character if not space or null
-      if (cell.Character != ' ' && cell.Character != '\0')
+      for (int row = 0; row < Math.Min(viewportRows.Count, activeSession.Terminal.Height); row++)
       {
-        // Select appropriate font based on SGR attributes
-//        _perfWatch.Start("Font.SelectAndRender");
-//        _perfWatch.Start("Font.SelectAndRender.SelectFont");
-        var font = _fonts.SelectFont(cell.Attributes);
-//        _perfWatch.Stop("Font.SelectAndRender.SelectFont");
+          if (!currentSelection.RowMightBeSelected(row))
+              continue;
+              
+          var rowMemory = viewportRows[row];
+          var rowSpan = rowMemory.Span;
+          int colsToRender = Math.Min(rowSpan.Length, terminalWidthCells);
 
-        // Draw the character with selected font using proper PushFont/PopFont pattern
-//        _perfWatch.Start("Font.SelectAndRender.PushFont");
-        ImGui.PushFont(font, _fonts.CurrentFontConfig.FontSize);
-//        _perfWatch.Stop("Font.SelectAndRender.PushFont");
-        try
-        {
-//          _perfWatch.Start("Font.SelectAndRender.AddText");
-          drawList.AddText(pos, fgColorU32, cell.Character.ToString());
-//          _perfWatch.Stop("Font.SelectAndRender.AddText");
-        }
-        finally
-        {
-//          _perfWatch.Start("Font.SelectAndRender.PopFont");
-          ImGui.PopFont();
-//          _perfWatch.Stop("Font.SelectAndRender.PopFont");
-        }
-//        _perfWatch.Stop("Font.SelectAndRender");
-
-        // Draw underline if needed (but not for selected text to avoid visual clutter)
-        if (!isSelected && _styleManager.ShouldRenderUnderline(cell.Attributes))
-        {
-//          _perfWatch.Start("RenderDecorations");
-          RenderUnderline(drawList, pos, cell.Attributes, fgColor, currentCharacterWidth, currentLineHeight);
-//          _perfWatch.Stop("RenderDecorations");
-        }
-
-        // Draw strikethrough if needed (but not for selected text to avoid visual clutter)
-        if (!isSelected && _styleManager.ShouldRenderStrikethrough(cell.Attributes))
-        {
-//          _perfWatch.Start("RenderDecorations");
-          RenderStrikethrough(drawList, pos, fgColor, currentCharacterWidth, currentLineHeight);
-//          _perfWatch.Stop("RenderDecorations");
-        }
+          for (int col = 0; col < colsToRender; col++)
+          {
+              if (!currentSelection.Contains(row, col))
+                  continue;
+                  
+              Cell cell = rowSpan[col];
+              
+              float x = terminalDrawPos.X + (col * currentCharacterWidth);
+              float y = terminalDrawPos.Y + (row * currentLineHeight);
+              var pos = new float2(x, y);
+              
+              // Draw Background
+              drawList.AddRectFilled(
+                  pos,
+                  new float2(x + currentCharacterWidth, y + currentLineHeight),
+                  bgColU32
+              );
+              
+              // Draw Text
+              if (cell.Character != ' ' && cell.Character != '\0')
+              {
+                  var font = _fonts.SelectFont(cell.Attributes);
+                  ImGui.PushFont(font, fontSize);
+                  drawList.AddText(pos, fgColU32, cell.Character.ToString());
+                  ImGui.PopFont();
+              }
+              
+              // TODO: Draw Styles (Underline etc) if needed?
+              // Usually selection hides underlining or it's drawn in white.
+              // For now, simpler selection is acceptable.
+          }
       }
-    }
-    finally
-    {
-//      _perfWatch.Stop("RenderCell");
-    }
   }
+
+
 
   /// <summary>
   ///     Renders the terminal cursor using the new cursor rendering system.
@@ -643,7 +699,10 @@ internal class TerminalUiRender
   /// <summary>
   ///     Renders underline decoration for a cell.
   /// </summary>
-  public void RenderUnderline(ImDrawListPtr drawList, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
+  /// <summary>
+  ///     Renders underline decoration for a cell.
+  /// </summary>
+  public void RenderUnderline(ITerminalDrawTarget target, float2 pos, SgrAttributes attributes, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
 //    _perfWatch.Start("RenderUnderline");
     try
@@ -661,7 +720,7 @@ internal class TerminalUiRender
         case UnderlineStyle.Single:
           uint singleColor = ImGui.ColorConvertFloat4ToU32(underlineColor);
           float singleThickness = Math.Max(3.0f, thickness);
-          drawList.AddLine(underlineStart, underlineEnd, singleColor, singleThickness);
+          target.DrawLine(underlineStart, underlineEnd, singleColor, singleThickness);
           break;
 
         case UnderlineStyle.Double:
@@ -670,27 +729,24 @@ internal class TerminalUiRender
           float doubleThickness = Math.Max(3.0f, thickness);
 
           // First line (bottom) - same position as single underline
-          drawList.AddLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
+          target.DrawLine(underlineStart, underlineEnd, doubleColor, doubleThickness);
 
           // Second line (top) - spaced 4 pixels above the first for better visibility
           var doubleStart = new float2(pos.X, underlineY - 4);
           var doubleEnd = new float2(pos.X + currentCharacterWidth, underlineY - 4);
-          drawList.AddLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
+          target.DrawLine(doubleStart, doubleEnd, doubleColor, doubleThickness);
           break;
 
         case UnderlineStyle.Curly:
-          // Draw wavy line using bezier curves for a smooth curly effect
-          RenderCurlyUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          target.DrawCurlyUnderline(pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
           break;
 
         case UnderlineStyle.Dotted:
-          // Draw dotted line using small segments with spacing
-          RenderDottedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          target.DrawDottedUnderline(pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
           break;
 
         case UnderlineStyle.Dashed:
-          // Draw dashed line using longer segments with spacing
-          RenderDashedUnderline(drawList, pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
+          target.DrawDashedUnderline(pos, underlineColor, thickness, currentCharacterWidth, currentLineHeight);
           break;
       }
     }
@@ -703,7 +759,7 @@ internal class TerminalUiRender
   /// <summary>
   ///     Renders strikethrough for a cell.
   /// </summary>
-  public void RenderStrikethrough(ImDrawListPtr drawList, float2 pos, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
+  public void RenderStrikethrough(ITerminalDrawTarget target, float2 pos, float4 foregroundColor, float currentCharacterWidth, float currentLineHeight)
   {
 //    _perfWatch.Start("RenderStrikethrough");
     try
@@ -714,101 +770,11 @@ internal class TerminalUiRender
       float strikeY = pos.Y + (currentLineHeight / 2);
       var strikeStart = new float2(pos.X, strikeY);
       var strikeEnd = new float2(pos.X + currentCharacterWidth, strikeY);
-      drawList.AddLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor));
+      target.DrawLine(strikeStart, strikeEnd, ImGui.ColorConvertFloat4ToU32(foregroundColor), 1.0f);
     }
     finally
     {
 //      _perfWatch.Stop("RenderStrikethrough");
-    }
-  }
-
-  /// <summary>
-  ///     Renders a curly underline using bezier curves for smooth wavy effect.
-  /// </summary>
-  public void RenderCurlyUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
-  {
-    float underlineY = pos.Y + currentLineHeight - 2;
-    uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-    float curlyThickness = Math.Max(3.0f, thickness);
-
-    // Create a wavy line using multiple bezier curve segments with much higher amplitude
-    float waveHeight = 4.0f; // Much bigger amplitude for very visible waves
-    float segmentWidth = currentCharacterWidth / 2.0f; // 2 wave segments per character for smoother curves
-
-    for (int i = 0; i < 2; i++)
-    {
-      float startX = pos.X + (i * segmentWidth);
-      float endX = pos.X + ((i + 1) * segmentWidth);
-
-      // Alternate wave direction for each segment to create continuous wave
-      float controlOffset = (i % 2 == 0) ? -waveHeight : waveHeight;
-
-      var p1 = new float2(startX, underlineY);
-      var p2 = new float2(startX + segmentWidth * 0.3f, underlineY + controlOffset);
-      var p3 = new float2(startX + segmentWidth * 0.7f, underlineY - controlOffset);
-      var p4 = new float2(endX, underlineY);
-
-      drawList.AddBezierCubic(p1, p2, p3, p4, color, curlyThickness);
-    }
-  }
-
-  /// <summary>
-  ///     Renders a dotted underline using small line segments with spacing.
-  /// </summary>
-  public void RenderDottedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
-  {
-//    _perfWatch.Start("RenderDottedUnderline");
-    try
-    {
-      float underlineY = pos.Y + currentLineHeight - 2;
-      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-      float dottedThickness = Math.Max(3.0f, thickness);
-
-      float dotSize = 3.0f; // Increased dot size for better visibility
-      float spacing = 3.0f; // Increased spacing for clearer separation
-      float totalStep = dotSize + spacing;
-
-      for (float x = pos.X; x < pos.X + currentCharacterWidth - dotSize; x += totalStep)
-      {
-        float dotEnd = Math.Min(x + dotSize, pos.X + currentCharacterWidth);
-        var dotStart = new float2(x, underlineY);
-        var dotEndPos = new float2(dotEnd, underlineY);
-        drawList.AddLine(dotStart, dotEndPos, color, dottedThickness);
-      }
-    }
-    finally
-    {
-//      _perfWatch.Stop("RenderDottedUnderline");
-    }
-  }
-
-  /// <summary>
-  ///     Renders a dashed underline using longer line segments with spacing.
-  /// </summary>
-  public void RenderDashedUnderline(ImDrawListPtr drawList, float2 pos, float4 underlineColor, float thickness, float currentCharacterWidth, float currentLineHeight)
-  {
-//    _perfWatch.Start("RenderDashedUnderline");
-    try
-    {
-      float underlineY = pos.Y + currentLineHeight - 2;
-      uint color = ImGui.ColorConvertFloat4ToU32(underlineColor);
-      float dashedThickness = Math.Max(3.0f, thickness);
-
-      float dashSize = 6.0f; // Increased dash length for better visibility
-      float spacing = 4.0f; // Increased spacing for clearer separation
-      float totalStep = dashSize + spacing;
-
-      for (float x = pos.X; x < pos.X + currentCharacterWidth - dashSize; x += totalStep)
-      {
-        float dashEnd = Math.Min(x + dashSize, pos.X + currentCharacterWidth);
-        var dashStart = new float2(x, underlineY);
-        var dashEndPos = new float2(dashEnd, underlineY);
-        drawList.AddLine(dashStart, dashEndPos, color, dashedThickness);
-      }
-    }
-    finally
-    {
-//      _perfWatch.Stop("RenderDashedUnderline");
     }
   }
 
@@ -836,5 +802,49 @@ internal class TerminalUiRender
         return true;
     }
     return false;
+  }
+  /// <summary>
+  ///     internal wrapper for direct imgui drawing
+  /// </summary>
+  internal struct ImGuiDirectDrawTarget : ITerminalDrawTarget
+  {
+      private readonly ImDrawListPtr _drawList;
+      
+      public ImGuiDirectDrawTarget(ImDrawListPtr drawList)
+      {
+          _drawList = drawList;
+      }
+      
+      public void AddRectFilled(float2 pMin, float2 pMax, uint col)
+      {
+          _drawList.AddRectFilled(pMin, pMax, col);
+      }
+
+      public void AddText(float2 pos, uint col, string text, ImFontPtr font, float fontSize)
+      {
+          ImGui.PushFont(font, fontSize);
+          _drawList.AddText(pos, col, text);
+          ImGui.PopFont();
+      }
+
+      public void DrawLine(float2 p1, float2 p2, uint col, float thickness)
+      {
+          _drawList.AddLine(p1, p2, col, thickness);
+      }
+      
+      public void DrawCurlyUnderline(float2 pos, float4 color, float thickness, float width, float height)
+      {
+          caTTY.Display.Rendering.TerminalDecorationRenderers.RenderCurlyUnderline(_drawList, pos, color, thickness, width, height);
+      }
+
+      public void DrawDottedUnderline(float2 pos, float4 color, float thickness, float width, float height)
+      {
+          caTTY.Display.Rendering.TerminalDecorationRenderers.RenderDottedUnderline(_drawList, pos, color, thickness, width, height);
+      }
+
+      public void DrawDashedUnderline(float2 pos, float4 color, float thickness, float width, float height)
+      {
+          caTTY.Display.Rendering.TerminalDecorationRenderers.RenderDashedUnderline(_drawList, pos, color, thickness, width, height);
+      }
   }
 }
