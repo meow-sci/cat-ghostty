@@ -19,18 +19,28 @@ public class SessionManager : IDisposable
     // Configuration
     private readonly int _maxSessions;
     private readonly SessionDimensionTracker _dimensionTracker;
+    private readonly IRpcHandler? _rpcHandler;
+    private readonly IOscRpcHandler? _oscRpcHandler;
 
     /// <summary>
     ///     Creates a new session manager with the specified configuration.
     /// </summary>
     /// <param name="maxSessions">Maximum number of concurrent sessions (default: 20)</param>
     /// <param name="defaultLaunchOptions">Default options for launching new sessions</param>
-    public SessionManager(int maxSessions = 20, ProcessLaunchOptions? defaultLaunchOptions = null)
+    /// <param name="rpcHandler">Optional RPC handler for CSI RPC commands (null disables CSI RPC)</param>
+    /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null disables OSC RPC)</param>
+    public SessionManager(
+        int maxSessions = 20,
+        ProcessLaunchOptions? defaultLaunchOptions = null,
+        IRpcHandler? rpcHandler = null,
+        IOscRpcHandler? oscRpcHandler = null)
     {
         SessionValidator.ValidateMaxSessions(maxSessions);
 
         _maxSessions = maxSessions;
         _dimensionTracker = new SessionDimensionTracker(defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault());
+        _rpcHandler = rpcHandler;
+        _oscRpcHandler = oscRpcHandler;
     }
 
     /// <summary>
@@ -163,6 +173,8 @@ public class SessionManager : IDisposable
                 OnSessionStateChanged,
                 OnSessionTitleChanged,
                 OnSessionProcessExited,
+                _rpcHandler,
+                _oscRpcHandler,
                 cancellationToken);
 
             // Add session to manager and switch active session

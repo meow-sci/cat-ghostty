@@ -149,17 +149,19 @@ public class TerminalMod
                 NullLogger.Instance,
                 bytes => _outputBuffer.Add(bytes));
 
-            // Create terminal emulator (80x24 is a standard terminal size)
-            _terminal = TerminalEmulator.Create(80, 24, 2500, NullLogger.Instance, rpcHandler, oscRpcHandler);
-
-            Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
-
             // Create process manager
             _processManager = new ProcessManager();
 
-            // Create session manager with persisted shell configuration
-            var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration();
+            // Create session manager with persisted shell configuration and RPC handlers
+            var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration(
+                maxSessions: 20,
+                rpcHandler: rpcHandler,
+                oscRpcHandler: oscRpcHandler);
             var session = sessionManager.CreateSessionAsync().Result;
+
+            _terminal = session.Terminal;
+
+            Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
 
             var fontConfig = TerminalFontConfig.CreateForGameMod();
             Console.WriteLine(
