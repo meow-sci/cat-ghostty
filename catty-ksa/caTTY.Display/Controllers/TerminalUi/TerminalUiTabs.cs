@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Display.Controllers;
+using caTTY.Display.Utils;
 using float2 = Brutal.Numerics.float2;
 
 namespace caTTY.Display.Controllers.TerminalUi;
@@ -106,8 +107,14 @@ internal class TerminalUiTabs
           float addButtonWidth = LayoutConstants.ADD_BUTTON_WIDTH;
           if (ImGui.Button("+##add_terminal", new float2(addButtonWidth, tabHeight - 5.0f)))
           {
-            _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
-            _controller.ForceFocus();
+            ImGui.OpenPopup("new_terminal_popup");
+          }
+
+          // Render popup menu for shell selection
+          if (ImGui.BeginPopup("new_terminal_popup"))
+          {
+            RenderNewTerminalPopup();
+            ImGui.EndPopup();
           }
 
           if (ImGui.IsItemHovered())
@@ -256,6 +263,51 @@ internal class TerminalUiTabs
       if (ImGui.Button("+##fallback_add"))
       {
         _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
+      }
+    }
+  }
+
+  /// <summary>
+  /// Renders the popup menu for creating new terminal sessions with shell selection.
+  /// </summary>
+  private void RenderNewTerminalPopup()
+  {
+    // Default option (uses persisted config)
+    if (ImGui.MenuItem("New Terminal (Default)"))
+    {
+      _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
+      _controller.ForceFocus();
+    }
+
+    if (ImGui.IsItemHovered())
+    {
+      ImGui.SetTooltip("Create terminal with default shell from settings");
+    }
+
+    ImGui.Separator();
+
+    // Shell-specific options
+    var shellOptions = ShellSelectionHelper.GetAvailableShellOptions();
+
+    if (shellOptions.Count == 0)
+    {
+      ImGui.TextDisabled("No shells available");
+    }
+    else
+    {
+      foreach (var option in shellOptions)
+      {
+        if (ImGui.MenuItem(option.DisplayName))
+        {
+          _ = Task.Run(async () =>
+            await ShellSelectionHelper.CreateSessionWithShell(_sessionManager, option));
+          _controller.ForceFocus();
+        }
+
+        if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(option.Tooltip))
+        {
+          ImGui.SetTooltip(option.Tooltip);
+        }
       }
     }
   }

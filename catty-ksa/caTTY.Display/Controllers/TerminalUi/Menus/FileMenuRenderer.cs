@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Brutal.ImGuiApi;
 using caTTY.Core.Terminal;
 using caTTY.Display.Controllers;
+using caTTY.Display.Utils;
 
 namespace caTTY.Display.Controllers.TerminalUi.Menus;
 
@@ -39,6 +40,35 @@ internal class FileMenuRenderer
         {
           _ = Task.Run(async () => await _sessionManager.CreateSessionAsync());
         }
+
+        // Shell selection menu items
+        ImGui.Separator();
+        ImGui.Text("New Terminal with Shell:");
+
+        var shellOptions = ShellSelectionHelper.GetAvailableShellOptions();
+
+        if (shellOptions.Count == 0)
+        {
+          ImGui.TextDisabled("No shells available");
+        }
+        else
+        {
+          foreach (var option in shellOptions)
+          {
+            if (ImGui.MenuItem(option.DisplayName))
+            {
+              _ = Task.Run(async () =>
+                await ShellSelectionHelper.CreateSessionWithShell(_sessionManager, option));
+            }
+
+            if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(option.Tooltip))
+            {
+              ImGui.SetTooltip(option.Tooltip);
+            }
+          }
+        }
+
+        ImGui.Separator();
 
         // Close Terminal - enabled when more than one session exists
         bool canCloseTerminal = _sessionManager.SessionCount > 1;
