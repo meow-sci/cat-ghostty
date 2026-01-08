@@ -24,19 +24,25 @@ public readonly struct TerminalRenderKey : IEquatable<TerminalRenderKey>
     // Layout
     public int Cols { get; }
     public int Rows { get; }
-    
+
+    // Window position (to invalidate cache when window moves)
+    public float WindowX { get; }
+    public float WindowY { get; }
+
     // Explicit invalidation signal (e.g. from context lost)
     public int InvalidationSequence { get; }
 
     public TerminalRenderKey(
-        long contentRevision, 
-        int viewportOffset, 
-        int themeVersion, 
-        float fontSize, 
-        float charWidth, 
-        float lineHeight, 
-        int cols, 
+        long contentRevision,
+        int viewportOffset,
+        int themeVersion,
+        float fontSize,
+        float charWidth,
+        float lineHeight,
+        int cols,
         int rows,
+        float windowX,
+        float windowY,
         int invalidationSequence)
     {
         ContentRevision = contentRevision;
@@ -47,6 +53,8 @@ public readonly struct TerminalRenderKey : IEquatable<TerminalRenderKey>
         LineHeight = lineHeight;
         Cols = cols;
         Rows = rows;
+        WindowX = windowX;
+        WindowY = windowY;
         InvalidationSequence = invalidationSequence;
     }
 
@@ -60,6 +68,8 @@ public readonly struct TerminalRenderKey : IEquatable<TerminalRenderKey>
                Math.Abs(LineHeight - other.LineHeight) < 0.001f &&
                Cols == other.Cols &&
                Rows == other.Rows &&
+               Math.Abs(WindowX - other.WindowX) < 0.001f &&
+               Math.Abs(WindowY - other.WindowY) < 0.001f &&
                InvalidationSequence == other.InvalidationSequence;
     }
 
@@ -79,6 +89,8 @@ public readonly struct TerminalRenderKey : IEquatable<TerminalRenderKey>
         hashCode.Add(LineHeight);
         hashCode.Add(Cols);
         hashCode.Add(Rows);
+        hashCode.Add(WindowX);
+        hashCode.Add(WindowY);
         hashCode.Add(InvalidationSequence);
         return hashCode.ToHashCode();
     }

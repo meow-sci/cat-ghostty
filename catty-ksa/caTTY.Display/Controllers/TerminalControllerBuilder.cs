@@ -46,6 +46,7 @@ internal class TerminalControllerBuilder
   private ColorResolver? _colorResolver;
   private CachedColorResolver? _cachedColorResolver;
   private StyleManager? _styleManager;
+  private ITerminalRenderStrategy? _renderStrategy;
 
   /// <summary>
   ///     Creates a new builder with the specified dependencies.
@@ -86,22 +87,21 @@ internal class TerminalControllerBuilder
     // Initialize render subsystem - create grid renderer and strategy
     var gridRenderer = new TerminalGridRenderer(_fonts, _cachedColorResolver, _styleManager, controller.PerfWatch);
 
-    ITerminalRenderStrategy renderStrategy;
     try
     {
         // Try to setup cached rendering strategy
         var backingStore = new CommandBufferBackingStore();
         var renderCache = new TerminalViewportRenderCache(backingStore);
-        renderStrategy = new CachedRenderStrategy(renderCache, gridRenderer);
+        _renderStrategy = new CachedRenderStrategy(renderCache, gridRenderer);
     }
     catch (Exception ex)
     {
         Console.WriteLine($"Failed to initialize render cache: {ex.Message}");
         // Fallback to direct rendering strategy if caching fails
-        renderStrategy = new DirectRenderStrategy(gridRenderer);
+        _renderStrategy = new DirectRenderStrategy(gridRenderer);
     }
 
-    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, renderStrategy, gridRenderer);
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _renderStrategy, gridRenderer);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);
@@ -211,6 +211,14 @@ internal class TerminalControllerBuilder
 
     // Subscribe to theme change events
     ThemeManager.ThemeChanged += _events.OnThemeChanged;
+
+    // Subscribe to opacity change events to invalidate render cache
+    if (_renderStrategy != null)
+    {
+      OpacityManager.BackgroundOpacityChanged += _ => _renderStrategy.InvalidateCache();
+      OpacityManager.ForegroundOpacityChanged += _ => _renderStrategy.InvalidateCache();
+      OpacityManager.CellBackgroundOpacityChanged += _ => _renderStrategy.InvalidateCache();
+    }
 
     return this;
   }

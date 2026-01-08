@@ -117,6 +117,8 @@ internal class TerminalUiRender
           currentLineHeight,
           activeSession.Terminal.Width,
           activeSession.Terminal.Height,
+          windowPos.X,
+          windowPos.Y,
           0);
 
       // Create render context
