@@ -12,7 +12,7 @@ public class CommandBufferBackingStore : ITerminalBackingStore
 {
     private readonly List<DrawCommand> _commands = new();
     private bool _isCapturing;
-    private RecordedDrawTarget? _recorder;
+    private CommandBufferDrawTarget? _recorder;
 
     // We need a way to delegate complex drawing back to TerminalUiRender helpers during playback
     // or we implement them here. 
@@ -34,12 +34,21 @@ public class CommandBufferBackingStore : ITerminalBackingStore
     
     public bool IsReady => _commands.Count > 0;
 
+    public ITerminalDrawTarget GetDrawTarget()
+    {
+        if (_recorder == null)
+        {
+            throw new InvalidOperationException("Cannot get draw target before BeginCapture() is called");
+        }
+        return _recorder;
+    }
+
     public bool BeginCapture(int width, int height)
     {
         if (_isCapturing) return false;
         _commands.Clear();
         _isCapturing = true;
-        _recorder = new RecordedDrawTarget(_commands);
+        _recorder = new CommandBufferDrawTarget(_commands);
         return true;
     }
 
@@ -83,11 +92,6 @@ public class CommandBufferBackingStore : ITerminalBackingStore
         }
     }
 
-    public ITerminalDrawTarget? GetTarget()
-    {
-        return _recorder;
-    }
-
     public void Dispose()
     {
         _commands.Clear();
@@ -119,11 +123,11 @@ internal struct DrawCommand
     public float Height; // For decorations
 }
 
-internal class RecordedDrawTarget : ITerminalDrawTarget
+internal class CommandBufferDrawTarget : ITerminalDrawTarget
 {
     private readonly List<DrawCommand> _commands;
 
-    public RecordedDrawTarget(List<DrawCommand> commands)
+    public CommandBufferDrawTarget(List<DrawCommand> commands)
     {
         _commands = commands;
     }

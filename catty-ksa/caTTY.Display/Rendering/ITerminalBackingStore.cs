@@ -12,6 +12,12 @@ namespace caTTY.Display.Rendering;
 public interface ITerminalBackingStore : IDisposable
 {
     /// <summary>
+    ///     Gets the draw target for recording render commands during capture.
+    ///     This should be called after BeginCapture() and before EndCapture().
+    /// </summary>
+    ITerminalDrawTarget GetDrawTarget();
+
+    /// <summary>
     ///     Prepares the backing store for capturing a new frame.
     ///     Returns true if capture can proceed, false if it fails.
     /// </summary>
@@ -26,7 +32,7 @@ public interface ITerminalBackingStore : IDisposable
     ///     Draws the cached content to the given draw list.
     /// </summary>
     void Draw(ImDrawListPtr drawList, float2 position, float2 size);
-    
+
     /// <summary>
     ///     Returns true if the backing store is ready to draw.
     /// </summary>
