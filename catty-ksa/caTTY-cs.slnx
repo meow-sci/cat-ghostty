@@ -10,6 +10,7 @@
     <Project Path="caTTY.Display.Playground/caTTY.Display.Playground.csproj" />
     <Project Path="caTTY.Display.Tests/caTTY.Display.Tests.csproj" />
     <Project Path="caTTY.Display/caTTY.Display.csproj" />
+    <Project Path="caTTY.TermSequenceRpc.Tests/caTTY.TermSequenceRpc.Tests.csproj" />
     <Project Path="caTTY.TermSequenceRpc/caTTY.TermSequenceRpc.csproj" />
     <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />
     <Project Path="caTTY.TestGameMod.Display/caTTY.TestGameMod.Display.csproj" />
