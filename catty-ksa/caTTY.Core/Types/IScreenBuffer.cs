@@ -17,6 +17,12 @@ public interface IScreenBuffer
     int Height { get; }
 
     /// <summary>
+    ///     Gets the current content revision number.
+    ///     Increments whenever the buffer content is modified (cells set, cleared, scrolled, or resized).
+    /// </summary>
+    long Revision { get; }
+
+    /// <summary>
     ///     Gets the cell at the specified position.
     ///     Returns Empty cell if coordinates are out of bounds.
     /// </summary>

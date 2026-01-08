@@ -83,8 +83,25 @@ internal class TerminalControllerBuilder
     _cachedColorResolver = new CachedColorResolver(_colorResolver, controller.PerfWatch);
     _styleManager = new StyleManager(controller.PerfWatch, _colorResolver);
 
-    // Initialize render subsystem - use CachedColorResolver for performance
-    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, _cachedColorResolver, _styleManager);
+    // Initialize render subsystem - create grid renderer and strategy
+    var gridRenderer = new TerminalGridRenderer(_fonts, _cachedColorResolver, _styleManager, controller.PerfWatch);
+
+    ITerminalRenderStrategy renderStrategy;
+    try
+    {
+        // Try to setup cached rendering strategy
+        var backingStore = new CommandBufferBackingStore();
+        var renderCache = new TerminalViewportRenderCache(backingStore);
+        renderStrategy = new CachedRenderStrategy(renderCache, gridRenderer);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Failed to initialize render cache: {ex.Message}");
+        // Fallback to direct rendering strategy if caching fails
+        renderStrategy = new DirectRenderStrategy(gridRenderer);
+    }
+
+    _render = new TerminalUiRender(_fonts, _cursorRenderer, controller.PerfWatch, renderStrategy, gridRenderer);
 
     // Initialize input subsystem
     _input = new TerminalUiInput(controller, _sessionManager, _cursorRenderer, _scrollConfig);
