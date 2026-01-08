@@ -62,7 +62,8 @@
       "Bash(which:*)",
       "Bash(wc:*)",
       "Bash(yarn:*)",
-      "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1)"
+      "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1)",
+      "Bash(dotnet sln add:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

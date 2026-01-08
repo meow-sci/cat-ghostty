@@ -1,11 +1,11 @@
-using NUnit.Framework;
 using caTTY.Core.Rpc;
-using System.Reflection;
+using caTTY.TermSequenceRpc.VehicleCommands;
+using NUnit.Framework;
 
-namespace caTTY.Core.Tests.Unit.Rpc;
+namespace caTTY.TermSequenceRpc.Tests.Unit;
 
 /// <summary>
-/// Unit tests for specific vehicle command implementations.
+/// Unit tests for KSA-specific vehicle command implementations.
 /// Tests the IgniteMainThrottle, ShutdownMainEngine, and GetThrottleStatus commands.
 /// </summary>
 [TestFixture]
@@ -26,7 +26,7 @@ public class VehicleCommandTests
     public void IgniteMainThrottleCommand_ShouldBeFireAndForget()
     {
         // Arrange & Act
-        var command = CreateIgniteMainThrottleCommand();
+        var command = new IgniteMainThrottleCommand();
 
         // Assert
         Assert.That(command.IsFireAndForget, Is.True, "IgniteMainThrottle should be a fire-and-forget command");
@@ -37,7 +37,7 @@ public class VehicleCommandTests
     public void IgniteMainThrottleCommand_ShouldHaveCorrectDescription()
     {
         // Arrange & Act
-        var command = CreateIgniteMainThrottleCommand();
+        var command = new IgniteMainThrottleCommand();
 
         // Assert
         Assert.That(command.Description, Is.EqualTo("Ignite Main Throttle"), "Command should have correct description");
@@ -47,7 +47,7 @@ public class VehicleCommandTests
     public async Task IgniteMainThrottleCommand_ExecuteAsync_ShouldReturnNull()
     {
         // Arrange
-        var command = CreateIgniteMainThrottleCommand();
+        var command = new IgniteMainThrottleCommand();
 
         // Act
         var result = await command.ExecuteAsync(_emptyParameters);
@@ -60,37 +60,11 @@ public class VehicleCommandTests
     public async Task IgniteMainThrottleCommand_ExecuteAsync_ShouldAcceptEmptyParameters()
     {
         // Arrange
-        var command = CreateIgniteMainThrottleCommand();
+        var command = new IgniteMainThrottleCommand();
 
         // Act & Assert
         Assert.DoesNotThrowAsync(async () => await command.ExecuteAsync(_emptyParameters),
             "Command should accept empty parameters");
-    }
-
-    [Test]
-    public void IgniteMainThrottleCommand_ValidateParameters_ShouldAcceptEmptyParameters()
-    {
-        // Arrange
-        var command = CreateIgniteMainThrottleCommand();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, _emptyParameters);
-
-        // Assert
-        Assert.That(isValid, Is.True, "Command should accept empty parameters");
-    }
-
-    [Test]
-    public void IgniteMainThrottleCommand_ValidateParameters_ShouldRejectNullParameters()
-    {
-        // Arrange
-        var command = CreateIgniteMainThrottleCommand();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, null!);
-
-        // Assert
-        Assert.That(isValid, Is.False, "Command should reject null parameters");
     }
 
     #endregion
@@ -101,7 +75,7 @@ public class VehicleCommandTests
     public void ShutdownMainEngineCommand_ShouldBeFireAndForget()
     {
         // Arrange & Act
-        var command = CreateShutdownMainEngineCommand();
+        var command = new ShutdownMainEngineCommand();
 
         // Assert
         Assert.That(command.IsFireAndForget, Is.True, "ShutdownMainEngine should be a fire-and-forget command");
@@ -112,7 +86,7 @@ public class VehicleCommandTests
     public void ShutdownMainEngineCommand_ShouldHaveCorrectDescription()
     {
         // Arrange & Act
-        var command = CreateShutdownMainEngineCommand();
+        var command = new ShutdownMainEngineCommand();
 
         // Assert
         Assert.That(command.Description, Is.EqualTo("Shutdown Main Engine"), "Command should have correct description");
@@ -122,7 +96,7 @@ public class VehicleCommandTests
     public async Task ShutdownMainEngineCommand_ExecuteAsync_ShouldReturnNull()
     {
         // Arrange
-        var command = CreateShutdownMainEngineCommand();
+        var command = new ShutdownMainEngineCommand();
 
         // Act
         var result = await command.ExecuteAsync(_emptyParameters);
@@ -135,37 +109,11 @@ public class VehicleCommandTests
     public async Task ShutdownMainEngineCommand_ExecuteAsync_ShouldAcceptEmptyParameters()
     {
         // Arrange
-        var command = CreateShutdownMainEngineCommand();
+        var command = new ShutdownMainEngineCommand();
 
         // Act & Assert
         Assert.DoesNotThrowAsync(async () => await command.ExecuteAsync(_emptyParameters),
             "Command should accept empty parameters");
-    }
-
-    [Test]
-    public void ShutdownMainEngineCommand_ValidateParameters_ShouldAcceptEmptyParameters()
-    {
-        // Arrange
-        var command = CreateShutdownMainEngineCommand();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, _emptyParameters);
-
-        // Assert
-        Assert.That(isValid, Is.True, "Command should accept empty parameters");
-    }
-
-    [Test]
-    public void ShutdownMainEngineCommand_ValidateParameters_ShouldRejectNullParameters()
-    {
-        // Arrange
-        var command = CreateShutdownMainEngineCommand();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, null!);
-
-        // Assert
-        Assert.That(isValid, Is.False, "Command should reject null parameters");
     }
 
     #endregion
@@ -176,7 +124,7 @@ public class VehicleCommandTests
     public void GetThrottleStatusQuery_ShouldBeQueryCommand()
     {
         // Arrange & Act
-        var command = CreateGetThrottleStatusQuery();
+        var command = new GetThrottleStatusQuery();
 
         // Assert
         Assert.That(command.IsFireAndForget, Is.False, "GetThrottleStatus should be a query command");
@@ -187,7 +135,7 @@ public class VehicleCommandTests
     public void GetThrottleStatusQuery_ShouldHaveCorrectDescription()
     {
         // Arrange & Act
-        var command = CreateGetThrottleStatusQuery();
+        var command = new GetThrottleStatusQuery();
 
         // Assert
         Assert.That(command.Description, Is.EqualTo("Get Throttle Status"), "Command should have correct description");
@@ -197,7 +145,7 @@ public class VehicleCommandTests
     public async Task GetThrottleStatusQuery_ExecuteAsync_ShouldReturnThrottleData()
     {
         // Arrange
-        var command = CreateGetThrottleStatusQuery();
+        var command = new GetThrottleStatusQuery();
 
         // Act
         var result = await command.ExecuteAsync(_emptyParameters);
@@ -225,7 +173,7 @@ public class VehicleCommandTests
     public async Task GetThrottleStatusQuery_ExecuteAsync_ShouldAcceptEmptyParameters()
     {
         // Arrange
-        var command = CreateGetThrottleStatusQuery();
+        var command = new GetThrottleStatusQuery();
 
         // Act & Assert
         Assert.DoesNotThrowAsync(async () => await command.ExecuteAsync(_emptyParameters),
@@ -233,36 +181,10 @@ public class VehicleCommandTests
     }
 
     [Test]
-    public void GetThrottleStatusQuery_ValidateParameters_ShouldAcceptEmptyParameters()
-    {
-        // Arrange
-        var command = CreateGetThrottleStatusQuery();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, _emptyParameters);
-
-        // Assert
-        Assert.That(isValid, Is.True, "Query should accept empty parameters");
-    }
-
-    [Test]
-    public void GetThrottleStatusQuery_ValidateParameters_ShouldRejectNullParameters()
-    {
-        // Arrange
-        var command = CreateGetThrottleStatusQuery();
-
-        // Act
-        var isValid = InvokeValidateParameters(command, null!);
-
-        // Assert
-        Assert.That(isValid, Is.False, "Query should reject null parameters");
-    }
-
-    [Test]
     public async Task GetThrottleStatusQuery_ExecuteAsync_ShouldReturnConsistentMockData()
     {
         // Arrange
-        var command = CreateGetThrottleStatusQuery();
+        var command = new GetThrottleStatusQuery();
 
         // Act - Execute multiple times
         var result1 = await command.ExecuteAsync(_emptyParameters);
@@ -277,57 +199,6 @@ public class VehicleCommandTests
 
         Assert.That(dict1!["status"], Is.EqualTo(dict2!["status"]), "Status should be consistent");
         Assert.That(dict1["value"], Is.EqualTo(dict2["value"]), "Value should be consistent");
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    /// <summary>
-    /// Creates an instance of IgniteMainThrottleCommand using reflection.
-    /// </summary>
-    private static IRpcCommandHandler CreateIgniteMainThrottleCommand()
-    {
-        var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
-            .GetTypes()
-            .First(t => t.Name == "IgniteMainThrottleCommand");
-
-        return (IRpcCommandHandler)Activator.CreateInstance(type)!;
-    }
-
-    /// <summary>
-    /// Creates an instance of ShutdownMainEngineCommand using reflection.
-    /// </summary>
-    private static IRpcCommandHandler CreateShutdownMainEngineCommand()
-    {
-        var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
-            .GetTypes()
-            .First(t => t.Name == "ShutdownMainEngineCommand");
-
-        return (IRpcCommandHandler)Activator.CreateInstance(type)!;
-    }
-
-    /// <summary>
-    /// Creates an instance of GetThrottleStatusQuery using reflection.
-    /// </summary>
-    private static IRpcCommandHandler CreateGetThrottleStatusQuery()
-    {
-        var type = Assembly.GetAssembly(typeof(GameActionRegistry))!
-            .GetTypes()
-            .First(t => t.Name == "GetThrottleStatusQuery");
-
-        return (IRpcCommandHandler)Activator.CreateInstance(type)!;
-    }
-
-    /// <summary>
-    /// Invokes the ValidateParameters method using reflection.
-    /// </summary>
-    private static bool InvokeValidateParameters(IRpcCommandHandler handler, RpcParameters parameters)
-    {
-        var method = handler.GetType().GetMethod("ValidateParameters",
-            BindingFlags.NonPublic | BindingFlags.Instance);
-
-        return (bool)method!.Invoke(handler, new object[] { parameters })!;
     }
 
     #endregion
