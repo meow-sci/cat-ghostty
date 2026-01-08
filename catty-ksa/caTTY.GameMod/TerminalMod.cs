@@ -4,6 +4,7 @@ using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.Display.Rendering;
+using caTTY.TermSequenceRpc;
 using Microsoft.Extensions.Logging.Abstractions;
 using StarMap.API;
 
@@ -143,21 +144,13 @@ public class TerminalMod
             // Load fonts first
             CaTTYFontManager.LoadFonts();
 
-            var router = new RpcCommandRouter(NullLogger.Instance);
-            var responseGenerator = new RpcResponseGenerator();
             var _outputBuffer = new List<byte[]>();
-
-            var rpcHandler = new RpcHandler(
-                router,
-                responseGenerator,
-                bytes => _outputBuffer.Add(bytes),
-                NullLogger.Instance);
-
-            var registry = new GameActionRegistry(router, NullLogger.Instance, null);
-            registry.RegisterVehicleCommands();
+            var (rpcHandler, oscRpcHandler) = RpcBootstrapper.CreateKsaRpcHandlers(
+                NullLogger.Instance,
+                bytes => _outputBuffer.Add(bytes));
 
             // Create terminal emulator (80x24 is a standard terminal size)
-            _terminal = TerminalEmulator.Create(80, 24, 2500, NullLogger.Instance, rpcHandler);
+            _terminal = TerminalEmulator.Create(80, 24, 2500, NullLogger.Instance, rpcHandler, oscRpcHandler);
 
             Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
 
