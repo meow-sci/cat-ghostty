@@ -1,3 +1,4 @@
+using System.Text.Json;
 using caTTY.Core.Rpc;
 using caTTY.Core.Types;
 using Microsoft.Extensions.Logging;
@@ -7,19 +8,20 @@ using NUnit.Framework;
 namespace caTTY.Core.Tests.Unit.Rpc;
 
 /// <summary>
-/// Unit tests for OSC-based RPC commands.
+/// Unit tests for OSC-based RPC commands infrastructure.
 /// Tests the OSC sequence format: ESC ] {command} ; {payload} BEL/ST
+/// Uses TestOscRpcHandler test double to verify infrastructure without game-specific logic.
 /// </summary>
 [TestFixture]
 [Category("Unit")]
 public class OscRpcHandlerTests
 {
-    private OscRpcHandler _handler = null!;
+    private TestOscRpcHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _handler = new OscRpcHandler(NullLogger.Instance);
+        _handler = new TestOscRpcHandler(NullLogger.Instance);
     }
 
     #region IsPrivateCommand Tests
@@ -58,72 +60,114 @@ public class OscRpcHandlerTests
     #region HandleCommand Tests
 
     [Test]
-    public void HandleCommand_ValidEngineIgnite_DoesNotThrow()
+    public void HandleCommand_ValidJsonAction_CallsDispatchAction()
     {
         // Arrange
         string payload = "{\"action\":\"engine_ignite\"}";
 
-        // Act & Assert - should not throw
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload));
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload);
+
+        // Assert
+        Assert.That(_handler.DispatchedActions, Has.Count.EqualTo(1));
+        Assert.That(_handler.DispatchedActions[0].action, Is.EqualTo("engine_ignite"));
     }
 
     [Test]
-    public void HandleCommand_ValidEngineShutdown_DoesNotThrow()
+    public void HandleCommand_MultipleActions_CallsDispatchActionMultipleTimes()
     {
         // Arrange
-        string payload = "{\"action\":\"engine_shutdown\"}";
+        string payload1 = "{\"action\":\"engine_ignite\"}";
+        string payload2 = "{\"action\":\"engine_shutdown\"}";
 
-        // Act & Assert - should not throw
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload));
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload1);
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload2);
+
+        // Assert
+        Assert.That(_handler.DispatchedActions, Has.Count.EqualTo(2));
+        Assert.That(_handler.DispatchedActions[0].action, Is.EqualTo("engine_ignite"));
+        Assert.That(_handler.DispatchedActions[1].action, Is.EqualTo("engine_shutdown"));
     }
 
     [Test]
-    public void HandleCommand_EmptyPayload_DoesNotThrow()
+    public void HandleCommand_ActionWithAdditionalProperties_PassesRootElement()
     {
-        // Act & Assert - should handle gracefully
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, null));
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, ""));
+        // Arrange
+        string payload = "{\"action\":\"set_throttle\",\"value\":75}";
+
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload);
+
+        // Assert
+        Assert.That(_handler.DispatchedActions, Has.Count.EqualTo(1));
+        Assert.That(_handler.DispatchedActions[0].action, Is.EqualTo("set_throttle"));
+        Assert.That(_handler.DispatchedActions[0].root.TryGetProperty("value", out var valueProp), Is.True);
+        Assert.That(valueProp.GetInt32(), Is.EqualTo(75));
     }
 
     [Test]
-    public void HandleCommand_InvalidJson_DoesNotThrow()
+    public void HandleCommand_EmptyPayload_DoesNotCallDispatchAction()
+    {
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, null);
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, "");
+
+        // Assert - should handle gracefully without calling dispatch
+        Assert.That(_handler.DispatchedActions, Is.Empty);
+    }
+
+    [Test]
+    public void HandleCommand_InvalidJson_DoesNotCallDispatchAction()
     {
         // Arrange
         string payload = "not valid json";
 
-        // Act & Assert - should handle gracefully
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload));
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload);
+
+        // Assert - should handle gracefully without calling dispatch
+        Assert.That(_handler.DispatchedActions, Is.Empty);
     }
 
     [Test]
-    public void HandleCommand_MissingActionProperty_DoesNotThrow()
+    public void HandleCommand_MissingActionProperty_DoesNotCallDispatchAction()
     {
         // Arrange
         string payload = "{\"something\":\"else\"}";
 
-        // Act & Assert - should handle gracefully
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload));
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload);
+
+        // Assert - should handle gracefully without calling dispatch
+        Assert.That(_handler.DispatchedActions, Is.Empty);
     }
 
     [Test]
-    public void HandleCommand_UnknownAction_DoesNotThrow()
+    public void HandleCommand_EmptyActionValue_DoesNotCallDispatchAction()
     {
         // Arrange
-        string payload = "{\"action\":\"unknown_action\"}";
+        string payload = "{\"action\":\"\"}";
 
-        // Act & Assert - should handle gracefully
-        Assert.DoesNotThrow(() => _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload));
+        // Act
+        _handler.HandleCommand(OscRpcHandler.JsonActionCommand, payload);
+
+        // Assert - should handle gracefully without calling dispatch
+        Assert.That(_handler.DispatchedActions, Is.Empty);
     }
 
     [Test]
-    public void HandleCommand_UnknownCommand_DoesNotThrow()
+    public void HandleCommand_UnknownCommand_DoesNotCallDispatchAction()
     {
         // Arrange
         int unknownCommand = 9999;
-        string payload = "{}";
+        string payload = "{\"action\":\"test\"}";
 
-        // Act & Assert - should handle gracefully
-        Assert.DoesNotThrow(() => _handler.HandleCommand(unknownCommand, payload));
+        // Act
+        _handler.HandleCommand(unknownCommand, payload);
+
+        // Assert - unknown commands are ignored
+        Assert.That(_handler.DispatchedActions, Is.Empty);
     }
 
     #endregion
@@ -134,18 +178,6 @@ public class OscRpcHandlerTests
     public void JsonActionCommand_Is1010()
     {
         Assert.That(OscRpcHandler.JsonActionCommand, Is.EqualTo(1010));
-    }
-
-    [Test]
-    public void Actions_EngineIgnite_IsCorrect()
-    {
-        Assert.That(OscRpcHandler.Actions.EngineIgnite, Is.EqualTo("engine_ignite"));
-    }
-
-    [Test]
-    public void Actions_EngineShutdown_IsCorrect()
-    {
-        Assert.That(OscRpcHandler.Actions.EngineShutdown, Is.EqualTo("engine_shutdown"));
     }
 
     #endregion
@@ -177,10 +209,28 @@ public class OscRpcHandlerTests
     {
         // Private-use OSC commands start at 1000
         const int privateRangeStart = 1000;
-        
+
         Assert.That(_handler.IsPrivateCommand(privateRangeStart), Is.True);
         Assert.That(_handler.IsPrivateCommand(privateRangeStart - 1), Is.False);
     }
 
     #endregion
+}
+
+/// <summary>
+/// Test double for OscRpcHandler that captures dispatched actions for verification.
+/// Used to test OscRpcHandler infrastructure without game-specific dependencies.
+/// </summary>
+internal class TestOscRpcHandler : OscRpcHandler
+{
+    public List<(string action, JsonElement root)> DispatchedActions { get; } = new();
+
+    public TestOscRpcHandler(ILogger logger) : base(logger) { }
+
+    protected override void DispatchAction(string action, JsonElement root)
+    {
+        // Clone the JsonElement to prevent it from being disposed
+        using var doc = JsonDocument.Parse(root.GetRawText());
+        DispatchedActions.Add((action, doc.RootElement.Clone()));
+    }
 }

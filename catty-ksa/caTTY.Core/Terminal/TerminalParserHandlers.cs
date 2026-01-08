@@ -31,12 +31,12 @@ internal class TerminalParserHandlers : IParserHandlers
     private readonly EscHandler _escHandler;
     private readonly IOscRpcHandler _oscRpcHandler;
 
-    public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null)
+    public TerminalParserHandlers(TerminalEmulator terminal, ILogger logger, IRpcHandler? rpcHandler = null, IOscRpcHandler? oscRpcHandler = null)
     {
         _terminal = terminal;
         _logger = logger;
         _rpcHandler = rpcHandler;
-        _oscRpcHandler = new OscRpcHandler(logger);
+        _oscRpcHandler = oscRpcHandler ?? new NullOscRpcHandler();
         _sgrHandler = new SgrHandler(terminal, logger);
         _dcsHandler = new DcsHandler(terminal, logger);
         _oscHandler = new OscHandler(terminal, logger, _oscRpcHandler);
@@ -144,4 +144,14 @@ internal class TerminalParserHandlers : IParserHandlers
         _oscHandler.HandleXtermOsc(message);
     }
 
+}
+
+/// <summary>
+/// No-op implementation of IOscRpcHandler for when RPC is disabled.
+/// Used as default fallback when no OSC RPC handler is provided.
+/// </summary>
+internal class NullOscRpcHandler : IOscRpcHandler
+{
+    public bool IsPrivateCommand(int command) => false;
+    public void HandleCommand(int command, string? payload) { }
 }

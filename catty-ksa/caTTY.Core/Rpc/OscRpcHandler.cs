@@ -1,5 +1,4 @@
 using System.Text.Json;
-using KSA;
 using Microsoft.Extensions.Logging;
 
 namespace caTTY.Core.Rpc;
@@ -15,10 +14,8 @@ namespace caTTY.Core.Rpc;
 ///     Format: ESC ] {command} ; {json_payload} BEL/ST
 ///     Example: ESC ] 1010 ; {"action":"engine_ignite"} BEL
 /// </summary>
-public class OscRpcHandler : IOscRpcHandler
+public abstract class OscRpcHandler : IOscRpcHandler
 {
-    private readonly ILogger _logger;
-
     /// <summary>
     ///     Minimum command number for private/application-specific OSC commands.
     ///     Standard xterm OSC codes are 0-119, we use 1000+ for custom commands.
@@ -30,18 +27,11 @@ public class OscRpcHandler : IOscRpcHandler
     /// </summary>
     public const int JsonActionCommand = 1010;
 
-    /// <summary>
-    ///     Known action names for JSON dispatch.
-    /// </summary>
-    public static class Actions
-    {
-        public const string EngineIgnite = "engine_ignite";
-        public const string EngineShutdown = "engine_shutdown";
-    }
+    protected ILogger Logger { get; }
 
     public OscRpcHandler(ILogger logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
@@ -60,7 +50,7 @@ public class OscRpcHandler : IOscRpcHandler
                 break;
 
             default:
-                _logger.LogWarning("OSC RPC: Unknown private command {Command}", command);
+                Logger.LogWarning("OSC RPC: Unknown private command {Command}", command);
                 break;
         }
     }
@@ -73,7 +63,7 @@ public class OscRpcHandler : IOscRpcHandler
     {
         if (string.IsNullOrEmpty(payload))
         {
-            _logger.LogWarning("OSC 1010: JSON action command received with empty payload");
+            Logger.LogWarning("OSC 1010: JSON action command received with empty payload");
             return;
         }
 
@@ -84,46 +74,31 @@ public class OscRpcHandler : IOscRpcHandler
 
             if (!root.TryGetProperty("action", out var actionElement))
             {
-                _logger.LogWarning("OSC 1010: JSON payload missing 'action' property: {Payload}", payload);
+                Logger.LogWarning("OSC 1010: JSON payload missing 'action' property: {Payload}", payload);
                 return;
             }
 
             string? action = actionElement.GetString();
             if (string.IsNullOrEmpty(action))
             {
-                _logger.LogWarning("OSC 1010: JSON 'action' property is empty");
+                Logger.LogWarning("OSC 1010: JSON 'action' property is empty");
                 return;
             }
 
-            _logger.LogInformation("OSC 1010: Executing action '{Action}'", action);
+            Logger.LogInformation("OSC 1010: Executing action '{Action}'", action);
             DispatchAction(action, root);
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning("OSC 1010: Failed to parse JSON payload: {Error}. Payload: {Payload}", ex.Message, payload);
+            Logger.LogWarning("OSC 1010: Failed to parse JSON payload: {Error}. Payload: {Payload}", ex.Message, payload);
         }
     }
 
     /// <summary>
-    ///     Dispatches a parsed action to the appropriate KSA handler.
+    ///     Dispatches a parsed action to the game-specific handler.
+    ///     Implement this method in subclasses to handle actions specific to your game/application.
     /// </summary>
-    private void DispatchAction(string action, JsonElement root)
-    {
-        switch (action)
-        {
-            case Actions.EngineIgnite:
-                Program.ControlledVehicle?.SetEnum(VehicleEngine.MainIgnite);
-                _logger.LogDebug("OSC 1010: Engine ignite command executed");
-                break;
-
-            case Actions.EngineShutdown:
-                Program.ControlledVehicle?.SetEnum(VehicleEngine.MainShutdown);
-                _logger.LogDebug("OSC 1010: Engine shutdown command executed");
-                break;
-
-            default:
-                _logger.LogWarning("OSC 1010: Unknown action '{Action}'", action);
-                break;
-        }
-    }
+    /// <param name="action">The action name parsed from the JSON payload</param>
+    /// <param name="root">The full JSON document root element for accessing additional parameters</param>
+    protected abstract void DispatchAction(string action, JsonElement root);
 }
