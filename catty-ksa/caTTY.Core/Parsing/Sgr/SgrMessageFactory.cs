@@ -175,7 +175,12 @@ public class SgrMessageFactory
 
             case 21:
                 context.Index++;
-                return CreateSgrMessage("sgr.doubleUnderline", true);
+                // SGR 21 is formally "Double Underline" in ECMA-48, but historically
+                // implemented as "Normal Intensity" (disable bold) by Linux console and others.
+                // Many apps (e.g. starship, nvim) rely on 21 to disable bold.
+                // We map it to normal intensity to prevent unwanted double underlines.
+                // True double underline is still supported via SGR 4:2.
+                return CreateSgrMessage("sgr.normalIntensity", true);
 
             case 22:
                 context.Index++;
@@ -360,45 +365,17 @@ public class SgrMessageFactory
 
         if (parameters.Length >= 2 && parameters[0] == 4)
         {
-            // Enhanced underline mode: CSI > 4 ; n m
-            int underlineType = parameters[1];
-
-            if (underlineType >= 0 && underlineType <= 5)
-            {
-                // Valid enhanced underline mode - create appropriate SGR message
-                switch (underlineType)
-                {
-                    case 0:
-                        // No underline
-                        messages.Add(CreateSgrMessage("sgr.notUnderlined", true));
-                        break;
-                    case 1:
-                        // Single underline
-                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Single));
-                        break;
-                    case 2:
-                        // Double underline
-                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Double));
-                        break;
-                    case 3:
-                        // Curly underline
-                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Curly));
-                        break;
-                    case 4:
-                        // Dotted underline
-                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Dotted));
-                        break;
-                    case 5:
-                        // Dashed underline
-                        messages.Add(CreateSgrMessage("sgr.underline", true, UnderlineStyle.Dashed));
-                        break;
-                }
-
-                return messages;
-            }
-
-            // Invalid underline type - create unimplemented message
-            messages.Add(CreateSgrMessage("sgr.enhancedMode", false, parameters));
+            // CONFLICT: CSI > 4 ; n m is XTerm's 'modifyOtherKeys' sequence.
+            // It is NOT a standard 'Enhanced SGR' sequence for underlines.
+            // Previous implementation incorrectly interpreted this as 'Enhanced Underline Mode'.
+            //   > 4; 2 m -> Enable modifyOtherKeys mode 2.
+            //   Old logic:  -> Double Underline (style 2).
+            // This collision causes apps like nvim/starship (which enable modifyOtherKeys)
+            // to inadvertently trigger Double Underline for all text.
+            
+            // We return an unimplemented/ignored message to prevent attribute contamination.
+            // True enhanced underlines use SGR 4:x (Colon) or 4:x (Semicolon) without '>' prefix.
+            messages.Add(CreateSgrMessage("sgr.modifyOtherKeys", false, parameters));
             return messages;
         }
 

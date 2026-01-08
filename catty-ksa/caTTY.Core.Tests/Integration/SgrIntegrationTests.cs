@@ -154,10 +154,10 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrCurlyUnderline_ShouldSetCurlyUnderlineStyle()
+    public void SgrCurlyUnderline_ShouldSetCurlyUnderlineStyle()
     {
-        // Act: Set enhanced curly underline (CSI > 4 ; 3 m)
-        _terminal.Write("\x1b[>4;3m");
+        // Act: Set curly underline (CSI 4 : 3 m)
+        _terminal.Write("\x1b[4:3m");
         
         // Assert: Should set curly underline
         var attributes = _terminal.AttributeManager.CurrentAttributes;
@@ -166,10 +166,10 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrDottedUnderline_ShouldSetDottedUnderlineStyle()
+    public void SgrDottedUnderline_ShouldSetDottedUnderlineStyle()
     {
-        // Act: Set enhanced dotted underline (CSI > 4 ; 4 m)
-        _terminal.Write("\x1b[>4;4m");
+        // Act: Set dotted underline (CSI 4 : 4 m)
+        _terminal.Write("\x1b[4:4m");
         
         // Assert: Should set dotted underline
         var attributes = _terminal.AttributeManager.CurrentAttributes;
@@ -178,10 +178,10 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrDashedUnderline_ShouldSetDashedUnderlineStyle()
+    public void SgrDashedUnderline_ShouldSetDashedUnderlineStyle()
     {
-        // Act: Set enhanced dashed underline (CSI > 4 ; 5 m)
-        _terminal.Write("\x1b[>4;5m");
+        // Act: Set dashed underline (CSI 4 : 5 m)
+        _terminal.Write("\x1b[4:5m");
         
         // Assert: Should set dashed underline
         var attributes = _terminal.AttributeManager.CurrentAttributes;
@@ -190,10 +190,10 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrDoubleUnderline_ShouldSetDoubleUnderlineStyle()
+    public void SgrDoubleUnderline_ShouldSetDoubleUnderlineStyle()
     {
-        // Act: Set enhanced double underline (CSI > 4 ; 2 m)
-        _terminal.Write("\x1b[>4;2m");
+        // Act: Set double underline (CSI 4 : 2 m)
+        _terminal.Write("\x1b[4:2m");
         
         // Assert: Should set double underline
         var attributes = _terminal.AttributeManager.CurrentAttributes;
@@ -202,14 +202,14 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrDisableUnderline_ShouldDisableUnderline()
+    public void SgrDisableUnderline_ShouldDisableUnderline()
     {
         // Arrange: First enable underline
         _terminal.Write("\x1b[4m");
         Assert.That(_terminal.AttributeManager.CurrentAttributes.Underline, Is.True, "Underline should be enabled initially");
         
-        // Act: Disable underline with enhanced SGR (CSI > 4 ; 0 m)
-        _terminal.Write("\x1b[>4;0m");
+        // Act: Disable underline (CSI 4 : 0 m)
+        _terminal.Write("\x1b[4:0m");
         
         // Assert: Should disable underline
         var attributes = _terminal.AttributeManager.CurrentAttributes;
@@ -218,13 +218,13 @@ public class SgrIntegrationTests
     }
 
     [Test]
-    public void EnhancedSgrWithCharacters_ShouldApplyToWrittenCharacters()
+    public void SgrWithCharacters_ShouldApplyToWrittenCharacters()
     {
-        // Act: Set enhanced curly underline and write character
-        _terminal.Write("\x1b[>4;3m");
+        // Act: Set curly underline and write character
+        _terminal.Write("\x1b[4:3m");
         _terminal.Write("A");
         
-        // Assert: Character should have enhanced underline style
+        // Assert: Character should have underline style
         var cell = _terminal.ScreenBuffer.GetCell(0, 0);
         Assert.That(cell.Character, Is.EqualTo('A'), "Character should be 'A'");
         Assert.That(cell.Attributes.Underline, Is.True, "Character should have underline");
