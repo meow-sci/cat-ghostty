@@ -8,16 +8,16 @@ using caTTY.Display.Rendering;
 namespace caTTY.Display.Controllers.TerminalUi.Menus;
 
 /// <summary>
-/// Handles rendering of the Font menu with font selection and size adjustment.
+/// Handles rendering of the Font submenu with font selection and size adjustment.
 /// Provides menu items for font family selection and font size slider.
 /// </summary>
-internal class FontMenuRenderer
+internal class FontSubmenuRenderer
 {
   private readonly TerminalUiFonts _fonts;
   private readonly SessionManager _sessionManager;
   private readonly Action _triggerTerminalResizeForAllSessions;
 
-  public FontMenuRenderer(
+  public FontSubmenuRenderer(
     TerminalUiFonts fonts,
     SessionManager sessionManager,
     Action triggerTerminalResizeForAllSessions)
@@ -28,46 +28,34 @@ internal class FontMenuRenderer
   }
 
   /// <summary>
-  /// Renders the Font menu with font size slider and font family selection options.
+  /// Renders the Font submenu content with font size slider and font family selection options.
+  /// Note: Parent menu handles BeginMenu/EndMenu calls.
   /// </summary>
-  /// <returns>True if the menu is currently open, false otherwise.</returns>
-  public bool Render()
+  public void RenderContent()
   {
-    bool isOpen = ImGui.BeginMenu("Font");
-    if (isOpen)
+    // Font Size Slider
+    int currentFontSize = (int)_fonts.CurrentFontConfig.FontSize;
+    ImGui.Text("Font Size:");
+    ImGui.SameLine();
+    if (ImGui.SliderInt("##FontSize", ref currentFontSize, 4, 72))
     {
-      try
+      SetFontSize((float)currentFontSize);
+    }
+
+    ImGui.Separator();
+
+    // Font Family Selection
+    var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
+
+    foreach (var fontFamily in availableFonts)
+    {
+      bool isSelected = fontFamily == _fonts.CurrentFontFamily;
+
+      if (ImGui.MenuItem(fontFamily, "", isSelected))
       {
-        // Font Size Slider
-        int currentFontSize = (int)_fonts.CurrentFontConfig.FontSize;
-        ImGui.Text("Font Size:");
-        ImGui.SameLine();
-        if (ImGui.SliderInt("##FontSize", ref currentFontSize, 4, 72))
-        {
-          SetFontSize((float)currentFontSize);
-        }
-
-        ImGui.Separator();
-
-        // Font Family Selection
-        var availableFonts = CaTTYFontManager.GetAvailableFontFamilies();
-
-        foreach (var fontFamily in availableFonts)
-        {
-          bool isSelected = fontFamily == _fonts.CurrentFontFamily;
-
-          if (ImGui.MenuItem(fontFamily, "", isSelected))
-          {
-            SelectFontFamily(fontFamily);
-          }
-        }
-      }
-      finally
-      {
-        ImGui.EndMenu();
+        SelectFontFamily(fontFamily);
       }
     }
-    return isOpen;
   }
 
   /// <summary>

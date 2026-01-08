@@ -80,49 +80,50 @@ public class TerminalControllerSimplifiedUITests
         var renderMenuBarMethod = typeof(TerminalUiSettingsPanel)
             .GetMethod("RenderMenuBar", BindingFlags.Public | BindingFlags.Instance);
 
-        var fileMenuRendererType = typeof(FileMenuRenderer);
-        var fileMenuRenderMethod = fileMenuRendererType
+        var sessionsMenuRendererType = typeof(SessionsMenuRenderer);
+        var sessionsMenuRenderMethod = sessionsMenuRendererType
             .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
         var editMenuRendererType = typeof(EditMenuRenderer);
         var editMenuRenderMethod = editMenuRendererType
             .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
-        var fontMenuRendererType = typeof(FontMenuRenderer);
-        var fontMenuRenderMethod = fontMenuRendererType
+        var settingsMenuRendererType = typeof(SettingsMenuRenderer);
+        var settingsMenuRenderMethod = settingsMenuRendererType
             .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
 
-        var themeMenuRendererType = typeof(ThemeMenuRenderer);
-        var themeMenuRenderMethod = themeMenuRendererType
-            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
-
-        var generalSettingsMenuRendererType = typeof(GeneralSettingsMenuRenderer);
-        var generalSettingsMenuRenderMethod = generalSettingsMenuRendererType
-            .GetMethod("Render", BindingFlags.Public | BindingFlags.Instance);
+        // Check submenu renderers exist
+        var fontSubmenuRendererType = typeof(FontSubmenuRenderer);
+        var colorThemeSubmenuRendererType = typeof(ColorThemeSubmenuRenderer);
+        var windowSubmenuRendererType = typeof(WindowSubmenuRenderer);
+        var shellsSubmenuRendererType = typeof(ShellsSubmenuRenderer);
+        var performanceSubmenuRendererType = typeof(PerformanceSubmenuRenderer);
 
         // Assert
         Assert.That(renderMenuBarMethod, Is.Not.Null,
             "RenderMenuBar method should be preserved in TerminalUiSettingsPanel");
-        Assert.That(fileMenuRendererType, Is.Not.Null,
-            "FileMenuRenderer class should exist for File menu rendering");
-        Assert.That(fileMenuRenderMethod, Is.Not.Null,
-            "FileMenuRenderer should have Render method");
+        Assert.That(sessionsMenuRendererType, Is.Not.Null,
+            "SessionsMenuRenderer class should exist for Sessions menu rendering");
+        Assert.That(sessionsMenuRenderMethod, Is.Not.Null,
+            "SessionsMenuRenderer should have Render method");
         Assert.That(editMenuRendererType, Is.Not.Null,
             "EditMenuRenderer class should exist for Edit menu rendering");
         Assert.That(editMenuRenderMethod, Is.Not.Null,
             "EditMenuRenderer should have Render method");
-        Assert.That(fontMenuRendererType, Is.Not.Null,
-            "FontMenuRenderer class should exist for Font menu rendering");
-        Assert.That(fontMenuRenderMethod, Is.Not.Null,
-            "FontMenuRenderer should have Render method");
-        Assert.That(themeMenuRendererType, Is.Not.Null,
-            "ThemeMenuRenderer class should exist for Theme menu rendering");
-        Assert.That(themeMenuRenderMethod, Is.Not.Null,
-            "ThemeMenuRenderer should have Render method");
-        Assert.That(generalSettingsMenuRendererType, Is.Not.Null,
-            "GeneralSettingsMenuRenderer class should exist for Settings menu rendering");
-        Assert.That(generalSettingsMenuRenderMethod, Is.Not.Null,
-            "GeneralSettingsMenuRenderer should have Render method");
+        Assert.That(settingsMenuRendererType, Is.Not.Null,
+            "SettingsMenuRenderer class should exist for Settings menu rendering");
+        Assert.That(settingsMenuRenderMethod, Is.Not.Null,
+            "SettingsMenuRenderer should have Render method");
+        Assert.That(fontSubmenuRendererType, Is.Not.Null,
+            "FontSubmenuRenderer class should exist for Font submenu");
+        Assert.That(colorThemeSubmenuRendererType, Is.Not.Null,
+            "ColorThemeSubmenuRenderer class should exist for Color Theme submenu");
+        Assert.That(windowSubmenuRendererType, Is.Not.Null,
+            "WindowSubmenuRenderer class should exist for Window submenu");
+        Assert.That(shellsSubmenuRendererType, Is.Not.Null,
+            "ShellsSubmenuRenderer class should exist for Shells submenu");
+        Assert.That(performanceSubmenuRendererType, Is.Not.Null,
+            "PerformanceSubmenuRenderer class should exist for Performance submenu");
     }
 
     [Test]

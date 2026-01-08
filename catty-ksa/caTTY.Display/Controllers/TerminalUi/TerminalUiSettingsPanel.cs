@@ -19,13 +19,9 @@ internal class TerminalUiSettingsPanel
 {
   private readonly SessionManager _sessionManager;
   private readonly ThemeConfiguration _themeConfig;
-  private readonly FileMenuRenderer _fileMenuRenderer;
-  private readonly EditMenuRenderer _editMenuRenderer;
   private readonly SessionsMenuRenderer _sessionsMenuRenderer;
-  private readonly FontMenuRenderer _fontMenuRenderer;
-  private readonly ThemeMenuRenderer _themeMenuRenderer;
-  private readonly GeneralSettingsMenuRenderer _generalSettingsMenuRenderer;
-  private readonly PerformanceMenuRenderer _performanceMenuRenderer;
+  private readonly EditMenuRenderer _editMenuRenderer;
+  private readonly SettingsMenuRenderer _settingsMenuRenderer;
 
   /// <summary>
   /// Gets or sets whether any menu is currently open in the menu bar.
@@ -49,18 +45,29 @@ internal class TerminalUiSettingsPanel
 
     _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
     _themeConfig = themeConfig ?? throw new ArgumentNullException(nameof(themeConfig));
-    _fileMenuRenderer = new FileMenuRenderer(controller, sessionManager);
-    _editMenuRenderer = new EditMenuRenderer(controller, selection);
+
+    // Create submenu renderers first
+    var colorThemeSubmenu = new ColorThemeSubmenuRenderer(themeConfig);
+    var fontSubmenu = new FontSubmenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
+    var windowSubmenu = new WindowSubmenuRenderer(themeConfig);
+    var shellsSubmenu = new ShellsSubmenuRenderer(themeConfig, sessionManager);
+    var performanceSubmenu = new PerformanceSubmenuRenderer(perfWatch);
+
+    // Create top-level menus
     _sessionsMenuRenderer = new SessionsMenuRenderer(controller, sessionManager);
-    _fontMenuRenderer = new FontMenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
-    _themeMenuRenderer = new ThemeMenuRenderer(themeConfig);
-    _generalSettingsMenuRenderer = new GeneralSettingsMenuRenderer(themeConfig, sessionManager);
-    _performanceMenuRenderer = new PerformanceMenuRenderer(perfWatch);
+    _editMenuRenderer = new EditMenuRenderer(controller, selection);
+    _settingsMenuRenderer = new SettingsMenuRenderer(
+      colorThemeSubmenu,
+      fontSubmenu,
+      windowSubmenu,
+      shellsSubmenu,
+      performanceSubmenu
+    );
   }
 
   /// <summary>
   /// Renders the menu bar by coordinating all menu renderers.
-  /// Delegates to File, Edit, Sessions, Font, Theme, Performance, and Settings menu renderers.
+  /// Delegates to Sessions, Edit, and Settings menu renderers.
   /// </summary>
   public void RenderMenuBar()
   {
@@ -69,16 +76,12 @@ internal class TerminalUiSettingsPanel
       try
       {
         // Track if any menu is open by collecting BeginMenu return values from all menu renderers
-        bool fileMenuOpen = _fileMenuRenderer.Render();
-        bool editMenuOpen = _editMenuRenderer.Render();
         bool sessionsMenuOpen = _sessionsMenuRenderer.Render();
-        bool fontMenuOpen = _fontMenuRenderer.Render();
-        bool themeMenuOpen = _themeMenuRenderer.Render();
-        bool perfMenuOpen = _performanceMenuRenderer.Render();
-        bool settingsMenuOpen = _generalSettingsMenuRenderer.Render();
+        bool editMenuOpen = _editMenuRenderer.Render();
+        bool settingsMenuOpen = _settingsMenuRenderer.Render();
 
         // Set IsAnyMenuOpen to true if ANY menu is currently open
-        IsAnyMenuOpen = fileMenuOpen || editMenuOpen || sessionsMenuOpen || fontMenuOpen || themeMenuOpen || perfMenuOpen || settingsMenuOpen;
+        IsAnyMenuOpen = sessionsMenuOpen || editMenuOpen || settingsMenuOpen;
       }
       finally
       {

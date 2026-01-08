@@ -6,7 +6,7 @@ namespace caTTY.Display.Controllers.TerminalUi.Menus;
 
 /// <summary>
 /// Handles rendering of the Edit menu with text operations.
-/// Provides menu items for copy, paste, and select all operations.
+/// Provides menu items for copy and paste operations.
 /// </summary>
 internal class EditMenuRenderer
 {
@@ -43,12 +43,6 @@ internal class EditMenuRenderer
         {
           _selection.PasteFromClipboard();
         }
-
-        // Select All - always enabled
-        if (ImGui.MenuItem("Select All", "Ctrl+A"))
-        {
-          SelectAllText();
-        }
       }
       finally
       {
@@ -56,13 +50,5 @@ internal class EditMenuRenderer
       }
     }
     return isOpen;
-  }
-
-  /// <summary>
-  /// Selects all text in the terminal.
-  /// </summary>
-  private void SelectAllText()
-  {
-    _selection.SelectAllVisibleContent();
   }
 }
