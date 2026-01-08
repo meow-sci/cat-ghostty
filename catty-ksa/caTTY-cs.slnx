@@ -1,16 +1,17 @@
 <Solution>
     <Configurations>
-        <Platform Name="Any CPU"/>
-        <Platform Name="x64"/>
-        <Platform Name="x86"/>
+        <Platform Name="Any CPU" />
+        <Platform Name="x64" />
+        <Platform Name="x86" />
     </Configurations>
-    <Project Path="caTTY.Core.Tests/caTTY.Core.Tests.csproj"/>
-    <Project Path="caTTY.Core/caTTY.Core.csproj"/>
-    <Project Path="caTTY.GameMod/caTTY.GameMod.csproj"/>
-    <Project Path="caTTY.Display.Playground/caTTY.Display.Playground.csproj"/>
-    <Project Path="caTTY.Display.Tests/caTTY.Display.Tests.csproj"/>
-    <Project Path="caTTY.Display/caTTY.Display.csproj"/>
-    <Project Path="caTTY.TestApp/caTTY.TestApp.csproj"/>
-    <Project Path="caTTY.TestGameMod.Display/caTTY.TestGameMod.Display.csproj"/>
-    <Project Path="caTTY.TestGameMod/caTTY.TestGameMod.csproj"/>
+    <Project Path="caTTY.Core.Tests/caTTY.Core.Tests.csproj" />
+    <Project Path="caTTY.Core/caTTY.Core.csproj" />
+    <Project Path="caTTY.GameMod/caTTY.GameMod.csproj" />
+    <Project Path="caTTY.Display.Playground/caTTY.Display.Playground.csproj" />
+    <Project Path="caTTY.Display.Tests/caTTY.Display.Tests.csproj" />
+    <Project Path="caTTY.Display/caTTY.Display.csproj" />
+    <Project Path="caTTY.TermSequenceRpc/caTTY.TermSequenceRpc.csproj" />
+    <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />
+    <Project Path="caTTY.TestGameMod.Display/caTTY.TestGameMod.Display.csproj" />
+    <Project Path="caTTY.TestGameMod/caTTY.TestGameMod.csproj" />
 </Solution>
