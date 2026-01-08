@@ -18,7 +18,7 @@ internal static class TerminalEmulatorBuilder
     ///     Builds and returns a fully initialized TerminalEmulator.
     ///     This method contains all the initialization logic previously in the constructor.
     /// </summary>
-    public static TerminalEmulator Build(int width, int height, int scrollbackLines, ILogger? logger, IRpcHandler? rpcHandler)
+    public static TerminalEmulator Build(int width, int height, int scrollbackLines, ILogger? logger, IRpcHandler? rpcHandler, IOscRpcHandler? oscRpcHandler = null)
     {
         if (width < 1 || width > 1000)
         {
@@ -79,7 +79,7 @@ internal static class TerminalEmulatorBuilder
         var (charsetDesignationOps, charsetTranslationOps, lineFeedOps, indexOps, carriageReturnOps, bellOps, backspaceOps, tabOps, responseOps, inputOps, resetOps) = BuildMiscOps(emulator, cursorManager, screenBufferManager, attributeManager, modeManager, characterSetManager, state, screenBuffer, cursor, effectiveLogger);
 
         // Initialize parser with terminal handlers and optional RPC components
-        var handlers = new TerminalParserHandlers(emulator, effectiveLogger, rpcHandler);
+        var handlers = new TerminalParserHandlers(emulator, effectiveLogger, rpcHandler, oscRpcHandler);
         var parserOptions = new ParserOptions
         {
             Handlers = handlers,

@@ -18,6 +18,8 @@ internal class TerminalSessionFactory
     /// <param name="onStateChanged">Event handler for session state changes</param>
     /// <param name="onTitleChanged">Event handler for session title changes</param>
     /// <param name="onProcessExited">Event handler for process exit</param>
+    /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
+    /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null uses default no-op handler)</param>
     /// <returns>A fully configured terminal session</returns>
     public static TerminalSession CreateSession(
         Guid sessionId,
@@ -26,23 +28,11 @@ internal class TerminalSessionFactory
         int initialHeight,
         EventHandler<SessionStateChangedEventArgs> onStateChanged,
         EventHandler<SessionTitleChangedEventArgs> onTitleChanged,
-        EventHandler<SessionProcessExitedEventArgs> onProcessExited)
+        EventHandler<SessionProcessExitedEventArgs> onProcessExited,
+        IRpcHandler? rpcHandler = null,
+        IOscRpcHandler? oscRpcHandler = null)
     {
-        var router = new RpcCommandRouter(NullLogger.Instance);
-        var responseGenerator = new RpcResponseGenerator();
-        var _outputBuffer = new List<byte[]>();
-
-        var rpcHandler = new RpcHandler(
-            router,
-            responseGenerator,
-            bytes => _outputBuffer.Add(bytes),
-            NullLogger.Instance);
-
-        var registry = new GameActionRegistry(router, NullLogger.Instance, null);
-        registry.RegisterVehicleCommands();
-
-
-        var terminal = TerminalEmulator.Create(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler);
+        var terminal = TerminalEmulator.Create(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler, oscRpcHandler);
 
 
 

@@ -269,9 +269,9 @@ public class TerminalEmulator : ITerminalEmulator, ICursorPositionProvider
     /// <param name="logger">Optional logger for debugging (uses NullLogger if not provided)</param>
     /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when dimensions are invalid</exception>
-    public static TerminalEmulator Create(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null)
+    public static TerminalEmulator Create(int width, int height, int scrollbackLines, ILogger? logger = null, IRpcHandler? rpcHandler = null, IOscRpcHandler? oscRpcHandler = null)
     {
-        return TerminalEmulatorBuilder.Build(width, height, scrollbackLines, logger, rpcHandler);
+        return TerminalEmulatorBuilder.Build(width, height, scrollbackLines, logger, rpcHandler, oscRpcHandler);
     }
 
     /// <summary>
