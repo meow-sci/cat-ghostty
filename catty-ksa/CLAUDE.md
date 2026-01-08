@@ -37,8 +37,11 @@ dotnet run --project caTTY.TestApp                   # Run standalone console ap
 
 ### Project Dependencies
 ```
-caTTY.Core (headless, no dependencies)
+caTTY.Core (headless, no game dependencies)
     ↑
+    ├── caTTY.TermSequenceRpc (KSA-specific RPC handlers)
+    │       ↑
+    │       └── caTTY.TermSequenceRpc.Tests
     ├── caTTY.TestApp (console app)
     ├── caTTY.Core.Tests (unit & property tests)
     └── caTTY.Display (ImGui integration, depends on KSA DLLs)
@@ -75,18 +78,38 @@ The terminal emulator follows a multi-stage parsing and execution pipeline:
 - `Utils/`: Character classification, UTF-8 handling
 
 **Custom RPC Mechanisms:**
+
+RPC is **optional** and game-agnostic. Core defines interfaces, game projects implement them.
+
 - **CSI RPC**: Command sequences via CSI private-use functions (commands 1000+)
-  - Entry points: `Rpc/RpcHandler.cs`, `Rpc/RpcCommandRouter.cs`, `Rpc/GameActionRegistry.cs`
-  - Format: CSI-based with fire-and-forget or query patterns
-- **OSC RPC**: Uses OSC sequences in private-use range (1000+) for KSA game integration
+  - Core infrastructure: `Rpc/IRpcHandler.cs`, `Rpc/RpcCommandRouter.cs`, `Rpc/IRpcCommandHandler.cs`
+  - KSA implementation: `caTTY.TermSequenceRpc/KsaGameActionRegistry.cs`, `VehicleCommands/`
+  - Format: CSI-based with fire-and-forget (1001-1999) or query (2001-2999) patterns
+
+- **OSC RPC**: Uses OSC sequences in private-use range (1000+) for JSON action dispatch
   - OSC 1010: JSON action commands (e.g., `ESC ] 1010 ; {"action":"engine_ignite"} BEL`)
-  - Entry points:
+  - Core infrastructure:
     - `Parsing/OscParser.cs`: Marks OSC ≥1000 as `osc.private` type
-    - `Terminal/ParserHandlers/OscHandler.cs`: Standard OSC handling, delegates private commands to RPC layer
-    - `Rpc/IOscRpcHandler.cs`: RPC interface
-    - `Rpc/OscRpcHandler.cs`: JSON parsing and KSA action dispatch
-    - `Terminal/TerminalParserHandlers.cs`: Wires `OscRpcHandler` into OSC pipeline
+    - `Terminal/ParserHandlers/OscHandler.cs`: Delegates private commands to injected handler
+    - `Rpc/IOscRpcHandler.cs`: RPC interface (abstract)
+    - `Rpc/OscRpcHandler.cs`: Abstract base with JSON parsing infrastructure
+  - KSA implementation: `caTTY.TermSequenceRpc/KsaOscRpcHandler.cs`
   - Why OSC instead of DCS: Windows ConPTY filters DCS sequences but passes OSC through
+
+**RPC Integration Pattern:**
+```csharp
+// For KSA game integration (in caTTY.GameMod):
+using caTTY.TermSequenceRpc;
+var (rpcHandler, oscRpcHandler) = RpcBootstrapper.CreateKsaRpcHandlers(logger, outputCallback);
+var terminal = TerminalEmulator.Create(80, 24, 2500, logger, rpcHandler, oscRpcHandler);
+
+// Without RPC (in caTTY.TestApp):
+var terminal = TerminalEmulator.Create(80, 24, 2500, logger);
+
+// With custom RPC implementation:
+var customOscHandler = new MyCustomOscRpcHandler(logger);
+var terminal = TerminalEmulator.Create(80, 24, 2500, logger, null, customOscHandler);
+```
 
 ### Display Layer (caTTY.Display)
 
@@ -102,11 +125,22 @@ The terminal emulator follows a multi-stage parsing and execution pipeline:
 - KSA game DLLs from `C:\Program Files\Kitten Space Agency\` (configurable via `KSAFolder` in Directory.Build.props)
 - `Brutal.Core.Common.dll`, `Brutal.ImGui.dll`, `KSA.dll`, etc.
 
+### RPC Layer (caTTY.TermSequenceRpc)
+
+**KSA-specific RPC implementations:**
+- `KsaOscRpcHandler`: OSC RPC implementation with KSA game engine integration
+- `KsaGameActionRegistry`: CSI RPC command registry for vehicle control
+- `VehicleCommands/`: Command handlers (IgniteMainThrottle, ShutdownMainEngine, GetThrottleStatus)
+- `RpcBootstrapper`: Factory that wires all KSA RPC components together
+
+**Purpose**: Isolates all game-specific RPC code from Core. Core remains headless and game-agnostic, defining only interfaces.
+
 ### Game Mod (caTTY.GameMod)
 
 - StarMap.API-based mod with `[StarMapMod]` attribute
 - Lifecycle hooks: `[StarMapAllModsLoaded]`, `[StarMapAfterGui]`, `[StarMapUnload]`
 - F12 keybind toggles terminal window
+- Uses `RpcBootstrapper` from TermSequenceRpc for RPC initialization
 - Outputs to `dist/` with mod.toml
 
 ## Development Patterns
@@ -149,16 +183,16 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 5. Run tests with `.\scripts\dotnet-test.ps1`
 
 ### Adding a new RPC command (OSC-based)
-1. Add action constant to `Rpc/OscRpcHandler.cs` `Actions` class
-2. Add dispatch case in `OscRpcHandler.DispatchAction()`
-3. Add unit tests in `caTTY.Core.Tests/Unit/Rpc/OscRpcHandlerTests.cs`
+1. Add action constant to `caTTY.TermSequenceRpc/KsaOscRpcHandler.cs` `Actions` class
+2. Add dispatch case in `KsaOscRpcHandler.DispatchAction()`
+3. Add unit tests in `caTTY.TermSequenceRpc.Tests/Unit/KsaOscRpcHandlerTests.cs`
 4. Use from shell: `echo -ne '\e]1010;{"action":"your_action"}\a'`
 
 ### Adding a new RPC command (CSI-based)
-1. Create command handler implementing `IRpcCommandHandler` in `Rpc/`
-2. Register in `GameActionRegistry.RegisterVehicleCommands()` or custom registry
+1. Create command handler implementing `IRpcCommandHandler` in `caTTY.TermSequenceRpc/VehicleCommands/`
+2. Register in `KsaGameActionRegistry.RegisterVehicleCommands()`
 3. Commands 1001-1999 are fire-and-forget, 2001-2999 are queries
-4. Add tests in `caTTY.Core.Tests/Unit/Rpc/`
+4. Add tests in `caTTY.TermSequenceRpc.Tests/Unit/`
 
 ### Testing terminal behavior
 1. Use `caTTY.TestApp` for quick console testing
