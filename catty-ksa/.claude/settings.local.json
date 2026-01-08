@@ -63,7 +63,8 @@
       "Bash(wc:*)",
       "Bash(yarn:*)",
       "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1)",
-      "Bash(dotnet sln add:*)"
+      "Bash(dotnet sln add:*)",
+      "Bash(where.exe:*)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
