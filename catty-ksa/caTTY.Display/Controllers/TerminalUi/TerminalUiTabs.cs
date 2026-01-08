@@ -77,6 +77,7 @@ internal class TerminalUiTabs
       // Don't render tab bar when there's only one session
       if (sessions.Count <= 1)
       {
+        IsTabAreaActive = false;
         return;
       }
 
