@@ -199,9 +199,17 @@ public class ThemeConfiguration
     /// <returns>Full path to the configuration file</returns>
     private static string GetConfigFilePath()
     {
-        var appDataPath = OverrideAppDataDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configDirectory = Path.Combine(appDataPath, "caTTY");
-        return Path.Combine(configDirectory, "theme-config.json");
+        // If tests or callers override the app data directory, keep using that
+        if (!string.IsNullOrEmpty(OverrideAppDataDirectory))
+        {
+            var configDirectory = Path.Combine(OverrideAppDataDirectory, "caTTY");
+            return Path.Combine(configDirectory, "theme-config.json");
+        }
+
+        // Default to: $HOME\Documents\My Games\Kitten Space Agency\caTTY
+        var myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var defaultConfigDirectory = Path.Combine(myDocuments, "My Games", "Kitten Space Agency", "caTTY");
+        return Path.Combine(defaultConfigDirectory, "theme-config.json");
     }
 }
 
