@@ -1,6 +1,7 @@
 using System.Text;
 using Brutal.ImGuiApi.Abstractions;
 using caTTY.Core.Terminal;
+using caTTY.Display.Configuration;
 using KSA;
 
 namespace caTTY.GameMod;
@@ -31,7 +32,7 @@ public class GameConsoleShell : ICustomShell
     // Store the event handler delegate so we can properly unsubscribe
     private Action<string, TerminalInterfaceOutputType>? _outputHandler;
 
-    private const string Prompt = "game> ";
+    private string _prompt = "ksa> ";
     private const byte CtrlL = 0x0C;
     private const byte CarriageReturn = 0x0D;
     private const byte LineFeed = 0x0A;
@@ -72,6 +73,23 @@ public class GameConsoleShell : ICustomShell
     /// <inheritdoc />
     public event EventHandler<ShellTerminatedEventArgs>? Terminated;
 
+    /// <summary>
+    ///     Loads the prompt string from the saved configuration.
+    /// </summary>
+    private void LoadPromptFromConfiguration()
+    {
+        try
+        {
+            var config = ThemeConfiguration.Load();
+            _prompt = config.GameShellPrompt;
+        }
+        catch (Exception)
+        {
+            // If loading fails, keep the default prompt
+            _prompt = "ksa> ";
+        }
+    }
+
     /// <inheritdoc />
     public Task StartAsync(CustomShellStartOptions options, CancellationToken cancellationToken = default)
     {
@@ -97,6 +115,9 @@ public class GameConsoleShell : ICustomShell
         Program.TerminalInterface.OnOutput += _outputHandler;
 
         IsRunning = true;
+
+        // Load prompt from configuration
+        LoadPromptFromConfiguration();
 
         // Send welcome message
         SendOutput("\x1b[1;36m");  // Cyan bold
@@ -358,7 +379,7 @@ public class GameConsoleShell : ICustomShell
     private void ReplaceLineBuffer(string newText)
     {
         // Clear current line: move to start, erase to end
-        SendOutput($"\r{Prompt}\x1b[K");
+        SendOutput($"\r{_prompt}\x1b[K");
 
         // Update buffer
         _lineBuffer.Clear();
@@ -469,7 +490,7 @@ public class GameConsoleShell : ICustomShell
     /// </summary>
     private void SendPrompt()
     {
-        SendOutput(Prompt);
+        SendOutput(_prompt);
     }
 
     /// <summary>

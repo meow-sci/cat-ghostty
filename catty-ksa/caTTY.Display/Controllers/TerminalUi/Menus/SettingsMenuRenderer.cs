@@ -13,6 +13,7 @@ internal class SettingsMenuRenderer
   private readonly FontSubmenuRenderer _fontSubmenu;
   private readonly WindowSubmenuRenderer _windowSubmenu;
   private readonly ShellsSubmenuRenderer _shellsSubmenu;
+  private readonly GameShellSubmenuRenderer _gameShellSubmenu;
   private readonly PerformanceSubmenuRenderer _performanceSubmenu;
 
   public SettingsMenuRenderer(
@@ -20,12 +21,14 @@ internal class SettingsMenuRenderer
     FontSubmenuRenderer font,
     WindowSubmenuRenderer window,
     ShellsSubmenuRenderer shells,
+    GameShellSubmenuRenderer gameShell,
     PerformanceSubmenuRenderer performance)
   {
     _colorThemeSubmenu = colorTheme ?? throw new ArgumentNullException(nameof(colorTheme));
     _fontSubmenu = font ?? throw new ArgumentNullException(nameof(font));
     _windowSubmenu = window ?? throw new ArgumentNullException(nameof(window));
     _shellsSubmenu = shells ?? throw new ArgumentNullException(nameof(shells));
+    _gameShellSubmenu = gameShell ?? throw new ArgumentNullException(nameof(gameShell));
     _performanceSubmenu = performance ?? throw new ArgumentNullException(nameof(performance));
   }
 
@@ -65,6 +68,13 @@ internal class SettingsMenuRenderer
         if (ImGui.BeginMenu("Shells"))
         {
           _shellsSubmenu.RenderContent();
+          ImGui.EndMenu();
+        }
+
+        // Game Shell submenu
+        if (ImGui.BeginMenu("Game Shell"))
+        {
+          _gameShellSubmenu.RenderContent();
           ImGui.EndMenu();
         }
 

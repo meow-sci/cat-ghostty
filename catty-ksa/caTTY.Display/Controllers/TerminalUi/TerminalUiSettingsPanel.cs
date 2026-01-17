@@ -51,6 +51,7 @@ internal class TerminalUiSettingsPanel
     var fontSubmenu = new FontSubmenuRenderer(fonts, sessionManager, triggerTerminalResizeForAllSessions);
     var windowSubmenu = new WindowSubmenuRenderer(themeConfig);
     var shellsSubmenu = new ShellsSubmenuRenderer(themeConfig, sessionManager);
+    var gameShellSubmenu = new GameShellSubmenuRenderer(themeConfig);
     var performanceSubmenu = new PerformanceSubmenuRenderer(perfWatch);
 
     // Create top-level menus
@@ -61,6 +62,7 @@ internal class TerminalUiSettingsPanel
       fontSubmenu,
       windowSubmenu,
       shellsSubmenu,
+      gameShellSubmenu,
       performanceSubmenu
     );
   }

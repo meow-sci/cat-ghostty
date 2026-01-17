@@ -93,6 +93,11 @@ public class ThemeConfiguration
     public string? WslDistribution { get; set; }
 
     /// <summary>
+    /// Custom prompt string for the Game Console Shell.
+    /// </summary>
+    public string GameShellPrompt { get; set; } = "ksa> ";
+
+    /// <summary>
     /// Creates ProcessLaunchOptions based on the current configuration.
     /// </summary>
     /// <returns>ProcessLaunchOptions configured according to current settings</returns>
