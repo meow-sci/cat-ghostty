@@ -66,6 +66,13 @@ public class GameConsoleShell : ICustomShell
             throw new InvalidOperationException("Shell is already running");
         }
 
+        // Verify TerminalInterface is available
+        if (Program.TerminalInterface == null)
+        {
+            throw new InvalidOperationException(
+                "KSA TerminalInterface is not available. The game may not be fully initialized yet.");
+        }
+
         // Store terminal dimensions
         _terminalWidth = options.InitialWidth;
         _terminalHeight = options.InitialHeight;

@@ -89,11 +89,8 @@ public class TerminalMod
         {
             Patcher.patch();
 
-            // Register custom game shell
-            CustomShellRegistry.Instance.RegisterShell<GameConsoleShell>(
-                "game-console",
-                () => new GameConsoleShell());
-            Console.WriteLine("caTTY: Registered GameConsoleShell");
+            // Note: GameConsoleShell is automatically discovered via CustomShellRegistry.DiscoverShells()
+            // No manual registration needed - it will be found when GetAvailableShells() is called
 
             InitializeTerminal();
         }

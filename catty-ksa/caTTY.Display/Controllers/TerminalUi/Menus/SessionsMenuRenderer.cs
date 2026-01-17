@@ -58,7 +58,17 @@ internal class SessionsMenuRenderer
             if (ImGui.MenuItem(option.DisplayName))
             {
               _ = Task.Run(async () =>
-                await ShellSelectionHelper.CreateSessionWithShell(_sessionManager, option));
+              {
+                try
+                {
+                  await ShellSelectionHelper.CreateSessionWithShell(_sessionManager, option);
+                }
+                catch (Exception ex)
+                {
+                  Console.WriteLine($"Failed to create shell session '{option.DisplayName}': {ex.Message}");
+                  Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+              });
             }
 
             if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(option.Tooltip))
