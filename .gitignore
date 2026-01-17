@@ -12,3 +12,4 @@ imgui.ini
 *.trx
 .testresults/
 .DS_Store
+.vs/
