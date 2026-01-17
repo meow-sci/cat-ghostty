@@ -33,6 +33,11 @@ public static class ShellSelectionHelper
         public string? WslDistribution { get; set; }
 
         /// <summary>
+        /// Gets or sets the custom shell ID (only for CustomGame shells).
+        /// </summary>
+        public string? CustomShellId { get; set; }
+
+        /// <summary>
         /// Gets or sets the tooltip text for the option.
         /// </summary>
         public string? Tooltip { get; set; }
@@ -110,9 +115,21 @@ public static class ShellSelectionHelper
             }
         }
 
-        // Note: Custom and CustomGame shells are not included in the selection menu
+        // Note: Custom shells are not included in the selection menu
         // Custom shells would require additional UI for configuration (file picker, etc.)
-        // CustomGame shells are managed through a separate mechanism
+
+        // Add custom game shells from registry
+        var customShells = CustomShellRegistry.Instance.GetAvailableShells();
+        foreach (var (shellId, metadata) in customShells)
+        {
+            options.Add(new ShellOption
+            {
+                ShellType = ShellType.CustomGame,
+                DisplayName = metadata.Name,
+                CustomShellId = shellId,
+                Tooltip = metadata.Description
+            });
+        }
 
         return options;
     }
@@ -131,6 +148,7 @@ public static class ShellSelectionHelper
             ShellType.Cmd => ShellConfiguration.Cmd(),
             ShellType.Wsl when option.WslDistribution != null => ShellConfiguration.Wsl(option.WslDistribution),
             ShellType.Wsl => ShellConfiguration.Wsl(),
+            ShellType.CustomGame when option.CustomShellId != null => ProcessLaunchOptions.CreateCustomGame(option.CustomShellId),
             _ => ProcessLaunchOptions.CreateDefault()
         };
     }
@@ -166,6 +184,7 @@ public static class ShellSelectionHelper
             ShellType.Cmd => "cmd",
             ShellType.Wsl when option.WslDistribution != null => option.WslDistribution,
             ShellType.Wsl => "WSL",
+            ShellType.CustomGame => option.DisplayName,
             _ => "Terminal"
         };
     }
