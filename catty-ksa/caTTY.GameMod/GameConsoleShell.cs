@@ -228,6 +228,7 @@ public class GameConsoleShell : ICustomShell
         {
             // Ctrl+L: Clear screen
             ClearScreen();
+            SendPrompt();
         }
         else if (b == CarriageReturn || b == LineFeed)
         {
@@ -387,11 +388,35 @@ public class GameConsoleShell : ICustomShell
     }
 
     /// <summary>
+    ///     Tries to handle a built-in shell command.
+    /// </summary>
+    /// <param name="command">The command to check</param>
+    /// <returns>True if the command was handled as a built-in command, false otherwise</returns>
+    private bool TryHandleBuiltinCommand(string command)
+    {
+        switch (command.Trim().ToLowerInvariant())
+        {
+            case "clear":
+                ClearScreen();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
     ///     Executes a command via the game's TerminalInterface.
     /// </summary>
     /// <param name="command">The command to execute</param>
     private void ExecuteCommand(string command)
     {
+        // Check if it's a built-in command first
+        if (TryHandleBuiltinCommand(command))
+        {
+            SendPrompt();
+            return;
+        }
+
         try
         {
             // Execute the command via KSA's TerminalInterface
@@ -448,14 +473,13 @@ public class GameConsoleShell : ICustomShell
     }
 
     /// <summary>
-    ///     Clears the screen and redisplays the prompt.
+    ///     Clears the screen without redisplaying the prompt.
     /// </summary>
     private void ClearScreen()
     {
         // ESC[2J = Clear entire screen
         // ESC[H = Move cursor to home position (1,1)
         SendOutput("\x1b[2J\x1b[H");
-        SendPrompt();
     }
 
     /// <summary>
