@@ -20,6 +20,7 @@ internal class TerminalSessionFactory
     /// <param name="onProcessExited">Event handler for process exit</param>
     /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null uses default no-op handler)</param>
+    /// <param name="launchOptions">Optional launch options for the session (used to determine shell type)</param>
     /// <returns>A fully configured terminal session</returns>
     public static TerminalSession CreateSession(
         Guid sessionId,
@@ -30,13 +31,22 @@ internal class TerminalSessionFactory
         EventHandler<SessionTitleChangedEventArgs> onTitleChanged,
         EventHandler<SessionProcessExitedEventArgs> onProcessExited,
         IRpcHandler? rpcHandler = null,
-        IOscRpcHandler? oscRpcHandler = null)
+        IOscRpcHandler? oscRpcHandler = null,
+        ProcessLaunchOptions? launchOptions = null)
     {
         var terminal = TerminalEmulator.Create(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler, oscRpcHandler);
 
-
-
-        var processManager = new ProcessManager();
+        // Conditional process manager creation based on shell type
+        IProcessManager processManager;
+        if (launchOptions?.ShellType == ShellType.CustomGame && !string.IsNullOrEmpty(launchOptions.CustomShellId))
+        {
+            var customShell = CustomShellRegistry.Instance.CreateShell(launchOptions.CustomShellId);
+            processManager = new CustomShellPtyBridge(customShell);
+        }
+        else
+        {
+            processManager = new ProcessManager();
+        }
 
         var session = new TerminalSession(sessionId, sessionTitle, terminal, processManager);
 

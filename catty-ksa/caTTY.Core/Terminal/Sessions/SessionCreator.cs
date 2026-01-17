@@ -40,7 +40,8 @@ internal class SessionCreator
             onTitleChanged,
             onProcessExited,
             rpcHandler,
-            oscRpcHandler);
+            oscRpcHandler,
+            launchOptions);
 
         try
         {
