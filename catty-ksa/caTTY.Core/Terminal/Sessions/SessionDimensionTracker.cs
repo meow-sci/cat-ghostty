@@ -121,6 +121,7 @@ internal class SessionDimensionTracker
         {
             ShellType = options.ShellType,
             CustomShellPath = options.CustomShellPath,
+            CustomShellId = options.CustomShellId,
             Arguments = new List<string>(options.Arguments),
             WorkingDirectory = options.WorkingDirectory,
             EnvironmentVariables = new Dictionary<string, string>(options.EnvironmentVariables),

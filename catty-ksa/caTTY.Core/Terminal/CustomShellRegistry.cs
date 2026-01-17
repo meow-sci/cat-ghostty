@@ -181,7 +181,7 @@ public class CustomShellRegistry
                     }
                 }
 
-                // Console.WriteLine($"CustomShellRegistry: Discovery completed. Found {discoveredCount} custom shell implementations.");
+                Console.WriteLine($"CustomShellRegistry: Discovery completed. Found {discoveredCount} custom shell implementations. Available shells: {string.Join(", ", _shellFactories.Keys)}");
                 _discoveryCompleted = true;
             }
             catch (Exception ex)
@@ -202,51 +202,64 @@ public class CustomShellRegistry
     {
         var discoveredCount = 0;
 
+        // Get types from assembly, handling partial load failures
+        Type[] allTypes;
         try
         {
-            var shellTypes = assembly.GetTypes()
-                .Where(type => type.IsClass && !type.IsAbstract && typeof(ICustomShell).IsAssignableFrom(type))
-                .ToList();
-
-            foreach (var shellType in shellTypes)
-            {
-                try
-                {
-                    // Look for a parameterless constructor
-                    var constructor = shellType.GetConstructor(Type.EmptyTypes);
-                    if (constructor == null)
-                    {
-                        // Console.WriteLine($"CustomShellRegistry: Skipping '{shellType.FullName}' - no parameterless constructor found");
-                        continue;
-                    }
-
-                    // Create a factory function for this type
-                    var factory = () => (ICustomShell)Activator.CreateInstance(shellType)!;
-
-                    // Use the type name as the shell ID (can be overridden by explicit registration)
-                    var shellId = shellType.Name;
-
-                    // Skip if already registered (explicit registration takes precedence)
-                    if (_shellFactories.ContainsKey(shellId))
-                    {
-                        // Console.WriteLine($"CustomShellRegistry: Skipping auto-discovery of '{shellId}' - already explicitly registered");
-                        continue;
-                    }
-
-                    // Register the discovered shell
-                    RegisterShell(shellId, factory);
-                    discoveredCount++;
-                }
-                catch (Exception)
-                {
-                    // Continue with other types
-                }
-            }
+            allTypes = assembly.GetTypes();
         }
         catch (ReflectionTypeLoadException ex)
         {
-            Console.WriteLine($"CustomShellRegistry: Warning - Failed to load types from assembly '{assembly.FullName}': {ex.Message}");
-            // Continue with other assemblies
+            Console.WriteLine($"CustomShellRegistry: Warning - Partial type load failure in assembly '{assembly.GetName().Name}': {ex.Message}");
+            // Use the types that DID load successfully (filtering out nulls from failed types)
+            allTypes = ex.Types.Where(t => t != null).ToArray()!;
+            Console.WriteLine($"CustomShellRegistry: Recovered {allTypes.Length} loadable types from '{assembly.GetName().Name}'");
+        }
+
+        var shellTypes = allTypes
+            .Where(type => type.IsClass && !type.IsAbstract && typeof(ICustomShell).IsAssignableFrom(type))
+            .ToList();
+
+        if (shellTypes.Count > 0)
+        {
+            Console.WriteLine($"CustomShellRegistry: Found {shellTypes.Count} ICustomShell type(s) in assembly '{assembly.GetName().Name}': {string.Join(", ", shellTypes.Select(t => t.Name))}");
+        }
+
+        foreach (var shellType in shellTypes)
+        {
+            try
+            {
+                // Look for a parameterless constructor
+                var constructor = shellType.GetConstructor(Type.EmptyTypes);
+                if (constructor == null)
+                {
+                    Console.WriteLine($"CustomShellRegistry: Skipping '{shellType.FullName}' - no parameterless constructor found");
+                    continue;
+                }
+
+                // Create a factory function for this type
+                var factory = () => (ICustomShell)Activator.CreateInstance(shellType)!;
+
+                // Use the type name as the shell ID (can be overridden by explicit registration)
+                var shellId = shellType.Name;
+
+                // Skip if already registered (explicit registration takes precedence)
+                if (_shellFactories.ContainsKey(shellId))
+                {
+                    Console.WriteLine($"CustomShellRegistry: Skipping auto-discovery of '{shellId}' - already explicitly registered");
+                    continue;
+                }
+
+                // Register the discovered shell
+                RegisterShell(shellId, factory);
+                Console.WriteLine($"CustomShellRegistry: Successfully registered shell '{shellId}'");
+                discoveredCount++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"CustomShellRegistry: Failed to register shell '{shellType.FullName}': {ex.Message}");
+                // Continue with other types
+            }
         }
 
         return discoveredCount;

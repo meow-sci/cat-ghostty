@@ -1,4 +1,5 @@
 using System.Text;
+using Brutal.ImGuiApi.Abstractions;
 using caTTY.Core.Terminal;
 using KSA;
 
@@ -16,6 +17,9 @@ public class GameConsoleShell : ICustomShell
     private bool _disposed;
     private int _terminalWidth = 80;
     private int _terminalHeight = 24;
+
+    // Store the event handler delegate so we can properly unsubscribe
+    private Action<string, TerminalInterfaceOutputType>? _outputHandler;
 
     private const string Prompt = "game> ";
     private const byte CtrlL = 0x0C;
@@ -78,8 +82,9 @@ public class GameConsoleShell : ICustomShell
         _terminalHeight = options.InitialHeight;
 
         // Register event handler for game output
-        // Use lambda to handle the dynamic type from KSA
-        Program.TerminalInterface.OnOutput += (text, outputType) => HandleGameOutput(text, outputType);
+        // Store the delegate so we can properly unsubscribe later
+        _outputHandler = (text, outputType) => HandleGameOutput(text, outputType);
+        Program.TerminalInterface.OnOutput += _outputHandler;
 
         IsRunning = true;
 
@@ -105,8 +110,12 @@ public class GameConsoleShell : ICustomShell
             return Task.CompletedTask;
         }
 
-        // Unregister event handler
-        Program.TerminalInterface.OnOutput -= (text, outputType) => HandleGameOutput(text, outputType);
+        // Unregister event handler using the stored delegate
+        if (_outputHandler != null && Program.TerminalInterface != null)
+        {
+            Program.TerminalInterface.OnOutput -= _outputHandler;
+            _outputHandler = null;
+        }
 
         IsRunning = false;
 
@@ -243,7 +252,7 @@ public class GameConsoleShell : ICustomShell
     /// </summary>
     /// <param name="text">The output text</param>
     /// <param name="outputType">The type of output (Message or Error)</param>
-    private void HandleGameOutput(string text, dynamic outputType)
+    private void HandleGameOutput(string text, TerminalInterfaceOutputType outputType)
     {
         if (!IsRunning)
         {
@@ -252,11 +261,10 @@ public class GameConsoleShell : ICustomShell
 
         // Format output based on type
         // outputType is TerminalInterfaceOutputType enum with values: Message, Error
-        string typeName = outputType.ToString();
-        string formattedOutput = typeName switch
+        string formattedOutput = outputType switch
         {
-            "Error" => $"\x1b[31m{text}\x1b[0m\r\n",  // Red for errors
-            "Message" => $"{text}\r\n",               // Default color for messages
+            TerminalInterfaceOutputType.Error => $"\x1b[31m{text}\x1b[0m\r\n",  // Red for errors
+            TerminalInterfaceOutputType.Message => $"{text}\r\n",               // Default color for messages
             _ => $"{text}\r\n"
         };
 
@@ -316,6 +324,20 @@ public class GameConsoleShell : ICustomShell
         {
             // Use Wait() instead of GetAwaiter().GetResult() to avoid potential deadlocks
             StopAsync().Wait(TimeSpan.FromSeconds(5));
+        }
+
+        // Extra safety: ensure handler is unsubscribed even if StopAsync failed/timed out
+        if (_outputHandler != null && Program.TerminalInterface != null)
+        {
+            try
+            {
+                Program.TerminalInterface.OnOutput -= _outputHandler;
+            }
+            catch
+            {
+                // Ignore unsubscribe errors during disposal
+            }
+            _outputHandler = null;
         }
 
         _disposed = true;
