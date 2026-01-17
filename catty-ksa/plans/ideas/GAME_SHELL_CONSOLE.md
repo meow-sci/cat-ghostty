@@ -28,3 +28,7 @@ Key information I've gathered from exploring the KSA game DLL assemblies
     - When stdout, print with default color
     - When stderr, print with red color
 - Typical clear command shortcuts that bash supports should work like ctrl+l
+- The shell have the following similar features to bash and other common UNIX shells
+    - Command history (up/down arrow keys)
+    - "clear" command will clear the console (do not send this to the backing game `TerminalInterface.Execute`, handle it directly)
+- The "prompt" should default to "ksa> " and it should be configurable in the settings menu in a new submenu for "Game Shell" specific settings and persisted/restored alongside other persisted features

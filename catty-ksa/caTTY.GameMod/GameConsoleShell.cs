@@ -2,6 +2,7 @@ using System.Text;
 using Brutal.ImGuiApi.Abstractions;
 using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
+using HarmonyLib;
 using KSA;
 
 namespace caTTY.GameMod;
@@ -29,8 +30,10 @@ public class GameConsoleShell : ICustomShell
     private EscapeState _escapeState = EscapeState.None;
     private readonly StringBuilder _escapeBuffer = new();
 
-    // Store the event handler delegate so we can properly unsubscribe
-    private Action<string, TerminalInterfaceOutputType>? _outputHandler;
+    // Track if we're currently executing a command (for Harmony patch)
+    private static GameConsoleShell? _activeInstance;
+    private static readonly object _activeLock = new();
+    private bool _isExecutingCommand;
 
     private string _prompt = "ksa> ";
     private const byte CtrlL = 0x0C;
@@ -98,6 +101,9 @@ public class GameConsoleShell : ICustomShell
             throw new InvalidOperationException("Shell is already running");
         }
 
+        // NOTE: Harmony patch is already installed by Patcher.patch() at mod startup.
+        // No need to install it again here.
+
         // Verify TerminalInterface is available
         if (Program.TerminalInterface == null)
         {
@@ -109,10 +115,10 @@ public class GameConsoleShell : ICustomShell
         _terminalWidth = options.InitialWidth;
         _terminalHeight = options.InitialHeight;
 
-        // Register event handler for game output
-        // Store the delegate so we can properly unsubscribe later
-        _outputHandler = (text, outputType) => HandleGameOutput(text, outputType);
-        Program.TerminalInterface.OnOutput += _outputHandler;
+        // NOTE: We no longer use OnOutput event handler because the Harmony patch
+        // on ConsoleWindow.Print() captures ALL output (including OnOutput events
+        // which the game forwards to ConsoleWindow.Print anyway).
+        // Using both would cause duplicate output.
 
         IsRunning = true;
 
@@ -139,13 +145,6 @@ public class GameConsoleShell : ICustomShell
         if (!IsRunning)
         {
             return Task.CompletedTask;
-        }
-
-        // Unregister event handler using the stored delegate
-        if (_outputHandler != null && Program.TerminalInterface != null)
-        {
-            Program.TerminalInterface.OnOutput -= _outputHandler;
-            _outputHandler = null;
         }
 
         IsRunning = false;
@@ -440,15 +439,31 @@ public class GameConsoleShell : ICustomShell
 
         try
         {
-            // Execute the command via KSA's TerminalInterface
-            // The result indicates whether the command was valid (true) or invalid (false)
-            bool success = Program.TerminalInterface.Execute(command);
+            // Set this instance as active so Harmony patch can capture output
+            lock (_activeLock)
+            {
+                _activeInstance = this;
+                _isExecutingCommand = true;
+            }
 
-            // Note: The actual output will come asynchronously via the OnOutput event handler
-            // We don't need to do anything special here - just wait for the output
+            try
+            {
+                // Execute the command via KSA's TerminalInterface
+                // Output will be captured by our Harmony patch on ConsoleWindow.Print()
+                bool success = Program.TerminalInterface.Execute(command);
 
-            // If the command was invalid and no output event fires, we'll show an error
-            // But typically TerminalInterface.Execute will trigger OnOutput events
+                // Send prompt
+                SendPrompt();
+            }
+            finally
+            {
+                // Clear active instance
+                lock (_activeLock)
+                {
+                    _isExecutingCommand = false;
+                    _activeInstance = null;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -456,33 +471,6 @@ public class GameConsoleShell : ICustomShell
             SendOutput($"\x1b[31mError executing command: {ex.Message}\x1b[0m\r\n");
             SendPrompt();
         }
-    }
-
-    /// <summary>
-    ///     Handles output from the game's TerminalInterface.
-    /// </summary>
-    /// <param name="text">The output text</param>
-    /// <param name="outputType">The type of output (Message or Error)</param>
-    private void HandleGameOutput(string text, TerminalInterfaceOutputType outputType)
-    {
-        if (!IsRunning)
-        {
-            return;
-        }
-
-        // Format output based on type
-        // outputType is TerminalInterfaceOutputType enum with values: Message, Error
-        string formattedOutput = outputType switch
-        {
-            TerminalInterfaceOutputType.Error => $"\x1b[31m{text}\x1b[0m\r\n",  // Red for errors
-            TerminalInterfaceOutputType.Message => $"{text}\r\n",               // Default color for messages
-            _ => $"{text}\r\n"
-        };
-
-        SendOutput(formattedOutput);
-
-        // After output is complete, send new prompt
-        SendPrompt();
     }
 
     /// <summary>
@@ -536,20 +524,63 @@ public class GameConsoleShell : ICustomShell
             StopAsync().Wait(TimeSpan.FromSeconds(5));
         }
 
-        // Extra safety: ensure handler is unsubscribed even if StopAsync failed/timed out
-        if (_outputHandler != null && Program.TerminalInterface != null)
+        _disposed = true;
+    }
+
+    /// <summary>
+    ///     Internal method called by Harmony patch to handle captured console output.
+    /// </summary>
+    internal static void OnConsolePrint(string output, uint color, ConsoleLineType lineType)
+    {
+        lock (_activeLock)
         {
+            if (_activeInstance == null || !_activeInstance._isExecutingCommand)
+            {
+                return; // Not currently executing in our shell
+            }
+
             try
             {
-                Program.TerminalInterface.OnOutput -= _outputHandler;
-            }
-            catch
-            {
-                // Ignore unsubscribe errors during disposal
-            }
-            _outputHandler = null;
-        }
+                // Forward to the active shell instance
+                // Determine if this is an error based on color (red = error)
+                bool isError = color == ConsoleWindow.ErrorColor || color == ConsoleWindow.CriticalColor;
 
-        _disposed = true;
+                string formattedOutput = isError
+                    ? $"\x1b[31m{output}\x1b[0m\r\n"  // Red for errors
+                    : $"{output}\r\n";               // Default color for normal output
+
+                _activeInstance.SendOutput(formattedOutput);
+            }
+            catch (Exception)
+            {
+                // Silently handle errors to avoid disrupting the game console
+            }
+        }
+    }
+}
+
+/// <summary>
+///     Harmony patch for ConsoleWindow.Print to capture console output.
+///     This patch is automatically installed by Patcher.patch() at mod startup.
+/// </summary>
+[HarmonyPatch(typeof(ConsoleWindow))]
+[HarmonyPatch(nameof(ConsoleWindow.Print))]
+[HarmonyPatch(new[] { typeof(string), typeof(uint), typeof(int), typeof(ConsoleLineType) })]
+public static class ConsoleWindowPrintPatch
+{
+    /// <summary>
+    ///     Postfix patch that captures console output.
+    /// </summary>
+    [HarmonyPostfix]
+    public static void Postfix(string inOutput, uint inColor, ConsoleLineType inType)
+    {
+        try
+        {
+            GameConsoleShell.OnConsolePrint(inOutput, inColor, inType);
+        }
+        catch (Exception)
+        {
+            // Silently handle errors to avoid disrupting the game console
+        }
     }
 }
