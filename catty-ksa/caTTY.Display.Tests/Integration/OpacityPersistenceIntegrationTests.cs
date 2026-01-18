@@ -20,8 +20,8 @@ public class OpacityPersistenceIntegrationTests
     public void SetUp()
     {
         // Use a temporary directory for test configuration files
-        _originalAppDataDirectory = ThemeConfiguration.OverrideAppDataDirectory;
-        ThemeConfiguration.OverrideAppDataDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        _originalAppDataDirectory = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         
         // Ensure clean state for each test
         OpacityManager.ResetOpacity();
@@ -31,13 +31,13 @@ public class OpacityPersistenceIntegrationTests
     public void TearDown()
     {
         // Clean up test configuration directory
-        if (ThemeConfiguration.OverrideAppDataDirectory != null && Directory.Exists(ThemeConfiguration.OverrideAppDataDirectory))
+        if (ThemeConfiguration.OverrideConfigDirectory != null && Directory.Exists(ThemeConfiguration.OverrideConfigDirectory))
         {
-            Directory.Delete(ThemeConfiguration.OverrideAppDataDirectory, true);
+            Directory.Delete(ThemeConfiguration.OverrideConfigDirectory, true);
         }
         
         // Restore original app data directory
-        ThemeConfiguration.OverrideAppDataDirectory = _originalAppDataDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _originalAppDataDirectory;
         
         // Reset opacity to default state
         OpacityManager.ResetOpacity();

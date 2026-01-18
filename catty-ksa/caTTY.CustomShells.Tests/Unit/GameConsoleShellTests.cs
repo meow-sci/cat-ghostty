@@ -24,7 +24,7 @@ public class GameConsoleShellTests
         _shell = new TestGameConsoleShell(_outputBuffer);
 
         // Clean up any test configuration files
-        ThemeConfiguration.OverrideAppDataDirectory = Path.Combine(Path.GetTempPath(), $"catty-test-{Guid.NewGuid()}");
+        ThemeConfiguration.OverrideConfigDirectory = Path.Combine(Path.GetTempPath(), $"catty-test-{Guid.NewGuid()}");
     }
 
     [TearDown]
@@ -38,12 +38,12 @@ public class GameConsoleShellTests
         _shell = null;
 
         // Clean up test configuration directory
-        if (!string.IsNullOrEmpty(ThemeConfiguration.OverrideAppDataDirectory)
-            && Directory.Exists(ThemeConfiguration.OverrideAppDataDirectory))
+        if (!string.IsNullOrEmpty(ThemeConfiguration.OverrideConfigDirectory)
+            && Directory.Exists(ThemeConfiguration.OverrideConfigDirectory))
         {
             try
             {
-                Directory.Delete(ThemeConfiguration.OverrideAppDataDirectory, true);
+                Directory.Delete(ThemeConfiguration.OverrideConfigDirectory, true);
             }
             catch
             {
@@ -51,7 +51,7 @@ public class GameConsoleShellTests
             }
         }
 
-        ThemeConfiguration.OverrideAppDataDirectory = null;
+        ThemeConfiguration.OverrideConfigDirectory = null;
     }
 
     #region Lifecycle Tests
@@ -193,7 +193,7 @@ public class GameConsoleShellTests
     {
         // Arrange - Use invalid directory to force load error
         var invalidPath = Path.Combine(Path.GetTempPath(), "invalid-\0-path");
-        ThemeConfiguration.OverrideAppDataDirectory = invalidPath;
+        ThemeConfiguration.OverrideConfigDirectory = invalidPath;
 
         var options = CustomShellStartOptions.CreateWithDimensions(80, 24);
 
