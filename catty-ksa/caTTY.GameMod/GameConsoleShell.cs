@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.Channels;
 using Brutal.ImGuiApi.Abstractions;
 using caTTY.Core.Terminal;
 using caTTY.Display.Configuration;
@@ -10,6 +11,11 @@ namespace caTTY.GameMod;
 /// <summary>
 ///     Custom shell implementation that provides a command-line interface to the KSA game console.
 ///     This shell executes commands through KSA's TerminalInterface and displays results with appropriate formatting.
+///
+///     Output is handled through a channel-based pattern that mimics real PTY behavior:
+///     - Shell writes to an output channel (like writing to stdout)
+///     - A background pump reads from the channel and raises OutputReceived events
+///     - This decouples shell output from event handling, matching how ConPTY works
 /// </summary>
 public class GameConsoleShell : ICustomShell
 {
@@ -34,6 +40,12 @@ public class GameConsoleShell : ICustomShell
     private static GameConsoleShell? _activeInstance;
     private static readonly object _activeLock = new();
     private bool _isExecutingCommand;
+
+    // PTY-style output channel - mimics a pipe/stdout buffer
+    // The shell writes to this channel, and a background task pumps it to OutputReceived events
+    private Channel<byte[]>? _outputChannel;
+    private Task? _outputPumpTask;
+    private CancellationTokenSource? _outputPumpCancellation;
 
     private string _prompt = "ksa> ";
     private const byte CtrlL = 0x0C;
@@ -120,42 +132,140 @@ public class GameConsoleShell : ICustomShell
         // which the game forwards to ConsoleWindow.Print anyway).
         // Using both would cause duplicate output.
 
-        IsRunning = true;
-
         // Load prompt from configuration
         LoadPromptFromConfiguration();
 
-        // Send welcome message
-        SendOutput("\x1b[1;36m");  // Cyan bold
-        SendOutput("=================================================\r\n");
-        SendOutput("  KSA Game Console Shell\r\n");
-        SendOutput("  Type 'help' for available commands\r\n");
-        SendOutput("  Press Ctrl+L to clear screen\r\n");
-        SendOutput("=================================================\x1b[0m\r\n");
+        // Create PTY-style output channel - unbounded like a real pipe buffer
+        // This channel acts as the "stdout pipe" that a real shell would write to
+        _outputChannel = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false // Multiple sources can write (shell, command output, etc.)
+        });
 
-        // Display initial prompt
-        SendPrompt();
+        // Start the output pump - this is like ProcessManager's ReadOutputAsync task
+        // It runs on a background thread and raises OutputReceived events as data arrives
+        _outputPumpCancellation = new CancellationTokenSource();
+        _outputPumpTask = Task.Run(() => OutputPumpAsync(_outputPumpCancellation.Token));
+
+        IsRunning = true;
+
+        // Shell is now ready to accept input with cursor at 0,0
+        // Initial output (banner/prompt) will be sent via SendInitialOutput()
+        // AFTER the session is fully initialized and wired up
 
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public void SendInitialOutput()
+    {
+        // Load prompt from configuration before sending
+        LoadPromptFromConfiguration();
+
+        // Send banner and prompt
+        // This happens AFTER the shell is fully initialized and wired to the terminal
+        var banner = "\x1b[1;36m" +  // Cyan bold
+                     "=================================================\r\n" +
+                     "  KSA Game Console Shell\r\n" +
+                     "  Type 'help' for available commands\r\n" +
+                     "  Press Ctrl+L to clear screen\r\n" +
+                     "=================================================\x1b[0m\r\n";
+        QueueOutput(banner);
+        QueueOutput(_prompt);
+    }
+
+    /// <summary>
+    ///     Background task that pumps output from the channel to OutputReceived events.
+    ///     This mimics how ProcessManager's ReadOutputAsync reads from the ConPTY pipe.
+    /// </summary>
+    private async Task OutputPumpAsync(CancellationToken cancellationToken)
+    {
+        if (_outputChannel == null) return;
+
+        try
+        {
+            await foreach (var data in _outputChannel.Reader.ReadAllAsync(cancellationToken))
+            {
+                try
+                {
+                    // Raise the event from this background thread, just like ProcessManager does
+                    OutputReceived?.Invoke(this, new ShellOutputEventArgs(data, ShellOutputType.Stdout));
+                }
+                catch (Exception)
+                {
+                    // Silently handle errors to avoid disrupting the output pump
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when shell is stopped
+        }
+        catch (Exception)
+        {
+            // Silently handle errors to avoid crashing the background task
+        }
+    }
+
+    /// <summary>
+    ///     Queues data to the output channel for asynchronous delivery.
+    ///     This is like a shell writing to its stdout file descriptor.
+    /// </summary>
+    private void QueueOutput(byte[] data)
+    {
+        _outputChannel?.Writer.TryWrite(data);
+    }
+
+    /// <summary>
+    ///     Queues text to the output channel for asynchronous delivery.
+    /// </summary>
+    private void QueueOutput(string text)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+        QueueOutput(bytes);
+    }
+
+    /// <inheritdoc />
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (!IsRunning)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         IsRunning = false;
 
-        // Send goodbye message
-        SendOutput("\r\n\x1b[1;33mGame Console shell terminated.\x1b[0m\r\n");
+        // Send goodbye message through the channel
+        QueueOutput("\r\n\x1b[1;33mGame Console shell terminated.\x1b[0m\r\n");
+
+        // Complete the output channel - this signals the pump to finish after draining
+        _outputChannel?.Writer.Complete();
+
+        // Wait for the output pump to finish processing remaining items
+        if (_outputPumpTask != null)
+        {
+            try
+            {
+                // Wait for pump to drain, but don't wait forever
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(2));
+                await _outputPumpTask.WaitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Pump didn't finish in time, cancel it
+                _outputPumpCancellation?.Cancel();
+            }
+        }
+
+        // Cleanup
+        _outputPumpCancellation?.Dispose();
+        _outputPumpCancellation = null;
+        _outputPumpTask = null;
 
         // Raise termination event
         Terminated?.Invoke(this, new ShellTerminatedEventArgs(0, "User requested shutdown"));
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -492,22 +602,21 @@ public class GameConsoleShell : ICustomShell
     }
 
     /// <summary>
-    ///     Sends text output to the terminal.
+    ///     Sends text output to the terminal via the PTY-style output channel.
     /// </summary>
     /// <param name="text">The text to send</param>
     private void SendOutput(string text)
     {
-        var bytes = Encoding.UTF8.GetBytes(text);
-        SendOutput(bytes);
+        QueueOutput(text);
     }
 
     /// <summary>
-    ///     Sends raw byte data to the terminal.
+    ///     Sends raw byte data to the terminal via the PTY-style output channel.
     /// </summary>
     /// <param name="data">The data to send</param>
     private void SendOutput(byte[] data)
     {
-        OutputReceived?.Invoke(this, new ShellOutputEventArgs(data, ShellOutputType.Stdout));
+        QueueOutput(data);
     }
 
     /// <inheritdoc />
@@ -520,8 +629,27 @@ public class GameConsoleShell : ICustomShell
 
         if (IsRunning)
         {
-            // Use Wait() instead of GetAwaiter().GetResult() to avoid potential deadlocks
-            StopAsync().Wait(TimeSpan.FromSeconds(5));
+            // Complete the channel to stop the pump
+            _outputChannel?.Writer.TryComplete();
+
+            // Cancel the pump immediately
+            _outputPumpCancellation?.Cancel();
+
+            // Wait briefly for cleanup
+            try
+            {
+                _outputPumpTask?.Wait(TimeSpan.FromSeconds(1));
+            }
+            catch
+            {
+                // Ignore errors during disposal
+            }
+
+            _outputPumpCancellation?.Dispose();
+            _outputPumpCancellation = null;
+            _outputPumpTask = null;
+
+            IsRunning = false;
         }
 
         _disposed = true;

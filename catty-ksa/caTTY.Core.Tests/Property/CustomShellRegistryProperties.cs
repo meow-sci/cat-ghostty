@@ -496,9 +496,14 @@ internal class RegistryMockCustomShell : ICustomShell
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(RegistryMockCustomShell));
-        
+
         // Mock implementation - set a flag for testing
         CancellationRequested = true;
+    }
+
+    public void SendInitialOutput()
+    {
+        // Mock implementation - no initial output for tests
     }
 
     public void Dispose()
@@ -557,6 +562,11 @@ internal class InvalidRegistryMockCustomShell : ICustomShell
     }
 
     public void RequestCancellation()
+    {
+        throw new NotImplementedException();
+    }
+
+    public void SendInitialOutput()
     {
         throw new NotImplementedException();
     }

@@ -83,6 +83,8 @@ internal class TerminalResizeOps
         // Handle scrollback updates during resize
         // If height is decreasing and cursor is below the new height,
         // we need to push the excess rows to scrollback
+        bool rowsPushedToScrollback = false;
+        int rowsMovedToScrollback = 0;
         if (height < oldHeight && oldCursorY >= height)
         {
             // Calculate how many rows need to be moved to scrollback
@@ -97,6 +99,9 @@ internal class TerminalResizeOps
                     _scrollbackManager.AddLine(rowSpan);
                 }
             }
+
+            rowsPushedToScrollback = true;
+            rowsMovedToScrollback = excessRows;
         }
 
         // Resize the screen buffer (this preserves content according to the simple policy)
@@ -109,15 +114,14 @@ internal class TerminalResizeOps
         int newCursorX = Math.Min(oldCursorX, width - 1);
         int newCursorY;
 
-        if (height < oldHeight)
+        if (rowsPushedToScrollback)
         {
-            // Height decreased - adjust cursor position
-            int rowsLost = oldHeight - height;
-            newCursorY = Math.Max(0, oldCursorY - rowsLost);
+            // Height decreased and rows were pushed to scrollback - adjust cursor position
+            newCursorY = Math.Max(0, oldCursorY - rowsMovedToScrollback);
         }
         else
         {
-            // Height increased or same - keep cursor position
+            // No rows pushed to scrollback - just clamp cursor to new bounds
             newCursorY = Math.Min(oldCursorY, height - 1);
         }
 

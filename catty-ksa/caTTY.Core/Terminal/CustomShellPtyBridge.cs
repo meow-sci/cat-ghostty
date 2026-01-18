@@ -76,7 +76,7 @@ public class CustomShellPtyBridge : IProcessManager
     public async Task StartAsync(ProcessLaunchOptions options, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        
+
         lock (_stateLock)
         {
             if (_isRunning)
@@ -96,9 +96,11 @@ public class CustomShellPtyBridge : IProcessManager
                 EnvironmentVariables = new Dictionary<string, string>(options.EnvironmentVariables)
             };
 
-            // Start the custom shell
+            // Start the custom shell - the shell handles output asynchronously through
+            // its internal output channel/pump, just like ProcessManager reads from ConPTY.
+            // Output events will flow through once the shell's output pump starts running.
             await _customShell.StartAsync(customOptions, cancellationToken);
-            
+
             lock (_stateLock)
             {
                 _isRunning = true;
@@ -256,6 +258,25 @@ public class CustomShellPtyBridge : IProcessManager
         {
             throw new ObjectDisposedException(nameof(CustomShellPtyBridge));
         }
+    }
+
+    /// <summary>
+    ///     Sends initial output (banner, prompt, etc.) to the custom shell.
+    ///     This should be called AFTER the session is fully initialized and wired up.
+    /// </summary>
+    public void SendInitialOutput()
+    {
+        ThrowIfDisposed();
+
+        lock (_stateLock)
+        {
+            if (!_isRunning)
+            {
+                throw new InvalidOperationException("Custom shell is not running");
+            }
+        }
+
+        _customShell.SendInitialOutput();
     }
 
     /// <inheritdoc />

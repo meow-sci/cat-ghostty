@@ -517,6 +517,11 @@ internal class MockCustomShell : ICustomShell
         // Mock implementation - do nothing
     }
 
+    public void SendInitialOutput()
+    {
+        // Mock implementation - no initial output for tests
+    }
+
     public void TriggerOutput(byte[] data)
     {
         // Trigger output synchronously for faster test execution
@@ -576,6 +581,11 @@ internal class FailingMockCustomShell : ICustomShell
     }
 
     public void RequestCancellation()
+    {
+        // Mock implementation - do nothing
+    }
+
+    public void SendInitialOutput()
     {
         // Mock implementation - do nothing
     }

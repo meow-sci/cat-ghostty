@@ -56,6 +56,13 @@ internal class SessionCreator
             // Update session settings with terminal dimensions
             session.UpdateTerminalDimensions(session.Terminal.Width, session.Terminal.Height);
 
+            // For custom shells, send initial output AFTER session is fully initialized and wired up
+            // This ensures the terminal is ready to process output and cursor starts at 0,0
+            if (session.ProcessManager is CustomShellPtyBridge customShellBridge)
+            {
+                customShellBridge.SendInitialOutput();
+            }
+
             return session;
         }
         catch

@@ -63,4 +63,11 @@ public interface ICustomShell : IDisposable
     ///     Requests graceful cancellation of long-running operations.
     /// </summary>
     void RequestCancellation();
+
+    /// <summary>
+    ///     Sends initial output (banner, prompt, etc.) to the shell.
+    ///     This is called AFTER the shell is fully initialized and wired up to the terminal,
+    ///     ensuring the terminal is ready to process output before any data is sent.
+    /// </summary>
+    void SendInitialOutput();
 }
