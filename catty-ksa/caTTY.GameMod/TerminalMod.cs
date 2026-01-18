@@ -1,7 +1,6 @@
 using Brutal.ImGuiApi;
 using caTTY.Core.Rpc;
 using caTTY.Core.Terminal;
-using caTTY.CustomShells;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.Display.Rendering;
@@ -90,8 +89,20 @@ public class TerminalMod
         {
             Patcher.patch();
 
-            // Note: GameConsoleShell is automatically discovered via CustomShellRegistry.DiscoverShells()
-            // No manual registration needed - it will be found when GetAvailableShells() is called
+            // BUGFIX: Explicitly load caTTY.CustomShells assembly so that CustomShellRegistry can discover
+            // custom shell implementations via reflection. The assembly is referenced in the project
+            // but doesn't get loaded automatically unless a type from it is instantiated. We need it
+            // loaded before shell discovery happens.
+            try
+            {
+                System.Reflection.Assembly.Load("caTTY.CustomShells");
+                Console.WriteLine("caTTY GameMod: Loaded caTTY.CustomShells assembly for custom shell discovery");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"caTTY GameMod: Warning - Failed to load caTTY.CustomShells assembly: {ex.Message}");
+                // Continue anyway - custom shells just won't be available
+            }
 
             InitializeTerminal();
         }
