@@ -3,7 +3,7 @@ using FsCheck;
 using NUnit.Framework;
 using System.Collections.Concurrent;
 
-namespace caTTY.Core.Tests.Property;
+namespace caTTY.CustomShellContract.Tests.Property;
 
 /// <summary>
 ///     Property-based tests for custom shell registry functionality.
@@ -55,7 +55,7 @@ public class CustomShellRegistryProperties
     /// <summary>
     ///     **Feature: custom-game-shells, Property 14: Automatic Shell Discovery**
     ///     **Validates: Requirements 7.1, 7.2**
-    ///     Property: For any custom shell implementation in the application domain, the shell registry 
+    ///     Property: For any custom shell implementation in the application domain, the shell registry
     ///     should automatically discover it at startup and make it available for selection.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
@@ -65,21 +65,21 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Create a mock shell implementation
             var mockShell = new RegistryMockCustomShell(shellId);
-            
+
             // Register the shell manually to simulate discovery
             registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId));
-            
+
             // Act: Get available shells
             var availableShells = registry.GetAvailableShells().ToList();
-            
+
             // Assert: The shell should be discoverable
             bool shellFound = availableShells.Any(s => s.Id == shellId);
             bool metadataValid = registry.GetShellMetadata(shellId) != null;
             bool canCreateInstance = registry.IsShellRegistered(shellId);
-            
+
             return shellFound && metadataValid && canCreateInstance;
         });
     }
@@ -96,21 +96,21 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Register multiple shells
             foreach (var shellId in shellIds)
             {
                 registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId));
             }
-            
+
             // Act: Get available shells
             var availableShells = registry.GetAvailableShells().ToList();
-            
+
             // Assert: All shells should be discoverable
             bool allShellsFound = shellIds.All(id => availableShells.Any(s => s.Id == id));
             bool correctCount = availableShells.Count >= shellIds.Count();
             bool allHaveMetadata = shellIds.All(id => registry.GetShellMetadata(id) != null);
-            
+
             return allShellsFound && correctCount && allHaveMetadata;
         });
     }
@@ -125,20 +125,20 @@ public class CustomShellRegistryProperties
         var registry = new CustomShellRegistry();
         var shellId = "TestShell";
         registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId));
-        
+
         // Act: Perform discovery multiple times
         var firstDiscovery = registry.GetAvailableShells().ToList();
         var secondDiscovery = registry.GetAvailableShells().ToList();
         var thirdDiscovery = registry.GetAvailableShells().ToList();
-        
+
         // Assert: Results should be identical
-        bool countsMatch = firstDiscovery.Count == secondDiscovery.Count && 
+        bool countsMatch = firstDiscovery.Count == secondDiscovery.Count &&
                           secondDiscovery.Count == thirdDiscovery.Count;
-        
-        bool contentMatches = firstDiscovery.All(shell => 
+
+        bool contentMatches = firstDiscovery.All(shell =>
             secondDiscovery.Any(s => s.Id == shell.Id) &&
             thirdDiscovery.Any(s => s.Id == shell.Id));
-        
+
         Assert.That(countsMatch && contentMatches, Is.True);
     }
 
@@ -150,10 +150,10 @@ public class CustomShellRegistryProperties
     {
         // Arrange: Create a registry
         var registry = new CustomShellRegistry();
-        
+
         // Act: Attempt discovery - should not throw
         var availableShells = registry.GetAvailableShells().ToList();
-        
+
         // Assert: Should not throw and return a valid collection
         Assert.That(availableShells, Is.Not.Null);
         // Note: This test assembly contains mock shells, so we expect some shells to be discovered
@@ -163,7 +163,7 @@ public class CustomShellRegistryProperties
     /// <summary>
     ///     **Feature: custom-game-shells, Property 15: Shell Registration Validation**
     ///     **Validates: Requirements 7.4, 7.5**
-    ///     Property: For any custom shell registration attempt, the shell registry should validate 
+    ///     Property: For any custom shell registration attempt, the shell registry should validate
     ///     the implementation before registration and handle failures gracefully with appropriate error logging.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
@@ -173,25 +173,25 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Act & Assert: Valid shell should register successfully
             bool validRegistrationSucceeds = true;
             try
             {
                 registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId));
-                
+
                 // Verify the shell is registered
                 bool isRegistered = registry.IsShellRegistered(shellId);
                 bool hasMetadata = registry.GetShellMetadata(shellId) != null;
                 bool canCreate = registry.CreateShell(shellId) != null;
-                
+
                 validRegistrationSucceeds = isRegistered && hasMetadata && canCreate;
             }
             catch
             {
                 validRegistrationSucceeds = false;
             }
-            
+
             return validRegistrationSucceeds;
         });
     }
@@ -206,7 +206,7 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Act & Assert: Invalid shell ID should be rejected
             bool exceptionThrown = false;
             try
@@ -222,7 +222,7 @@ public class CustomShellRegistryProperties
                 // Other exceptions are not expected for invalid IDs
                 exceptionThrown = false;
             }
-            
+
             return exceptionThrown;
         });
     }
@@ -236,9 +236,9 @@ public class CustomShellRegistryProperties
         // Arrange
         var registry = new CustomShellRegistry();
         var shellId = "TestShell";
-        
+
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             registry.RegisterShell<RegistryMockCustomShell>(shellId, null!));
     }
 
@@ -251,12 +251,12 @@ public class CustomShellRegistryProperties
         // Arrange
         var registry = new CustomShellRegistry();
         var shellId = "TestShell";
-        
+
         // Register first shell
         registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId));
-        
+
         // Act & Assert: Second registration with same ID should fail
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             registry.RegisterShell(shellId, () => new RegistryMockCustomShell(shellId)));
     }
 
@@ -269,9 +269,9 @@ public class CustomShellRegistryProperties
         // Arrange
         var registry = new CustomShellRegistry();
         var shellId = "InvalidShell";
-        
+
         // Act & Assert: Invalid shell should be rejected
-        Assert.Throws<CustomShellRegistrationException>(() => 
+        Assert.Throws<CustomShellRegistrationException>(() =>
             registry.RegisterShell(shellId, () => new InvalidRegistryMockCustomShell()));
     }
 
@@ -284,9 +284,9 @@ public class CustomShellRegistryProperties
         // Arrange
         var registry = new CustomShellRegistry();
         var shellId = "FailingShell";
-        
+
         // Act & Assert: Factory that throws should result in registration exception
-        Assert.Throws<CustomShellRegistrationException>(() => 
+        Assert.Throws<CustomShellRegistrationException>(() =>
             registry.RegisterShell<RegistryMockCustomShell>(shellId, () => throw new InvalidOperationException("Factory failed")));
     }
 
@@ -300,7 +300,7 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Act & Assert: Invalid shell ID should be rejected
             bool exceptionThrown = false;
             try
@@ -316,7 +316,7 @@ public class CustomShellRegistryProperties
                 // Other exceptions are not expected for invalid IDs
                 exceptionThrown = false;
             }
-            
+
             return exceptionThrown;
         });
     }
@@ -330,7 +330,7 @@ public class CustomShellRegistryProperties
         // Arrange
         var registry = new CustomShellRegistry();
         var unregisteredId = "UnregisteredShell";
-        
+
         // Act & Assert
         Assert.Throws<ArgumentException>(() => registry.CreateShell(unregisteredId));
     }
@@ -345,7 +345,7 @@ public class CustomShellRegistryProperties
         var registry = new CustomShellRegistry();
         var shellId = "FailingShell";
         var factoryCallCount = 0;
-        
+
         // Register a shell with a factory that fails on creation (not during registration)
         registry.RegisterShell(shellId, () =>
         {
@@ -356,7 +356,7 @@ public class CustomShellRegistryProperties
             }
             return new RegistryMockCustomShell(shellId);
         });
-        
+
         // First creation should succeed (for registration validation)
         // Second creation should fail and throw CustomShellInstantiationException
         Assert.Throws<CustomShellInstantiationException>(() => registry.CreateShell(shellId));
@@ -373,7 +373,7 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Act: Attempt to get metadata (should never throw)
             CustomShellMetadata? metadata = null;
             bool noExceptionThrown = true;
@@ -385,7 +385,7 @@ public class CustomShellRegistryProperties
             {
                 noExceptionThrown = false;
             }
-            
+
             // Assert: Should never throw, may return null for invalid/unregistered shells
             return noExceptionThrown;
         });
@@ -402,7 +402,7 @@ public class CustomShellRegistryProperties
         {
             // Arrange: Create a test registry
             var registry = new CustomShellRegistry();
-            
+
             // Act: Check if shell is registered (should never throw)
             bool isRegistered = false;
             bool noExceptionThrown = true;
@@ -414,7 +414,7 @@ public class CustomShellRegistryProperties
             {
                 noExceptionThrown = false;
             }
-            
+
             // Assert: Should never throw, should return false for invalid/unregistered shells
             return noExceptionThrown && !isRegistered; // Should be false since we haven't registered anything
         });
@@ -451,10 +451,10 @@ internal class RegistryMockCustomShell : ICustomShell
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(RegistryMockCustomShell));
-        
+
         if (_isRunning)
             throw new InvalidOperationException("Shell is already running");
-        
+
         _isRunning = true;
         return Task.CompletedTask;
     }
@@ -463,7 +463,7 @@ internal class RegistryMockCustomShell : ICustomShell
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(RegistryMockCustomShell));
-        
+
         _isRunning = false;
         Terminated?.Invoke(this, new ShellTerminatedEventArgs(0, "Stopped"));
         return Task.CompletedTask;
@@ -473,10 +473,10 @@ internal class RegistryMockCustomShell : ICustomShell
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(RegistryMockCustomShell));
-        
+
         if (!_isRunning)
             throw new InvalidOperationException("Shell is not running");
-        
+
         // Echo the input as output for testing
         OutputReceived?.Invoke(this, new ShellOutputEventArgs(data.ToArray()));
         return Task.CompletedTask;
@@ -486,7 +486,7 @@ internal class RegistryMockCustomShell : ICustomShell
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(RegistryMockCustomShell));
-        
+
         // Mock implementation - just store the values for testing
         LastResizeWidth = width;
         LastResizeHeight = height;
@@ -534,7 +534,7 @@ internal class InvalidRegistryMockCustomShell : ICustomShell
         add { }
         remove { }
     }
-    
+
     public event EventHandler<ShellTerminatedEventArgs>? Terminated
     {
         add { }

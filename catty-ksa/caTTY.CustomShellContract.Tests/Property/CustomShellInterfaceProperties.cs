@@ -2,7 +2,7 @@ using caTTY.Core.Terminal;
 using FsCheck;
 using NUnit.Framework;
 
-namespace caTTY.Core.Tests.Property;
+namespace caTTY.CustomShellContract.Tests.Property;
 
 /// <summary>
 ///     Property-based tests for custom shell interface compliance.
@@ -70,7 +70,7 @@ public class CustomShellInterfaceProperties
     /// <summary>
     ///     **Feature: custom-game-shells, Property 1: Custom Shell Interface Compliance**
     ///     **Validates: Requirements 1.1, 5.1, 7.3**
-    ///     Property: For any custom shell implementation, it must implement the ICustomShell interface 
+    ///     Property: For any custom shell implementation, it must implement the ICustomShell interface
     ///     and provide valid metadata including name, description, and version information.
     /// </summary>
     [FsCheck.NUnit.Property(MaxTest = 100, QuietOnSuccess = true)]
