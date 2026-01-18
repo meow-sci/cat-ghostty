@@ -1,4 +1,5 @@
 using System.Text;
+using caTTY.ShellContract;
 
 namespace caTTY.Core.Terminal;
 

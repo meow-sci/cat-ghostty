@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.Channels;
 using Brutal.ImGuiApi.Abstractions;
 using caTTY.Core.Terminal;
+using caTTY.ShellContract;
 using caTTY.Display.Configuration;
 using HarmonyLib;
 using KSA;

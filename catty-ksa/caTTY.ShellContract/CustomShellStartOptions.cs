@@ -1,4 +1,4 @@
-namespace caTTY.Core.Terminal;
+namespace caTTY.ShellContract;
 
 /// <summary>
 ///     Options for starting a custom shell.

@@ -1,4 +1,4 @@
-namespace caTTY.Core.Terminal;
+namespace caTTY.ShellContract;
 
 /// <summary>
 ///     Metadata for a custom shell implementation.

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using caTTY.ShellContract;
 
 namespace caTTY.Core.Terminal;
 

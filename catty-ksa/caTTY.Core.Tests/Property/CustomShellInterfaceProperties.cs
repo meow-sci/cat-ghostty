@@ -1,4 +1,5 @@
 using caTTY.Core.Terminal;
+using caTTY.ShellContract;
 using FsCheck;
 using NUnit.Framework;
 

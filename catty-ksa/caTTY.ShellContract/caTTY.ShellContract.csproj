@@ -13,10 +13,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
         <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
             <_Parameter1>caTTY.ShellContract.Tests</_Parameter1>
         </AssemblyAttribute>
