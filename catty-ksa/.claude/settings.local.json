@@ -69,7 +69,9 @@
       "Bash(.scriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~BaseChannelOutputShellTests\")",
       "Bash(.scriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~BaseLineBufferedShellTests\")",
       "Bash(dotnet sln:*)",
-      "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~caTTY.Core.Tests\")"
+      "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~caTTY.Core.Tests\")",
+      "Bash(.scriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~ThemeConfigurationTests\")",
+      "Bash(.scriptsdotnet-test.ps1 -Filter 'FullyQualifiedName~ThemeConfigurationTests')"
     ],
     "deny": [
       "Bash(rm -rf:*)",

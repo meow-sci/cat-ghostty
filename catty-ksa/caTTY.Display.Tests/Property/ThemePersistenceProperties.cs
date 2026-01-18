@@ -17,6 +17,7 @@ namespace caTTY.Display.Tests.Property;
 public class ThemePersistenceProperties
 {
     private string _tempConfigDirectory = null!;
+    private string? _originalAppDataOverride;
 
     [SetUp]
     public void SetUp()
@@ -26,9 +27,10 @@ public class ThemePersistenceProperties
         _tempConfigDirectory = Path.Combine(Path.GetTempPath(), $"caTTY_ThemeTests_{uniqueId}");
         Directory.CreateDirectory(_tempConfigDirectory);
 
-        // Override the application data path for testing
-        Environment.SetEnvironmentVariable("APPDATA", _tempConfigDirectory);
-        
+        // Override the application data path for testing using the correct mechanism
+        _originalAppDataOverride = ThemeConfiguration.OverrideAppDataDirectory;
+        ThemeConfiguration.OverrideAppDataDirectory = _tempConfigDirectory;
+
         // Add a small delay to prevent file access conflicts
         Thread.Sleep(10);
     }
@@ -36,6 +38,9 @@ public class ThemePersistenceProperties
     [TearDown]
     public void TearDown()
     {
+        // Restore original override
+        ThemeConfiguration.OverrideAppDataDirectory = _originalAppDataOverride;
+
         // Clean up temporary directory
         if (Directory.Exists(_tempConfigDirectory))
         {
@@ -48,9 +53,6 @@ public class ThemePersistenceProperties
                 // Ignore cleanup errors in tests
             }
         }
-
-        // Restore original APPDATA
-        Environment.SetEnvironmentVariable("APPDATA", null);
     }
     /// <summary>
     /// Generator for valid theme names.

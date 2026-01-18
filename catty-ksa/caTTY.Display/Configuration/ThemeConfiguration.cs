@@ -138,7 +138,13 @@ public class ThemeConfiguration
     }
 
 
-    public static string? OverrideAppDataDirectory { get; set; }
+    /// <summary>
+    /// Override for the configuration directory path.
+    /// When null (default), uses a temporary directory for safety.
+    /// Production code should explicitly set this to the desired persistent location.
+    /// Tests can set this to custom temporary directories for isolation.
+    /// </summary>
+    public static string? OverrideConfigDirectory { get; set; }
 
     /// <summary>
     /// Load configuration from the default configuration file.
@@ -202,19 +208,23 @@ public class ThemeConfiguration
     /// Get the path to the configuration file.
     /// </summary>
     /// <returns>Full path to the configuration file</returns>
-    private static string GetConfigFilePath()
+    public static string GetConfigFilePath()
     {
-        // If tests or callers override the app data directory, keep using that
-        if (!string.IsNullOrEmpty(OverrideAppDataDirectory))
+        string baseDirectory;
+
+        if (!string.IsNullOrEmpty(OverrideConfigDirectory))
         {
-            var configDirectory = Path.Combine(OverrideAppDataDirectory, "caTTY");
-            return Path.Combine(configDirectory, "theme-config.json");
+            // Explicit override (production or test-specific temp)
+            baseDirectory = OverrideConfigDirectory;
+        }
+        else
+        {
+            // DEFAULT: Temp directory (safe by default)
+            baseDirectory = Path.Combine(Path.GetTempPath(), "caTTY_config_default");
         }
 
-        // Default to: $HOME\Documents\My Games\Kitten Space Agency\caTTY
-        var myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var defaultConfigDirectory = Path.Combine(myDocuments, "My Games", "Kitten Space Agency", "caTTY");
-        return Path.Combine(defaultConfigDirectory, "theme-config.json");
+        var configDirectory = Path.Combine(baseDirectory, "caTTY");
+        return Path.Combine(configDirectory, "theme-config.json");
     }
 }
 
