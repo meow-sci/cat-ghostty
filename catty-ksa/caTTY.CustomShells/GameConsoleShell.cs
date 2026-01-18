@@ -199,7 +199,7 @@ public class GameConsoleShell : BaseLineBufferedShell
     /// <summary>
     ///     Internal method called by Harmony patch to handle captured console output.
     /// </summary>
-    internal static void OnConsolePrint(string output, uint color, ConsoleLineType lineType)
+    public static void OnConsolePrint(string output, uint color, ConsoleLineType lineType)
     {
         lock (_activeLock)
         {
