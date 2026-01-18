@@ -29,6 +29,10 @@
         <Copy SourceFiles="$(TargetDir)caTTY.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Core.dll" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Core.pdb" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShellContract.dll" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShellContract.pdb" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShells.dll" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShells.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Display.dll" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.Display.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.TermSequenceRpc.dll" DestinationFolder="$(DistDir)"/>
@@ -51,6 +55,7 @@
     </Target>
 
     <ItemGroup>
+        <ProjectReference Include="..\caTTY.CustomShells\caTTY.CustomShells.csproj"/>
         <ProjectReference Include="..\caTTY.Display\caTTY.Display.csproj"/>
         <ProjectReference Include="..\caTTY.TermSequenceRpc\caTTY.TermSequenceRpc.csproj"/>
     </ItemGroup>
