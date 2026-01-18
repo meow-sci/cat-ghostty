@@ -6,6 +6,7 @@
     </Configurations>
     <Project Path="caTTY.Core.Tests/caTTY.Core.Tests.csproj" />
     <Project Path="caTTY.Core/caTTY.Core.csproj" />
+    <Project Path="caTTY.CustomShellContract/caTTY.CustomShellContract.csproj" />
     <Project Path="caTTY.GameMod/caTTY.GameMod.csproj" />
     <Project Path="caTTY.Display.Playground/caTTY.Display.Playground.csproj" />
     <Project Path="caTTY.Display.Tests/caTTY.Display.Tests.csproj" />
