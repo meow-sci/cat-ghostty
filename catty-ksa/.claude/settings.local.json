@@ -65,7 +65,8 @@
       "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1)",
       "Bash(dotnet sln add:*)",
       "Bash(where.exe:*)",
-      "Bash(wsl --list:*)"
+      "Bash(wsl --list:*)",
+      "Bash(.scriptsdotnet-test.ps1 -Filter \"Category=Integration|FullyQualifiedName~Integration\")"
     ],
     "deny": [
       "Bash(rm -rf:*)",
