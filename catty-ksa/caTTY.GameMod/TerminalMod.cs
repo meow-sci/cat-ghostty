@@ -130,6 +130,29 @@ public class TerminalMod
     }
 
     /// <summary>
+    /// Sets the production configuration directory path for persistent storage.
+    /// This ensures theme configuration is saved to the user's Documents folder.
+    /// Must be called BEFORE any ThemeConfiguration access.
+    /// </summary>
+    private void SetProductionConfigPath()
+    {
+        try
+        {
+            var myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var productionConfigRoot = Path.Combine(myDocuments, "My Games", "Kitten Space Agency");
+
+            ThemeConfiguration.OverrideConfigDirectory = productionConfigRoot;
+
+            Console.WriteLine($"caTTY GameMod: Production config path set to: {productionConfigRoot}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"caTTY GameMod: WARNING - Failed to set production config path: {ex.Message}");
+            Console.WriteLine("Configuration will use temporary directory and settings will not persist.");
+        }
+    }
+
+    /// <summary>
     ///     Initializes the terminal emulator and related components.
     ///     Guards against double initialization.
     /// </summary>
@@ -144,6 +167,8 @@ public class TerminalMod
 
         try
         {
+            SetProductionConfigPath();
+
             // Load fonts first
             CaTTYFontManager.LoadFonts();
 
