@@ -599,7 +599,7 @@ Each task:
 - Is completable in isolation
 - Results in a working system (no broken intermediate states)
 - Includes compilation and test verification
-- Has a clear git commit message
+- Has a clear git commit with subject message for the feature and body with markdown list of features implemented
 
 **See detailed task breakdown in plan file**: `C:\Users\Alex\.claude\plans\rosy-painting-valiant.md`
 
