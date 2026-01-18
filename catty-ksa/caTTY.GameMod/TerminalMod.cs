@@ -153,42 +153,17 @@ public class TerminalMod
                 NullLogger.Instance,
                 bytes => _outputBuffer.Add(bytes));
 
-            // Create process manager
-            _processManager = new ProcessManager();
-
             // Create session manager with persisted shell configuration and RPC handlers
             var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration(
                 maxSessions: 20,
                 rpcHandler: rpcHandler,
                 oscRpcHandler: oscRpcHandler);
-            var session = sessionManager.CreateSessionAsync().Result;
 
-            _terminal = session.Terminal;
-
-            Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
-
-            var fontConfig = TerminalFontConfig.CreateForGameMod();
-            Console.WriteLine(
-                $"caTTY GameMod using explicit font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
-            _controller = new TerminalController(sessionManager, fontConfig);
-
-            // Option 2: Automatic detection (alternative approach - convenient for development)
-            // Uncomment the following lines to use automatic detection instead:
-            // Console.WriteLine("caTTY GameMod using automatic font detection");
-            // _controller = new TerminalController(sessionManager);
-
-            // Option 3: Explicit automatic detection (alternative approach - shows detection explicitly)
-            // Uncomment the following lines to use explicit automatic detection:
-            // var autoConfig = FontContextDetector.DetectAndCreateConfig();
-            // Console.WriteLine($"caTTY GameMod using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
-            // _controller = new TerminalController(sessionManager, autoConfig);
-
-            // Set up event handlers
-            _processManager.DataReceived += OnProcessDataReceived;
-            _processManager.ProcessExited += OnProcessExited;
-            _processManager.ProcessError += OnProcessError;
-
-            // Start a shell process
+            // BUGFIX: Create shell options BEFORE creating session, so that session can create the correct
+            // ProcessManager and initialize it. SessionManager.CreateSessionAsync will call SessionCreator,
+            // which passes launchOptions to TerminalSessionFactory.CreateSession, which uses launchOptions
+            // to decide whether to create ProcessManager or CustomShellPtyBridge. SessionCreator then calls
+            // session.InitializeAsync(launchOptions) which starts the shell.
             // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
 
             // Option 1: Use default (WSL2 on Windows)
@@ -213,23 +188,35 @@ public class TerminalMod
             // Option 5: Custom shell
             // var options = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
 
-            // Set terminal dimensions
-            options.InitialWidth = _terminal.Width;
-            options.InitialHeight = _terminal.Height;
+            // Create session WITH launchOptions so that the session creates and initializes the correct ProcessManager
+            var session = sessionManager.CreateSessionAsync(launchOptions: options).Result;
 
-            // Start the process asynchronously (fire and forget for game context)
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _processManager.StartAsync(options);
-                    Console.WriteLine("caTTY GameMod: Shell process started successfully");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"caTTY GameMod: Failed to start shell process: {ex.Message}");
-                }
-            });
+            _terminal = session.Terminal;
+            // BUGFIX: Get ProcessManager from session (already initialized by SessionCreator)
+            _processManager = session.ProcessManager;
+
+            Console.WriteLine($"TerminalMod: rpc enabled={_terminal.IsRpcEnabled}");
+
+            var fontConfig = TerminalFontConfig.CreateForGameMod();
+            Console.WriteLine(
+                $"caTTY GameMod using explicit font configuration: Regular={fontConfig.RegularFontName}, Bold={fontConfig.BoldFontName}");
+            _controller = new TerminalController(sessionManager, fontConfig);
+
+            // Option 2: Automatic detection (alternative approach - convenient for development)
+            // Uncomment the following lines to use automatic detection instead:
+            // Console.WriteLine("caTTY GameMod using automatic font detection");
+            // _controller = new TerminalController(sessionManager);
+
+            // Option 3: Explicit automatic detection (alternative approach - shows detection explicitly)
+            // Uncomment the following lines to use explicit automatic detection:
+            // var autoConfig = FontContextDetector.DetectAndCreateConfig();
+            // Console.WriteLine($"caTTY GameMod using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
+            // _controller = new TerminalController(sessionManager, autoConfig);
+
+            // Set up event handlers
+            _processManager.DataReceived += OnProcessDataReceived;
+            _processManager.ProcessExited += OnProcessExited;
+            _processManager.ProcessError += OnProcessError;
 
             _isInitialized = true;
             Console.WriteLine("caTTY GameMod: Terminal initialized successfully. Press F12 to toggle.");
