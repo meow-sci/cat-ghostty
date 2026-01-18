@@ -152,6 +152,7 @@ public class GameConsoleShell : LineDisciplineShell
         {
             if (_activeInstance == null || !_activeInstance._isExecutingCommand)
             {
+                Console.WriteLine($"[GameConsoleShell] Output dropped - shell not active or not executing");
                 return; // Not currently executing in our shell
             }
 
@@ -165,10 +166,14 @@ public class GameConsoleShell : LineDisciplineShell
                     ? $"\x1b[31m{output}\x1b[0m\r\n"  // Red for errors
                     : $"{output}\r\n";               // Default color for normal output
 
-                _activeInstance.QueueOutput(formattedOutput);
+                // Use QueueOutputUnchecked because game console output arrives asynchronously
+                // via Harmony patch and may arrive during shell state transitions.
+                // The normal QueueOutput guards would drop this external output.
+                _activeInstance.QueueOutputUnchecked(formattedOutput);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"[GameConsoleShell] Exception in OnConsolePrint: {ex.Message}");
                 // Silently handle errors to avoid disrupting the game console
             }
         }

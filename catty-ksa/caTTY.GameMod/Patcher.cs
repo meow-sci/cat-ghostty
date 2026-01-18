@@ -10,7 +10,17 @@ internal static class Patcher
 
   public static void patch()
   {
+    System.Console.WriteLine("[caTTY] Installing Harmony patches...");
+
+    // Patch GameMod assembly (keyboard intercept)
     m_harmony?.PatchAll(typeof(Patcher).Assembly);
+    System.Console.WriteLine($"[caTTY] Patched GameMod assembly: {typeof(Patcher).Assembly.GetName().Name}");
+
+    // Patch CustomShells assembly (GameConsoleShell Harmony patches)
+    m_harmony?.PatchAll(typeof(caTTY.CustomShells.GameConsoleShell).Assembly);
+    System.Console.WriteLine($"[caTTY] Patched CustomShells assembly: {typeof(caTTY.CustomShells.GameConsoleShell).Assembly.GetName().Name}");
+
+    System.Console.WriteLine("[caTTY] Harmony patches installed successfully");
   }
 
   public static void unload()

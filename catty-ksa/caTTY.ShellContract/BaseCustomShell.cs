@@ -230,6 +230,52 @@ public abstract class BaseCustomShell : ICustomShell
     }
 
     /// <summary>
+    ///     Queues raw bytes to be sent to the terminal output stream, bypassing IsRunning checks.
+    ///     This method should ONLY be used for asynchronous external output sources that may
+    ///     arrive during shell state transitions (e.g., Harmony patches, callbacks from external systems).
+    ///
+    ///     <para>
+    ///     Unlike QueueOutput(), this method does not check IsRunning, allowing output to be queued
+    ///     even when the shell is starting or stopping. However, it still respects disposal state
+    ///     to prevent writing to disposed channels.
+    ///     </para>
+    ///
+    ///     <para>
+    ///     Thread-safe and can be called from any thread.
+    ///     </para>
+    /// </summary>
+    /// <param name="data">The bytes to queue</param>
+    protected void QueueOutputUnchecked(byte[] data)
+    {
+        Console.WriteLine($"[BaseCustomShell] QueueOutputUnchecked called: {data.Length} bytes, disposed: {_disposed}, IsRunning: {IsRunning}");
+
+        if (_disposed)
+        {
+            Console.WriteLine($"[BaseCustomShell] QueueOutputUnchecked - shell disposed, dropping output");
+            return;  // Don't write to disposed channel
+        }
+
+        // Bypass IsRunning check - allow output during state transitions
+        bool written = _outputChannel.Writer.TryWrite(data);
+        Console.WriteLine($"[BaseCustomShell] QueueOutputUnchecked - TryWrite result: {written}");
+    }
+
+    /// <summary>
+    ///     Queues text to be sent to the terminal output stream (converted to UTF-8), bypassing IsRunning checks.
+    ///     See <see cref="QueueOutputUnchecked(byte[])"/> for usage guidelines.
+    /// </summary>
+    /// <param name="text">The text to queue</param>
+    protected void QueueOutputUnchecked(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        QueueOutputUnchecked(Encoding.UTF8.GetBytes(text));
+    }
+
+    /// <summary>
     ///     Handles a single input byte. Subclasses must implement this to process input.
     ///     This method is called synchronously for each input byte.
     /// </summary>
@@ -272,24 +318,30 @@ public abstract class BaseCustomShell : ICustomShell
     /// </summary>
     private async Task OutputPumpAsync(CancellationToken cancellationToken)
     {
+        Console.WriteLine($"[BaseCustomShell] OutputPumpAsync started for {Metadata.Name}");
         try
         {
             await foreach (var data in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (data.Length > 0)
                 {
+                    Console.WriteLine($"[BaseCustomShell] Pumping {data.Length} bytes, OutputReceived subscribers: {OutputReceived?.GetInvocationList().Length ?? 0}");
                     OutputReceived?.Invoke(this, new ShellOutputEventArgs(data, ShellOutputType.Stdout));
+                    Console.WriteLine($"[BaseCustomShell] OutputReceived event fired");
                 }
             }
         }
         catch (OperationCanceledException)
         {
+            Console.WriteLine($"[BaseCustomShell] OutputPumpAsync cancelled");
             // Expected during shutdown
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[BaseCustomShell] OutputPumpAsync error: {ex.Message}");
             // Suppress pump errors to avoid unhandled exceptions
         }
+        Console.WriteLine($"[BaseCustomShell] OutputPumpAsync ended for {Metadata.Name}");
     }
 
     /// <inheritdoc />

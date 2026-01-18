@@ -233,6 +233,42 @@ public class LineDisciplineOptions
 - `CreateDefault()` - All features enabled (echo, history, escape parsing, 100 command history)
 - `CreateRawMode()` - All features disabled (no echo, no history, no escape parsing)
 
+## Handling Asynchronous External Output
+
+If your shell needs to capture output from external sources (e.g., Harmony patches, callbacks from game engines, or other asynchronous systems), use `QueueOutputUnchecked()` instead of `QueueOutput()`:
+
+```csharp
+// Example: Harmony patch capturing game console output
+internal static void OnConsolePrint(string output)
+{
+    lock (_activeLock)
+    {
+        if (_activeInstance != null)
+        {
+            // Use QueueOutputUnchecked for external output that may arrive
+            // during shell state transitions
+            _activeInstance.QueueOutputUnchecked($"{output}\r\n");
+        }
+    }
+}
+```
+
+**When to use `QueueOutputUnchecked()`:**
+- ✅ Harmony patches capturing output from external systems
+- ✅ Callbacks from game engines or frameworks
+- ✅ Asynchronous output that may arrive during shell startup/shutdown
+- ❌ Normal shell output (use `QueueOutput()` instead)
+
+**Why:** `QueueOutputUnchecked()` bypasses the `IsRunning` check, allowing output to be captured even during state transitions. Normal `QueueOutput()` has protective guards that would drop external output arriving at inopportune times.
+
+**Protected Methods:**
+```csharp
+protected void QueueOutputUnchecked(byte[] data)
+protected void QueueOutputUnchecked(string text)
+```
+
+Both methods still respect disposal state to prevent writing to disposed channels, but skip the `IsRunning` check to handle asynchronous external sources correctly.
+
 ## Features Provided by LineDisciplineShell
 
 ### Input Processing

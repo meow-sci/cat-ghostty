@@ -66,7 +66,10 @@
       "Bash(dotnet sln add:*)",
       "Bash(where.exe:*)",
       "Bash(wsl --list:*)",
-      "Bash(.scriptsdotnet-test.ps1 -Filter \"Category=Integration|FullyQualifiedName~Integration\")"
+      "Bash(.scriptsdotnet-test.ps1 -Filter \"Category=Integration|FullyQualifiedName~Integration\")",
+      "Bash(for commit in 8ca7237 0d2799f 7b21ba4)",
+      "Bash(do echo \"=== Commit $commit ===\")",
+      "Bash(done)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

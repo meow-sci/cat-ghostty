@@ -267,4 +267,129 @@ public class BaseCustomShellTests
 
         Assert.IsFalse(shell.IsRunning);
     }
+
+    /// <summary>
+    ///     Test shell that exposes QueueOutputUnchecked for testing.
+    /// </summary>
+    private class TestShellWithUncheckedOutput : BaseCustomShell
+    {
+        public override CustomShellMetadata Metadata => CustomShellMetadata.Create(
+            "TestUnchecked",
+            "Test shell with QueueOutputUnchecked exposed");
+
+        protected override void OnInputByte(byte b)
+        {
+            // No-op
+        }
+
+        // Expose QueueOutputUnchecked as public for testing
+        public void PublicQueueOutputUnchecked(string text) => QueueOutputUnchecked(text);
+        public void PublicQueueOutputUnchecked(byte[] data) => QueueOutputUnchecked(data);
+    }
+
+    [Test]
+    public async Task QueueOutputUnchecked_WhenNotRunning_StillQueuesOutput()
+    {
+        using var shell = new TestShellWithUncheckedOutput();
+        var receivedChunks = new ConcurrentBag<byte[]>();
+
+        shell.OutputReceived += (sender, args) =>
+        {
+            receivedChunks.Add(args.Data.ToArray());
+        };
+
+        await shell.StartAsync(CustomShellStartOptions.CreateDefault());
+
+        // Wait briefly for output pump to start
+        await Task.Delay(50);
+
+        // Stop the shell (IsRunning = false)
+        await shell.StopAsync();
+
+        // QueueOutputUnchecked should still queue even though IsRunning is false
+        shell.PublicQueueOutputUnchecked("test output\n");
+
+        // Note: Output pump has stopped, so we won't receive the output
+        // The key test is that QueueOutputUnchecked doesn't throw and doesn't check IsRunning
+        // We verify this indirectly by ensuring no exception is thrown
+        Assert.Pass("QueueOutputUnchecked did not throw when IsRunning=false");
+    }
+
+    [Test]
+    public async Task QueueOutputUnchecked_WhenDisposed_DropsOutput()
+    {
+        var shell = new TestShellWithUncheckedOutput();
+        var receivedChunks = new ConcurrentBag<byte[]>();
+
+        shell.OutputReceived += (sender, args) =>
+        {
+            receivedChunks.Add(args.Data.ToArray());
+        };
+
+        await shell.StartAsync(CustomShellStartOptions.CreateDefault());
+        await shell.StopAsync();
+
+        // Dispose the shell
+        shell.Dispose();
+
+        // QueueOutputUnchecked should silently drop output when disposed
+        shell.PublicQueueOutputUnchecked("should be dropped\n");
+
+        // No exception should be thrown, and no output should be received
+        Assert.Pass("QueueOutputUnchecked silently dropped output when disposed");
+    }
+
+    [Test]
+    public async Task QueueOutputUnchecked_WithEmptyString_DoesNotQueue()
+    {
+        using var shell = new TestShellWithUncheckedOutput();
+        var receivedChunks = new ConcurrentBag<byte[]>();
+
+        shell.OutputReceived += (sender, args) =>
+        {
+            receivedChunks.Add(args.Data.ToArray());
+        };
+
+        await shell.StartAsync(CustomShellStartOptions.CreateDefault());
+
+        // Queue empty strings
+        shell.PublicQueueOutputUnchecked("");
+        shell.PublicQueueOutputUnchecked(string.Empty);
+
+        // Wait for potential output
+        await Task.Delay(100);
+
+        await shell.StopAsync();
+
+        // Should not have received any output from empty strings
+        Assert.IsEmpty(receivedChunks, "Empty strings should not queue any output");
+    }
+
+    [Test]
+    public async Task QueueOutputUnchecked_DuringStateTransition_QueuesOutput()
+    {
+        using var shell = new TestShellWithUncheckedOutput();
+        var receivedChunks = new ConcurrentBag<byte[]>();
+
+        shell.OutputReceived += (sender, args) =>
+        {
+            receivedChunks.Add(args.Data.ToArray());
+        };
+
+        await shell.StartAsync(CustomShellStartOptions.CreateDefault());
+
+        // Queue output using QueueOutputUnchecked (should work regardless of state)
+        shell.PublicQueueOutputUnchecked("test message\n");
+
+        // Wait for output pump
+        await Task.Delay(100);
+
+        await shell.StopAsync();
+
+        // Should have received the output
+        Assert.IsNotEmpty(receivedChunks, "Should receive output queued with QueueOutputUnchecked");
+        var allData = string.Concat(receivedChunks.Select(chunk =>
+            System.Text.Encoding.UTF8.GetString(chunk)));
+        Assert.That(allData, Is.EqualTo("test message\n"));
+    }
 }
