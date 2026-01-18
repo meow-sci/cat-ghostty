@@ -527,7 +527,7 @@ public class GameConsoleShell : ICustomShell
         switch (command.Trim().ToLowerInvariant())
         {
             case "clear":
-                ClearScreen();
+                ClearScreenAndScrollback();
                 return true;
             default:
                 return false;
@@ -592,13 +592,24 @@ public class GameConsoleShell : ICustomShell
     }
 
     /// <summary>
-    ///     Clears the screen without redisplaying the prompt.
+    ///     Clears the current screen without clearing the scrollback buffer.
+    ///     Used by Ctrl+L for screen clearing while preserving history.
     /// </summary>
     private void ClearScreen()
     {
-        // ESC[2J = Clear entire screen
-        // ESC[H = Move cursor to home position (1,1)
+        // ESC[2J = Clear entire screen (but preserves scrollback)
+        // ESC[H = Move cursor to home position (0,0)
         SendOutput("\x1b[2J\x1b[H");
+    }
+
+    /// <summary>
+    ///     Clears the entire display including the scrollback buffer and moves cursor to home.
+    ///     Used by the "clear" command to completely wipe all terminal history.
+    /// </summary>
+    private void ClearScreenAndScrollback()
+    {
+        // ESC[3J = Clear entire screen and scrollback buffer (xterm extension, mode 3)
+        SendOutput("\x1b[3J");
     }
 
     /// <summary>

@@ -158,17 +158,18 @@ public class ScreenBufferProperties
             // Expected column position: clamped to new width
             int expectedCol = Math.Min(originalCursorCol, newWidth - 1);
 
-            // Expected row position: follows the height adjustment logic
+            // Expected row position: follows the corrected height adjustment logic
+            // Only adjust cursor if rows were actually pushed to scrollback (cursor >= new height)
             int expectedRow;
-            if (newHeight < originalHeight)
+            if (newHeight < originalHeight && originalCursorRow >= newHeight)
             {
-                // Height decreased - adjust cursor position
+                // Height decreased AND cursor was in the area that got pushed to scrollback - adjust position
                 int rowsLost = originalHeight - newHeight;
                 expectedRow = Math.Max(0, originalCursorRow - rowsLost);
             }
             else
             {
-                // Height increased or same - keep cursor position, clamped to new height
+                // No rows pushed to scrollback OR height increased - just clamp to new bounds
                 expectedRow = Math.Min(originalCursorRow, newHeight - 1);
             }
 

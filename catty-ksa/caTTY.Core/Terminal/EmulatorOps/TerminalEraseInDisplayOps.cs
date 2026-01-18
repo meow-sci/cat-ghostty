@@ -13,6 +13,7 @@ internal class TerminalEraseInDisplayOps
     private readonly ICursorManager _cursorManager;
     private readonly IAttributeManager _attributeManager;
     private readonly IScreenBufferManager _screenBufferManager;
+    private readonly IScrollbackManager _scrollbackManager;
     private readonly Func<TerminalState> _getState;
     private readonly Func<int> _getWidth;
     private readonly Func<int> _getHeight;
@@ -25,6 +26,7 @@ internal class TerminalEraseInDisplayOps
     /// <param name="cursorManager">The cursor manager for cursor operations</param>
     /// <param name="attributeManager">The attribute manager for SGR attributes</param>
     /// <param name="screenBufferManager">The screen buffer manager for cell operations</param>
+    /// <param name="scrollbackManager">The scrollback manager for clearing scrollback buffer</param>
     /// <param name="getState">Function to get the current terminal state</param>
     /// <param name="getWidth">Function to get the current terminal width</param>
     /// <param name="getHeight">Function to get the current terminal height</param>
@@ -34,6 +36,7 @@ internal class TerminalEraseInDisplayOps
         ICursorManager cursorManager,
         IAttributeManager attributeManager,
         IScreenBufferManager screenBufferManager,
+        IScrollbackManager scrollbackManager,
         Func<TerminalState> getState,
         Func<int> getWidth,
         Func<int> getHeight,
@@ -43,6 +46,7 @@ internal class TerminalEraseInDisplayOps
         _cursorManager = cursorManager;
         _attributeManager = attributeManager;
         _screenBufferManager = screenBufferManager;
+        _scrollbackManager = scrollbackManager;
         _getState = getState;
         _getWidth = getWidth;
         _getHeight = getHeight;
@@ -94,8 +98,9 @@ internal class TerminalEraseInDisplayOps
                 break;
 
             case 3: // Entire display and scrollback (xterm extension)
-                // TODO: Clear scrollback buffer when implemented (task 4.1-4.6)
                 _screenBufferManager.Clear();
+                _scrollbackManager.Clear();
+                _cursorManager.MoveTo(0, 0); // Move cursor to home
                 break;
         }
 

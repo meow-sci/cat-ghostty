@@ -72,7 +72,7 @@ internal static class TerminalEmulatorBuilder
 
         // Build operations by category
         var (cursorMovementOps, cursorSaveRestoreOps, cursorStyleOps) = BuildCursorOps(emulator, cursorManager, state, effectiveLogger);
-        var (eraseInDisplayOps, eraseInLineOps, selectiveEraseInDisplayOps, selectiveEraseInLineOps, eraseCharsOps) = BuildEraseOps(emulator, cursorManager, attributeManager, screenBufferManager, state, effectiveLogger);
+        var (eraseInDisplayOps, eraseInLineOps, selectiveEraseInDisplayOps, selectiveEraseInLineOps, eraseCharsOps) = BuildEraseOps(emulator, cursorManager, attributeManager, screenBufferManager, scrollbackManager, state, effectiveLogger);
         var (scrollOps, scrollRegionOps, insertLinesOps, deleteLinesOps, insertCharsOps, deleteCharsOps) = BuildScrollOps(emulator, cursorManager, screenBufferManager, attributeManager, state, cursor);
         var (insertModeOps, alternateScreenOps, decModeOps, privateModesOps, bracketedPasteOps) = BuildModeOps(emulator, cursorManager, screenBufferManager, attributeManager, modeManager, alternateScreenManager, characterSetManager, scrollbackManager, state, effectiveLogger);
         var (titleIconEventsOps, oscTitleIconOps, oscWindowManipulationOps, oscClipboardOps, oscHyperlinkOps, oscColorQueryOps) = BuildOscOps(emulator, attributeManager, state, effectiveLogger);
@@ -204,10 +204,11 @@ internal static class TerminalEmulatorBuilder
         CursorManager cursorManager,
         AttributeManager attributeManager,
         ScreenBufferManager screenBufferManager,
+        IScrollbackManager scrollbackManager,
         TerminalState state,
         ILogger effectiveLogger)
     {
-        var eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(cursorManager, attributeManager, screenBufferManager, () => state, () => emulator.Width, () => emulator.Height, emulator.ClearLine, effectiveLogger);
+        var eraseInDisplayOps = new EmulatorOps.TerminalEraseInDisplayOps(cursorManager, attributeManager, screenBufferManager, scrollbackManager, () => state, () => emulator.Width, () => emulator.Height, emulator.ClearLine, effectiveLogger);
         var eraseInLineOps = new EmulatorOps.TerminalEraseInLineOps(cursorManager, attributeManager, screenBufferManager, () => state, () => emulator.Width, () => emulator.Height, effectiveLogger);
         var selectiveEraseInLineOps = new EmulatorOps.TerminalSelectiveEraseInLineOps(cursorManager, attributeManager, screenBufferManager, () => state, () => emulator.Width, () => emulator.Height, effectiveLogger);
         var selectiveEraseInDisplayOps = new EmulatorOps.TerminalSelectiveEraseInDisplayOps(cursorManager, attributeManager, screenBufferManager, () => state, () => emulator.Width, () => emulator.Height, emulator.ClearLineSelective, effectiveLogger);
