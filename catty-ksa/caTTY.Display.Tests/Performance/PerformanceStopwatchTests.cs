@@ -351,7 +351,7 @@ public class PerformanceStopwatchTests
     {
         // Arrange
         _stopwatch.Enabled = true;
-        var longTaskName = new string('A', 150); // 50 characters, should be truncated
+        var longTaskName = new string('A', 150); // 150 characters, should be truncated to 59 + "..."
         _stopwatch.Start(longTaskName);
         _stopwatch.Stop(longTaskName);
 
