@@ -37,18 +37,24 @@ dotnet run --project caTTY.TestApp                   # Run standalone console ap
 
 ### Project Dependencies
 ```
-caTTY.Core (headless, no game dependencies)
+caTTY.ShellContract (shell contracts and base implementations, no dependencies)
     ↑
-    ├── caTTY.TermSequenceRpc (KSA-specific RPC handlers)
-    │       ↑
-    │       └── caTTY.TermSequenceRpc.Tests
-    ├── caTTY.TestApp (console app)
-    ├── caTTY.Core.Tests (unit & property tests)
-    └── caTTY.Display (ImGui integration, depends on KSA DLLs)
+    ├── caTTY.ShellContract.Tests (unit & integration tests)
+    └── caTTY.Core (headless terminal emulator, references ShellContract)
             ↑
-            ├── caTTY.Display.Playground
-            ├── caTTY.Display.Tests
-            └── caTTY.GameMod (final game mod DLL, includes mod.toml)
+            ├── caTTY.TermSequenceRpc (KSA-specific RPC handlers)
+            │       ↑
+            │       └── caTTY.TermSequenceRpc.Tests
+            ├── caTTY.TestApp (console app)
+            ├── caTTY.Core.Tests (unit & property tests)
+            ├── caTTY.Display (ImGui integration, depends on KSA DLLs)
+            │       ↑
+            │       ├── caTTY.Display.Playground
+            │       ├── caTTY.Display.Tests
+            │       └── caTTY.CustomShells (concrete shell implementations, references ShellContract + Core + Display)
+            │               ↑
+            │               ├── caTTY.CustomShells.Tests
+            │               └── caTTY.GameMod (final game mod DLL, includes mod.toml)
 ```
 
 ### Core Architecture (caTTY.Core)
@@ -143,6 +149,52 @@ var terminal = TerminalEmulator.Create(80, 24, 2500, logger, null, customOscHand
 - Uses `RpcBootstrapper` from TermSequenceRpc for RPC initialization
 - Outputs to `dist/` with mod.toml
 
+### Custom Shell Architecture (caTTY.ShellContract + caTTY.CustomShells)
+
+The custom shell system provides a three-layer architecture for building terminal shells with minimal code.
+
+**Three-Layer Design:**
+```
+ICustomShell (interface)
+    ↓
+BaseCustomShell (abstract, ~200 LOC)
+    - PTY infrastructure: channel-based output pump, event wiring
+    - Thread-safe state management
+    - Abstract: OnInputByte(byte)
+    ↓
+LineDisciplineShell (abstract, ~300 LOC)
+    - Input buffering, command history, escape sequences
+    - Line editing (backspace, arrows), echo
+    - Abstract: ExecuteCommand(string)
+    ↓
+YourShell (concrete, ~50-150 LOC)
+    - Implement ExecuteCommand() for command handling
+    - Optional: Override GetPrompt(), GetBanner()
+```
+
+**Projects:**
+- **caTTY.ShellContract**: Base classes (BaseCustomShell, LineDisciplineShell), contracts (ICustomShell), options (LineDisciplineOptions)
+- **caTTY.CustomShells**: Concrete implementations (GameConsoleShell, example shells)
+
+**Example shells:**
+- `GameConsoleShell` (201 LOC): KSA game console interface with Harmony patches
+- `CalculatorShell` (55 LOC): Math expression evaluator
+- `EchoShell` (28 LOC): Simple byte echo shell
+- `RawShell` (62 LOC): No-echo, no-history mode demonstration
+
+**LineDisciplineOptions:**
+- `CreateDefault()`: Full features (echo, history, escape parsing)
+- `CreateRawMode()`: Minimal features (no echo, no history)
+
+**Key Features:**
+- Command history with up/down arrow navigation
+- Line editing with backspace
+- Escape sequence parsing (Ctrl+L for clear, CSI sequences)
+- Configurable prompt and banner
+- Thread-safe output via channel-based pump
+
+See `caTTY.ShellContract/README.md` for detailed API documentation and usage examples.
+
 ## Development Patterns
 
 ### Testing Strategy
@@ -194,6 +246,44 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 3. Commands 1001-1999 are fire-and-forget, 2001-2999 are queries
 4. Add tests in `caTTY.TermSequenceRpc.Tests/Unit/`
 
+### Adding a new custom shell
+1. Create a new class in `caTTY.CustomShells/` (or `caTTY.CustomShells/Examples/` for examples)
+2. Extend `LineDisciplineShell` for command-line shells (recommended for most use cases):
+   ```csharp
+   public class MyShell : LineDisciplineShell
+   {
+       public MyShell() : base(LineDisciplineOptions.CreateDefault()) { }
+
+       public override CustomShellMetadata Metadata => CustomShellMetadata.Create(
+           "My Shell", "Description");
+
+       protected override void ExecuteCommand(string command)
+       {
+           // Handle command execution
+           QueueOutput($"Executed: {command}\r\n");
+       }
+
+       protected override string GetPrompt() => "myshell> ";
+       protected override string? GetBanner() => "Welcome to My Shell!\r\n";
+   }
+   ```
+3. Or extend `BaseCustomShell` for raw byte-level processing (advanced use cases):
+   ```csharp
+   public class MyRawShell : BaseCustomShell
+   {
+       public override CustomShellMetadata Metadata => CustomShellMetadata.Create(
+           "Raw Shell", "Description");
+
+       protected override void OnInputByte(byte b)
+       {
+           // Process each input byte
+           QueueOutput(new[] { b });
+       }
+   }
+   ```
+4. Add tests in `caTTY.CustomShells.Tests/Unit/`
+5. Shell will be automatically discovered by `CustomShellRegistry` when GameMod loads
+
 ### Testing terminal behavior
 1. Use `caTTY.TestApp` for quick console testing
 2. Add unit tests in `caTTY.Core.Tests/`
@@ -211,6 +301,7 @@ The codebase is undergoing refactoring to break `TerminalEmulator.cs` (2500 LOC)
 - `.editorconfig`: C# formatting rules
 - `FEATURE_TRACKING.md`: VT100/xterm feature implementation status
 - `caTTY.Core/Tracing/README.md`: Tracing system documentation
+- `caTTY.ShellContract/README.md`: Custom shell architecture guide, API reference, and usage examples
 - `caTTY.GameMod/README.md`: Game mod installation and usage guide
 - `scripts/dotnet-test.ps1`: Test runner that suppresses verbose output and auto-parses results (MUST USE THIS)
 - `scripts/test-errors.ts`: TRX parser (automatically invoked by dotnet-test.ps1)
