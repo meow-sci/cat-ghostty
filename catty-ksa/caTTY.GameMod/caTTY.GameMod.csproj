@@ -33,6 +33,10 @@
         <Copy SourceFiles="$(TargetDir)caTTY.Display.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.TermSequenceRpc.dll" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)caTTY.TermSequenceRpc.pdb" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.ShellContract.dll" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.ShellContract.pdb" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShells.dll" DestinationFolder="$(DistDir)"/>
+        <Copy SourceFiles="$(TargetDir)caTTY.CustomShells.pdb" DestinationFolder="$(DistDir)"/>
         <Copy SourceFiles="$(TargetDir)Tomlyn.dll" DestinationFolder="$(DistDir)"/>
 
         <!-- Copy Fonts folder to the build dir-->
@@ -53,6 +57,7 @@
     <ItemGroup>
         <ProjectReference Include="..\caTTY.Display\caTTY.Display.csproj"/>
         <ProjectReference Include="..\caTTY.TermSequenceRpc\caTTY.TermSequenceRpc.csproj"/>
+        <ProjectReference Include="..\caTTY.CustomShells\caTTY.CustomShells.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

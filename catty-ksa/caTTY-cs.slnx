@@ -6,10 +6,14 @@
     </Configurations>
     <Project Path="caTTY.Core.Tests/caTTY.Core.Tests.csproj" />
     <Project Path="caTTY.Core/caTTY.Core.csproj" />
+    <Project Path="caTTY.CustomShells.Tests/caTTY.CustomShells.Tests.csproj" />
+    <Project Path="caTTY.CustomShells/caTTY.CustomShells.csproj" />
     <Project Path="caTTY.GameMod/caTTY.GameMod.csproj" />
     <Project Path="caTTY.Display.Playground/caTTY.Display.Playground.csproj" />
     <Project Path="caTTY.Display.Tests/caTTY.Display.Tests.csproj" />
     <Project Path="caTTY.Display/caTTY.Display.csproj" />
+    <Project Path="caTTY.ShellContract.Tests/caTTY.ShellContract.Tests.csproj" />
+    <Project Path="caTTY.ShellContract/caTTY.ShellContract.csproj" />
     <Project Path="caTTY.TermSequenceRpc.Tests/caTTY.TermSequenceRpc.Tests.csproj" />
     <Project Path="caTTY.TermSequenceRpc/caTTY.TermSequenceRpc.csproj" />
     <Project Path="caTTY.TestApp/caTTY.TestApp.csproj" />

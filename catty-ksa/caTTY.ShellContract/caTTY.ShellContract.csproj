@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <AssemblyName>caTTY.ShellContract</AssemblyName>
+        <RootNamespace>caTTY.ShellContract</RootNamespace>
+        <Description>Shell contracts and base implementations for custom shells</Description>
+        <PackageId>caTTY.ShellContract</PackageId>
+        <Product>caTTY Terminal Emulator</Product>
+        <Company>caTTY Project</Company>
+        <Copyright>Copyright © caTTY Project</Copyright>
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\caTTY.Core\caTTY.Core.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>caTTY.ShellContract.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+</Project>
