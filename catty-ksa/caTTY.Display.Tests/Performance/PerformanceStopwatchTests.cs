@@ -327,11 +327,11 @@ public class PerformanceStopwatchTests
         _stopwatch.Stop("FastTask");
 
         _stopwatch.Start("SlowTask");
-        Thread.Sleep(20);
+        Thread.Sleep(100);
         _stopwatch.Stop("SlowTask");
 
         _stopwatch.Start("MediumTask");
-        Thread.Sleep(10);
+        Thread.Sleep(50);
         _stopwatch.Stop("MediumTask");
 
         // Act
