@@ -94,7 +94,7 @@ We need a small abstraction that mirrors FD semantics enough for piping/redirect
 Important: current `BaseChannelOutputShell` always emits `ShellOutputType.Stdout` from its pump, even though `ShellOutputEventArgs` supports stderr. GameStuffShell will either:
 
 - (A) implement its own two-channel pump (stdout+stderr), or
-- (B) enhance/extend the base shell abstraction to support output events tagged as stdout vs stderr.
+- (B) enhance/extend the base shell abstraction to support output events tagged as stdout vs stderr (Selected approach: see Task 0).
 
 ### 4) Exit codes & propagation
 
@@ -115,6 +115,7 @@ Provide a clean way to add programs:
 
 - A registry mapping `string name -> handler`.
 - Handlers get `argv[]`, StreamSet, CancellationToken, plus a game-context service provider.
+- **Context additions**: Handlers also receive `int TerminalWidth`, `int TerminalHeight`, and `IReadOnlyDictionary<string, string> Environment`.
 - Support a few initial builtins/programs:
     - `echo ...` writes args + newline to stdout
     - `crafts` writes craft names, one per line
@@ -185,7 +186,7 @@ We need something like “pipes” but in-memory:
 
 - `IPipeReader` / `IPipeWriter` based on `Channel<ReadOnlyMemory<byte>>` or `Pipe` (System.IO.Pipelines).
 - `NullSink` for `/dev/null`.
-- A `TerminalWriter` that writes to the custom shell’s output event with the appropriate `ShellOutputType`.
+- A `TerminalWriter` that writes to the custom shell’s output event with the appropriate `ShellOutputType` (Stdout/Stderr).
 
 FD mapping:
 
@@ -227,7 +228,9 @@ Pipeline status is the exit code of the **last** command (bash default).
 - `ProgramContext` includes:
     - `IReadOnlyList<string> Argv`
     - `StreamSet Streams` (stdin/stdout/stderr)
-    - `IGameApi` / services needed to query crafts, follow camera, etc.
+    - `IGameStuffApi` / services needed to query crafts, follow camera, etc.
+    - `IReadOnlyDictionary<string, string> Environment` (Environment variables, CWD, etc.)
+    - `int TerminalWidth`, `int TerminalHeight` (Current terminal dimensions)
 
 Implementation notes for initial programs:
 
@@ -247,8 +250,9 @@ Implementation notes for initial programs:
 
 Decide what is isolated vs shared:
 
-- Shared (recommended initially): program registry, game services, working directory.
-- Isolated: cancellation token source for that invocation, local variables if/when you add variables.
+- Shared (recommended initially): program registry, game services.
+- Isolated: cancellation token source for that invocation.
+- Copy-on-Write: Environment variables (if modified in subshell, shouldn't affect parent).
 
 ## 9) Diagnostics and tracing
 
@@ -426,7 +430,7 @@ Execution requirements:
 Abstractions:
 
 - `IProgramResolver`: interface with `bool TryResolve(string name, out IProgram program)`. The `Executor` depends on this; Task 7's `ProgramRegistry` implements it.
-- `ProgramContext`: includes `Argv`, `StreamSet`, `IProgramResolver` (so programs like `xargs` can invoke other programs), `IGameStuffApi`, and `CancellationToken`.
+- `ProgramContext`: includes `Argv`, `StreamSet`, `IProgramResolver` (so programs like `xargs` can invoke other programs), `IGameStuffApi`, `CancellationToken`, `Environment`, `TerminalDimensions`.
 
 Error handling:
 
@@ -548,6 +552,7 @@ Implementation details:
 - `IGameStuffApi` should provide only what’s needed:
     - `IReadOnlyList<string> GetCraftNames()`
     - `bool TryFollowCraft(string craftName, out string? error)`
+- Thread safety: The implementation of `IGameStuffApi` is responsible for dispatching to the main game thread if required by the game engine. The shell runs on a background thread.
 - `crafts` prints one craft name per line.
 - `follow <name>` calls `TryFollowCraft`; exit `0` on success; exit `1` on failure (stderr message).
 
@@ -605,6 +610,7 @@ Implementation details:
     - Share: program registry, `IGameStuffApi`.
     - Inherit: stdin/stdout/stderr mapping from the parent command.
     - Use a new cancellation token linked to the parent token.
+    - Create a copy of Environment variables to isolate changes (if variables are added later).
 - Exit code: return the exit code of the subshell list’s final executed pipeline.
 
 
@@ -634,6 +640,5 @@ Test harness guidance:
     - Start shell
     - Subscribe to `OutputReceived` and accumulate into buffers for stdout/stderr separately
     - Drive input via `WriteInputAsync` with bytes (including Enter)
-
 
 
