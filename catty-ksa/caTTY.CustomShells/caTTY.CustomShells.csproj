@@ -10,6 +10,7 @@
     <PackageId>caTTY.CustomShells</PackageId>
     <OutputType>Library</OutputType>
     <KSAFolder>C:\Program Files\Kitten Space Agency</KSAFolder>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
