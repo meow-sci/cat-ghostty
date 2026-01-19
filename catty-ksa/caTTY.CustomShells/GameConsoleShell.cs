@@ -146,8 +146,8 @@ public class GameConsoleShell : BaseLineBufferedShell
         }
         catch (Exception ex)
         {
-            // Handle any exceptions during command execution
-            SendOutput($"\x1b[31mError executing command: {ex.Message}\x1b[0m\r\n");
+            // Handle any exceptions during command execution - send as stderr
+            SendError($"\x1b[31mError executing command: {ex.Message}\x1b[0m\r\n");
             SendPrompt();
         }
     }
@@ -214,11 +214,18 @@ public class GameConsoleShell : BaseLineBufferedShell
                 // Determine if this is an error based on color (red = error)
                 bool isError = color == ConsoleWindow.ErrorColor || color == ConsoleWindow.CriticalColor;
 
-                string formattedOutput = isError
-                    ? $"\x1b[31m{output}\x1b[0m\r\n"  // Red for errors
-                    : $"{output}\r\n";               // Default color for normal output
-
-                _activeInstance.SendOutput(formattedOutput);
+                if (isError)
+                {
+                    // Send errors as stderr with red formatting
+                    string formattedError = $"\x1b[31m{output}\x1b[0m\r\n";
+                    _activeInstance.SendError(formattedError);
+                }
+                else
+                {
+                    // Send normal output as stdout
+                    string formattedOutput = $"{output}\r\n";
+                    _activeInstance.SendOutput(formattedOutput);
+                }
             }
             catch (Exception)
             {

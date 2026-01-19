@@ -662,20 +662,42 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
 
     /// <summary>
     ///     Sends text output to the terminal via the channel-based output pump.
+    ///     Output is sent as stdout.
     /// </summary>
     /// <param name="text">The text to send</param>
     protected void SendOutput(string text)
     {
-        QueueOutput(text);
+        QueueOutput(text, ShellOutputType.Stdout);
     }
 
     /// <summary>
     ///     Sends raw byte data to the terminal via the channel-based output pump.
+    ///     Output is sent as stdout.
     /// </summary>
     /// <param name="data">The data to send</param>
     protected void SendOutput(byte[] data)
     {
-        QueueOutput(data);
+        QueueOutput(data, ShellOutputType.Stdout);
+    }
+
+    /// <summary>
+    ///     Sends text error output to the terminal via the channel-based output pump.
+    ///     Output is sent as stderr.
+    /// </summary>
+    /// <param name="text">The error text to send</param>
+    protected void SendError(string text)
+    {
+        QueueOutput(text, ShellOutputType.Stderr);
+    }
+
+    /// <summary>
+    ///     Sends raw byte error data to the terminal via the channel-based output pump.
+    ///     Output is sent as stderr.
+    /// </summary>
+    /// <param name="data">The error data to send</param>
+    protected void SendError(byte[] data)
+    {
+        QueueOutput(data, ShellOutputType.Stderr);
     }
 
     /// <inheritdoc />
