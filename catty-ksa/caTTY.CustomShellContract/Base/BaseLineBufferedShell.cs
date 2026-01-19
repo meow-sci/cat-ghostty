@@ -30,6 +30,11 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private string _savedCurrentLine = string.Empty;
 
     /// <summary>
+    ///     Current cursor position in the line buffer (0-indexed).
+    /// </summary>
+    private int _cursorPosition = 0;
+
+    /// <summary>
     ///     Escape sequence state machine states.
     /// </summary>
     private enum EscapeState
@@ -92,6 +97,11 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             }
         }
     }
+
+    /// <summary>
+    ///     Gets the current cursor position for testing/inspection purposes.
+    /// </summary>
+    protected int CursorPosition => _cursorPosition;
 
     /// <summary>
     ///     Abstract method called when user presses Enter to execute a command.
@@ -211,6 +221,7 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             {
                 commandLine = _lineBuffer.ToString();
                 _lineBuffer.Clear();
+                _cursorPosition = 0;
             }
 
             // Echo newline
@@ -249,6 +260,7 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 if (_lineBuffer.Length > 0)
                 {
                     _lineBuffer.Length--;
+                    _cursorPosition--;
                     // Send backspace sequence: move cursor left, erase to end of line
                     SendOutput("\x1b[D\x1b[K");
                 }
@@ -260,6 +272,7 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             lock (_lock)
             {
                 _lineBuffer.Append((char)b);
+                _cursorPosition = _lineBuffer.Length;
             }
             // Echo the character back
             SendOutput(new byte[] { b });
@@ -336,6 +349,7 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
         // Update buffer
         _lineBuffer.Clear();
         _lineBuffer.Append(newText);
+        _cursorPosition = _lineBuffer.Length;
 
         // Display new text
         SendOutput(newText);
