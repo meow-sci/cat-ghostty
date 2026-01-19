@@ -202,6 +202,12 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             case 'D': // Left arrow
                 MoveCursorLeft();
                 break;
+            case 'H': // Home
+                MoveCursorToStart();
+                break;
+            case 'F': // End
+                MoveCursorToEnd();
+                break;
             // Other CSI sequences can be added here in the future
         }
     }
@@ -395,6 +401,38 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             {
                 _cursorPosition--;
                 SendOutput("\x1b[D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the line buffer.
+    /// </summary>
+    private void MoveCursorToStart()
+    {
+        lock (_lock)
+        {
+            int distance = _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = 0;
+                SendOutput($"\x1b[{distance}D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the end of the line buffer.
+    /// </summary>
+    private void MoveCursorToEnd()
+    {
+        lock (_lock)
+        {
+            int distance = _lineBuffer.Length - _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = _lineBuffer.Length;
+                SendOutput($"\x1b[{distance}C");
             }
         }
     }
