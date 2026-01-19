@@ -91,3 +91,4 @@ How do we know that the foreground USERLAND program has fully consumed the respo
 
 I'm OK with fully buffering data to simplify things like this because in the context of our game we're only dealing with relatively small amounts of data at all times (in max of kilobytes of data only, should never be megabytes or larger).
 
+I would want to be able to build up abstractions in userland code (ideally TypeScript with a bun runtime) which would make composition of bi-directional RPC invocations very simple and fast to code and execute.
