@@ -11,9 +11,10 @@ namespace caTTY.Core.Terminal;
 public abstract class BaseChannelOutputShell : BaseCustomShell
 {
     /// <summary>
-    ///     Output channel that mimics PTY stdout - unbounded like a real pipe buffer.
+    ///     Output channel that mimics PTY stdout/stderr - unbounded like a real pipe buffer.
+    ///     Carries both data and output type (stdout vs stderr).
     /// </summary>
-    private Channel<byte[]>? _outputChannel;
+    private Channel<(byte[] Data, ShellOutputType Type)>? _outputChannel;
 
     /// <summary>
     ///     Background task that pumps output from the channel to OutputReceived events.
@@ -51,8 +52,8 @@ public abstract class BaseChannelOutputShell : BaseCustomShell
         }
 
         // Create PTY-style output channel - unbounded like a real pipe buffer
-        // This channel acts as the "stdout pipe" that a real shell would write to
-        _outputChannel = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions
+        // This channel acts as the "stdout/stderr pipes" that a real shell would write to
+        _outputChannel = Channel.CreateUnbounded<(byte[] Data, ShellOutputType Type)>(new UnboundedChannelOptions
         {
             SingleReader = true,
             SingleWriter = false // Multiple sources can write (shell, command output, etc.)
@@ -122,12 +123,12 @@ public abstract class BaseChannelOutputShell : BaseCustomShell
 
         try
         {
-            await foreach (var data in _outputChannel.Reader.ReadAllAsync(cancellationToken))
+            await foreach (var (data, type) in _outputChannel.Reader.ReadAllAsync(cancellationToken))
             {
                 try
                 {
                     // Raise the event from this background thread, just like ProcessManager does
-                    RaiseOutputReceived(data, ShellOutputType.Stdout);
+                    RaiseOutputReceived(data, type);
                 }
                 catch (Exception)
                 {
@@ -148,22 +149,46 @@ public abstract class BaseChannelOutputShell : BaseCustomShell
     /// <summary>
     ///     Queues raw byte data to the output channel for asynchronous delivery.
     ///     This is like a shell writing to its stdout file descriptor.
+    ///     Defaults to stdout.
     /// </summary>
     /// <param name="data">The data to queue</param>
     protected void QueueOutput(byte[] data)
     {
-        _outputChannel?.Writer.TryWrite(data);
+        QueueOutput(data, ShellOutputType.Stdout);
     }
 
     /// <summary>
     ///     Queues text to the output channel for asynchronous delivery.
     ///     Text is converted to UTF-8 bytes.
+    ///     Defaults to stdout.
     /// </summary>
     /// <param name="text">The text to queue</param>
     protected void QueueOutput(string text)
     {
+        QueueOutput(text, ShellOutputType.Stdout);
+    }
+
+    /// <summary>
+    ///     Queues raw byte data to the output channel for asynchronous delivery with specified output type.
+    ///     This is like a shell writing to its stdout or stderr file descriptor.
+    /// </summary>
+    /// <param name="data">The data to queue</param>
+    /// <param name="type">The output type (stdout or stderr)</param>
+    protected void QueueOutput(byte[] data, ShellOutputType type)
+    {
+        _outputChannel?.Writer.TryWrite((data, type));
+    }
+
+    /// <summary>
+    ///     Queues text to the output channel for asynchronous delivery with specified output type.
+    ///     Text is converted to UTF-8 bytes.
+    /// </summary>
+    /// <param name="text">The text to queue</param>
+    /// <param name="type">The output type (stdout or stderr)</param>
+    protected void QueueOutput(string text, ShellOutputType type)
+    {
         var bytes = Encoding.UTF8.GetBytes(text);
-        QueueOutput(bytes);
+        QueueOutput(bytes, type);
     }
 
     /// <inheritdoc />

@@ -64,6 +64,11 @@ public class BaseLineBufferedShellTests
             _prompt = prompt;
         }
 
+        public void SendErrorForTest(string text)
+        {
+            SendError(text);
+        }
+
         // Expose protected members for testing
         public IReadOnlyList<string> TestGetCommandHistory() => CommandHistory;
         public string TestGetCurrentLine() => CurrentLine;
@@ -1042,7 +1047,27 @@ public class BaseLineBufferedShellTests
 
     #endregion
 
+    #region Output Type Tests
+
+    [Test]
+    public async Task SendError_EmitsStderrOutputType()
+    {
+        // Arrange
+        var outputTypes = new List<ShellOutputType>();
+        _shell!.OutputReceived += (sender, args) => outputTypes.Add(args.OutputType);
+
+        // Act
+        _shell.SendErrorForTest("error\r\n");
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(outputTypes, Does.Contain(ShellOutputType.Stderr));
+    }
+
+    #endregion
+ 
     #region Cursor Position Tracking Tests
+
 
     [Test]
     public async Task CursorPosition_InitiallyZero()
