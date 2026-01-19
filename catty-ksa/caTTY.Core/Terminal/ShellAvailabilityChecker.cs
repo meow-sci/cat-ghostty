@@ -28,7 +28,7 @@ public static class ShellAvailabilityChecker
                 ShellType.PowerShellCore => IsPowerShellCoreAvailable(),
                 ShellType.Cmd => IsCmdAvailable(),
                 ShellType.Custom => true, // Custom shells are checked when the path is provided
-                ShellType.CustomGame => true, // Custom game shells are always available (managed by registry)
+                ShellType.CustomGame => true, // Game Console is always available
                 _ => false
             };
         }
@@ -68,11 +68,10 @@ public static class ShellAvailabilityChecker
 
         var shellDefinitions = new[]
         {
-            (ShellType.Wsl, "WSL2 (Windows Subsystem for Linux)"),
             (ShellType.PowerShell, "Windows PowerShell"),
-            (ShellType.PowerShellCore, "PowerShell Core (pwsh)"),
+            (ShellType.Wsl, "WSL2 (Windows Subsystem for Linux)"),
             (ShellType.Cmd, "Command Prompt"),
-            (ShellType.Custom, "Custom Shell")
+            (ShellType.CustomGame, "Game Console")
         };
 
         foreach (var (shellType, displayName) in shellDefinitions)
@@ -84,30 +83,6 @@ public static class ShellAvailabilityChecker
         }
 
         return availableShells;
-    }
-
-    /// <summary>
-    /// Gets available custom game shells discovered from the registry.
-    /// </summary>
-    /// <returns>List of tuples containing shell type, shell ID, and display name for available custom game shells</returns>
-    public static List<(ShellType ShellType, string ShellId, string DisplayName)> GetAvailableCustomGameShells()
-    {
-        var customGameShells = new List<(ShellType, string, string)>();
-
-        try
-        {
-            var registry = CustomShellRegistry.Instance;
-            foreach (var (shellId, metadata) in registry.GetAvailableShells())
-            {
-                customGameShells.Add((ShellType.CustomGame, shellId, metadata.Name));
-            }
-        }
-        catch
-        {
-            // If custom shell registry is not available, return empty list
-        }
-
-        return customGameShells;
     }
 
     /// <summary>

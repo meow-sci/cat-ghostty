@@ -118,8 +118,8 @@ public class ThemeConfiguration
             ShellType.Cmd => ProcessLaunchOptions.CreateCmd(),
             ShellType.Custom when !string.IsNullOrEmpty(CustomShellPath) =>
                 ProcessLaunchOptions.CreateCustom(CustomShellPath, DefaultShellArguments.ToArray()),
-            ShellType.CustomGame when !string.IsNullOrEmpty(DefaultCustomGameShellId) =>
-                ProcessLaunchOptions.CreateCustomGame(DefaultCustomGameShellId),
+            ShellType.CustomGame =>
+                ProcessLaunchOptions.CreateCustomGame(DefaultCustomGameShellId ?? "GameConsoleShell"),
             _ => ProcessLaunchOptions.CreateDefault()
         };
     }

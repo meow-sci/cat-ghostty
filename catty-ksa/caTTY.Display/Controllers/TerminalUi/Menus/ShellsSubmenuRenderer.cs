@@ -39,13 +39,11 @@ internal class ShellsSubmenuRenderer
 
   /// <summary>
   /// Renders the shell configuration section in the Shells submenu.
-  /// Allows users to select default shell type and configure shell-specific options.
-  /// Only shows shells that are available on the current system.
+  /// Allows users to select the default shell type from available shells.
   /// </summary>
   private void RenderShellConfigurationSection()
   {
     var config = _themeConfig;
-    bool configChanged = false;
 
     // Check if current shell is available
     bool currentShellAvailable = ShellAvailabilityChecker.IsShellAvailable(config.DefaultShellType);
@@ -75,10 +73,9 @@ internal class ShellsSubmenuRenderer
     ImGui.Text("Select Default Shell:");
 
     var availableShells = ShellAvailabilityChecker.GetAvailableShellsWithNames();
-    var availableCustomGameShells = ShellAvailabilityChecker.GetAvailableCustomGameShells();
 
     // Show message if no shells are available (shouldn't happen, but defensive programming)
-    if (availableShells.Count == 0 && availableCustomGameShells.Count == 0)
+    if (availableShells.Count == 0)
     {
       ImGui.TextColored(new float4(1.0f, 0.5f, 0.5f, 1.0f), "No shells available on this system");
       return;
@@ -100,7 +97,11 @@ internal class ShellsSubmenuRenderer
         if (!isSelected)
         {
           config.DefaultShellType = shellType;
-          configChanged = true;
+          if (shellType == ShellType.CustomGame)
+          {
+            // Auto-select Game Console shell when CustomGame is selected
+            config.DefaultCustomGameShellId = "GameConsoleShell";
+          }
 
           // Apply configuration immediately when shell type changes
           ApplyShellConfiguration();
@@ -112,125 +113,19 @@ internal class ShellsSubmenuRenderer
       {
         var tooltip = shellType switch
         {
-          ShellType.Wsl => "Windows Subsystem for Linux - Recommended for development work",
           ShellType.PowerShell => "Traditional Windows PowerShell (powershell.exe)",
-          ShellType.PowerShellCore => "Modern cross-platform PowerShell (pwsh.exe)",
+          ShellType.Wsl => "Windows Subsystem for Linux - Recommended for development work",
           ShellType.Cmd => "Windows Command Prompt (cmd.exe)",
-          ShellType.Custom => "Specify a custom shell executable",
+          ShellType.CustomGame => "KSA game console interface - Execute game commands directly",
           _ => "Shell option"
         };
         ImGui.SetTooltip(tooltip);
       }
     }
 
-    // Show custom game shells if available
-    if (availableCustomGameShells.Count > 0)
-    {
-      ImGui.Spacing();
-      ImGui.Separator();
-      ImGui.Spacing();
-      ImGui.Text("Custom Game Shells:");
-
-      foreach (var (shellType, shellId, displayName) in availableCustomGameShells)
-      {
-        bool isSelected = config.DefaultShellType == ShellType.CustomGame && config.DefaultCustomGameShellId == shellId;
-
-        if (ImGui.RadioButton($"{displayName}##shell_{shellId}", isSelected))
-        {
-          if (!isSelected)
-          {
-            config.DefaultShellType = ShellType.CustomGame;
-            config.DefaultCustomGameShellId = shellId;
-            configChanged = true;
-
-            // Apply configuration immediately when shell type changes
-            ApplyShellConfiguration();
-          }
-        }
-
-        if (ImGui.IsItemHovered())
-        {
-          ImGui.SetTooltip("Custom game shell - Execute game commands directly");
-        }
-      }
-    }
-
-    // Show count of available shells for debugging
-    ImGui.Spacing();
-    ImGui.TextColored(new float4(0.7f, 0.7f, 0.7f, 1.0f), $"Showing {availableShells.Count + availableCustomGameShells.Count} available shell(s)");
-    if (ImGui.IsItemHovered())
-    {
-      var standardShells = string.Join(", ", availableShells.Select(s => s.ShellType.ToString()));
-      var customShells = string.Join(", ", availableCustomGameShells.Select(s => s.DisplayName));
-      var allShells = string.IsNullOrEmpty(customShells) ? standardShells : $"{standardShells}; {customShells}";
-      ImGui.SetTooltip($"Available shells: {allShells}");
-    }
-
-    ImGui.Spacing();
-
-    // WSL distribution selection (only show when WSL is selected)
-    if (config.DefaultShellType == ShellType.Wsl)
-    {
-      ImGui.Text("WSL Distribution:");
-      ImGui.Text($"Current: {config.WslDistribution ?? "Default"}");
-
-      if (ImGui.Button("Change WSL Distribution##wsl_dist"))
-      {
-        // For now, cycle through common distributions
-        var distributions = new[] { null, "Ubuntu", "Debian", "Alpine" };
-        var currentIndex = Array.IndexOf(distributions, config.WslDistribution);
-        var nextIndex = (currentIndex + 1) % distributions.Length;
-        config.WslDistribution = distributions[nextIndex];
-        configChanged = true;
-
-        // Apply configuration immediately when WSL distribution changes
-        ApplyShellConfiguration();
-      }
-
-      if (ImGui.IsItemHovered())
-      {
-        ImGui.SetTooltip("Click to cycle through: Default → Ubuntu → Debian → Alpine");
-      }
-    }
-
-    // Custom shell path (only show when Custom is selected)
-    if (config.DefaultShellType == ShellType.Custom)
-    {
-      ImGui.Text("Custom Shell Path:");
-      ImGui.Text($"Current: {config.CustomShellPath ?? "Not set"}");
-
-      if (ImGui.Button("Set Custom Shell Path##custom_path"))
-      {
-        // For now, provide some common examples
-        var commonPaths = new[] {
-          null,
-          @"C:\msys64\usr\bin\bash.exe",
-          @"C:\Program Files\Git\bin\bash.exe",
-          @"C:\Windows\System32\wsl.exe"
-        };
-        var currentIndex = Array.IndexOf(commonPaths, config.CustomShellPath);
-        var nextIndex = (currentIndex + 1) % commonPaths.Length;
-        config.CustomShellPath = commonPaths[nextIndex];
-        configChanged = true;
-
-        // Apply configuration immediately when custom shell path changes
-        ApplyShellConfiguration();
-      }
-
-      if (ImGui.IsItemHovered())
-      {
-        ImGui.SetTooltip("Click to cycle through common shell paths\nOr manually edit the configuration file");
-      }
-    }
-
     // Show current configuration status
     ImGui.Spacing();
     ImGui.Text("Settings are applied automatically to new terminal sessions.");
-
-    if (configChanged)
-    {
-      ImGui.TextColored(new Brutal.Numerics.float4(0.0f, 1.0f, 0.0f, 1.0f), "✓ Configuration updated successfully!");
-    }
   }
 
   /// <summary>
