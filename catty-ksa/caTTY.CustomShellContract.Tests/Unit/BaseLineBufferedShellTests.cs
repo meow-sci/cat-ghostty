@@ -1751,6 +1751,208 @@ public class BaseLineBufferedShellTests
 
     #endregion
 
+    #region Ctrl+C (Cancel Line) Tests
+
+    [Test]
+    public async Task WriteInputAsync_CtrlC_ClearsBufferAndShowsPrompt()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line buffer should have content");
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Send Ctrl+C
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line buffer should be cleared");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        var allOutput = string.Join("", outputReceived);
+        Assert.That(allOutput, Does.Contain("^C\r\n"), "Should display ^C and newline");
+        Assert.That(allOutput, Does.Contain("test> "), "Should display prompt");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCOnEmptyLine_DoesNotCrash()
+    {
+        // Arrange
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Send Ctrl+C on empty line
+        await _shell!.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line buffer should remain empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        var allOutput = string.Join("", outputReceived);
+        Assert.That(allOutput, Does.Contain("^C\r\n"), "Should display ^C and newline");
+        Assert.That(allOutput, Does.Contain("test> "), "Should display prompt");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCDuringHistoryNavigation_ClearsState()
+    {
+        // Arrange - Build history
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("first command"));
+        await _shell.WriteInputAsync(new byte[] { 0x0D });
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("second command"));
+        await _shell.WriteInputAsync(new byte[] { 0x0D });
+        await Task.Delay(50);
+
+        // Navigate up in history
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x41 }); // Up
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("second command"), "Should be in history");
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Send Ctrl+C
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line buffer should be cleared");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        var allOutput = string.Join("", outputReceived);
+        Assert.That(allOutput, Does.Contain("^C\r\n"), "Should display ^C and newline");
+        Assert.That(allOutput, Does.Contain("test> "), "Should display prompt");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCAtMiddleOfLine_ClearsEntireLine()
+    {
+        // Arrange - Type "hello world"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+
+        // Move cursor to middle
+        for (int i = 0; i < 5; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be in middle");
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Send Ctrl+C
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line buffer should be cleared");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        var allOutput = string.Join("", outputReceived);
+        Assert.That(allOutput, Does.Contain("^C\r\n"), "Should display ^C and newline");
+        Assert.That(allOutput, Does.Contain("test> "), "Should display prompt");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCMultipleTimes_EachTimeShowsPrompt()
+    {
+        // Arrange
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Send Ctrl+C three times
+        await _shell!.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(100);
+
+        // Assert
+        var allOutput = string.Join("", outputReceived);
+        // Should have three instances of "^C\r\n" and three prompts
+        int ctrlCCount = System.Text.RegularExpressions.Regex.Matches(allOutput, @"\^C\r\n").Count;
+        Assert.That(ctrlCCount, Is.EqualTo(3), "Should display ^C three times");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCThenType_StartsNewLine()
+    {
+        // Arrange - Type some text
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+
+        // Send Ctrl+C
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line should be cleared");
+
+        // Act - Type new text
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("world"));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("world"), "Should have new text");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5), "Cursor should be at end of new text");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlCClearsSavedCurrentLine()
+    {
+        // Arrange - Execute a command to build history
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("cmd1"));
+        await _shell.WriteInputAsync(new byte[] { 0x0D });
+        await Task.Delay(50);
+
+        // Start typing a new command
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("new text"));
+        await Task.Delay(50);
+
+        // Navigate up (saves "new text")
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x41 }); // Up
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("cmd1"), "Should show history");
+
+        // Send Ctrl+C
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C
+        await Task.Delay(50);
+
+        // Navigate up again
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x41 }); // Up
+        await Task.Delay(50);
+
+        // Navigate down (should not restore "new text")
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x42 }); // Down
+        await Task.Delay(100);
+
+        // Assert - Should be empty, not "new text"
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Saved line should have been cleared by Ctrl+C");
+    }
+
+    #endregion
+
     #region Mid-line Character Insertion Tests
 
     [Test]

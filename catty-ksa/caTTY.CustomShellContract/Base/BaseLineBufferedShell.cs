@@ -68,6 +68,8 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private int _terminalHeight = 24;
 
     // Control character constants
+    /// <summary>Ctrl+C (cancel line)</summary>
+    protected const byte CtrlC = 0x03;
     /// <summary>Ctrl+L (clear screen)</summary>
     protected const byte CtrlL = 0x0C;
     /// <summary>Carriage return (Enter key)</summary>
@@ -230,7 +232,13 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private void HandleNormalByte(byte b)
     {
         // Handle special control characters
-        if (b == CtrlL)
+        if (b == CtrlC)
+        {
+            // Ctrl+C: Cancel line
+            HandleCancelLine();
+            return;
+        }
+        else if (b == CtrlL)
         {
             // Ctrl+L: Clear screen
             HandleClearScreen();
@@ -486,6 +494,23 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
 
         // Display new text
         SendOutput(newText);
+    }
+
+    /// <summary>
+    ///     Handles Ctrl+C to cancel the current line and start fresh.
+    /// </summary>
+    private void HandleCancelLine()
+    {
+        lock (_lock)
+        {
+            _lineBuffer.Clear();
+            _cursorPosition = 0;
+            _historyIndex = -1;
+            _savedCurrentLine = string.Empty;
+        }
+
+        SendOutput("^C\r\n");
+        SendOutput(GetPrompt());
     }
 
     /// <summary>
