@@ -7,3 +7,7 @@ The base custom shell code which supports line editing and history via up/down i
     * ctrl+left/right arrow should jump by word
     * home/end should jump to start or end of line
     * del should delete the next char (to the right of cursor), opposite of what backspace does by default
+
+Note that the cursor position management may mean significantly more complex command buffer behavior and may require a re-architecture of the current implementation (I'm unsure about what is currently available in the design).
+
+These features should be added to the base layer of the custom game shells that currently handles the command buffer and ctrl+l etc.
