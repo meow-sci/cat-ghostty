@@ -366,6 +366,163 @@ public class BaseLineBufferedShellTests
         Assert.Pass("Unknown escape sequence handled gracefully");
     }
 
+    [Test]
+    public async Task WriteInputAsync_LeftArrow_MovesCursorLeft()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5), "Initial cursor position");
+
+        // Act - Press left arrow three times
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // ESC [ D (left)
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // ESC [ D (left)
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // ESC [ D (left)
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line buffer should remain unchanged");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_RightArrow_MovesCursorRight()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+
+        // Move left three times
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor at position 2 before right arrow");
+
+        // Act - Press right arrow once
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // ESC [ C (right)
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should be at position 3");
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line buffer should remain unchanged");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_LeftArrowAtStart_DoesNothing()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        // Move to start
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        // Act - Press left arrow at start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at position 0");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_RightArrowAtEnd_DoesNothing()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should be at end");
+
+        // Act - Press right arrow at end
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should remain at position 4");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_LeftRightArrowMovement_PreservesLineContent()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+
+        // Act - Move left 5 times, then right 2 times
+        for (int i = 0; i < 5; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        for (int i = 0; i < 2; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+            await Task.Delay(50);
+        }
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(8), "Cursor should be at position 8");
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world"), "Line content should not change");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_LeftRightArrowEchoesEscapeSequences()
+    {
+        // Arrange
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Move left then right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+        await Task.Delay(100);
+
+        // Assert
+        var allOutput = string.Join("", outputReceived);
+        Assert.That(allOutput, Does.Contain("\x1b[D"), "Should echo left arrow sequence");
+        Assert.That(allOutput, Does.Contain("\x1b[C"), "Should echo right arrow sequence");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_LeftArrowOnEmptyBuffer_DoesNothing()
+    {
+        // Act - Press left arrow on empty line
+        await _shell!.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should stay at position 0");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_RightArrowOnEmptyBuffer_DoesNothing()
+    {
+        // Act - Press right arrow on empty line
+        await _shell!.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should stay at position 0");
+    }
+
     #endregion
 
     #region Command History Tests

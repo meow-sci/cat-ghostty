@@ -196,6 +196,12 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             case 'B': // Down arrow
                 NavigateHistoryDown();
                 break;
+            case 'C': // Right arrow
+                MoveCursorRight();
+                break;
+            case 'D': // Left arrow
+                MoveCursorLeft();
+                break;
             // Other CSI sequences can be added here in the future
         }
     }
@@ -333,6 +339,36 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             else
             {
                 ReplaceLineBuffer(_commandHistory[_historyIndex]);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor one position to the right within the line buffer.
+    /// </summary>
+    private void MoveCursorRight()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition < _lineBuffer.Length)
+            {
+                _cursorPosition++;
+                SendOutput("\x1b[C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor one position to the left within the line buffer.
+    /// </summary>
+    private void MoveCursorLeft()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition > 0)
+            {
+                _cursorPosition--;
+                SendOutput("\x1b[D");
             }
         }
     }
