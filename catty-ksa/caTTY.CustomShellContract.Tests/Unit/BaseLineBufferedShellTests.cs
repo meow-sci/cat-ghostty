@@ -1026,4 +1026,234 @@ public class BaseLineBufferedShellTests
     }
 
     #endregion
+
+    #region Mid-line Character Insertion Tests
+
+    [Test]
+    public async Task WriteInputAsync_InsertCharacterAtMiddle_InsertsCorrectly()
+    {
+        // Arrange - Type "helo"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("helo"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("helo"));
+
+        // Move left 2 positions (cursor should be between 'e' and 'l')
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+
+        // Act - Type 'l' to make "hello"
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("l"));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line should be 'hello'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should be at position 3");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertCharacterAtStart_InsertsCorrectly()
+    {
+        // Arrange - Type "ello"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("ello"));
+        await Task.Delay(50);
+
+        // Move to start
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        // Act - Type 'h' to make "hello"
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("h"));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line should be 'hello'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(1), "Cursor should be at position 1");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertCharacterAtEnd_AppendsCorrectly()
+    {
+        // Arrange - Type "hell"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hell"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should be at end");
+
+        // Act - Type 'o' (should append, not insert)
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("o"));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line should be 'hello'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5), "Cursor should be at position 5");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertMultipleCharactersAtMiddle_InsertsCorrectly()
+    {
+        // Arrange - Type "heworld"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("heworld"));
+        await Task.Delay(50);
+
+        // Move left 5 positions (cursor should be between 'e' and 'w')
+        for (int i = 0; i < 5; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+
+        // Act - Type "llo " to make "hello world"
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("llo "));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world"), "Line should be 'hello world'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be at position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertAtMiddle_SendsCorrectEscapeSequences()
+    {
+        // Arrange - Type "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        // Move left 2 positions
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Type 'X' to insert at position 2
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("X"));
+        await Task.Delay(100);
+
+        // Assert
+        var allOutput = string.Join("", outputReceived);
+        // Should output: X + "st" + move left 2
+        Assert.That(allOutput, Does.Contain("X"), "Should output the inserted character");
+        Assert.That(allOutput, Does.Contain("st"), "Should output tail characters");
+        Assert.That(allOutput, Does.Contain("\x1b[2D"), "Should move cursor back 2 positions");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertAtPosition1_SendsCorrectEscapeSequences()
+    {
+        // Arrange - Type "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        // Move left 3 positions
+        for (int i = 0; i < 3; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Type 'X' to insert at position 1
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("X"));
+        await Task.Delay(100);
+
+        // Assert
+        var allOutput = string.Join("", outputReceived);
+        // Should output: X + "est" + move left 3
+        Assert.That(allOutput, Does.Contain("X"), "Should output the inserted character");
+        Assert.That(allOutput, Does.Contain("est"), "Should output tail characters");
+        Assert.That(allOutput, Does.Contain("\x1b[3D"), "Should move cursor back 3 positions");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertAndMoveAround_MaintainsCorrectState()
+    {
+        // Arrange - Type "abc"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("abc"));
+        await Task.Delay(50);
+
+        // Move left to middle
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2));
+
+        // Insert 'X'
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("X"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("abXc"));
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3));
+
+        // Move right to end
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4));
+
+        // Append 'Y'
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("Y"));
+        await Task.Delay(100);
+
+        // Assert final state
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("abXcY"));
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5));
+    }
+
+    [Test]
+    public async Task WriteInputAsync_InsertSingleCharAtEachPosition_WorksCorrectly()
+    {
+        // Start with "1234"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("1234"));
+        await Task.Delay(50);
+
+        // Move to start
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+
+        // Insert 'A' at position 0
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("A"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("A1234"));
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(1));
+
+        // Move right 1, insert 'B' at position 2
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("B"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("A1B234"));
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3));
+
+        // Move to end and append 'C'
+        for (int i = 0; i < 3; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x43 }); // Right
+            await Task.Delay(50);
+        }
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("C"));
+        await Task.Delay(100);
+
+        // Assert final state
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("A1B234C"));
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(7));
+    }
+
+    #endregion
 }

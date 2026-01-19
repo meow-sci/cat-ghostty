@@ -277,11 +277,23 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             // Printable ASCII character
             lock (_lock)
             {
-                _lineBuffer.Append((char)b);
-                _cursorPosition = _lineBuffer.Length;
+                if (_cursorPosition == _lineBuffer.Length)
+                {
+                    // At end - append (current behavior)
+                    _lineBuffer.Append((char)b);
+                    SendOutput(new byte[] { b });
+                }
+                else
+                {
+                    // Mid-line - insert
+                    _lineBuffer.Insert(_cursorPosition, (char)b);
+
+                    // Redraw: insert char + tail + move cursor back
+                    string tail = _lineBuffer.ToString(_cursorPosition + 1, _lineBuffer.Length - _cursorPosition - 1);
+                    SendOutput($"{(char)b}{tail}\x1b[{tail.Length}D");
+                }
+                _cursorPosition++;
             }
-            // Echo the character back
-            SendOutput(new byte[] { b });
         }
         // Note: We ignore other control characters and non-ASCII bytes for now
         // A more sophisticated implementation would handle UTF-8 multi-byte sequences
