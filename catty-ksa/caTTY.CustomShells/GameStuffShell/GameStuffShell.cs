@@ -3,6 +3,7 @@ using caTTY.Core.Terminal;
 using caTTY.CustomShells.GameStuffShell.Execution;
 using caTTY.CustomShells.GameStuffShell.Lexing;
 using caTTY.CustomShells.GameStuffShell.Parsing;
+using caTTY.CustomShells.GameStuffShell.Programs;
 
 namespace caTTY.CustomShells.GameStuffShell;
 
@@ -24,10 +25,13 @@ public sealed class GameStuffShell : BaseLineBufferedShell
 
     protected override Task OnStartingAsync(CustomShellStartOptions options, CancellationToken cancellationToken)
     {
-        // Create execution context (use stub resolver for now - will be replaced in Task 7)
-        var resolver = new StubProgramResolver();
+        // Create program registry and register built-in programs
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new SleepProgram());
+
         _execContext = new ExecContext(
-            resolver,
+            registry,
             gameApi: null,
             environment: new Dictionary<string, string>(),
             terminalWidth: 80,
@@ -161,17 +165,3 @@ public sealed class GameStuffShell : BaseLineBufferedShell
         SendPrompt();
     }
 }
-
-/// <summary>
-/// Stub program resolver that returns false for all programs.
-/// This will be replaced with a real ProgramRegistry in Task 7.
-/// </summary>
-internal sealed class StubProgramResolver : IProgramResolver
-{
-    public bool TryResolve(string name, out IProgram program)
-    {
-        program = null!;
-        return false;
-    }
-}
-
