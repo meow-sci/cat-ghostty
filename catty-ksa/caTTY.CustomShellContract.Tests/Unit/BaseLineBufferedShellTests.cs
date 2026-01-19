@@ -1526,6 +1526,231 @@ public class BaseLineBufferedShellTests
 
     #endregion
 
+    #region Delete Key Tests
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKey_DeletesCharacterAtCursor()
+    {
+        // Arrange - Type "hello"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+
+        // Move left 2 positions (cursor at position 3, between second 'l' and 'o')
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should be at position 3");
+
+        // Act - Press Delete key (CSI 3 ~)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("helo"), "Line should be 'helo'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should still be at position 3");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyAtEnd_DoesNothing()
+    {
+        // Arrange - Type "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should be at end");
+
+        // Act - Press Delete key at end
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("test"), "Line should remain 'test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should remain at position 4");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyOnEmptyBuffer_DoesNothing()
+    {
+        // Act - Press Delete key on empty line
+        await _shell!.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line should remain empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should stay at position 0");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyAtStart_DeletesFirstCharacter()
+    {
+        // Arrange - Type "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        // Move to start
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        // Act - Press Delete key
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("est"), "Line should be 'est'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at position 0");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyMultipleTimes_DeletesCorrectly()
+    {
+        // Arrange - Type "hello world"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+
+        // Move to position 5 (between 'o' and ' ')
+        for (int i = 0; i < 6; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5), "Cursor should be at position 5");
+
+        // Act - Delete 3 times to remove " wo"
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // Delete
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // Delete
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // Delete
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hellorld"), "Line should be 'hellorld'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(5), "Cursor should still be at position 5");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKey_SendsCorrectEscapeSequences()
+    {
+        // Arrange - Type "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        await Task.Delay(50);
+
+        // Move left 2 positions (cursor at position 2, which is 's' in "test")
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+
+        var outputReceived = new List<string>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(Encoding.UTF8.GetString(args.Data.ToArray()));
+        };
+
+        // Act - Press Delete key (deletes 's', leaving "tet")
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(100);
+
+        // Assert
+        var allOutput = string.Join("", outputReceived);
+        // Should output: "t" (tail) + space + move left 2
+        Assert.That(allOutput, Does.Contain("t"), "Should output tail characters");
+        Assert.That(allOutput, Does.Contain(" "), "Should output space to clear");
+        Assert.That(allOutput, Does.Contain("\x1b[2D"), "Should move cursor back 2 positions");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyAndBackspace_WorkTogether()
+    {
+        // Arrange - Type "hello"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+
+        // Move left 2 positions (cursor at position 3)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should be at position 3");
+
+        // Act - Delete key (deletes 'l' at position 3, leaving "helo" with cursor at 3)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("helo"), "After delete should be 'helo'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Cursor should still be at position 3");
+
+        // Backspace (deletes 'l' at position 2, leaving "heo" with cursor at 2)
+        await _shell.WriteInputAsync(new byte[] { 0x7F }); // Backspace
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("heo"), "Line should be 'heo'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeyAndInsert_WorksCorrectly()
+    {
+        // Arrange - Type "helo"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("helo"));
+        await Task.Delay(50);
+
+        // Move left 2 positions (cursor at position 2)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+
+        // Act - Delete key (deletes 'l', leaving "heo" with cursor at 2)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // ESC [ 3 ~
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("heo"), "After delete should be 'heo'");
+
+        // Insert "ll" (gives "hello" with cursor at 4)
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("ll"));
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Line should be 'hello'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(4), "Cursor should be at position 4");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_DeleteKeySequence_DeletesAllCharactersAfter()
+    {
+        // Arrange - Type "abcd"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("abcd"));
+        await Task.Delay(50);
+
+        // Move to start
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(50);
+        }
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+
+        // Act - Delete 4 times to remove all characters
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x33, 0x7E }); // Delete
+            await Task.Delay(50);
+        }
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Line should be empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at position 0");
+    }
+
+    #endregion
+
     #region Mid-line Character Insertion Tests
 
     [Test]

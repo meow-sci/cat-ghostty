@@ -188,6 +188,17 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     {
         string param = _escapeBuffer.ToString();
 
+        // Handle parameterized sequences
+        if (finalByte == '~')
+        {
+            if (param == "3")
+            {
+                DeleteCharacterAtCursor();
+            }
+            return;
+        }
+
+        // Handle simple sequences
         switch (finalByte)
         {
             case 'A': // Up arrow
@@ -434,6 +445,28 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 _cursorPosition = _lineBuffer.Length;
                 SendOutput($"\x1b[{distance}C");
             }
+        }
+    }
+
+    /// <summary>
+    ///     Deletes the character at the current cursor position (forward deletion).
+    /// </summary>
+    private void DeleteCharacterAtCursor()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition >= _lineBuffer.Length)
+            {
+                // At end - nothing to delete
+                return;
+            }
+
+            // Delete character at cursor position
+            _lineBuffer.Remove(_cursorPosition, 1);
+
+            // Redraw: output tail + space + move cursor back
+            string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+            SendOutput($"{tail} \x1b[{tail.Length + 1}D");
         }
     }
 
