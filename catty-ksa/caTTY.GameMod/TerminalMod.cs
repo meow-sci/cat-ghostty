@@ -1,7 +1,6 @@
 using Brutal.ImGuiApi;
 using caTTY.Core.Rpc;
 using caTTY.Core.Terminal;
-using caTTY.CustomShells;
 using caTTY.Display.Configuration;
 using caTTY.Display.Controllers;
 using caTTY.Display.Rendering;
