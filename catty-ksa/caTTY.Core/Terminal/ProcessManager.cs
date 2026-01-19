@@ -1,5 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using caTTY.Core.Rpc.Socket;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
@@ -20,7 +23,7 @@ namespace caTTY.Core.Terminal;
 ///     Follows Microsoft's recommended approach from:
 ///     https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
 /// </summary>
-public class ProcessManager : IProcessManager
+public class ProcessManager : IProcessManager, ISocketRpcIntegration
 {
     private readonly object _processLock = new();
     private Process.ConPtyNative.COORD _currentSize;
@@ -34,6 +37,20 @@ public class ProcessManager : IProcessManager
 
     private IntPtr _pseudoConsole = IntPtr.Zero;
     private CancellationTokenSource? _readCancellationSource;
+
+    // Socket RPC integration
+    private ISocketRpcHandler? _socketRpcHandler;
+    private ISocketRpcServer? _socketRpcServer;
+    private readonly ILogger _logger;
+
+    /// <summary>
+    ///     Creates a new ProcessManager with optional logging.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostics (optional)</param>
+    public ProcessManager(ILogger? logger = null)
+    {
+        _logger = logger ?? NullLogger.Instance;
+    }
 
     /// <summary>
     ///     Gets whether a shell process is currently running.
@@ -50,6 +67,12 @@ public class ProcessManager : IProcessManager
     /// </summary>
     public int? ExitCode => ProcessStateManager.GetExitCode(_process, _processLock);
 
+    /// <inheritdoc />
+    public ISocketRpcServer? SocketRpcServer => _socketRpcServer;
+
+    /// <inheritdoc />
+    public string? SocketRpcPath => _socketRpcServer?.SocketPath;
+
     /// <summary>
     ///     Event raised when data is received from the shell process stdout/stderr.
     /// </summary>
@@ -64,6 +87,16 @@ public class ProcessManager : IProcessManager
     ///     Event raised when an error occurs during process operations.
     /// </summary>
     public event EventHandler<ProcessErrorEventArgs>? ProcessError;
+
+    /// <inheritdoc />
+    public void ConfigureSocketRpc(ISocketRpcHandler handler)
+    {
+        if (_process != null)
+        {
+            throw new InvalidOperationException("Cannot configure socket RPC while a process is running");
+        }
+        _socketRpcHandler = handler;
+    }
 
     /// <summary>
     ///     Starts a new shell process with the specified options using Windows ConPTY.
@@ -162,6 +195,23 @@ public class ProcessManager : IProcessManager
             {
                 CleanupProcess();
                 throw;
+            }
+
+            // Start socket RPC server if handler is configured
+            if (_socketRpcHandler != null)
+            {
+                try
+                {
+                    _socketRpcServer = SocketRpcServerFactory.Create(_socketRpcHandler, _logger);
+                    await _socketRpcServer.StartAsync(cancellationToken);
+                    _logger.LogInformation("Socket RPC server started at {SocketPath}", _socketRpcServer.SocketPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to start socket RPC server, continuing without RPC");
+                    _socketRpcServer?.Dispose();
+                    _socketRpcServer = null;
+                }
             }
         }
         catch (Exception ex) when (!(ex is ProcessStartException))
@@ -348,6 +398,18 @@ public class ProcessManager : IProcessManager
     {
         lock (_processLock)
         {
+            // Stop socket RPC server
+            if (_socketRpcServer != null)
+            {
+                try
+                {
+                    _socketRpcServer.StopAsync().Wait(1000);
+                }
+                catch { /* ignore */ }
+                _socketRpcServer.Dispose();
+                _socketRpcServer = null;
+            }
+
             _readCancellationSource?.Cancel();
             _readCancellationSource?.Dispose();
             _readCancellationSource = null;
