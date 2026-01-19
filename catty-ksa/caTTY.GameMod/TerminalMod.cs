@@ -20,7 +20,6 @@ public class TerminalMod
     private ITerminalController? _controller;
     private bool _isDisposed;
     private bool _isInitialized;
-    private IProcessManager? _processManager;
     private ITerminalEmulator? _terminal;
     private bool _terminalVisible;
 
@@ -177,9 +176,6 @@ public class TerminalMod
                 NullLogger.Instance,
                 bytes => _outputBuffer.Add(bytes));
 
-            // Create process manager
-            _processManager = new ProcessManager();
-
             // Create session manager with persisted shell configuration and RPC handlers
             var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration(
                 maxSessions: 20,
@@ -207,53 +203,9 @@ public class TerminalMod
             // Console.WriteLine($"caTTY GameMod using detected font configuration: Regular={autoConfig.RegularFontName}, Bold={autoConfig.BoldFontName}");
             // _controller = new TerminalController(sessionManager, autoConfig);
 
-            // Set up event handlers
-            _processManager.DataReceived += OnProcessDataReceived;
-            _processManager.ProcessExited += OnProcessExited;
-            _processManager.ProcessError += OnProcessError;
-
-            // Start a shell process
-            // EASY SHELL SWITCHING: Uncomment one of the following options to change shells
-
-            // Option 1: Use default (WSL2 on Windows)
-            var options = ShellConfiguration.Default();
-
-            // Option 2: Simple WSL2 configurations
-            // var options = ShellConfiguration.Wsl();                    // Default WSL distribution
-            // var options = ShellConfiguration.Wsl("Ubuntu");           // Specific distribution
-            // var options = ShellConfiguration.Wsl("Ubuntu", "/home/username"); // With working directory
-
-            // Option 3: Windows shells
-            // var options = ShellConfiguration.PowerShell();            // Windows PowerShell
-            // var options = ShellConfiguration.PowerShellCore();        // PowerShell Core (pwsh)
-            // var options = ShellConfiguration.Cmd();                   // Command Prompt
-
-            // Option 4: Common pre-configured shells
-            // var options = ShellConfiguration.Common.Ubuntu;           // Ubuntu WSL2
-            // var options = ShellConfiguration.Common.Debian;           // Debian WSL2
-            // var options = ShellConfiguration.Common.GitBash;          // Git Bash
-            // var options = ShellConfiguration.Common.Msys2Bash;        // MSYS2 Bash
-
-            // Option 5: Custom shell
-            // var options = ShellConfiguration.Custom(@"C:\custom\shell.exe", "--arg1", "--arg2");
-
-            // Set terminal dimensions
-            options.InitialWidth = _terminal.Width;
-            options.InitialHeight = _terminal.Height;
-
-            // Start the process asynchronously (fire and forget for game context)
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _processManager.StartAsync(options);
-                    Console.WriteLine("caTTY GameMod: Shell process started successfully");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"caTTY GameMod: Failed to start shell process: {ex.Message}");
-                }
-            });
+            // NOTE: The session manager already starts the shell process based on persisted configuration.
+            // The shell (whether CustomGame, PowerShell, WSL, etc.) is started when CreateSessionAsync() is called above.
+            // Do NOT start a separate shell process here - that would result in two shells running simultaneously.
 
             _isInitialized = true;
             Console.WriteLine("caTTY GameMod: Terminal initialized successfully. Press F12 to toggle.");
@@ -291,41 +243,6 @@ public class TerminalMod
     }
 
     /// <summary>
-    ///     Handles data received from the shell process.
-    /// </summary>
-    private void OnProcessDataReceived(object? sender, DataReceivedEventArgs e)
-    {
-        try
-        {
-            // Forward data to terminal emulator
-            _terminal?.Write(e.Data.Span);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"caTTY GameMod: Error processing shell data: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    ///     Handles shell process exit events.
-    /// </summary>
-    private void OnProcessExited(object? sender, ProcessExitedEventArgs e)
-    {
-        Console.WriteLine($"caTTY GameMod: Shell process exited with code {e.ExitCode}");
-
-        // Optionally restart the shell or show a message
-        // For now, just log the exit
-    }
-
-    /// <summary>
-    ///     Handles shell process error events.
-    /// </summary>
-    private void OnProcessError(object? sender, ProcessErrorEventArgs e)
-    {
-        Console.WriteLine($"caTTY GameMod: Shell process error: {e.Message}");
-    }
-
-    /// <summary>
     ///     Gets a loaded font by name, or null if not found.
     /// </summary>
     public static ImFontPtr? GetFont(string fontName)
@@ -348,45 +265,9 @@ public class TerminalMod
 
         try
         {
-            // Unsubscribe from events first to prevent callbacks during disposal
-            if (_processManager != null)
-            {
-                _processManager.DataReceived -= OnProcessDataReceived;
-                _processManager.ProcessExited -= OnProcessExited;
-                _processManager.ProcessError -= OnProcessError;
-            }
-
-            // Dispose components in reverse order of creation
+            // Dispose components (the session manager handles process cleanup)
             _controller?.Dispose();
             _controller = null;
-
-            // Stop process manager (this will terminate the shell)
-            if (_processManager != null)
-            {
-                try
-                {
-                    if (_processManager.IsRunning)
-                    {
-                        // Use Task.Run to avoid blocking the game thread
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await _processManager.StopAsync();
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"caTTY GameMod: Error stopping process: {ex.Message}");
-                            }
-                        });
-                    }
-                }
-                finally
-                {
-                    _processManager.Dispose();
-                    _processManager = null;
-                }
-            }
 
             _terminal?.Dispose();
             _terminal = null;
