@@ -1953,6 +1953,225 @@ public class BaseLineBufferedShellTests
 
     #endregion
 
+    #region Ctrl+W (Word Deletion) Tests
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_DeletesPreviousWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world "), "Should delete 'test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Cursor should be after 'world '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_TwiceDeletesTwoWords()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W twice
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello "), "Should delete 'world test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be after 'hello '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_OnEmptyBuffer_DoesNothing()
+    {
+        // Act - Send Ctrl+W on empty buffer
+        await _shell!.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should remain empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at zero");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_AtStart_DoesNothing()
+    {
+        // Arrange - Type "hello", move to start
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello"), "Should not delete anything");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at start");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_WithMultipleSpaces_DeletesCorrectly()
+    {
+        // Arrange - Type "hello   world" (three spaces)
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello   world"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello   "), "Should delete 'world' and preserve spaces");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(8), "Cursor should be after spaces");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_MidWord_DeletesPartialWord()
+    {
+        // Arrange - Type "hello world", move left 2 positions (mid-word in "world")
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(25);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W (cursor is between 'r' and 'l' in "world")
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello ld"), "Should delete 'wor' from 'world'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be after 'hello '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_SingleWord_DeletesEntireWord()
+    {
+        // Arrange - Type "hello"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should delete entire word");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_OnlySpaces_DeletesAllSpaces()
+    {
+        // Arrange - Type "   " (three spaces)
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("   "));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should delete all spaces");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_DeletesThenType_InsertsAtCorrectPosition()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Ctrl+W, then type "foo"
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("foo"));
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world foo"), "Should have 'foo' replacing 'test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(15), "Cursor should be at end");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_SendsCorrectEscapeSequences()
+    {
+        // Arrange
+        var outputReceived = new List<byte[]>();
+        _shell!.OutputReceived += (sender, args) =>
+        {
+            outputReceived.Add(args.Data.ToArray());
+        };
+
+        // Type "hello world"
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        outputReceived.Clear();
+
+        // Act - Send Ctrl+W (should delete "world")
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(100);
+
+        // Assert - Should have escape sequences for cursor movement and clearing
+        var allOutput = string.Concat(outputReceived.Select(b => Encoding.UTF8.GetString(b)));
+        Assert.That(allOutput, Does.Contain("\x1b["), "Should contain escape sequences");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_WithTailText_RedrawsCorrectly()
+    {
+        // Arrange - Type "hello world test", move left 5 positions (to middle of "test")
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        for (int i = 0; i < 5; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+            await Task.Delay(25);
+        }
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+W
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello  test"), "Should delete 'world' and preserve tail");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be at deleted word position");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlW_MultipleWords_DeletesAllToStart()
+    {
+        // Arrange - Type "one two three four"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("one two three four"));
+        await Task.Delay(50);
+
+        // Act - Ctrl+W four times
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+            await Task.Delay(50);
+        }
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should delete all words");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+    }
+
+    #endregion
+
     #region Mid-line Character Insertion Tests
 
     [Test]

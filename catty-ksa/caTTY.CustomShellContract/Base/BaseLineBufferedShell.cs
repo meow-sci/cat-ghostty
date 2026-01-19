@@ -72,6 +72,8 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     protected const byte CtrlC = 0x03;
     /// <summary>Ctrl+L (clear screen)</summary>
     protected const byte CtrlL = 0x0C;
+    /// <summary>Ctrl+W (delete previous word)</summary>
+    protected const byte CtrlW = 0x17;
     /// <summary>Carriage return (Enter key)</summary>
     protected const byte CarriageReturn = 0x0D;
     /// <summary>Line feed</summary>
@@ -236,6 +238,12 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
         {
             // Ctrl+C: Cancel line
             HandleCancelLine();
+            return;
+        }
+        else if (b == CtrlW)
+        {
+            // Ctrl+W: Delete previous word
+            HandleDeleteWord();
             return;
         }
         else if (b == CtrlL)
@@ -511,6 +519,56 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
 
         SendOutput("^C\r\n");
         SendOutput(GetPrompt());
+    }
+
+    /// <summary>
+    ///     Handles Ctrl+W to delete the previous word.
+    /// </summary>
+    private void HandleDeleteWord()
+    {
+        lock (_lock)
+        {
+            int wordStart = FindPreviousWordBoundary();
+            if (wordStart < _cursorPosition)
+            {
+                int deleteCount = _cursorPosition - wordStart;
+                _lineBuffer.Remove(wordStart, deleteCount);
+                _cursorPosition = wordStart;
+
+                // Redraw from cursor to end
+                string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+                SendOutput($"\x1b[{deleteCount}D{tail}{new string(' ', deleteCount)}\x1b[{tail.Length + deleteCount}D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Finds the start position of the previous word for Ctrl+W deletion.
+    /// </summary>
+    /// <returns>The position where the previous word starts</returns>
+    private int FindPreviousWordBoundary()
+    {
+        if (_cursorPosition == 0) return 0;
+
+        int pos = _cursorPosition - 1;
+
+        // Skip trailing whitespace
+        while (pos > 0 && char.IsWhiteSpace(_lineBuffer[pos]))
+            pos--;
+
+        // If we're at position 0 and it's whitespace, delete everything
+        if (pos == 0 && char.IsWhiteSpace(_lineBuffer[0]))
+            return 0;
+
+        // Skip word characters
+        while (pos > 0 && !char.IsWhiteSpace(_lineBuffer[pos]))
+            pos--;
+
+        // If we stopped at whitespace (not at start), move forward one
+        if (pos > 0)
+            pos++;
+
+        return pos;
     }
 
     /// <summary>
