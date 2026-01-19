@@ -93,6 +93,11 @@ public class ThemeConfiguration
     public string? WslDistribution { get; set; }
 
     /// <summary>
+    /// Custom shell ID when DefaultShellType is CustomGame.
+    /// </summary>
+    public string? DefaultCustomGameShellId { get; set; }
+
+    /// <summary>
     /// Custom prompt string for the Game Console Shell.
     /// </summary>
     public string GameShellPrompt { get; set; } = "ksa> ";
@@ -105,14 +110,16 @@ public class ThemeConfiguration
     {
         return DefaultShellType switch
         {
-            ShellType.Wsl => string.IsNullOrEmpty(WslDistribution) 
-                ? ProcessLaunchOptions.CreateWsl() 
+            ShellType.Wsl => string.IsNullOrEmpty(WslDistribution)
+                ? ProcessLaunchOptions.CreateWsl()
                 : ProcessLaunchOptions.CreateWsl(WslDistribution),
             ShellType.PowerShell => ProcessLaunchOptions.CreatePowerShell(),
             ShellType.PowerShellCore => ProcessLaunchOptions.CreatePowerShellCore(),
             ShellType.Cmd => ProcessLaunchOptions.CreateCmd(),
-            ShellType.Custom when !string.IsNullOrEmpty(CustomShellPath) => 
+            ShellType.Custom when !string.IsNullOrEmpty(CustomShellPath) =>
                 ProcessLaunchOptions.CreateCustom(CustomShellPath, DefaultShellArguments.ToArray()),
+            ShellType.CustomGame =>
+                ProcessLaunchOptions.CreateCustomGame(DefaultCustomGameShellId ?? "GameConsoleShell"),
             _ => ProcessLaunchOptions.CreateDefault()
         };
     }
@@ -125,14 +132,16 @@ public class ThemeConfiguration
     {
         return DefaultShellType switch
         {
-            ShellType.Wsl => string.IsNullOrEmpty(WslDistribution) 
-                ? "WSL2 (Default)" 
+            ShellType.Wsl => string.IsNullOrEmpty(WslDistribution)
+                ? "WSL2 (Default)"
                 : $"WSL2 ({WslDistribution})",
             ShellType.PowerShell => "Windows PowerShell",
             ShellType.PowerShellCore => "PowerShell Core",
             ShellType.Cmd => "Command Prompt",
-            ShellType.Custom when !string.IsNullOrEmpty(CustomShellPath) => 
+            ShellType.Custom when !string.IsNullOrEmpty(CustomShellPath) =>
                 $"Custom ({Path.GetFileName(CustomShellPath)})",
+            ShellType.CustomGame when !string.IsNullOrEmpty(DefaultCustomGameShellId) =>
+                $"Game Console",
             _ => "Auto-detect"
         };
     }

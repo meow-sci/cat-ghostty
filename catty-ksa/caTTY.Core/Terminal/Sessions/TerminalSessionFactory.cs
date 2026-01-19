@@ -22,6 +22,7 @@ internal class TerminalSessionFactory
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null uses default no-op handler)</param>
     /// <param name="launchOptions">Optional launch options for the session (used to determine shell type)</param>
     /// <returns>A fully configured terminal session</returns>
+    /// <exception cref="InvalidOperationException">Thrown if custom game shell cannot be created</exception>
     public static TerminalSession CreateSession(
         Guid sessionId,
         string sessionTitle,
@@ -38,13 +39,36 @@ internal class TerminalSessionFactory
 
         // Conditional process manager creation based on shell type
         IProcessManager processManager;
-        if (launchOptions?.ShellType == ShellType.CustomGame && !string.IsNullOrEmpty(launchOptions.CustomShellId))
+        Console.WriteLine($"TerminalSessionFactory.CreateSession: Launch options shell type: {launchOptions?.ShellType ?? ShellType.Auto}");
+
+        if (launchOptions?.ShellType == ShellType.CustomGame)
         {
-            var customShell = CustomShellRegistry.Instance.CreateShell(launchOptions.CustomShellId);
-            processManager = new CustomShellPtyBridge(customShell);
+            Console.WriteLine($"TerminalSessionFactory.CreateSession: Creating CustomGame shell with ID: {launchOptions.CustomShellId}");
+
+            if (string.IsNullOrEmpty(launchOptions.CustomShellId))
+            {
+                throw new InvalidOperationException("CustomGame shell type requires CustomShellId to be set");
+            }
+
+            try
+            {
+                var customShell = CustomShellRegistry.Instance.CreateShell(launchOptions.CustomShellId);
+                if (customShell == null)
+                {
+                    throw new InvalidOperationException($"CustomShellRegistry.CreateShell returned null for shell ID: {launchOptions.CustomShellId}");
+                }
+                Console.WriteLine($"TerminalSessionFactory.CreateSession: Successfully created custom shell '{launchOptions.CustomShellId}'");
+                processManager = new CustomShellPtyBridge(customShell);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TerminalSessionFactory.CreateSession: FAILED to create custom shell: {ex.Message}");
+                throw new InvalidOperationException($"Failed to create custom game shell '{launchOptions.CustomShellId}': {ex.Message}", ex);
+            }
         }
         else
         {
+            Console.WriteLine($"TerminalSessionFactory.CreateSession: Creating standard ProcessManager for shell type: {launchOptions?.ShellType ?? ShellType.Auto}");
             processManager = new ProcessManager();
         }
 

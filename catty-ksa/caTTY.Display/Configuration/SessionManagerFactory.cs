@@ -1,3 +1,4 @@
+using System.Reflection;
 using caTTY.Core.Rpc;
 using caTTY.Core.Terminal;
 
@@ -24,9 +25,37 @@ public static class SessionManagerFactory
     {
         // Load persisted configuration to determine initial shell type
         var themeConfig = ThemeConfiguration.Load();
+        Console.WriteLine($"SessionManagerFactory: Configured shell type: {themeConfig.DefaultShellType}");
+        if (themeConfig.DefaultShellType == ShellType.CustomGame)
+        {
+            Console.WriteLine($"SessionManagerFactory: Configured custom game shell ID: {themeConfig.DefaultCustomGameShellId}");
+        }
+
+        // Ensure custom shell registry discovers available shells BEFORE creating sessions
+        // This is critical for CustomGame shell types to be found
+        if (themeConfig.DefaultShellType == ShellType.CustomGame)
+        {
+            try
+            {
+                // Step 1: Ensure caTTY.CustomShells assembly is loaded into memory
+                // This is necessary because the assembly might not be loaded yet when discovery runs
+                EnsureCustomShellsAssemblyIsLoaded();
+
+                // Step 2: Discover shells (will now find GameConsoleShell)
+                CustomShellRegistry.Instance.DiscoverShells();
+                var discoveredShells = CustomShellRegistry.Instance.GetAvailableShells();
+                Console.WriteLine($"SessionManagerFactory: Custom shell discovery completed. Available shells: {string.Join(", ", discoveredShells.Select(s => s.Id))}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SessionManagerFactory: Warning - Failed to discover custom shells: {ex.Message}");
+                // Continue anyway - will fail more clearly when trying to create the session
+            }
+        }
 
         // Create launch options from persisted configuration
         var defaultLaunchOptions = themeConfig.CreateLaunchOptions();
+        Console.WriteLine($"SessionManagerFactory: Created launch options with shell type: {defaultLaunchOptions.ShellType}");
 
         // Set default terminal dimensions and working directory
         defaultLaunchOptions.InitialWidth = 80;
@@ -35,6 +64,39 @@ public static class SessionManagerFactory
 
         // Create session manager with persisted shell configuration and RPC handlers
         return new SessionManager(maxSessions, defaultLaunchOptions, rpcHandler, oscRpcHandler);
+    }
+
+    /// <summary>
+    /// Ensures the caTTY.CustomShells assembly is loaded into the current AppDomain.
+    /// This is necessary because the CustomShellRegistry discovery process scans AppDomain.CurrentDomain.GetAssemblies(),
+    /// which only includes assemblies that have been loaded into memory. If caTTY.CustomShells hasn't been referenced
+    /// yet by the executing code, it won't be in the assembly list.
+    /// </summary>
+    private static void EnsureCustomShellsAssemblyIsLoaded()
+    {
+        try
+        {
+            // Check if the assembly is already loaded
+            var alreadyLoaded = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(a => a.GetName().Name == "caTTY.CustomShells");
+
+            if (alreadyLoaded != null)
+            {
+                Console.WriteLine("SessionManagerFactory: caTTY.CustomShells assembly already loaded");
+                return;
+            }
+
+            // Assembly is not loaded, so load it explicitly
+            // This forces the assembly into the AppDomain so CustomShellRegistry can discover it
+            Console.WriteLine("SessionManagerFactory: Loading caTTY.CustomShells assembly explicitly");
+            Assembly.Load("caTTY.CustomShells");
+            Console.WriteLine("SessionManagerFactory: Successfully loaded caTTY.CustomShells assembly");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SessionManagerFactory: Failed to load caTTY.CustomShells assembly: {ex.Message}");
+            throw;
+        }
     }
 
     /// <summary>

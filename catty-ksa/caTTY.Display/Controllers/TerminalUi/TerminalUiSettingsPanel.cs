@@ -106,17 +106,32 @@ internal class TerminalUiSettingsPanel
     try
     {
       // Check if the configured shell is available
-      if (!ShellAvailabilityChecker.IsShellAvailable(_themeConfig.DefaultShellType))
+      // CustomGame shells don't need strict validation here - they will be validated when the session is created
+      bool shellAvailable = _themeConfig.DefaultShellType == ShellType.CustomGame
+        ? !string.IsNullOrEmpty(_themeConfig.DefaultCustomGameShellId)
+        : ShellAvailabilityChecker.IsShellAvailable(_themeConfig.DefaultShellType);
+
+      if (!shellAvailable)
       {
-        // Fall back to the first available shell
+        // Fall back to the first available standard shell
         var availableShells = ShellAvailabilityChecker.GetAvailableShells();
-        if (availableShells.Count > 0)
+        var availableNonCustomGame = availableShells.Where(s => s != ShellType.CustomGame).ToList();
+
+        if (availableNonCustomGame.Count > 0)
         {
-          // Prefer concrete shells over Auto/Custom for fallback
-          var fallbackShell = availableShells.FirstOrDefault(s => s != ShellType.Auto && s != ShellType.Custom);
-          if (fallbackShell == default(ShellType))
+          // Prefer PowerShell or WSL for fallback
+          ShellType fallbackShell;
+          if (availableNonCustomGame.Contains(ShellType.PowerShell))
           {
-            fallbackShell = availableShells[0];
+            fallbackShell = ShellType.PowerShell;
+          }
+          else if (availableNonCustomGame.Contains(ShellType.Wsl))
+          {
+            fallbackShell = ShellType.Wsl;
+          }
+          else
+          {
+            fallbackShell = availableNonCustomGame[0];
           }
 
           _themeConfig.DefaultShellType = fallbackShell;

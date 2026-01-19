@@ -22,6 +22,7 @@ internal static class ShellCommandResolver
             ShellType.PowerShellCore => ResolvePowerShellCore(options),
             ShellType.Cmd => ResolveCmd(options),
             ShellType.Custom => ResolveCustomShell(options),
+            ShellType.CustomGame => throw new ProcessStartException($"Custom game shells must be handled by CustomShellPtyBridge, not ProcessManager. ShellId: {options.CustomShellId}"),
             _ => throw new ProcessStartException($"Unsupported shell type: {options.ShellType}")
         };
 
