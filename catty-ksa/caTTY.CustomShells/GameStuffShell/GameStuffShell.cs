@@ -1,5 +1,8 @@
 using System.Text;
 using caTTY.Core.Terminal;
+using caTTY.CustomShells.GameStuffShell.Execution;
+using caTTY.CustomShells.GameStuffShell.Lexing;
+using caTTY.CustomShells.GameStuffShell.Parsing;
 
 namespace caTTY.CustomShells.GameStuffShell;
 
@@ -14,11 +17,33 @@ public sealed class GameStuffShell : BaseLineBufferedShell
     );
 
     private string _promptValue = "gstuff> ";
+    private readonly Executor _executor = new();
+    private ExecContext? _execContext;
 
     public override CustomShellMetadata Metadata => _metadata;
 
     protected override Task OnStartingAsync(CustomShellStartOptions options, CancellationToken cancellationToken)
     {
+        // Create execution context (use stub resolver for now - will be replaced in Task 7)
+        var resolver = new StubProgramResolver();
+        _execContext = new ExecContext(
+            resolver,
+            gameApi: null,
+            environment: new Dictionary<string, string>(),
+            terminalWidth: 80,
+            terminalHeight: 24,
+            terminalOutputCallback: (text, isError) =>
+            {
+                if (isError)
+                {
+                    SendError(text);
+                }
+                else
+                {
+                    SendOutput(text);
+                }
+            });
+
         return Task.CompletedTask;
     }
 
@@ -51,8 +76,78 @@ public sealed class GameStuffShell : BaseLineBufferedShell
 
     protected override void ExecuteCommandLine(string commandLine)
     {
-        SendError($"\x1b[31mGame Stuff Shell: command execution not implemented: {commandLine}\x1b[0m\r\n");
+        // Ignore empty commands
+        if (string.IsNullOrWhiteSpace(commandLine))
+        {
+            SendPrompt();
+            return;
+        }
+
+        // Run execution asynchronously and block on result
+        // (This is acceptable since ExecuteCommandLine is called from WriteInputAsync which is sync-over-async)
+        try
+        {
+            var task = ExecuteCommandLineAsync(commandLine, CancellationToken.None);
+            task.GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            SendError($"\x1b[31mUnexpected error: {ex.Message}\x1b[0m\r\n");
+        }
+
         SendPrompt();
+    }
+
+    private async Task ExecuteCommandLineAsync(string commandLine, CancellationToken cancellationToken)
+    {
+        if (_execContext is null)
+        {
+            SendError("\x1b[31mShell not initialized\x1b[0m\r\n");
+            return;
+        }
+
+        // Lex
+        var lexer = new Lexer(commandLine);
+        IReadOnlyList<Token> tokens;
+        try
+        {
+            tokens = lexer.Lex();
+        }
+        catch (Exception ex)
+        {
+            SendError($"\x1b[31mLexer error: {ex.Message}\x1b[0m\r\n");
+            return;
+        }
+
+        // Parse
+        var parser = new Parser(tokens);
+        ListNode ast;
+        try
+        {
+            ast = parser.ParseList();
+        }
+        catch (ParserException ex)
+        {
+            SendError($"\x1b[31mParse error: {ex.Message}\x1b[0m\r\n");
+            return;
+        }
+        catch (Exception ex)
+        {
+            SendError($"\x1b[31mParser error: {ex.Message}\x1b[0m\r\n");
+            return;
+        }
+
+        // Execute
+        try
+        {
+            var exitCode = await _executor.ExecuteListAsync(ast, _execContext, cancellationToken);
+            // Exit code is available but not currently used
+            // Could be stored for $? variable in the future
+        }
+        catch (Exception ex)
+        {
+            SendError($"\x1b[31mExecution error: {ex.Message}\x1b[0m\r\n");
+        }
     }
 
     protected override void HandleClearScreen()
@@ -66,3 +161,17 @@ public sealed class GameStuffShell : BaseLineBufferedShell
         SendPrompt();
     }
 }
+
+/// <summary>
+/// Stub program resolver that returns false for all programs.
+/// This will be replaced with a real ProgramRegistry in Task 7.
+/// </summary>
+internal sealed class StubProgramResolver : IProgramResolver
+{
+    public bool TryResolve(string name, out IProgram program)
+    {
+        program = null!;
+        return false;
+    }
+}
+
