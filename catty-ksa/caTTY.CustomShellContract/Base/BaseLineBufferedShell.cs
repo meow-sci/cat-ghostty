@@ -30,6 +30,11 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private string _savedCurrentLine = string.Empty;
 
     /// <summary>
+    ///     Current cursor position in the line buffer (0-indexed).
+    /// </summary>
+    private int _cursorPosition = 0;
+
+    /// <summary>
     ///     Escape sequence state machine states.
     /// </summary>
     private enum EscapeState
@@ -63,16 +68,20 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private int _terminalHeight = 24;
 
     // Control character constants
+    /// <summary>Ctrl+C (cancel line)</summary>
+    protected const byte CtrlC = 0x03;
+    /// <summary>Ctrl+H (Ctrl+Backspace - delete previous word)</summary>
+    protected const byte CtrlH = 0x08;
     /// <summary>Ctrl+L (clear screen)</summary>
     protected const byte CtrlL = 0x0C;
+    /// <summary>Ctrl+W (delete previous word)</summary>
+    protected const byte CtrlW = 0x17;
     /// <summary>Carriage return (Enter key)</summary>
     protected const byte CarriageReturn = 0x0D;
     /// <summary>Line feed</summary>
     protected const byte LineFeed = 0x0A;
     /// <summary>Backspace (DEL)</summary>
     protected const byte Backspace = 0x7F;
-    /// <summary>Backspace alternative (BS)</summary>
-    protected const byte BackspaceAlt = 0x08;
 
     /// <summary>
     ///     Gets the command history for testing/inspection purposes.
@@ -92,6 +101,11 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             }
         }
     }
+
+    /// <summary>
+    ///     Gets the current cursor position for testing/inspection purposes.
+    /// </summary>
+    protected int CursorPosition => _cursorPosition;
 
     /// <summary>
     ///     Abstract method called when user presses Enter to execute a command.
@@ -146,6 +160,18 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                         _escapeState = EscapeState.Csi;
                         _escapeBuffer.Clear();
                     }
+                    else if (b == 'b')
+                    {
+                        // ESC b - Ctrl+Left (move to previous word)
+                        MoveCursorToPreviousWord();
+                        _escapeState = EscapeState.None;
+                    }
+                    else if (b == 'f')
+                    {
+                        // ESC f - Ctrl+Right (move to next word)
+                        MoveCursorToNextWord();
+                        _escapeState = EscapeState.None;
+                    }
                     else
                     {
                         // Unknown escape sequence, reset
@@ -178,6 +204,20 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     {
         string param = _escapeBuffer.ToString();
 
+        // Handle parameterized sequences
+        if (finalByte == '~')
+        {
+            if (param == "3")
+            {
+                DeleteCharacterAtCursor();
+            }
+            return;
+        }
+
+        // Check for Ctrl modifier (1;5)
+        bool ctrlModifier = param.StartsWith("1;5");
+
+        // Handle simple sequences
         switch (finalByte)
         {
             case 'A': // Up arrow
@@ -185,6 +225,24 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 break;
             case 'B': // Down arrow
                 NavigateHistoryDown();
+                break;
+            case 'C': // Right arrow
+                if (ctrlModifier)
+                    MoveCursorToNextWord();
+                else
+                    MoveCursorRight();
+                break;
+            case 'D': // Left arrow
+                if (ctrlModifier)
+                    MoveCursorToPreviousWord();
+                else
+                    MoveCursorLeft();
+                break;
+            case 'H': // Home
+                MoveCursorToStart();
+                break;
+            case 'F': // End
+                MoveCursorToEnd();
                 break;
             // Other CSI sequences can be added here in the future
         }
@@ -197,7 +255,25 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     private void HandleNormalByte(byte b)
     {
         // Handle special control characters
-        if (b == CtrlL)
+        if (b == CtrlC)
+        {
+            // Ctrl+C: Cancel line
+            HandleCancelLine();
+            return;
+        }
+        else if (b == CtrlW)
+        {
+            // Ctrl+W: Delete previous word
+            HandleDeleteWord();
+            return;
+        }
+        else if (b == CtrlH)
+        {
+            // Ctrl+H (Ctrl+Backspace): Delete previous word
+            HandleDeleteWord();
+            return;
+        }
+        else if (b == CtrlL)
         {
             // Ctrl+L: Clear screen
             HandleClearScreen();
@@ -211,6 +287,7 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             {
                 commandLine = _lineBuffer.ToString();
                 _lineBuffer.Clear();
+                _cursorPosition = 0;
             }
 
             // Echo newline
@@ -241,16 +318,31 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 SendPrompt();
             }
         }
-        else if (b == Backspace || b == BackspaceAlt)
+        else if (b == Backspace)
         {
-            // Backspace: Remove last character
+            // Backspace (0x7F): Remove character before cursor
             lock (_lock)
             {
-                if (_lineBuffer.Length > 0)
+                if (_cursorPosition == 0)
                 {
+                    // At start - do nothing
+                    return;
+                }
+                else if (_cursorPosition == _lineBuffer.Length)
+                {
+                    // At end - current behavior
                     _lineBuffer.Length--;
-                    // Send backspace sequence: move cursor left, erase to end of line
+                    _cursorPosition--;
                     SendOutput("\x1b[D\x1b[K");
+                }
+                else
+                {
+                    // Mid-line - delete and redraw tail
+                    _lineBuffer.Remove(_cursorPosition - 1, 1);
+                    _cursorPosition--;
+
+                    string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+                    SendOutput($"\x1b[D{tail} \x1b[{tail.Length + 1}D");
                 }
             }
         }
@@ -259,10 +351,23 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             // Printable ASCII character
             lock (_lock)
             {
-                _lineBuffer.Append((char)b);
+                if (_cursorPosition == _lineBuffer.Length)
+                {
+                    // At end - append (current behavior)
+                    _lineBuffer.Append((char)b);
+                    SendOutput(new byte[] { b });
+                }
+                else
+                {
+                    // Mid-line - insert
+                    _lineBuffer.Insert(_cursorPosition, (char)b);
+
+                    // Redraw: insert char + tail + move cursor back
+                    string tail = _lineBuffer.ToString(_cursorPosition + 1, _lineBuffer.Length - _cursorPosition - 1);
+                    SendOutput($"{(char)b}{tail}\x1b[{tail.Length}D");
+                }
+                _cursorPosition++;
             }
-            // Echo the character back
-            SendOutput(new byte[] { b });
         }
         // Note: We ignore other control characters and non-ASCII bytes for now
         // A more sophisticated implementation would handle UTF-8 multi-byte sequences
@@ -325,6 +430,144 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     }
 
     /// <summary>
+    ///     Moves the cursor one position to the right within the line buffer.
+    /// </summary>
+    private void MoveCursorRight()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition < _lineBuffer.Length)
+            {
+                _cursorPosition++;
+                SendOutput("\x1b[C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor one position to the left within the line buffer.
+    /// </summary>
+    private void MoveCursorLeft()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition > 0)
+            {
+                _cursorPosition--;
+                SendOutput("\x1b[D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the line buffer.
+    /// </summary>
+    private void MoveCursorToStart()
+    {
+        lock (_lock)
+        {
+            int distance = _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = 0;
+                SendOutput($"\x1b[{distance}D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the end of the line buffer.
+    /// </summary>
+    private void MoveCursorToEnd()
+    {
+        lock (_lock)
+        {
+            int distance = _lineBuffer.Length - _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = _lineBuffer.Length;
+                SendOutput($"\x1b[{distance}C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the next word (Ctrl+Right).
+    /// </summary>
+    private void MoveCursorToNextWord()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition >= _lineBuffer.Length)
+            {
+                return;
+            }
+
+            int pos = _cursorPosition;
+
+            // Skip current word (non-whitespace characters)
+            while (pos < _lineBuffer.Length && !char.IsWhiteSpace(_lineBuffer[pos]))
+                pos++;
+
+            // Skip whitespace
+            while (pos < _lineBuffer.Length && char.IsWhiteSpace(_lineBuffer[pos]))
+                pos++;
+
+            int distance = pos - _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = pos;
+                SendOutput($"\x1b[{distance}C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the previous word (Ctrl+Left).
+    /// </summary>
+    private void MoveCursorToPreviousWord()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition == 0)
+            {
+                return;
+            }
+
+            int wordStart = FindPreviousWordBoundary();
+            int distance = _cursorPosition - wordStart;
+
+            if (distance > 0)
+            {
+                _cursorPosition = wordStart;
+                SendOutput($"\x1b[{distance}D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Deletes the character at the current cursor position (forward deletion).
+    /// </summary>
+    private void DeleteCharacterAtCursor()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition >= _lineBuffer.Length)
+            {
+                // At end - nothing to delete
+                return;
+            }
+
+            // Delete character at cursor position
+            _lineBuffer.Remove(_cursorPosition, 1);
+
+            // Redraw: output tail + space + move cursor back
+            string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+            SendOutput($"{tail} \x1b[{tail.Length + 1}D");
+        }
+    }
+
+    /// <summary>
     ///     Replaces the current line buffer with new text and redraws the line.
     /// </summary>
     /// <param name="newText">The new text for the line buffer</param>
@@ -336,9 +579,77 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
         // Update buffer
         _lineBuffer.Clear();
         _lineBuffer.Append(newText);
+        _cursorPosition = _lineBuffer.Length;
 
         // Display new text
         SendOutput(newText);
+    }
+
+    /// <summary>
+    ///     Handles Ctrl+C to cancel the current line and start fresh.
+    /// </summary>
+    private void HandleCancelLine()
+    {
+        lock (_lock)
+        {
+            _lineBuffer.Clear();
+            _cursorPosition = 0;
+            _historyIndex = -1;
+            _savedCurrentLine = string.Empty;
+        }
+
+        SendOutput("^C\r\n");
+        SendOutput(GetPrompt());
+    }
+
+    /// <summary>
+    ///     Handles Ctrl+W to delete the previous word.
+    /// </summary>
+    private void HandleDeleteWord()
+    {
+        lock (_lock)
+        {
+            int wordStart = FindPreviousWordBoundary();
+            if (wordStart < _cursorPosition)
+            {
+                int deleteCount = _cursorPosition - wordStart;
+                _lineBuffer.Remove(wordStart, deleteCount);
+                _cursorPosition = wordStart;
+
+                // Redraw from cursor to end
+                string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+                SendOutput($"\x1b[{deleteCount}D{tail}{new string(' ', deleteCount)}\x1b[{tail.Length + deleteCount}D");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Finds the start position of the previous word for Ctrl+W deletion.
+    /// </summary>
+    /// <returns>The position where the previous word starts</returns>
+    private int FindPreviousWordBoundary()
+    {
+        if (_cursorPosition == 0) return 0;
+
+        int pos = _cursorPosition - 1;
+
+        // Skip trailing whitespace
+        while (pos > 0 && char.IsWhiteSpace(_lineBuffer[pos]))
+            pos--;
+
+        // If we're at position 0 and it's whitespace, delete everything
+        if (pos == 0 && char.IsWhiteSpace(_lineBuffer[0]))
+            return 0;
+
+        // Skip word characters
+        while (pos > 0 && !char.IsWhiteSpace(_lineBuffer[pos]))
+            pos--;
+
+        // If we stopped at whitespace (not at start), move forward one
+        if (pos > 0)
+            pos++;
+
+        return pos;
     }
 
     /// <summary>

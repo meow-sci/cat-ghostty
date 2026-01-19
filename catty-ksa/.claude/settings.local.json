@@ -72,7 +72,8 @@
       "Bash(C:UsersAlexreposmeow-scicat-ghosttycatty-ksascriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~caTTY.Core.Tests\")",
       "Bash(.scriptsdotnet-test.ps1 -Filter \"FullyQualifiedName~ThemeConfigurationTests\")",
       "Bash(.scriptsdotnet-test.ps1 -Filter 'FullyQualifiedName~ThemeConfigurationTests')",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(./scripts/dotnet-test.ps1 -Filter \"FullyQualifiedName~BaseLineBufferedShellTests\")"
     ],
     "deny": [
       "Bash(rm -rf:*)",
