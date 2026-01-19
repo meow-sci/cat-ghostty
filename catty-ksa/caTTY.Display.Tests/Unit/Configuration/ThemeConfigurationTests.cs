@@ -34,6 +34,9 @@ public class ThemeConfigurationTests
     [TearDown]
     public void TearDown()
     {
+        // Reset override to prevent test isolation issues
+        ThemeConfiguration.OverrideConfigDirectory = null;
+
         // Clean up temporary directory
         if (Directory.Exists(_tempConfigDirectory))
         {
@@ -45,6 +48,28 @@ public class ThemeConfigurationTests
             {
                 // Ignore cleanup errors
             }
+        }
+
+        // Clean up any test config files in production path (MyDocuments)
+        try
+        {
+            var docsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var productionConfigDirectory = Path.Combine(docsPath, "My Games", "Kitten Space Agency", "caTTY");
+            var productionConfigFile = Path.Combine(productionConfigDirectory, "theme-config.json");
+
+            if (File.Exists(productionConfigFile))
+            {
+                var content = File.ReadAllText(productionConfigFile);
+                // Only delete if it looks like a test file
+                if (content.Contains("IsolationTest") || content.Contains("TestTheme") || content.Contains("0.123") || content.Contains("Adventure"))
+                {
+                    File.Delete(productionConfigFile);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore cleanup errors
         }
 
         // Clean up any test config files in actual AppData
@@ -77,25 +102,33 @@ public class ThemeConfigurationTests
     [Test]
     public void Load_WhenConfigurationFileDoesNotExist_ShouldReturnDefaultConfiguration()
     {
-        // Ensure no config file exists by using a non-existent directory structure
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configDirectory = Path.Combine(appDataPath, "caTTY");
-        var configFile = Path.Combine(configDirectory, "theme-config.json");
+        // Use a temporary directory to isolate test from real config files
+        var tempDir = Path.Combine(Path.GetTempPath(), $"catty_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
 
-        // Delete config file if it exists
-        if (File.Exists(configFile))
+        try
         {
-            File.Delete(configFile);
+            // Set override to use temp directory
+            ThemeConfiguration.OverrideConfigDirectory = tempDir;
+
+            // Load configuration - file doesn't exist in temp directory
+            var config = ThemeConfiguration.Load();
+
+            // Should return default configuration
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config.SelectedThemeName, Is.Null);
+            Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f));
+            Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f));
         }
-
-        // Load configuration
-        var config = ThemeConfiguration.Load();
-
-        // Should return default configuration
-        Assert.That(config, Is.Not.Null);
-        Assert.That(config.SelectedThemeName, Is.Null);
-        Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f));
-        Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f));
+        finally
+        {
+            // Reset override and clean up
+            ThemeConfiguration.OverrideConfigDirectory = null;
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     /// <summary>
@@ -105,20 +138,25 @@ public class ThemeConfigurationTests
     [Test]
     public void Load_WhenConfigurationFileIsInvalid_ShouldReturnDefaultConfiguration()
     {
-        // Create invalid JSON content
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configDirectory = Path.Combine(appDataPath, "caTTY");
-        var configFile = Path.Combine(configDirectory, "theme-config.json");
-
-        // Ensure directory exists
-        Directory.CreateDirectory(configDirectory);
-
-        // Write invalid JSON
-        var invalidJsonContent = "{ invalid json content }";
-        File.WriteAllText(configFile, invalidJsonContent);
+        // Use a temporary directory to isolate test from real config files
+        var tempDir = Path.Combine(Path.GetTempPath(), $"catty_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
 
         try
         {
+            // Set override to use temp directory
+            ThemeConfiguration.OverrideConfigDirectory = tempDir;
+
+            var configDirectory = Path.Combine(tempDir, "caTTY");
+            var configFile = Path.Combine(configDirectory, "theme-config.json");
+
+            // Ensure directory exists
+            Directory.CreateDirectory(configDirectory);
+
+            // Write invalid JSON
+            var invalidJsonContent = "{ invalid json content }";
+            File.WriteAllText(configFile, invalidJsonContent);
+
             // Load configuration
             var config = ThemeConfiguration.Load();
 
@@ -130,10 +168,11 @@ public class ThemeConfigurationTests
         }
         finally
         {
-            // Clean up
-            if (File.Exists(configFile))
+            // Reset override and clean up
+            ThemeConfiguration.OverrideConfigDirectory = null;
+            if (Directory.Exists(tempDir))
             {
-                File.Delete(configFile);
+                Directory.Delete(tempDir, true);
             }
         }
     }
@@ -145,32 +184,38 @@ public class ThemeConfigurationTests
     [Test]
     public void Load_WhenConfigurationFileHasMalformedJson_ShouldReturnDefaultConfiguration()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configDirectory = Path.Combine(appDataPath, "caTTY");
-        var configFile = Path.Combine(configDirectory, "theme-config.json");
+        // Use a temporary directory to isolate test from real config files
+        var tempDir = Path.Combine(Path.GetTempPath(), $"catty_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
 
-        Directory.CreateDirectory(configDirectory);
-
-        // Test various malformed JSON scenarios
-        var malformedJsonCases = new[]
+        try
         {
-            "{ \"SelectedThemeName\": \"Test\", }", // Trailing comma
-            "{ \"SelectedThemeName\": \"Test\" \"BackgroundOpacity\": 0.5 }", // Missing comma
-            "{ \"SelectedThemeName\": }", // Missing value
-            "{ \"BackgroundOpacity\": \"not_a_number\" }", // Wrong type
-            "{ \"ForegroundOpacity\": \"not_a_number\" }", // Wrong type
-            "{ \"UnknownProperty\": \"value\" }", // Unknown property only
-            "", // Empty file
-            "null", // Null JSON
-            "[]", // Array instead of object
-        };
+            // Set override to use temp directory
+            ThemeConfiguration.OverrideConfigDirectory = tempDir;
 
-        foreach (var malformedJson in malformedJsonCases)
-        {
-            File.WriteAllText(configFile, malformedJson);
+            var configDirectory = Path.Combine(tempDir, "caTTY");
+            var configFile = Path.Combine(configDirectory, "theme-config.json");
 
-            try
+            Directory.CreateDirectory(configDirectory);
+
+            // Test various malformed JSON scenarios
+            var malformedJsonCases = new[]
             {
+                "{ \"SelectedThemeName\": \"Test\", }", // Trailing comma
+                "{ \"SelectedThemeName\": \"Test\" \"BackgroundOpacity\": 0.5 }", // Missing comma
+                "{ \"SelectedThemeName\": }", // Missing value
+                "{ \"BackgroundOpacity\": \"not_a_number\" }", // Wrong type
+                "{ \"ForegroundOpacity\": \"not_a_number\" }", // Wrong type
+                "{ \"UnknownProperty\": \"value\" }", // Unknown property only
+                "", // Empty file
+                "null", // Null JSON
+                "[]", // Array instead of object
+            };
+
+            foreach (var malformedJson in malformedJsonCases)
+            {
+                File.WriteAllText(configFile, malformedJson);
+
                 var config = ThemeConfiguration.Load();
 
                 // Should always return a valid default configuration
@@ -179,12 +224,14 @@ public class ThemeConfigurationTests
                 Assert.That(config.BackgroundOpacity, Is.EqualTo(1.0f), $"Failed for JSON: {malformedJson}");
                 Assert.That(config.ForegroundOpacity, Is.EqualTo(1.0f), $"Failed for JSON: {malformedJson}");
             }
-            finally
+        }
+        finally
+        {
+            // Reset override and clean up
+            ThemeConfiguration.OverrideConfigDirectory = null;
+            if (Directory.Exists(tempDir))
             {
-                if (File.Exists(configFile))
-                {
-                    File.Delete(configFile);
-                }
+                Directory.Delete(tempDir, true);
             }
         }
     }
@@ -196,6 +243,7 @@ public class ThemeConfigurationTests
     [Test]
     public void Save_WhenDirectoryDoesNotExist_ShouldCreateDirectoryAndSave()
     {
+        var originalOverride = ThemeConfiguration.OverrideConfigDirectory;
         var config = new ThemeConfiguration
         {
             SelectedThemeName = "TestTheme",
@@ -205,7 +253,7 @@ public class ThemeConfigurationTests
 
         // Ensure directory doesn't exist initially
         var appDataPath = Path.GetTempPath();
-        ThemeConfiguration.OverrideAppDataDirectory = appDataPath;
+        ThemeConfiguration.OverrideConfigDirectory = appDataPath;
         var configDirectory = Path.Combine(appDataPath, "caTTY");
         var configFile = Path.Combine(configDirectory, "theme-config.json");
 
@@ -216,7 +264,6 @@ public class ThemeConfigurationTests
 
         try
         {
-          Console.WriteLine($"configFile={configFile}");
             // Save configuration
             config.Save();
 
@@ -232,6 +279,9 @@ public class ThemeConfigurationTests
         }
         finally
         {
+            // Reset override to ensure test isolation
+            ThemeConfiguration.OverrideConfigDirectory = originalOverride;
+
             // Clean up
             if (File.Exists(configFile))
             {
@@ -250,6 +300,9 @@ public class ThemeConfigurationTests
     [Test]
     public void SaveAndLoad_WithValidConfiguration_ShouldPreserveAllValues()
     {
+        var originalOverride = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _tempConfigDirectory;
+
         var originalConfig = new ThemeConfiguration
         {
             SelectedThemeName = "Adventure",
@@ -257,9 +310,7 @@ public class ThemeConfigurationTests
             ForegroundOpacity = 0.75f
         };
 
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configDirectory = Path.Combine(appDataPath, "caTTY");
-        var configFile = Path.Combine(configDirectory, "theme-config.json");
+        var configFile = Path.Combine(_tempConfigDirectory, "caTTY", "theme-config.json");
 
         try
         {
@@ -277,6 +328,7 @@ public class ThemeConfigurationTests
         finally
         {
             // Clean up
+            ThemeConfiguration.OverrideConfigDirectory = originalOverride;
             if (File.Exists(configFile))
             {
                 File.Delete(configFile);
@@ -290,6 +342,9 @@ public class ThemeConfigurationTests
     [Test]
     public void SaveAndLoad_WithNullThemeName_ShouldHandleGracefully()
     {
+        var originalOverride = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _tempConfigDirectory;
+
         var config = new ThemeConfiguration
         {
             SelectedThemeName = null,
@@ -297,8 +352,7 @@ public class ThemeConfigurationTests
             ForegroundOpacity = 0.6f
         };
 
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configFile = Path.Combine(appDataPath, "caTTY", "theme-config.json");
+        var configFile = Path.Combine(_tempConfigDirectory, "caTTY", "theme-config.json");
 
         try
         {
@@ -314,6 +368,7 @@ public class ThemeConfigurationTests
         finally
         {
             // Clean up
+            ThemeConfiguration.OverrideConfigDirectory = originalOverride;
             if (File.Exists(configFile))
             {
                 File.Delete(configFile);
@@ -327,22 +382,23 @@ public class ThemeConfigurationTests
     [Test]
     public void SaveAndLoad_WithEdgeCaseOpacityValues_ShouldPreserveValues()
     {
+        var originalOverride = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _tempConfigDirectory;
+
         var edgeCases = new[] { 0.0f, 1.0f, 0.001f, 0.999f };
+        var configFile = Path.Combine(_tempConfigDirectory, "caTTY", "theme-config.json");
 
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var configFile = Path.Combine(appDataPath, "caTTY", "theme-config.json");
-
-        foreach (var opacity in edgeCases)
+        try
         {
-            var config = new ThemeConfiguration
+            foreach (var opacity in edgeCases)
             {
-                SelectedThemeName = $"TestTheme_{opacity}",
-                BackgroundOpacity = opacity,
-                ForegroundOpacity = opacity
-            };
+                var config = new ThemeConfiguration
+                {
+                    SelectedThemeName = $"TestTheme_{opacity}",
+                    BackgroundOpacity = opacity,
+                    ForegroundOpacity = opacity
+                };
 
-            try
-            {
                 config.Save();
                 var loadedConfig = ThemeConfiguration.Load();
 
@@ -352,12 +408,83 @@ public class ThemeConfigurationTests
                     $"Failed to preserve foreground opacity value: {opacity}");
                 Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo($"TestTheme_{opacity}"));
             }
-            finally
+        }
+        finally
+        {
+            // Clean up
+            ThemeConfiguration.OverrideConfigDirectory = originalOverride;
+            if (File.Exists(configFile))
             {
-                if (File.Exists(configFile))
-                {
-                    File.Delete(configFile);
-                }
+                File.Delete(configFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Safeguard test to ensure tests never write to production configuration directory.
+    /// This prevents regression where test isolation is broken.
+    /// </summary>
+    [Test]
+    public void ConfigurationIsolation_WhenOverrideSet_ShouldNeverUseProductionPath()
+    {
+        // Arrange
+        var originalOverride = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _tempConfigDirectory;
+
+        var productionDocsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var productionConfigDirectory = Path.Combine(productionDocsPath, "My Games", "Kitten Space Agency", "caTTY");
+        var productionConfigFile = Path.Combine(productionConfigDirectory, "theme-config.json");
+
+        // Record the modification time of the production file before the test (if it exists)
+        DateTime? productionFileModTimeBeforeTest = null;
+        if (File.Exists(productionConfigFile))
+        {
+            productionFileModTimeBeforeTest = File.GetLastWriteTimeUtc(productionConfigFile);
+        }
+
+        var config = new ThemeConfiguration
+        {
+            SelectedThemeName = "IsolationTest",
+            BackgroundOpacity = 0.5f,
+            ForegroundOpacity = 0.6f
+        };
+
+        try
+        {
+            // Act - Save to the overridden temp directory
+            config.Save();
+
+            // Assert - Verify file was saved to temp directory, not production path
+            var tempConfigFile = Path.Combine(_tempConfigDirectory, "caTTY", "theme-config.json");
+
+            Assert.That(File.Exists(tempConfigFile), Is.True,
+                "Configuration should be saved to temp directory when override is set");
+
+            // Check that production file wasn't modified by our operation
+            if (File.Exists(productionConfigFile))
+            {
+                var productionFileModTimeAfterTest = File.GetLastWriteTimeUtc(productionConfigFile);
+                Assert.That(productionFileModTimeAfterTest, Is.EqualTo(productionFileModTimeBeforeTest),
+                    "Configuration should never be written to production path when override is set");
+            }
+
+            // Act - Load the configuration
+            var loadedConfig = ThemeConfiguration.Load();
+
+            // Assert - Verify the loaded config is from the temp directory
+            Assert.That(loadedConfig.SelectedThemeName, Is.EqualTo("IsolationTest"),
+                "Configuration should be loaded from temp directory, not production path");
+        }
+        finally
+        {
+            // Clean up
+            ThemeConfiguration.OverrideConfigDirectory = originalOverride;
+
+            // Verify temp directory is cleaned up after test
+            var tempConfigFile = Path.Combine(_tempConfigDirectory, "caTTY", "theme-config.json");
+            if (File.Exists(tempConfigFile))
+            {
+                File.Delete(tempConfigFile);
             }
         }
     }

@@ -25,15 +25,15 @@ public class ShellAvailabilityIntegrationTests
         Directory.CreateDirectory(_tempConfigDirectory);
 
         // Override the app data directory for testing
-        _originalAppDataOverride = ThemeConfiguration.OverrideAppDataDirectory;
-        ThemeConfiguration.OverrideAppDataDirectory = _tempConfigDirectory;
+        _originalAppDataOverride = ThemeConfiguration.OverrideConfigDirectory;
+        ThemeConfiguration.OverrideConfigDirectory = _tempConfigDirectory;
     }
 
     [TearDown]
     public void TearDown()
     {
         // Restore original app data override
-        ThemeConfiguration.OverrideAppDataDirectory = _originalAppDataOverride;
+        ThemeConfiguration.OverrideConfigDirectory = _originalAppDataOverride;
 
         // Clean up temporary directory
         if (_tempConfigDirectory != null && Directory.Exists(_tempConfigDirectory))

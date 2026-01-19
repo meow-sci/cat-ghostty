@@ -327,11 +327,11 @@ public class PerformanceStopwatchTests
         _stopwatch.Stop("FastTask");
 
         _stopwatch.Start("SlowTask");
-        Thread.Sleep(20);
+        Thread.Sleep(100);
         _stopwatch.Stop("SlowTask");
 
         _stopwatch.Start("MediumTask");
-        Thread.Sleep(10);
+        Thread.Sleep(50);
         _stopwatch.Stop("MediumTask");
 
         // Act
@@ -351,7 +351,7 @@ public class PerformanceStopwatchTests
     {
         // Arrange
         _stopwatch.Enabled = true;
-        var longTaskName = new string('A', 150); // 50 characters, should be truncated
+        var longTaskName = new string('A', 150); // 150 characters, should be truncated to 59 + "..."
         _stopwatch.Start(longTaskName);
         _stopwatch.Stop(longTaskName);
 
