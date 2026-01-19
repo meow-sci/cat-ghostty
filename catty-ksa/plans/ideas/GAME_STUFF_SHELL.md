@@ -187,6 +187,7 @@ We need something like “pipes” but in-memory:
 - `IPipeReader` / `IPipeWriter` based on `Channel<ReadOnlyMemory<byte>>` or `Pipe` (System.IO.Pipelines).
 - `NullSink` for `/dev/null`.
 - A `TerminalWriter` that writes to the custom shell’s output event with the appropriate `ShellOutputType` (Stdout/Stderr).
+ - **Data encoding**: All streams are UTF-8 text only; stdin/stdout/stderr are treated as UTF-8 strings, no binary data support.
 
 FD mapping:
 
