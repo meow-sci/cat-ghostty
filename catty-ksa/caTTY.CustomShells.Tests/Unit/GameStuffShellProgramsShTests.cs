@@ -181,6 +181,205 @@ public class GameStuffShellProgramsShTests
         Assert.That(stderrWriter.GetContent(), Is.Empty);
     }
 
+    [Test]
+    public async Task ShProgram_PositionalParameter_Dollar0()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo $0' myarg -> echo myarg
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo $0", "myarg" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("myarg\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_Dollar0And1()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo $0 $1' first second -> echo first second
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo $0 $1", "first", "second" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("first second\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_MissingArgExpandsToEmpty()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo [$1]' arg0 -> echo [] (only $0 provided, $1 is empty)
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo [$1]", "arg0" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("[]\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_DollarAt()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo $@' a b c -> echo a b c
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo $@", "a", "b", "c" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("a b c\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_DollarStar()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo $*' a b c -> echo a b c
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo $*", "a", "b", "c" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("a b c\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_DollarHash()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo $#' a b c -> echo 3
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo $#", "a", "b", "c" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("3\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_InSingleQuotesNotExpanded()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c "echo '$0'" myarg -> echo $0 (literal $0 because single quotes)
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo '$0'", "myarg" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("$0\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_EscapedDollarNotExpanded()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo \$0' myarg -> echo $0 (escaped)
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo \\$0", "myarg" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("$0\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_BraceSyntax()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new EchoProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'echo ${0}' myarg -> echo myarg
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "echo ${0}", "myarg" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stdoutWriter.GetContent(), Is.EqualTo("myarg\n"));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
+    [Test]
+    public async Task ShProgram_PositionalParameter_UsedWithSleep()
+    {
+        var registry = new ProgramRegistry();
+        registry.Register(new SleepProgram());
+        registry.Register(new ShProgram());
+
+        var program = new ShProgram();
+        // sh -c 'sleep $0' 10 -> sleep 10 (10ms)
+        var (context, stdoutWriter, stderrWriter) = CreateTestContext(
+            argv: new[] { "sh", "-c", "sleep $0", "10" },
+            registry: registry);
+
+        var exitCode = await program.RunAsync(context, CancellationToken.None);
+
+        Assert.That(exitCode, Is.EqualTo(0));
+        Assert.That(stderrWriter.GetContent(), Is.Empty);
+    }
+
     private static (ProgramContext, BufferedStreamWriter, BufferedStreamWriter) CreateTestContext(
         string[] argv,
         IProgramResolver registry)

@@ -210,6 +210,356 @@ public class GameStuffShellGoldenTests
         Assert.That(result.Stderr, Is.Empty);
     }
 
+    // ============================================================
+    // Positional parameter tests (sh -c with $0, $1, etc.)
+    // ============================================================
+
+    [Test]
+    public async Task Golden_ShPositionalParam_Dollar0()
+    {
+        // sh -c 'echo $0' foo
+        // $0 should be "foo"
+        var result = await ExecuteCommandLine("sh -c 'echo $0' foo");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("foo\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ShPositionalParam_Dollar0And1()
+    {
+        // sh -c 'echo $0 $1' first second
+        var result = await ExecuteCommandLine("sh -c 'echo $0 $1' first second");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("first second\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ShPositionalParam_WithXargs()
+    {
+        // echo "1000 2000" | xargs sh -c 'echo delay: $0'
+        // xargs invokes sh twice: once with "1000", once with "2000"
+        var result = await ExecuteCommandLine("echo 1000 2000 | xargs sh -c 'echo delay: $0'");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("delay: 1000\ndelay: 2000\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ShPositionalParam_WithSleep()
+    {
+        // echo 10 | xargs sh -c 'sleep $0'
+        // Should complete without error (10ms sleep)
+        var result = await ExecuteCommandLine("echo 10 | xargs sh -c 'sleep $0'");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ShPositionalParam_DollarAt()
+    {
+        // sh -c 'echo $@' a b c
+        // $@ should be "a b c"
+        var result = await ExecuteCommandLine("sh -c 'echo $@' a b c");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a b c\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ShPositionalParam_DollarHash()
+    {
+        // sh -c 'echo $#' a b c
+        // $# should be "3"
+        var result = await ExecuteCommandLine("sh -c 'echo $#' a b c");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("3\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    // ============================================================
+    // Multi-stage pipeline tests
+    // ============================================================
+
+    [Test]
+    public async Task Golden_ThreeStagePipeline()
+    {
+        // echo "a b c" | xargs echo | xargs echo
+        // First xargs: echo a, echo b, echo c -> "a\nb\nc\n"
+        // Second xargs: echo a, echo b, echo c -> "a\nb\nc\n"
+        var result = await ExecuteCommandLine("echo a b c | xargs echo | xargs echo");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\nb\nc\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_PipelinePreservesOrder()
+    {
+        // echo "1 2 3" | xargs echo -n
+        // Should produce "123" in order
+        var result = await ExecuteCommandLine("echo 1 2 3 | xargs echo -n");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("123"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    // ============================================================
+    // Complex redirection ordering tests
+    // ============================================================
+
+    [Test]
+    public async Task Golden_Redirection_1ToNullOnly()
+    {
+        // echo hello 1>/dev/null
+        // stdout goes to /dev/null, nothing visible
+        var result = await ExecuteCommandLine("echo hello 1>/dev/null");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.Empty);
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_Redirection_2ToNullOnly()
+    {
+        // Need a command that produces stderr - use sh -c with nonexistent command
+        // sh -c 'badcmd' 2>/dev/null
+        var result = await ExecuteCommandLine("sh -c 'badcmd' 2>/dev/null");
+
+        // badcmd returns 127, stderr suppressed
+        Assert.That(result.ExitCode, Is.EqualTo(127));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_Redirection_BothToNull()
+    {
+        // echo hello 1>/dev/null 2>/dev/null
+        var result = await ExecuteCommandLine("echo hello 1>/dev/null 2>/dev/null");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.Empty);
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_Redirection_DefaultFdIsStdout()
+    {
+        // echo hello >/dev/null  (no FD number means 1)
+        var result = await ExecuteCommandLine("echo hello >/dev/null");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.Empty);
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    // ============================================================
+    // List operator tests with various exit codes
+    // ============================================================
+
+    [Test]
+    public async Task Golden_AndIf_ChainOfSuccess()
+    {
+        // echo a && echo b && echo c
+        // All succeed, all run
+        var result = await ExecuteCommandLine("echo a && echo b && echo c");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\nb\nc\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_AndIf_StopsOnFirstFailure()
+    {
+        // echo a && false && echo c
+        // First succeeds, second fails (false returns 1), third skipped
+        var result = await ExecuteCommandLine("echo a && false && echo c");
+
+        Assert.That(result.ExitCode, Is.EqualTo(1));
+        Assert.That(result.Stdout, Is.EqualTo("a\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_OrIf_SkipsAfterSuccess()
+    {
+        // echo a || echo b || echo c
+        // First succeeds, rest skipped
+        var result = await ExecuteCommandLine("echo a || echo b || echo c");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_OrIf_RunsAfterFailure()
+    {
+        // false || echo recovered
+        var result = await ExecuteCommandLine("false || echo recovered");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("recovered\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_OrIf_ChainUntilSuccess()
+    {
+        // false || exit 2 || echo finally
+        var result = await ExecuteCommandLine("false || exit 2 || echo finally");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("finally\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_MixedOperators_AndThenOr()
+    {
+        // echo a && false || echo fallback
+        // a succeeds, false fails, fallback runs due to ||
+        var result = await ExecuteCommandLine("echo a && false || echo fallback");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\nfallback\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_MixedOperators_OrThenAnd()
+    {
+        // false || echo recovered && echo continued
+        // false fails, recovered runs, continued runs
+        var result = await ExecuteCommandLine("false || echo recovered && echo continued");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("recovered\ncontinued\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_Sequential_AlwaysRunsAll()
+    {
+        // false ; echo after
+        // First fails but second still runs due to ;
+        var result = await ExecuteCommandLine("false ; echo after");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("after\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_TrailingSemicolon_Allowed()
+    {
+        // echo hello ;
+        var result = await ExecuteCommandLine("echo hello ;");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("hello\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    // ============================================================
+    // Combination tests: pipeline + redirection + list operators
+    // ============================================================
+
+    [Test]
+    public async Task Golden_PipelineInSequence()
+    {
+        // echo a | xargs echo ; echo b | xargs echo
+        var result = await ExecuteCommandLine("echo a | xargs echo ; echo b | xargs echo");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\nb\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_PipelineWithAndIf()
+    {
+        // echo a | xargs echo && echo done
+        var result = await ExecuteCommandLine("echo a | xargs echo && echo done");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("a\ndone\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_RedirectionInPipeline()
+    {
+        // echo a 2>&1 | xargs echo 1>/dev/null
+        // First cmd: echo a with stderr merged to stdout -> "a\n" piped
+        // Second cmd: xargs echo -> output to /dev/null
+        var result = await ExecuteCommandLine("echo a 2>&1 | xargs echo 1>/dev/null");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.Empty);
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    [Test]
+    public async Task Golden_ComplexCombination()
+    {
+        // echo start && echo a b | xargs echo -n && echo ; echo end
+        // 1. echo start -> "start\n"
+        // 2. echo a b | xargs echo -n -> "ab" (pipeline)
+        // 3. echo (empty) -> "\n"
+        // 4. echo end -> "end\n"
+        var result = await ExecuteCommandLine("echo start && echo a b | xargs echo -n && echo ; echo end");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("start\nab\nend\n"));
+        Assert.That(result.Stderr, Is.Empty);
+    }
+
+    // ============================================================
+    // Error handling tests
+    // ============================================================
+
+    [Test]
+    public async Task Golden_UnknownCommand_Returns127()
+    {
+        var result = await ExecuteCommandLine("nonexistent_command");
+
+        Assert.That(result.ExitCode, Is.EqualTo(127));
+        Assert.That(result.Stderr, Does.Contain("command not found"));
+    }
+
+    [Test]
+    public async Task Golden_UnknownCommand_OrIfRecovery()
+    {
+        // badcmd || echo recovered
+        var result = await ExecuteCommandLine("badcmd || echo recovered");
+
+        Assert.That(result.ExitCode, Is.EqualTo(0));
+        Assert.That(result.Stdout, Is.EqualTo("recovered\n"));
+        Assert.That(result.Stderr, Does.Contain("command not found"));
+    }
+
+    [Test]
+    public async Task Golden_InvalidRedirectionTarget_Returns2()
+    {
+        // echo hi 1>/tmp/foo (only /dev/null is supported)
+        var result = await ExecuteCommandLine("echo hi 1>/tmp/foo");
+
+        Assert.That(result.ExitCode, Is.EqualTo(2));
+        Assert.That(result.Stderr, Does.Contain("/dev/null"));
+    }
+
     private async Task<ExecutionResult> ExecuteCommandLine(string commandLine)
     {
         return await ExecuteCommandLineAsync(commandLine, CancellationToken.None);
@@ -223,6 +573,9 @@ public class GameStuffShellGoldenTests
         registry.Register(new SleepProgram());
         registry.Register(new XargsProgram());
         registry.Register(new ShProgram());
+        registry.Register(new ExitProgram());
+        registry.Register(new TrueProgram());
+        registry.Register(new FalseProgram());
 
         // Set up streams
         var stdoutWriter = new BufferedStreamWriter();
