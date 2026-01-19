@@ -202,6 +202,9 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             return;
         }
 
+        // Check for Ctrl modifier (1;5)
+        bool ctrlModifier = param.StartsWith("1;5");
+
         // Handle simple sequences
         switch (finalByte)
         {
@@ -212,10 +215,16 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 NavigateHistoryDown();
                 break;
             case 'C': // Right arrow
-                MoveCursorRight();
+                if (ctrlModifier)
+                    MoveCursorToNextWord();
+                else
+                    MoveCursorRight();
                 break;
             case 'D': // Left arrow
-                MoveCursorLeft();
+                if (ctrlModifier)
+                    MoveCursorToPreviousWord();
+                else
+                    MoveCursorLeft();
                 break;
             case 'H': // Home
                 MoveCursorToStart();
@@ -460,6 +469,60 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             {
                 _cursorPosition = _lineBuffer.Length;
                 SendOutput($"\x1b[{distance}C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the next word (Ctrl+Right).
+    /// </summary>
+    private void MoveCursorToNextWord()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition >= _lineBuffer.Length)
+            {
+                return;
+            }
+
+            int pos = _cursorPosition;
+
+            // Skip current word (non-whitespace characters)
+            while (pos < _lineBuffer.Length && !char.IsWhiteSpace(_lineBuffer[pos]))
+                pos++;
+
+            // Skip whitespace
+            while (pos < _lineBuffer.Length && char.IsWhiteSpace(_lineBuffer[pos]))
+                pos++;
+
+            int distance = pos - _cursorPosition;
+            if (distance > 0)
+            {
+                _cursorPosition = pos;
+                SendOutput($"\x1b[{distance}C");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Moves the cursor to the start of the previous word (Ctrl+Left).
+    /// </summary>
+    private void MoveCursorToPreviousWord()
+    {
+        lock (_lock)
+        {
+            if (_cursorPosition == 0)
+            {
+                return;
+            }
+
+            int wordStart = FindPreviousWordBoundary();
+            int distance = _cursorPosition - wordStart;
+
+            if (distance > 0)
+            {
+                _cursorPosition = wordStart;
+                SendOutput($"\x1b[{distance}D");
             }
         }
     }

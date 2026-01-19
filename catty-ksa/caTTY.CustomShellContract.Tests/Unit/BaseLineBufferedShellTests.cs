@@ -2172,6 +2172,312 @@ public class BaseLineBufferedShellTests
 
     #endregion
 
+    #region Ctrl+Left/Right (Word Jumping) Tests
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_JumpsToNextWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+
+        // Act - Send Ctrl+Right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 6 (after "hello ")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be at position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_MultipleJumps()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+Right twice
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "First jump should be at position 6");
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 12 (after "world ")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Second jump should be at position 12");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_AtEnd_DoesNothing()
+    {
+        // Arrange - Type "hello world"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(11), "Cursor should be at end");
+
+        // Act - Send Ctrl+Right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert - Cursor should remain at end
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(11), "Cursor should remain at end");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_MultipleSpaces_SkipsAll()
+    {
+        // Arrange - Type "hello   world" (three spaces)
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello   world"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+Right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert - Should skip all spaces and land at position 8 (start of "world")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(8), "Cursor should skip all spaces");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_JumpsToPreviousWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(16), "Cursor should be at end");
+
+        // Act - Send Ctrl+Left
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 12 (start of "test")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Cursor should be at position 12");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_MultipleJumps()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+Left twice
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "First jump should be at position 12");
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 6 (start of "world")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Second jump should be at position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_AtStart_DoesNothing()
+    {
+        // Arrange - Type "hello world"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+
+        // Act - Send Ctrl+Left
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Cursor should remain at start
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at start");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_MultipleSpaces_HandledCorrectly()
+    {
+        // Arrange - Type "hello   world" (three spaces), cursor at end
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello   world"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+Left
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Should jump to start of "world" at position 8
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(8), "Cursor should be at start of 'world'");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRightAndLeft_RoundTrip()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Ctrl+Right, then Ctrl+Left
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+        int positionAfterRight = _shell.TestGetCursorPosition();
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Should be back at start
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Should return to start");
+        Assert.That(positionAfterRight, Is.EqualTo(6), "Ctrl+Right should have jumped to position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_AllTheWayToEnd()
+    {
+        // Arrange - Type "one two three four"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("one two three four"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Ctrl+Right four times
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+            await Task.Delay(50);
+        }
+
+        // Assert - Should be at end
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(18), "Should be at end after 4 jumps");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_AllTheWayToStart()
+    {
+        // Arrange - Type "one two three four"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("one two three four"));
+        await Task.Delay(50);
+
+        // Act - Ctrl+Left four times
+        for (int i = 0; i < 4; i++)
+        {
+            await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+            await Task.Delay(50);
+        }
+
+        // Assert - Should be at start
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Should be at start after 4 jumps");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_MidWord_JumpsToNextWord()
+    {
+        // Arrange - Type "hello world", move left 2 (mid-word in "world")
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(25);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(9), "Cursor should be at position 9");
+
+        // Act - Ctrl+Right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert - Should jump to end (no next word)
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(11), "Should jump to end");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_MidWord_JumpsToPreviousWord()
+    {
+        // Arrange - Type "hello world", move left 2 (mid-word in "world")
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(25);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(9), "Cursor should be at position 9");
+
+        // Act - Ctrl+Left
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert - Should jump to start of "world" at position 6
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Should jump to start of current word");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRightLeft_WithEditing()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Ctrl+Right, type "BIG ", Ctrl+Right
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("BIG "));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello BIG world test"), "Should have inserted 'BIG '");
+        // After inserting "BIG " at position 6, cursor is at 10
+        // Ctrl+Right jumps over "world " to position 16 (start of "test")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(16), "Cursor should be at position 16 (start of 'test')");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlRight_OnEmptyBuffer_DoesNothing()
+    {
+        // Act - Send Ctrl+Right on empty buffer
+        await _shell!.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x43 }); // CSI 1;5C
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should remain empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at zero");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlLeft_OnEmptyBuffer_DoesNothing()
+    {
+        // Act - Send Ctrl+Left on empty buffer
+        await _shell!.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x31, 0x3B, 0x35, 0x44 }); // CSI 1;5D
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should remain empty");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at zero");
+    }
+
+    #endregion
+
     #region Mid-line Character Insertion Tests
 
     [Test]
