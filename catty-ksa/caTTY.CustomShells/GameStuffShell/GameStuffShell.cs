@@ -29,6 +29,8 @@ public sealed class GameStuffShell : BaseLineBufferedShell
         var registry = new ProgramRegistry();
         registry.Register(new EchoProgram());
         registry.Register(new SleepProgram());
+        registry.Register(new CraftsProgram());
+        registry.Register(new FollowProgram());
 
         _execContext = new ExecContext(
             registry,
