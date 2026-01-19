@@ -22,6 +22,7 @@ internal class TerminalSessionFactory
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null uses default no-op handler)</param>
     /// <param name="launchOptions">Optional launch options for the session (used to determine shell type)</param>
     /// <returns>A fully configured terminal session</returns>
+    /// <exception cref="InvalidOperationException">Thrown if custom game shell cannot be created</exception>
     public static TerminalSession CreateSession(
         Guid sessionId,
         string sessionTitle,
@@ -38,10 +39,26 @@ internal class TerminalSessionFactory
 
         // Conditional process manager creation based on shell type
         IProcessManager processManager;
-        if (launchOptions?.ShellType == ShellType.CustomGame && !string.IsNullOrEmpty(launchOptions.CustomShellId))
+        if (launchOptions?.ShellType == ShellType.CustomGame)
         {
-            var customShell = CustomShellRegistry.Instance.CreateShell(launchOptions.CustomShellId);
-            processManager = new CustomShellPtyBridge(customShell);
+            if (string.IsNullOrEmpty(launchOptions.CustomShellId))
+            {
+                throw new InvalidOperationException("CustomGame shell type requires CustomShellId to be set");
+            }
+
+            try
+            {
+                var customShell = CustomShellRegistry.Instance.CreateShell(launchOptions.CustomShellId);
+                if (customShell == null)
+                {
+                    throw new InvalidOperationException($"CustomShellRegistry.CreateShell returned null for shell ID: {launchOptions.CustomShellId}");
+                }
+                processManager = new CustomShellPtyBridge(customShell);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to create custom game shell '{launchOptions.CustomShellId}': {ex.Message}", ex);
+            }
         }
         else
         {

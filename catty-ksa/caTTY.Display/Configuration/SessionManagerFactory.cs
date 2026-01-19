@@ -25,6 +25,21 @@ public static class SessionManagerFactory
         // Load persisted configuration to determine initial shell type
         var themeConfig = ThemeConfiguration.Load();
 
+        // Ensure custom shell registry discovers available shells BEFORE creating sessions
+        // This is critical for CustomGame shell types to be found
+        if (themeConfig.DefaultShellType == ShellType.CustomGame)
+        {
+            try
+            {
+                CustomShellRegistry.Instance.DiscoverShells();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SessionManagerFactory: Warning - Failed to discover custom shells: {ex.Message}");
+                // Continue anyway - will fail more clearly when trying to create the session
+            }
+        }
+
         // Create launch options from persisted configuration
         var defaultLaunchOptions = themeConfig.CreateLaunchOptions();
 
