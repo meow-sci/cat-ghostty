@@ -25,6 +25,11 @@ public static class SessionManagerFactory
     {
         // Load persisted configuration to determine initial shell type
         var themeConfig = ThemeConfiguration.Load();
+        Console.WriteLine($"SessionManagerFactory: Configured shell type: {themeConfig.DefaultShellType}");
+        if (themeConfig.DefaultShellType == ShellType.CustomGame)
+        {
+            Console.WriteLine($"SessionManagerFactory: Configured custom game shell ID: {themeConfig.DefaultCustomGameShellId}");
+        }
 
         // Ensure custom shell registry discovers available shells BEFORE creating sessions
         // This is critical for CustomGame shell types to be found
@@ -38,6 +43,8 @@ public static class SessionManagerFactory
 
                 // Step 2: Discover shells (will now find GameConsoleShell)
                 CustomShellRegistry.Instance.DiscoverShells();
+                var discoveredShells = CustomShellRegistry.Instance.GetAvailableShells();
+                Console.WriteLine($"SessionManagerFactory: Custom shell discovery completed. Available shells: {string.Join(", ", discoveredShells.Select(s => s.Id))}");
             }
             catch (Exception ex)
             {
@@ -48,6 +55,7 @@ public static class SessionManagerFactory
 
         // Create launch options from persisted configuration
         var defaultLaunchOptions = themeConfig.CreateLaunchOptions();
+        Console.WriteLine($"SessionManagerFactory: Created launch options with shell type: {defaultLaunchOptions.ShellType}");
 
         // Set default terminal dimensions and working directory
         defaultLaunchOptions.InitialWidth = 80;

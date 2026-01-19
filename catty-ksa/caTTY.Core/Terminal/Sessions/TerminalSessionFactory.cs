@@ -39,8 +39,12 @@ internal class TerminalSessionFactory
 
         // Conditional process manager creation based on shell type
         IProcessManager processManager;
+        Console.WriteLine($"TerminalSessionFactory.CreateSession: Launch options shell type: {launchOptions?.ShellType ?? ShellType.Auto}");
+
         if (launchOptions?.ShellType == ShellType.CustomGame)
         {
+            Console.WriteLine($"TerminalSessionFactory.CreateSession: Creating CustomGame shell with ID: {launchOptions.CustomShellId}");
+
             if (string.IsNullOrEmpty(launchOptions.CustomShellId))
             {
                 throw new InvalidOperationException("CustomGame shell type requires CustomShellId to be set");
@@ -53,15 +57,18 @@ internal class TerminalSessionFactory
                 {
                     throw new InvalidOperationException($"CustomShellRegistry.CreateShell returned null for shell ID: {launchOptions.CustomShellId}");
                 }
+                Console.WriteLine($"TerminalSessionFactory.CreateSession: Successfully created custom shell '{launchOptions.CustomShellId}'");
                 processManager = new CustomShellPtyBridge(customShell);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"TerminalSessionFactory.CreateSession: FAILED to create custom shell: {ex.Message}");
                 throw new InvalidOperationException($"Failed to create custom game shell '{launchOptions.CustomShellId}': {ex.Message}", ex);
             }
         }
         else
         {
+            Console.WriteLine($"TerminalSessionFactory.CreateSession: Creating standard ProcessManager for shell type: {launchOptions?.ShellType ?? ShellType.Auto}");
             processManager = new ProcessManager();
         }
 
