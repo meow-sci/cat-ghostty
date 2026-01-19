@@ -15,7 +15,7 @@ namespace caTTY.CustomShells.Tests.Unit;
 public class GameConsoleShellTests
 {
     private TestGameConsoleShell? _shell;
-    private StringBuilder _outputBuffer;
+    private StringBuilder _outputBuffer = new();
 
     [SetUp]
     public void Setup()
@@ -433,14 +433,14 @@ public class GameConsoleShellTests
         var options = CustomShellStartOptions.CreateWithDimensions(80, 24);
         await _shell!.StartAsync(options);
 
-        // Act - Type "test" then backspace using BS (0x08)
+        // Act - Type "test" then Ctrl+H (0x08) deletes previous word
         _shell.SimulateInput("test");
         await Task.Delay(50);
-        _shell.SimulateInput("\x08\x08"); // BS backspace
+        _shell.SimulateInput("\x08\x08"); // Ctrl+H delete word
         await Task.Delay(50);
 
         // Assert
-        Assert.That(_shell.GetCurrentLine(), Is.EqualTo("te"));
+        Assert.That(_shell.GetCurrentLine(), Is.Empty);
     }
 
     [Test]
@@ -482,17 +482,93 @@ public class GameConsoleShellTests
 
     #region Output Capture Tests
 
-    // NOTE: OnConsolePrint tests are skipped because the method signature includes KSA types
-    // (ConsoleLineType) which would require KSA DLLs to be present for reflection.
-    // The OnConsolePrint method is tested indirectly through integration tests in the game mod.
-    // The method signature is:
-    // public static void OnConsolePrint(string output, uint color, ConsoleLineType lineType)
-    //
-    // Behavior tested manually/integration:
-    // - OnConsolePrint returns when no active instance exists
-    // - OnConsolePrint queues output when active instance is executing
-    // - Multiple output calls are handled correctly
-    // - Error detection based on color codes works correctly
+    private static void InvokeOnConsolePrint(string output, uint color, object lineTypeValue)
+    {
+        var method = typeof(GameConsoleShell).GetMethod(nameof(GameConsoleShell.OnConsolePrint),
+            BindingFlags.Public | BindingFlags.Static);
+        Assert.That(method, Is.Not.Null);
+        method!.Invoke(null, new[] { output, color, lineTypeValue });
+    }
+
+    private static uint GetConsoleWindowColor(string fieldName)
+    {
+        var consoleWindowType = typeof(GameConsoleShell).Assembly.GetType("KSA.ConsoleWindow");
+        if (consoleWindowType == null)
+        {
+            Assert.Ignore("KSA ConsoleWindow type not available for unit tests.");
+        }
+
+        var field = consoleWindowType!.GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
+        if (field == null)
+        {
+            Assert.Ignore($"ConsoleWindow.{fieldName} not available for unit tests.");
+        }
+
+        var value = field!.GetValue(null);
+        if (value == null)
+        {
+            Assert.Ignore($"ConsoleWindow.{fieldName} value unavailable for unit tests.");
+        }
+
+        return (uint)value!;
+    }
+
+    private static object CreateConsoleLineTypeValue()
+    {
+        var consoleLineType = typeof(GameConsoleShell).Assembly.GetType("Brutal.ImGuiApi.Abstractions.ConsoleLineType");
+        if (consoleLineType == null)
+        {
+            Assert.Ignore("ConsoleLineType enum not available for unit tests.");
+        }
+
+        var value = Enum.GetValues(consoleLineType!).GetValue(0);
+        if (value == null)
+        {
+            Assert.Ignore("ConsoleLineType enum value not available for unit tests.");
+        }
+
+        return value!;
+    }
+
+    [Test]
+    public async Task OnConsolePrint_ErrorColor_EmitsStderr()
+    {
+        // Arrange
+        var options = CustomShellStartOptions.CreateWithDimensions(80, 24);
+        await _shell!.StartAsync(options);
+        _shell.SetActiveForConsoleOutput(true);
+        _shell.LastOutputType = ShellOutputType.Stdout;
+
+        var errorColor = GetConsoleWindowColor("ErrorColor");
+        var lineTypeValue = CreateConsoleLineTypeValue();
+
+        // Act
+        InvokeOnConsolePrint("boom", errorColor, lineTypeValue);
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.LastOutputType, Is.EqualTo(ShellOutputType.Stderr));
+    }
+
+    [Test]
+    public async Task OnConsolePrint_NormalColor_EmitsStdout()
+    {
+        // Arrange
+        var options = CustomShellStartOptions.CreateWithDimensions(80, 24);
+        await _shell!.StartAsync(options);
+        _shell.SetActiveForConsoleOutput(true);
+        _shell.LastOutputType = ShellOutputType.Stderr;
+
+        var infoColor = GetConsoleWindowColor("InfoColor");
+        var lineTypeValue = CreateConsoleLineTypeValue();
+
+        // Act
+        InvokeOnConsolePrint("ok", infoColor, lineTypeValue);
+        await Task.Delay(100);
+
+        // Assert
+        Assert.That(_shell.LastOutputType, Is.EqualTo(ShellOutputType.Stdout));
+    }
 
     [Test]
     public async Task RequestCancellation_SendsCancelMessage()
@@ -513,6 +589,7 @@ public class GameConsoleShellTests
     }
 
     #endregion
+
 
     #region Stop/Termination Tests
 
@@ -581,7 +658,31 @@ public class GameConsoleShellTests
             {
                 var text = Encoding.UTF8.GetString(args.Data.ToArray());
                 _testOutputBuffer.Append(text);
+                LastOutputType = args.OutputType;
             };
+        }
+
+        public ShellOutputType LastOutputType { get; set; } = ShellOutputType.Stdout;
+
+        public void SetActiveForConsoleOutput(bool isExecuting)
+        {
+            var activeInstanceField = typeof(GameConsoleShell)
+                .GetField("_activeInstance", BindingFlags.NonPublic | BindingFlags.Static);
+            var activeLockField = typeof(GameConsoleShell)
+                .GetField("_activeLock", BindingFlags.NonPublic | BindingFlags.Static);
+            var isExecutingField = typeof(GameConsoleShell)
+                .GetField("_isExecutingCommand", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            Assert.That(activeInstanceField, Is.Not.Null);
+            Assert.That(activeLockField, Is.Not.Null);
+            Assert.That(isExecutingField, Is.Not.Null);
+
+            var activeLock = activeLockField!.GetValue(null)!;
+            lock (activeLock)
+            {
+                activeInstanceField!.SetValue(null, isExecuting ? this : null);
+                isExecutingField!.SetValue(this, isExecuting);
+            }
         }
 
         protected override async Task OnStartingAsync(CustomShellStartOptions options, CancellationToken cancellationToken)

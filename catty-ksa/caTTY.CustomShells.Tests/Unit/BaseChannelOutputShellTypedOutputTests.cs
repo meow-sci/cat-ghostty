@@ -13,7 +13,7 @@ namespace caTTY.CustomShells.Tests.Unit;
 public class BaseChannelOutputShellTypedOutputTests
 {
     private TestTypedOutputShell? _shell;
-    private List<(byte[] Data, ShellOutputType Type)> _capturedOutput;
+    private List<(byte[] Data, ShellOutputType Type)> _capturedOutput = new();
 
     [SetUp]
     public void Setup()
