@@ -55,10 +55,14 @@ Support a small but coherent grammar that enables pipelines + short-circuit list
     - `n>target`, `n>>target`, `n<target` (only `target = /dev/null`; any other target is an error)
     - `n>&m` and `n<&m` (dup fd) including `2>&1`
     - Allow multiple redirections per command; **process left-to-right** (this matters for cases like `2>&1 1>/dev/null`).
+    - Redirections are only allowed **after** the command name (not before).
+    - **Default FDs**: `>` without a number means `1>`, `<` without a number means `0<`.
+    - **Valid FD numbers**: only 0, 1, 2. Any other FD number (e.g., `9>&1`) is an error (exit code `2`).
 
 Notes:
 - `||` in bash is *conditional on failure* (not “always run”). If you want “always run”, that’s `;`.
 - A newline can be treated like `;` (optional, only if/when you support multi-line input).
+- **Semicolon rules**: trailing `;` is allowed (e.g., `echo hi ;`). Empty commands between operators are errors: `;;`, `; ;`, `| |`, etc. should produce a parse error (exit code `2`).
 
 ### 2) Tokenization essentials (to make parsing usable)
 
@@ -67,8 +71,10 @@ Minimum quoting/escaping to make commands ergonomic:
 - Whitespace separates tokens, except inside quotes.
 - Single quotes `'...'` (no escapes inside)
 - Double quotes `"..."` (allow `\\` and `\"` at minimum)
-- Backslash escaping outside quotes for spaces and operator characters (minimal; no variable expansion)
+- Backslash escaping outside quotes for: space, `|`, `&`, `;`, `>`, `<`, `#`, `\` itself. Other characters after `\` are literal (e.g., `\x` → `x`).
 - `#` comments: if `#` appears at start of token position (i.e. after whitespace) and not inside quotes, treat rest of line as comment.
+- **Word joining** (bash-compatible): adjacent quoted and unquoted segments form a single word. E.g., `"a"'b'c` → one word `abc`.
+- **Empty strings**: `""` and `''` are valid and produce an empty-string argument.
 
 Deliberately skip (initially): `$var` expansion, `$(...)`, backticks, globbing.
 
@@ -126,6 +132,7 @@ Provide a clean way to add programs:
 
 - Parse errors: print a readable message to **stderr** and return exit code `2`.
 - Runtime errors inside a program: print message to stderr and return non-zero (e.g. `1`).
+- **Unhandled exceptions** in a program: the executor catches them, prints `"<program>: <exception message>"` to stderr, and returns exit code `1`.
 - Prompt behavior: execute command line, then print prompt again when the whole list completes.
 
 
@@ -224,13 +231,14 @@ Pipeline status is the exit code of the **last** command (bash default).
 
 Implementation notes for initial programs:
 
-- `echo`: join args with spaces, write newline.
+- `echo`: join args (after argv[0]) with spaces, write newline. Support `-n` flag to suppress trailing newline.
 - `crafts`: write one name per line.
 - `xargs`:
     - Read stdin as UTF-8 text
     - Split on whitespace (no quote awareness; raw text split)
     - For each token, invoke target program with token appended to its argv
-    - Exit status: non-zero if any invocation fails (define exact rule).
+    - **Edge cases**: if no program argument given, error exit `2`. If stdin is empty (no tokens), error exit `2`.
+    - Exit status: return `0` only if all invocations succeed; otherwise return the first non-zero exit code.
 - `sh -c`:
     - Parse `<string>` using the same lexer/parser
     - Run in a new “shell scope” (see next section).
@@ -339,12 +347,15 @@ Files to create:
 
 Implementation details:
 
-- Token kinds: Word, Pipe, AndIf (`&&`), OrIf (`||`), Semicolon, RedirectOut (`>`), RedirectOutAppend (`>>`), RedirectIn (`<`), RedirectDupOut (`>&`), RedirectDupIn (`<&`), End.
+- Token kinds: Word, Pipe, AndIf (`&&`), OrIf (`||`), Semicolon, RedirectOut (`>`), RedirectOutAppend (`>>`), RedirectIn (`<`), RedirectDupOut (`>&`), RedirectDupIn (`<&`), IoNumber (a digit sequence immediately before a redirection operator), End.
+- **FD number handling**: when a digit sequence (e.g., `2`) appears immediately before a redirection operator with no whitespace, emit it as an `IoNumber` token. Otherwise digits are part of a Word.
 - Words:
     - Support unquoted words.
     - Support single quotes `'...'`.
     - Support double quotes `"..."` with minimal escapes `\\` and `\"`.
-    - Support minimal backslash escapes outside quotes to include operator characters and spaces in a word.
+    - Support minimal backslash escapes outside quotes for: space, `|`, `&`, `;`, `>`, `<`, `#`, `\`.
+    - **Word joining**: adjacent quoted/unquoted segments with no whitespace form a single Word token. E.g., `a"b"'c'` → Word `abc`.
+    - **Empty strings**: `""` and `''` produce a Word token with empty text.
 - Comments: if `#` is encountered when currently between tokens (after whitespace) and not inside quotes, ignore rest of line.
 - Return token spans (start index, length) for error messages.
 
@@ -354,7 +365,9 @@ Tests (table-driven):
 - `crafts|xargs lookat` => Word Pipe Word Word
 - `a && b || c ; d` => Word AndIf Word OrIf Word Semicolon Word
 - Quoting: `echo "a b" 'c d' e\\ f` should produce Word tokens with the expected text.
-- Redirection lexing: `2>&1 1>/dev/null` should preserve ordering and split into tokens consistent with parser design.
+- Word joining: `"a"'b'c` => single Word `abc`.
+- Empty string: `echo "" ''` => Word Word Word (second and third are empty).
+- Redirection lexing: `2>&1 1>/dev/null` => IoNumber(2) RedirectDupOut Word(1) IoNumber(1) RedirectOut Word(/dev/null).
 - Unterminated quote should produce a lexer error (exception or error result type).
 
 
@@ -394,6 +407,8 @@ Files to create:
 
 - Create: [caTTY.CustomShells/GameStuffShell/Execution/ExecContext.cs](caTTY.CustomShells/GameStuffShell/Execution/ExecContext.cs)
 - Create: [caTTY.CustomShells/GameStuffShell/Execution/Executor.cs](caTTY.CustomShells/GameStuffShell/Execution/Executor.cs)
+- Create: [caTTY.CustomShells/GameStuffShell/Execution/IProgramResolver.cs](caTTY.CustomShells/GameStuffShell/Execution/IProgramResolver.cs)
+- Create: [caTTY.CustomShells/GameStuffShell/Execution/ProgramContext.cs](caTTY.CustomShells/GameStuffShell/Execution/ProgramContext.cs)
 - Create: [caTTY.CustomShells.Tests/Unit/GameStuffShellExecutorListTests.cs](caTTY.CustomShells.Tests/Unit/GameStuffShellExecutorListTests.cs)
 
 Execution requirements:
@@ -408,6 +423,15 @@ Execution requirements:
     - Pass captured stdout as stdin bytes for the next command.
     - Pipeline exit code is the exit code of the last command.
 
+Abstractions:
+
+- `IProgramResolver`: interface with `bool TryResolve(string name, out IProgram program)`. The `Executor` depends on this; Task 7's `ProgramRegistry` implements it.
+- `ProgramContext`: includes `Argv`, `StreamSet`, `IProgramResolver` (so programs like `xargs` can invoke other programs), `IGameStuffApi`, and `CancellationToken`.
+
+Error handling:
+
+- If a program throws an unhandled exception, catch it, print `"<program>: <exception.Message>"` to stderr, and return exit code `1`.
+
 Implementation constraints:
 
 - No concurrency required.
@@ -415,9 +439,10 @@ Implementation constraints:
 
 Tests:
 
-- Use a fake program registry where program names map to handlers returning known exit codes and known stdout/stderr.
+- Use a fake `IProgramResolver` where program names map to handlers returning known exit codes and known stdout/stderr.
 - Verify skip behavior for `&&`/`||`.
 - Verify pipeline stdout forwarding: program A outputs `"x\n"` to stdout; program B receives that as stdin.
+- Verify exception handling: a program that throws produces stderr message and exit code `1`.
 
 
 ## Task 5 — Implement FD mapping + redirections (`/dev/null` and fd duplication)
@@ -485,12 +510,25 @@ Files to create:
 
 Implementation details:
 
+- `ProgramRegistry` implements `IProgramResolver` (from Task 4).
 - Registry API:
-    - `bool TryGet(string name, out IProgram program)`
+    - `bool TryResolve(string name, out IProgram program)` (from interface)
     - `void Register(IProgram program)`
-- Unknown command returns exit code `127` and prints `"command not found"` to stderr.
-- `echo` writes args joined by spaces and a newline to stdout.
-- `sleep <ms>` parses int milliseconds; on invalid number, exit `2` and stderr message; on success, `await Task.Delay(ms, ct)` then exit `0`.
+- Unknown command returns exit code `127` and prints `"<name>: command not found"` to stderr.
+
+**Argument parsing strategy**: the shell passes `argv[]` to programs via `ProgramContext.Argv`. Each program is responsible for its own argument parsing:
+- Simple programs can hand-roll checks (e.g., `if (argv[1] == "-n")`)
+- Complex programs can use `System.CommandLine` internally: create a `RootCommand`, configure options, call `command.Invoke(argv.Skip(1).ToArray())`
+- The shell has no knowledge of program-specific flags; it just tokenizes and forwards.
+
+- `echo`:
+    - Join args (after argv[0]) with spaces and write to stdout.
+    - Support `-n` flag: if first arg is `-n`, suppress trailing newline.
+    - Exit `0`.
+- `sleep <ms>`:
+    - Parse int milliseconds from first arg; on invalid/missing number, exit `2` with stderr message.
+    - On success, `await Task.Delay(ms, ct)` then exit `0`.
+    - Respect cancellation token.
 
 
 ## Task 8 — Implement `crafts` and `follow` using a small game API abstraction
@@ -533,10 +571,21 @@ Implementation details:
 - Read stdin as UTF-8 text.
 - Split on whitespace (no quote parsing).
 - For each token `t`, invoke `<prog>` with argv = `[<prog>, fixedArgs..., t]`.
-- Exit status rule (recommended):
+- Use `ProgramContext.ProgramResolver` to look up the target program.
+- **Edge cases**:
+    - If `<prog>` argument is missing, print usage error to stderr and exit `2`.
+    - If stdin is empty (produces zero tokens), print error to stderr and exit `2`.
+- Exit status rule:
     - Return `0` only if all invocations return `0`.
-    - Otherwise return the first non-zero exit code (or `1` if you prefer). Document the choice.
+    - Otherwise return the first non-zero exit code encountered.
 - Ensure stderr from invoked commands still reaches terminal unless redirected.
+
+Tests:
+
+- Normal case: `echo "a b c" | xargs echo` invokes echo three times.
+- Missing program: `xargs` with no args exits `2`.
+- Empty stdin: `echo -n "" | xargs echo` exits `2`.
+- Partial failure: if second invocation fails, returns that exit code.
 
 
 ## Task 10 — Implement `sh -c` (subshell parsing/execution)
@@ -573,6 +622,11 @@ Suggested tests:
 - `echo hi 1>/dev/null ; echo ok` prints only `ok`.
 - `badcmd || echo recovered` prints “command not found” (stderr) and then `recovered`.
 - Redirection ordering: a program that writes both stdout and stderr with `2>&1 1>/dev/null` leaves only former stderr visible.
+- `echo -n hello` produces `hello` with no trailing newline.
+- Word joining: `echo "a"'b'c` produces `abc`.
+- Empty string: `echo ""` produces a blank line (just newline).
+- Trailing semicolon: `echo hi ;` works without error.
+- **Cancellation test**: start `sleep 100000`, send Ctrl+C (call `RequestCancellation()`), verify shell returns to prompt without waiting.
 
 Test harness guidance:
 
