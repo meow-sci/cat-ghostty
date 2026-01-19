@@ -260,15 +260,29 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
         }
         else if (b == Backspace || b == BackspaceAlt)
         {
-            // Backspace: Remove last character
+            // Backspace: Remove character before cursor
             lock (_lock)
             {
-                if (_lineBuffer.Length > 0)
+                if (_cursorPosition == 0)
                 {
+                    // At start - do nothing
+                    return;
+                }
+                else if (_cursorPosition == _lineBuffer.Length)
+                {
+                    // At end - current behavior
                     _lineBuffer.Length--;
                     _cursorPosition--;
-                    // Send backspace sequence: move cursor left, erase to end of line
                     SendOutput("\x1b[D\x1b[K");
+                }
+                else
+                {
+                    // Mid-line - delete and redraw tail
+                    _lineBuffer.Remove(_cursorPosition - 1, 1);
+                    _cursorPosition--;
+
+                    string tail = _lineBuffer.ToString(_cursorPosition, _lineBuffer.Length - _cursorPosition);
+                    SendOutput($"\x1b[D{tail} \x1b[{tail.Length + 1}D");
                 }
             }
         }
