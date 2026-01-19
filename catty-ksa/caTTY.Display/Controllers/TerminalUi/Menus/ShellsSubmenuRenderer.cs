@@ -75,9 +75,10 @@ internal class ShellsSubmenuRenderer
     ImGui.Text("Select Default Shell:");
 
     var availableShells = ShellAvailabilityChecker.GetAvailableShellsWithNames();
+    var availableCustomGameShells = ShellAvailabilityChecker.GetAvailableCustomGameShells();
 
     // Show message if no shells are available (shouldn't happen, but defensive programming)
-    if (availableShells.Count == 0)
+    if (availableShells.Count == 0 && availableCustomGameShells.Count == 0)
     {
       ImGui.TextColored(new float4(1.0f, 0.5f, 0.5f, 1.0f), "No shells available on this system");
       return;
@@ -122,13 +123,47 @@ internal class ShellsSubmenuRenderer
       }
     }
 
+    // Show custom game shells if available
+    if (availableCustomGameShells.Count > 0)
+    {
+      ImGui.Spacing();
+      ImGui.Separator();
+      ImGui.Spacing();
+      ImGui.Text("Custom Game Shells:");
+
+      foreach (var (shellType, shellId, displayName) in availableCustomGameShells)
+      {
+        bool isSelected = config.DefaultShellType == ShellType.CustomGame && config.DefaultCustomGameShellId == shellId;
+
+        if (ImGui.RadioButton($"{displayName}##shell_{shellId}", isSelected))
+        {
+          if (!isSelected)
+          {
+            config.DefaultShellType = ShellType.CustomGame;
+            config.DefaultCustomGameShellId = shellId;
+            configChanged = true;
+
+            // Apply configuration immediately when shell type changes
+            ApplyShellConfiguration();
+          }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+          ImGui.SetTooltip("Custom game shell - Execute game commands directly");
+        }
+      }
+    }
+
     // Show count of available shells for debugging
     ImGui.Spacing();
-    ImGui.TextColored(new float4(0.7f, 0.7f, 0.7f, 1.0f), $"Showing {availableShells.Count} available shell(s)");
+    ImGui.TextColored(new float4(0.7f, 0.7f, 0.7f, 1.0f), $"Showing {availableShells.Count + availableCustomGameShells.Count} available shell(s)");
     if (ImGui.IsItemHovered())
     {
-      var shellNames = string.Join(", ", availableShells.Select(s => s.ShellType.ToString()));
-      ImGui.SetTooltip($"Available shells: {shellNames}");
+      var standardShells = string.Join(", ", availableShells.Select(s => s.ShellType.ToString()));
+      var customShells = string.Join(", ", availableCustomGameShells.Select(s => s.DisplayName));
+      var allShells = string.IsNullOrEmpty(customShells) ? standardShells : $"{standardShells}; {customShells}";
+      ImGui.SetTooltip($"Available shells: {allShells}");
     }
 
     ImGui.Spacing();

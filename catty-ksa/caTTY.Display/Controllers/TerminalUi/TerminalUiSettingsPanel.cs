@@ -106,7 +106,11 @@ internal class TerminalUiSettingsPanel
     try
     {
       // Check if the configured shell is available
-      if (!ShellAvailabilityChecker.IsShellAvailable(_themeConfig.DefaultShellType))
+      bool shellAvailable = _themeConfig.DefaultShellType == ShellType.CustomGame
+        ? !string.IsNullOrEmpty(_themeConfig.DefaultCustomGameShellId) && CustomShellRegistry.Instance.IsShellRegistered(_themeConfig.DefaultCustomGameShellId)
+        : ShellAvailabilityChecker.IsShellAvailable(_themeConfig.DefaultShellType);
+
+      if (!shellAvailable)
       {
         // Fall back to the first available shell
         var availableShells = ShellAvailabilityChecker.GetAvailableShells();
