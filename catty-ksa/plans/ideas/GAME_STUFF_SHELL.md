@@ -1,3 +1,9 @@
+# SUBAGENT INSTRUCTIONS
+
+* whole solution MUST compile with `dotnet build`
+* whole solution test suite MUST pass with `.\scripts\dotnet-test.ps1`
+* you MUST commit the final version to git with a good subject and markdown bullet point list of what was implemented
+
 # IDEAS
 
 Implement a new custom shell.
