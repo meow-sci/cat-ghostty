@@ -153,18 +153,18 @@ public class BaseLineBufferedShellTests
     }
 
     [Test]
-    public async Task WriteInputAsync_BackspaceAlt_RemovesCharacter()
+    public async Task WriteInputAsync_CtrlH_DeletesWordNotCharacter()
     {
-        // Arrange
-        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        // Arrange - 0x08 (Ctrl+H) is now Ctrl+Backspace, which deletes words
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
         await Task.Delay(50);
 
-        // Act - Use alternative backspace (0x08)
+        // Act - Use Ctrl+H (0x08)
         await _shell.WriteInputAsync(new byte[] { 0x08 });
         await Task.Delay(50);
 
-        // Assert
-        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("tes"), "Alt backspace should remove character");
+        // Assert - Should delete the whole word "world", not just the last character
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello "), "Ctrl+H should delete word, not character");
     }
 
     [Test]
@@ -1244,18 +1244,18 @@ public class BaseLineBufferedShellTests
     }
 
     [Test]
-    public async Task CursorPosition_AlternativeBackspace()
+    public async Task CursorPosition_CtrlH_DeletesWord()
     {
-        // Arrange
-        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("test"));
+        // Arrange - 0x08 (Ctrl+H) is now Ctrl+Backspace, which deletes words
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
         await Task.Delay(50);
 
-        // Act - Use alternative backspace (0x08)
+        // Act - Use Ctrl+H (0x08)
         await _shell.WriteInputAsync(new byte[] { 0x08 });
         await Task.Delay(50);
 
-        // Assert
-        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(3), "Alt backspace should decrement cursor position");
+        // Assert - Cursor should be at position 6 after deleting "world"
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Ctrl+H should delete word and move cursor to word start");
     }
 
     #endregion
@@ -1410,25 +1410,25 @@ public class BaseLineBufferedShellTests
     }
 
     [Test]
-    public async Task WriteInputAsync_BackspaceAlternativeAtMiddle_DeletesCorrectly()
+    public async Task WriteInputAsync_CtrlH_AtMiddle_DeletesWord()
     {
-        // Arrange - Type "hello"
-        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello"));
+        // Arrange - Type "hello world test" and move to middle of "test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
         await Task.Delay(50);
 
-        // Move left 2 positions
+        // Move left 2 positions (cursor in middle of "test")
         await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
         await Task.Delay(50);
         await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
         await Task.Delay(50);
 
-        // Act - Use alternative backspace (0x08)
+        // Act - Use Ctrl+H (0x08) - should delete back to word boundary
         await _shell.WriteInputAsync(new byte[] { 0x08 });
         await Task.Delay(100);
 
-        // Assert
-        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("helo"), "Alt backspace should delete at middle");
-        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(2), "Cursor should be at position 2");
+        // Assert - Should delete "te" from "test", leaving "hello world st"
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world st"), "Ctrl+H should delete word fragment");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Cursor should be at word boundary");
     }
 
     [Test]
@@ -2170,6 +2170,89 @@ public class BaseLineBufferedShellTests
         Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
     }
 
+    [Test]
+    public async Task WriteInputAsync_CtrlH_DeletesPreviousWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+H (Ctrl+Backspace)
+        await _shell.WriteInputAsync(new byte[] { 0x08 }); // Ctrl+H
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello world "), "Should delete 'test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Cursor should be after 'world '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlH_TwiceDeletesTwoWords()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+H twice
+        await _shell.WriteInputAsync(new byte[] { 0x08 }); // Ctrl+H
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x08 }); // Ctrl+H
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello "), "Should delete 'world test'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be after 'hello '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlH_MidWord_DeletesPartialWord()
+    {
+        // Arrange - Type "hello world", move left 2 positions (mid-word in "world")
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(25);
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x44 }); // Left
+        await Task.Delay(50);
+
+        // Act - Send Ctrl+H (cursor is between 'r' and 'l' in "world")
+        await _shell.WriteInputAsync(new byte[] { 0x08 }); // Ctrl+H
+        await Task.Delay(50);
+
+        // Assert
+        Assert.That(_shell.TestGetCurrentLine(), Is.EqualTo("hello ld"), "Should delete 'wor' from 'world'");
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be after 'hello '");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_CtrlWAndCtrlH_BothWorkIdentically()
+    {
+        // This test verifies that Ctrl+W and Ctrl+H both delete previous word
+
+        // Test with Ctrl+W
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x17 }); // Ctrl+W
+        await Task.Delay(50);
+        var lineAfterCtrlW = _shell.TestGetCurrentLine();
+        var cursorAfterCtrlW = _shell.TestGetCursorPosition();
+
+        // Clear and test with Ctrl+H
+        await _shell.WriteInputAsync(new byte[] { 0x03 }); // Ctrl+C (clear line)
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        await _shell.WriteInputAsync(new byte[] { 0x08 }); // Ctrl+H
+        await Task.Delay(50);
+        var lineAfterCtrlH = _shell.TestGetCurrentLine();
+        var cursorAfterCtrlH = _shell.TestGetCursorPosition();
+
+        // Assert - Both should produce identical results
+        Assert.That(lineAfterCtrlH, Is.EqualTo(lineAfterCtrlW), "Ctrl+H and Ctrl+W should produce same line");
+        Assert.That(cursorAfterCtrlH, Is.EqualTo(cursorAfterCtrlW), "Ctrl+H and Ctrl+W should produce same cursor position");
+        Assert.That(lineAfterCtrlW, Is.EqualTo("hello world "), "Both should delete 'test'");
+    }
+
     #endregion
 
     #region Ctrl+Left/Right (Word Jumping) Tests
@@ -2474,6 +2557,109 @@ public class BaseLineBufferedShellTests
         // Assert
         Assert.That(_shell.TestGetCurrentLine(), Is.Empty, "Should remain empty");
         Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should remain at zero");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_EscF_JumpsToNextWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+
+        // Act - Send ESC f (Ctrl+Right in Ghostty/Emacs mode)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x66 }); // ESC f
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 6 (after "hello ")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Cursor should be at position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_EscB_JumpsToPreviousWord()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(16), "Cursor should be at end");
+
+        // Act - Send ESC b (Ctrl+Left in Ghostty/Emacs mode)
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x62 }); // ESC b
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 12 (start of "test")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Cursor should be at position 12");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_EscF_MultipleJumps()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+
+        // Act - Send ESC f twice
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x66 }); // ESC f
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "First jump should be at position 6");
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x66 }); // ESC f
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 12 (after "world ")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "Second jump should be at position 12");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_EscB_MultipleJumps()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(16), "Cursor should be at end");
+
+        // Act - Send ESC b twice
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x62 }); // ESC b
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(12), "First jump should be at position 12");
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x62 }); // ESC b
+        await Task.Delay(50);
+
+        // Assert - Should jump to position 6 (start of "world")
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "Second jump should be at position 6");
+    }
+
+    [Test]
+    public async Task WriteInputAsync_EscFAndEscB_RoundTrip()
+    {
+        // Arrange - Type "hello world test"
+        await _shell!.WriteInputAsync(Encoding.UTF8.GetBytes("hello world test"));
+        await Task.Delay(50);
+
+        // Move to start
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x5B, 0x48 }); // Home
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "Cursor should be at start");
+
+        // Act - Jump forward then back
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x66 }); // ESC f
+        await Task.Delay(50);
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(6), "After ESC f should be at position 6");
+
+        await _shell.WriteInputAsync(new byte[] { 0x1B, 0x62 }); // ESC b
+        await Task.Delay(50);
+
+        // Assert - Should be back at start
+        Assert.That(_shell.TestGetCursorPosition(), Is.EqualTo(0), "After ESC b should be back at position 0");
     }
 
     #endregion

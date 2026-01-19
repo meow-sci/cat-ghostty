@@ -70,6 +70,8 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     // Control character constants
     /// <summary>Ctrl+C (cancel line)</summary>
     protected const byte CtrlC = 0x03;
+    /// <summary>Ctrl+H (Ctrl+Backspace - delete previous word)</summary>
+    protected const byte CtrlH = 0x08;
     /// <summary>Ctrl+L (clear screen)</summary>
     protected const byte CtrlL = 0x0C;
     /// <summary>Ctrl+W (delete previous word)</summary>
@@ -80,8 +82,6 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
     protected const byte LineFeed = 0x0A;
     /// <summary>Backspace (DEL)</summary>
     protected const byte Backspace = 0x7F;
-    /// <summary>Backspace alternative (BS)</summary>
-    protected const byte BackspaceAlt = 0x08;
 
     /// <summary>
     ///     Gets the command history for testing/inspection purposes.
@@ -159,6 +159,18 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                     {
                         _escapeState = EscapeState.Csi;
                         _escapeBuffer.Clear();
+                    }
+                    else if (b == 'b')
+                    {
+                        // ESC b - Ctrl+Left (move to previous word)
+                        MoveCursorToPreviousWord();
+                        _escapeState = EscapeState.None;
+                    }
+                    else if (b == 'f')
+                    {
+                        // ESC f - Ctrl+Right (move to next word)
+                        MoveCursorToNextWord();
+                        _escapeState = EscapeState.None;
                     }
                     else
                     {
@@ -255,6 +267,12 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
             HandleDeleteWord();
             return;
         }
+        else if (b == CtrlH)
+        {
+            // Ctrl+H (Ctrl+Backspace): Delete previous word
+            HandleDeleteWord();
+            return;
+        }
         else if (b == CtrlL)
         {
             // Ctrl+L: Clear screen
@@ -300,9 +318,9 @@ public abstract class BaseLineBufferedShell : BaseChannelOutputShell
                 SendPrompt();
             }
         }
-        else if (b == Backspace || b == BackspaceAlt)
+        else if (b == Backspace)
         {
-            // Backspace: Remove character before cursor
+            // Backspace (0x7F): Remove character before cursor
             lock (_lock)
             {
                 if (_cursorPosition == 0)
