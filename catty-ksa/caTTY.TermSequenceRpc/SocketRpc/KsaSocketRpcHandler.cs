@@ -50,5 +50,7 @@ public class KsaSocketRpcHandler : ISocketRpcHandler
     {
         RegisterAction(new ListCraftsAction(_logger));
         RegisterAction(new GetCurrentCraftAction(_logger));
+        RegisterAction(new IgniteAction(_logger));
+        RegisterAction(new ShutdownAction(_logger));
     }
 }

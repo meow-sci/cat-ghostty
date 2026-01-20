@@ -5,7 +5,9 @@
   "type": "module",
   "bin": {
     "ksa-list-crafts": "./bin/ksa-list-crafts.ts",
-    "ksa-current-craft": "./bin/ksa-current-craft.ts"
+    "ksa-current-craft": "./bin/ksa-current-craft.ts",
+    "ksa-ignite": "./bin/ksa-ignite.ts",
+    "ksa-shutdown": "./bin/ksa-shutdown.ts"
   },
   "dependencies": {
     "@ksa/rpc-client": "file:../ksa-rpc-client"
