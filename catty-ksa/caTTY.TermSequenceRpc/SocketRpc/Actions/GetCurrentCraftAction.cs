@@ -24,6 +24,7 @@ public class GetCurrentCraftAction : ISocketRpcAction
     {
         try
         {
+            Console.WriteLine("Executing get-current-craft action");
             var vehicle = Program.ControlledVehicle;
             if (vehicle == null)
             {

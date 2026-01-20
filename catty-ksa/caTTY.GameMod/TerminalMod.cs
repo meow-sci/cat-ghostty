@@ -25,10 +25,6 @@ public class TerminalMod
     private ITerminalEmulator? _terminal;
     private bool _terminalVisible;
 
-    // Socket RPC infrastructure (singleton for game session)
-    private ISocketRpcServer? _socketRpcServer;
-    private ISocketRpcHandler? _socketRpcHandler;
-
 
     /// <summary>
     ///     Gets a value indicating whether the mod should be unloaded immediately.
@@ -97,8 +93,7 @@ public class TerminalMod
             // Note: GameConsoleShell is automatically discovered via CustomShellRegistry.DiscoverShells()
             // No manual registration needed - it will be found when GetAvailableShells() is called
 
-            // Initialize socket RPC server (singleton for entire game session)
-            InitializeSocketRpcServer();
+            // Socket RPC is now handled per-process by ProcessManager - no need for GameMod-level server
 
             InitializeTerminal();
         }
@@ -127,9 +122,6 @@ public class TerminalMod
         Console.WriteLine("caTTY Unload");
         try
         {
-            // Stop socket RPC server first
-            CleanupSocketRpcServer();
-
             Patcher.unload();
 
             DisposeResources();
@@ -137,76 +129,6 @@ public class TerminalMod
         catch (Exception ex)
         {
             Console.WriteLine($"caTTY GameMod unload error: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    ///     Initializes the singleton socket RPC server for the game session.
-    ///     This enables userland CLI tools to query game state via Unix domain sockets.
-    ///     Server runs independently of terminal sessions.
-    /// </summary>
-    private void InitializeSocketRpcServer()
-    {
-        try
-        {
-            // Create socket RPC handler with all three RPC mechanisms
-            var (_, _, socketRpcHandler) = RpcBootstrapper.CreateAllKsaRpcHandlers(
-                NullLogger.Instance,
-                bytes => { /* Output callback not needed for socket RPC */ });
-
-            _socketRpcHandler = socketRpcHandler;
-
-            // Create socket RPC server with unique socket path
-            _socketRpcServer = SocketRpcServerFactory.Create(_socketRpcHandler, NullLogger.Instance);
-
-            // Start server asynchronously
-            _ = _socketRpcServer.StartAsync();
-
-            // Set environment variable at process level so all child processes inherit it
-            Environment.SetEnvironmentVariable(
-                SocketRpcServerFactory.SocketPathEnvVar,
-                _socketRpcServer.SocketPath,
-                EnvironmentVariableTarget.Process);
-
-            Console.WriteLine($"caTTY GameMod: Socket RPC server started at {_socketRpcServer.SocketPath}");
-            Console.WriteLine($"caTTY GameMod: Environment variable {SocketRpcServerFactory.SocketPathEnvVar}={_socketRpcServer.SocketPath}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"caTTY GameMod: WARNING - Failed to start socket RPC server: {ex.Message}");
-            Console.WriteLine("Terminal will continue to work without socket RPC support.");
-            _socketRpcServer?.Dispose();
-            _socketRpcServer = null;
-            _socketRpcHandler = null;
-        }
-    }
-
-    /// <summary>
-    ///     Cleans up the socket RPC server and environment variable.
-    /// </summary>
-    private void CleanupSocketRpcServer()
-    {
-        if (_socketRpcServer != null)
-        {
-            try
-            {
-                Console.WriteLine("caTTY GameMod: Stopping socket RPC server...");
-                _socketRpcServer.StopAsync().Wait(1000);
-                _socketRpcServer.Dispose();
-                _socketRpcServer = null;
-
-                // Clear environment variable
-                Environment.SetEnvironmentVariable(
-                    SocketRpcServerFactory.SocketPathEnvVar,
-                    null,
-                    EnvironmentVariableTarget.Process);
-
-                Console.WriteLine("caTTY GameMod: Socket RPC server stopped successfully");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"caTTY GameMod: Error stopping socket RPC server: {ex.Message}");
-            }
         }
     }
 
@@ -254,15 +176,16 @@ public class TerminalMod
             CaTTYFontManager.LoadFonts();
 
             var _outputBuffer = new List<byte[]>();
-            var (rpcHandler, oscRpcHandler) = RpcBootstrapper.CreateKsaRpcHandlers(
+            var (rpcHandler, oscRpcHandler, socketRpcHandler) = RpcBootstrapper.CreateAllKsaRpcHandlers(
                 NullLogger.Instance,
                 bytes => _outputBuffer.Add(bytes));
 
-            // Create session manager with persisted shell configuration and RPC handlers
+            // Create session manager with persisted shell configuration and ALL RPC handlers (CSI, OSC, Socket)
             var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration(
                 maxSessions: 20,
                 rpcHandler: rpcHandler,
-                oscRpcHandler: oscRpcHandler);
+                oscRpcHandler: oscRpcHandler,
+                socketRpcHandler: socketRpcHandler);
             var session = sessionManager.CreateSessionAsync().Result;
 
             _terminal = session.Terminal;

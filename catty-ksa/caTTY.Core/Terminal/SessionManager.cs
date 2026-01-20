@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace caTTY.Core.Terminal;
@@ -21,6 +22,7 @@ public class SessionManager : IDisposable
     private readonly SessionDimensionTracker _dimensionTracker;
     private readonly IRpcHandler? _rpcHandler;
     private readonly IOscRpcHandler? _oscRpcHandler;
+    private readonly ISocketRpcHandler? _socketRpcHandler;
 
     /// <summary>
     ///     Creates a new session manager with the specified configuration.
@@ -29,11 +31,13 @@ public class SessionManager : IDisposable
     /// <param name="defaultLaunchOptions">Default options for launching new sessions</param>
     /// <param name="rpcHandler">Optional RPC handler for CSI RPC commands (null disables CSI RPC)</param>
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null disables OSC RPC)</param>
+    /// <param name="socketRpcHandler">Optional Socket RPC handler for Unix domain socket RPC (null disables socket RPC)</param>
     public SessionManager(
         int maxSessions = 20,
         ProcessLaunchOptions? defaultLaunchOptions = null,
         IRpcHandler? rpcHandler = null,
-        IOscRpcHandler? oscRpcHandler = null)
+        IOscRpcHandler? oscRpcHandler = null,
+        ISocketRpcHandler? socketRpcHandler = null)
     {
         SessionValidator.ValidateMaxSessions(maxSessions);
 
@@ -41,6 +45,7 @@ public class SessionManager : IDisposable
         _dimensionTracker = new SessionDimensionTracker(defaultLaunchOptions ?? ProcessLaunchOptions.CreateDefault());
         _rpcHandler = rpcHandler;
         _oscRpcHandler = oscRpcHandler;
+        _socketRpcHandler = socketRpcHandler;
     }
 
     /// <summary>
@@ -175,6 +180,7 @@ public class SessionManager : IDisposable
                 OnSessionProcessExited,
                 _rpcHandler,
                 _oscRpcHandler,
+                _socketRpcHandler,
                 cancellationToken);
 
             // Add session to manager and switch active session

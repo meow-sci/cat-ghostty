@@ -23,31 +23,19 @@ async function main() {
 
     if (currentOnly) {
       // Get only the current craft
-      const response = await client.request<CraftInfo | null>("get-current-craft");
-      
-      if (!response.success) {
-        console.error(`Error: ${response.error}`);
-        process.exit(1);
-      }
+      const craft = await client.call<CraftInfo | null>("get-current-craft");
 
       if (jsonOutput) {
-        console.log(JSON.stringify(response.data));
+        console.log(JSON.stringify(craft));
       } else {
-        if (response.data) {
-          console.log(response.data.name);
+        if (craft) {
+          console.log(craft.name);
         }
         // Empty output if no current craft
       }
     } else {
       // List all crafts
-      const response = await client.request<CraftInfo[]>("list-crafts");
-      
-      if (!response.success) {
-        console.error(`Error: ${response.error}`);
-        process.exit(1);
-      }
-
-      const crafts = response.data || [];
+      const crafts = await client.call<CraftInfo[]>("list-crafts");
 
       if (jsonOutput) {
         console.log(JSON.stringify(crafts, null, 2));
@@ -58,11 +46,9 @@ async function main() {
         }
       }
     }
-
-    client.close();
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`Error: ${error.message}`, error);
     } else {
       console.error(`Error: ${error}`);
     }

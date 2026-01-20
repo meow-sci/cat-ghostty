@@ -1,15 +1,15 @@
 namespace caTTY.Core.Rpc.Socket;
 
 /// <summary>
-/// Interface for the Unix Domain Socket RPC server.
+/// Interface for the TCP RPC server.
 /// Manages socket lifecycle and client connections.
 /// </summary>
 public interface ISocketRpcServer : IDisposable
 {
     /// <summary>
-    /// Gets the socket path this server is listening on.
+    /// Gets the endpoint (host:port) this server is listening on.
     /// </summary>
-    string SocketPath { get; }
+    string Endpoint { get; }
 
     /// <summary>
     /// Gets whether the server is currently running.

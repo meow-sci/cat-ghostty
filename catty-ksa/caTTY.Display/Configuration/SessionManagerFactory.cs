@@ -1,5 +1,6 @@
 using System.Reflection;
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 using caTTY.Core.Terminal;
 
 namespace caTTY.Display.Configuration;
@@ -17,11 +18,13 @@ public static class SessionManagerFactory
     /// <param name="maxSessions">Maximum number of concurrent sessions (default: 20)</param>
     /// <param name="rpcHandler">Optional RPC handler for CSI RPC commands (null disables CSI RPC)</param>
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null disables OSC RPC)</param>
+    /// <param name="socketRpcHandler">Optional Socket RPC handler for Unix domain socket RPC (null disables socket RPC)</param>
     /// <returns>A SessionManager configured with persisted shell settings</returns>
     public static SessionManager CreateWithPersistedConfiguration(
         int maxSessions = 20,
         IRpcHandler? rpcHandler = null,
-        IOscRpcHandler? oscRpcHandler = null)
+        IOscRpcHandler? oscRpcHandler = null,
+        ISocketRpcHandler? socketRpcHandler = null)
     {
         // Load persisted configuration to determine initial shell type
         var themeConfig = ThemeConfiguration.Load();
@@ -63,7 +66,7 @@ public static class SessionManagerFactory
         defaultLaunchOptions.WorkingDirectory = Environment.CurrentDirectory;
 
         // Create session manager with persisted shell configuration and RPC handlers
-        return new SessionManager(maxSessions, defaultLaunchOptions, rpcHandler, oscRpcHandler);
+        return new SessionManager(maxSessions, defaultLaunchOptions, rpcHandler, oscRpcHandler, socketRpcHandler);
     }
 
     /// <summary>

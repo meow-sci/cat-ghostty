@@ -2,26 +2,42 @@ import { connect } from "bun";
 import type { RpcRequest, RpcResponse, ClientOptions } from "./types";
 
 /**
- * RPC client for communicating with Kitten Space Agency game via Unix domain sockets
+ * RPC client for communicating with Kitten Space Agency game via TCP
  */
 export class KsaRpcClient {
-  private socketPath: string;
+  private host: string;
+  private port: number;
   private timeout: number;
 
   /**
    * Create a new KSA RPC client
-   * @param socketPath - Path to Unix domain socket (defaults to KSA_RPC_SOCKET env var)
+   * @param target - Target endpoint in "host:port" format (defaults to KSA_RPC_TARGET env var)
    * @param options - Client configuration options
    */
-  constructor(socketPath?: string, options?: ClientOptions) {
-    this.socketPath = socketPath ?? process.env.KSA_RPC_SOCKET ?? "";
+  constructor(target?: string, options?: ClientOptions) {
+    const targetStr = target ?? process.env.KSA_RPC_TARGET ?? "";
     this.timeout = options?.timeout ?? 5000;
 
-    if (!this.socketPath) {
+    if (!targetStr) {
       throw new Error(
-        "Socket path not provided. Set KSA_RPC_SOCKET environment variable or pass socketPath to constructor."
+        "Target not provided. Set KSA_RPC_TARGET environment variable or pass target to constructor."
       );
     }
+
+    // Parse host:port
+    const parts = targetStr.split(":");
+    if (parts.length !== 2) {
+      throw new Error(
+        `Invalid target format "${targetStr}". Expected "host:port" format (e.g., "localhost:4242")`
+      );
+    }
+
+    this.host = parts[0];
+    const parsedPort = parseInt(parts[1], 10);
+    if (isNaN(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+      throw new Error(`Invalid port number: ${parts[1]}`);
+    }
+    this.port = parsedPort;
   }
 
   /**
@@ -43,34 +59,56 @@ export class KsaRpcClient {
         reject(new Error(`Request timed out after ${this.timeout}ms`));
       }, this.timeout);
 
+      // Accumulate data chunks until we receive a complete message (terminated by \n)
+      let responseBuffer = Buffer.alloc(0);
+
       try {
-        // Connect to Unix domain socket
+        // Connect to TCP socket
         const socket = await connect({
-          unix: this.socketPath,
+          hostname: this.host,
+          port: this.port,
           socket: {
             data(socket, data) {
-              clearTimeout(timeoutId);
+              // Accumulate data
+              responseBuffer = Buffer.concat([responseBuffer, Buffer.from(data)]);
 
-              // Parse response
-              const responseText = Buffer.from(data).toString("utf-8").trim();
-              try {
-                const response: RpcResponse<T> = JSON.parse(responseText);
+              // Check if we have a complete message (ends with newline)
+              const responseText = responseBuffer.toString("utf-8");
+              const newlineIndex = responseText.indexOf("\n");
 
-                if (response.success) {
-                  resolve(response.data as T);
-                } else {
-                  reject(new Error(response.error ?? "Unknown error"));
+              if (newlineIndex !== -1) {
+                clearTimeout(timeoutId);
+
+                // Extract complete message (everything before newline)
+                let completeMessage = responseText.substring(0, newlineIndex);
+
+                // Strip UTF-8 BOM if present (EF BB BF)
+                if (completeMessage.charCodeAt(0) === 0xfeff) {
+                  completeMessage = completeMessage.substring(1);
                 }
-              } catch (parseError) {
-                reject(
-                  new Error(
-                    `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}`
-                  )
-                );
-              }
 
-              // Close socket after receiving response
-              socket.end();
+                completeMessage = completeMessage.trim();
+
+                try {
+                  const response: RpcResponse<T> = JSON.parse(completeMessage);
+
+                  if (response.success) {
+                    resolve(response.data as T);
+                  } else {
+                    reject(new Error(response.error ?? "Unknown error"));
+                  }
+                } catch (parseError) {
+                  reject(
+                    new Error(
+                      `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+                    )
+                  );
+                }
+
+                // Close socket after receiving complete response
+                socket.end();
+              }
+              // Otherwise, keep accumulating data for next callback
             },
             error(socket, error) {
               clearTimeout(timeoutId);
@@ -96,9 +134,9 @@ export class KsaRpcClient {
   }
 
   /**
-   * Get the configured socket path
+   * Get the configured target endpoint
    */
-  getSocketPath(): string {
-    return this.socketPath;
+  getTarget(): string {
+    return `${this.host}:${this.port}`;
   }
 }

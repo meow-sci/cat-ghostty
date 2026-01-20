@@ -71,7 +71,7 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
     public ISocketRpcServer? SocketRpcServer => _socketRpcServer;
 
     /// <inheritdoc />
-    public string? SocketRpcPath => _socketRpcServer?.SocketPath;
+    public string? SocketRpcPath => _socketRpcServer?.Endpoint;
 
     /// <summary>
     ///     Event raised when data is received from the shell process stdout/stderr.
@@ -150,6 +150,39 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
                 throw;
             }
 
+            // Start socket RPC server BEFORE creating the process so we can pass the socket path to the child
+            if (_socketRpcHandler != null)
+            {
+                try
+                {
+                    _socketRpcServer = SocketRpcServerFactory.Create(_socketRpcHandler, _logger);
+                    await _socketRpcServer.StartAsync(cancellationToken);
+                    
+                    // Add endpoint to environment variables for child process
+                    options.EnvironmentVariables[SocketRpcServerFactory.EndpointEnvVar] = _socketRpcServer.Endpoint;
+                    Console.WriteLine($"[caTTY] Setting {SocketRpcServerFactory.EndpointEnvVar}={_socketRpcServer.Endpoint} for child process");
+                    
+                    _logger.LogInformation("Socket RPC server started at {Endpoint} before process creation", _socketRpcServer.Endpoint);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to start socket RPC server, continuing without RPC");
+                    _socketRpcServer?.Dispose();
+                    _socketRpcServer = null;
+                }
+            }
+
+            // Create environment block from options (includes socket RPC path if configured)
+            IntPtr envBlock = IntPtr.Zero;
+            try
+            {
+                envBlock = ProcessLifecycleManager.CreateEnvironmentBlock(options.EnvironmentVariables);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to create environment block, using parent environment");
+            }
+
             // Resolve shell command
             (string shellPath, string shellArgs) = ShellCommandResolver.ResolveShellCommand(options);
             string commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
@@ -161,13 +194,26 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
                 processInfo = ProcessLifecycleManager.CreateProcess(
                     commandLine,
                     options.WorkingDirectory ?? Environment.CurrentDirectory,
-                    ref startupInfo);
+                    ref startupInfo,
+                    envBlock);
             }
             catch
             {
+                if (envBlock != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(envBlock);
+                }
                 AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
                 throw;
+            }
+            finally
+            {
+                // Free environment block after process creation
+                if (envBlock != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(envBlock);
+                }
             }
 
             // Clean up startup info
@@ -195,23 +241,6 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
             {
                 CleanupProcess();
                 throw;
-            }
-
-            // Start socket RPC server if handler is configured
-            if (_socketRpcHandler != null)
-            {
-                try
-                {
-                    _socketRpcServer = SocketRpcServerFactory.Create(_socketRpcHandler, _logger);
-                    await _socketRpcServer.StartAsync(cancellationToken);
-                    _logger.LogInformation("Socket RPC server started at {SocketPath}", _socketRpcServer.SocketPath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to start socket RPC server, continuing without RPC");
-                    _socketRpcServer?.Dispose();
-                    _socketRpcServer = null;
-                }
             }
         }
         catch (Exception ex) when (!(ex is ProcessStartException))

@@ -19,25 +19,17 @@ async function main() {
 
   try {
     const client = new KsaRpcClient();
-    const response = await client.request<CraftInfo | null>("get-current-craft");
-    
-    if (!response.success) {
-      console.error(`Error: ${response.error}`);
-      client.close();
-      process.exit(1);
-    }
+    const craft = await client.call<CraftInfo | null>("get-current-craft");
 
     if (jsonOutput) {
       // Output full JSON object or null
-      console.log(JSON.stringify(response.data));
+      console.log(JSON.stringify(craft));
     } else {
       // Output craft name if exists, empty otherwise
-      if (response.data) {
-        console.log(response.data.name);
+      if (craft) {
+        console.log(craft.name);
       }
     }
-
-    client.close();
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);

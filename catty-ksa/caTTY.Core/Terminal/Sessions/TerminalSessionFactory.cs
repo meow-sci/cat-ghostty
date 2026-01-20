@@ -1,4 +1,5 @@
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace caTTY.Core.Terminal;
@@ -20,6 +21,7 @@ internal class TerminalSessionFactory
     /// <param name="onProcessExited">Event handler for process exit</param>
     /// <param name="rpcHandler">Optional RPC handler for game integration (null disables RPC functionality)</param>
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands (null uses default no-op handler)</param>
+    /// <param name="socketRpcHandler">Optional Socket RPC handler for Unix domain socket RPC (null disables socket RPC)</param>
     /// <param name="launchOptions">Optional launch options for the session (used to determine shell type)</param>
     /// <returns>A fully configured terminal session</returns>
     /// <exception cref="InvalidOperationException">Thrown if custom game shell cannot be created</exception>
@@ -33,6 +35,7 @@ internal class TerminalSessionFactory
         EventHandler<SessionProcessExitedEventArgs> onProcessExited,
         IRpcHandler? rpcHandler = null,
         IOscRpcHandler? oscRpcHandler = null,
+        ISocketRpcHandler? socketRpcHandler = null,
         ProcessLaunchOptions? launchOptions = null)
     {
         var terminal = TerminalEmulator.Create(initialWidth, initialHeight, 2500, NullLogger.Instance, rpcHandler, oscRpcHandler);
@@ -69,7 +72,16 @@ internal class TerminalSessionFactory
         else
         {
             Console.WriteLine($"TerminalSessionFactory.CreateSession: Creating standard ProcessManager for shell type: {launchOptions?.ShellType ?? ShellType.Auto}");
-            processManager = new ProcessManager();
+            var standardProcessManager = new ProcessManager();
+            
+            // Configure socket RPC if handler is provided
+            if (socketRpcHandler != null)
+            {
+                Console.WriteLine("TerminalSessionFactory.CreateSession: Configuring socket RPC handler on ProcessManager");
+                standardProcessManager.ConfigureSocketRpc(socketRpcHandler);
+            }
+            
+            processManager = standardProcessManager;
         }
 
         var session = new TerminalSession(sessionId, sessionTitle, terminal, processManager);

@@ -3,39 +3,58 @@ using Microsoft.Extensions.Logging;
 namespace caTTY.Core.Rpc.Socket;
 
 /// <summary>
-/// Factory for creating socket RPC servers with unique socket paths.
+/// Factory for creating TCP RPC servers.
 /// </summary>
 public static class SocketRpcServerFactory
 {
     /// <summary>
-    /// Environment variable name for the RPC socket path.
+    /// Environment variable name for the RPC target endpoint.
     /// </summary>
-    public const string SocketPathEnvVar = "KSA_RPC_SOCKET";
+    public const string EndpointEnvVar = "KSA_RPC_TARGET";
 
     /// <summary>
-    /// Generates a unique socket path for a terminal session.
+    /// Default host to bind to (0.0.0.0 for all interfaces, WSL2 compatible).
     /// </summary>
-    /// <param name="sessionId">Optional session identifier for uniqueness</param>
-    /// <returns>Full path to the socket file</returns>
-    public static string GenerateSocketPath(string? sessionId = null)
-    {
-        var id = sessionId ?? Guid.NewGuid().ToString("N")[..8];
-        var fileName = $"ksa-rpc-{id}.sock";
+    public const string DefaultHost = "0.0.0.0";
 
-        // Use temp directory for cross-platform compatibility
-        return Path.Combine(Path.GetTempPath(), fileName);
+    /// <summary>
+    /// Default port for RPC server.
+    /// </summary>
+    public const int DefaultPort = 4242;
+
+    /// <summary>
+    /// Generates the endpoint string for client connections.
+    /// </summary>
+    /// <param name="host">Host (default: "localhost")</param>
+    /// <param name="port">Port (default: 4242)</param>
+    /// <returns>Endpoint in host:port format</returns>
+    public static string GenerateEndpoint(string? host = null, int? port = null)
+    {
+        return $"{host ?? "localhost"}:{port ?? DefaultPort}";
     }
 
     /// <summary>
-    /// Creates a new socket RPC server instance.
+    /// Creates a new TCP RPC server instance.
     /// </summary>
     /// <param name="handler">Handler to dispatch requests to</param>
     /// <param name="logger">Logger for diagnostics</param>
-    /// <param name="sessionId">Optional session identifier</param>
+    /// <param name="host">Host to bind to (default: 0.0.0.0 for all interfaces)</param>
+    /// <param name="port">Port to listen on (default: 4242)</param>
     /// <returns>Configured but not started server instance</returns>
-    public static ISocketRpcServer Create(ISocketRpcHandler handler, ILogger logger, string? sessionId = null)
+    public static ISocketRpcServer Create(
+        ISocketRpcHandler handler, 
+        ILogger logger, 
+        string? host = null, 
+        int? port = null)
     {
-        var socketPath = GenerateSocketPath(sessionId);
-        return new SocketRpcServer(socketPath, handler, logger);
+        var bindHost = host ?? DefaultHost;
+        var bindPort = port ?? DefaultPort;
+        Console.WriteLine($"[caTTY] Creating TCP RPC server: bind={bindHost}:{bindPort}, client endpoint=localhost:{bindPort}");
+        
+        return new SocketRpcServer(
+            bindHost, 
+            bindPort, 
+            handler, 
+            logger);
     }
 }

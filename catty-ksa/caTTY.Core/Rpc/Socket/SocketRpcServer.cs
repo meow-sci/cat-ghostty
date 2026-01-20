@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -6,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace caTTY.Core.Rpc.Socket;
 
 /// <summary>
-/// Unix Domain Socket RPC server implementation.
+/// TCP RPC server implementation.
 /// Accepts connections, reads JSON requests, dispatches to handler, sends JSON responses.
 /// Uses single-threaded accept loop with synchronous request handling.
 /// </summary>
@@ -19,9 +20,11 @@ public sealed class SocketRpcServer : ISocketRpcServer
     private CancellationTokenSource? _cts;
     private Task? _acceptTask;
     private bool _disposed;
+    private readonly int _port;
+    private readonly string _host;
 
     /// <inheritdoc />
-    public string SocketPath { get; }
+    public string Endpoint => $"{_host}:{_port}";
 
     /// <inheritdoc />
     public bool IsRunning => _listenSocket != null && _acceptTask != null && !_acceptTask.IsCompleted;
@@ -29,12 +32,14 @@ public sealed class SocketRpcServer : ISocketRpcServer
     /// <summary>
     /// Creates a new SocketRpcServer.
     /// </summary>
-    /// <param name="socketPath">Path for the Unix domain socket file</param>
+    /// <param name="host">Host to bind to (e.g., "0.0.0.0" or "localhost")</param>
+    /// <param name="port">Port to listen on</param>
     /// <param name="handler">Handler to dispatch requests to</param>
     /// <param name="logger">Logger for diagnostics</param>
-    public SocketRpcServer(string socketPath, ISocketRpcHandler handler, ILogger logger)
+    public SocketRpcServer(string host, int port, ISocketRpcHandler handler, ILogger logger)
     {
-        SocketPath = socketPath ?? throw new ArgumentNullException(nameof(socketPath));
+        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _port = port;
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -51,27 +56,27 @@ public sealed class SocketRpcServer : ISocketRpcServer
         if (_disposed) throw new ObjectDisposedException(nameof(SocketRpcServer));
         if (IsRunning) throw new InvalidOperationException("Server is already running");
 
-        // Delete existing socket file if present
-        if (File.Exists(SocketPath))
-        {
-            File.Delete(SocketPath);
-        }
+        // Create TCP socket
+        _listenSocket = new System.Net.Sockets.Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        
+        // Allow reuse of address to avoid "address already in use" errors on quick restart
+        _listenSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+        
+        // Bind to specified host and port
+        var ipAddress = _host == "0.0.0.0" ? IPAddress.Any : IPAddress.Parse(_host);
+        var endPoint = new IPEndPoint(ipAddress, _port);
+        _listenSocket.Bind(endPoint);
+        _listenSocket.Listen(10); // Allow multiple connections in backlog
 
-        // Ensure directory exists
-        var dir = Path.GetDirectoryName(SocketPath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        _listenSocket = new System.Net.Sockets.Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        _listenSocket.Bind(new UnixDomainSocketEndPoint(SocketPath));
-        _listenSocket.Listen(1); // Only 1 connection at a time
+        // Log successful binding
+        var actualEndpoint = (IPEndPoint)_listenSocket.LocalEndPoint!;
+        Console.WriteLine($"[caTTY] TCP RPC server successfully bound to {actualEndpoint.Address}:{actualEndpoint.Port}");
+        Console.WriteLine($"[caTTY] Client endpoint: {Endpoint}");
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _acceptTask = AcceptLoopAsync(_cts.Token);
 
-        _logger.LogInformation("Socket RPC server started on {SocketPath}", SocketPath);
+        _logger.LogInformation("TCP RPC server started on {Endpoint}", Endpoint);
         return Task.CompletedTask;
     }
 
@@ -101,8 +106,7 @@ public sealed class SocketRpcServer : ISocketRpcServer
             }
         }
 
-        CleanupSocketFile();
-        _logger.LogInformation("Socket RPC server stopped");
+        _logger.LogInformation("TCP RPC server stopped");
     }
 
     /// <inheritdoc />
@@ -115,32 +119,18 @@ public sealed class SocketRpcServer : ISocketRpcServer
         _cts?.Dispose();
 
         try { _listenSocket?.Dispose(); } catch { /* ignore */ }
-
-        CleanupSocketFile();
-    }
-
-    private void CleanupSocketFile()
-    {
-        try
-        {
-            if (File.Exists(SocketPath))
-            {
-                File.Delete(SocketPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to delete socket file {SocketPath}", SocketPath);
-        }
     }
 
     private async Task AcceptLoopAsync(CancellationToken ct)
     {
+        Console.WriteLine("[caTTY] TCP RPC server accept loop started, waiting for connections...");
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 using var client = await _listenSocket!.AcceptAsync(ct).ConfigureAwait(false);
+                var remoteEndPoint = client.RemoteEndPoint;
+                Console.WriteLine($"[caTTY] Client connected from {remoteEndPoint}");
                 await HandleClientAsync(client, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -170,9 +160,11 @@ public sealed class SocketRpcServer : ISocketRpcServer
             var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(line))
             {
+                Console.WriteLine("[caTTY] Client sent empty request, closing connection");
                 return;
             }
 
+            Console.WriteLine($"[caTTY] Request received: {line}");
             _logger.LogDebug("Socket RPC received: {Request}", line);
 
             SocketRpcResponse response;
@@ -201,7 +193,8 @@ public sealed class SocketRpcServer : ISocketRpcServer
 
             var responseJson = JsonSerializer.Serialize(response, _jsonOptions);
             await writer.WriteLineAsync(responseJson).ConfigureAwait(false);
-
+            writer.Flush();
+            Console.WriteLine($"Socket RPC response: {responseJson}");
             _logger.LogDebug("Socket RPC response: {Response}", responseJson);
         }
         catch (Exception ex)

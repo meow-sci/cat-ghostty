@@ -1,4 +1,5 @@
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 
 namespace caTTY.Core.Terminal;
 
@@ -18,6 +19,7 @@ internal class SessionCreator
     /// <param name="onProcessExited">Event handler for process exit</param>
     /// <param name="rpcHandler">Optional RPC handler for CSI RPC commands</param>
     /// <param name="oscRpcHandler">Optional OSC RPC handler for OSC-based RPC commands</param>
+    /// <param name="socketRpcHandler">Optional Socket RPC handler for Unix domain socket RPC</param>
     /// <param name="cancellationToken">Cancellation token for the operation</param>
     /// <returns>The created and initialized session</returns>
     public static async Task<TerminalSession> CreateSessionAsync(
@@ -29,6 +31,7 @@ internal class SessionCreator
         EventHandler<SessionProcessExitedEventArgs> onProcessExited,
         IRpcHandler? rpcHandler,
         IOscRpcHandler? oscRpcHandler,
+        ISocketRpcHandler? socketRpcHandler,
         CancellationToken cancellationToken)
     {
         var session = TerminalSessionFactory.CreateSession(
@@ -41,6 +44,7 @@ internal class SessionCreator
             onProcessExited,
             rpcHandler,
             oscRpcHandler,
+            socketRpcHandler,
             launchOptions);
 
         try

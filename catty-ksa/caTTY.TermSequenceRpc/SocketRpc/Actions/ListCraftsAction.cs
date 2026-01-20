@@ -24,6 +24,7 @@ public class ListCraftsAction : ISocketRpcAction
     {
         try
         {
+            Console.WriteLine("Executing list-crafts action");
             var crafts = new List<object>();
 
             // For now, only return the controlled vehicle if it exists
