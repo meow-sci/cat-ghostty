@@ -1,0 +1,30 @@
+{
+  "name": "@ksa/rpc-client",
+  "version": "0.1.0",
+  "description": "TypeScript/Bun client SDK for Kitten Space Agency RPC via Unix domain sockets",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "ksa",
+    "rpc",
+    "game",
+    "client",
+    "unix-socket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}
