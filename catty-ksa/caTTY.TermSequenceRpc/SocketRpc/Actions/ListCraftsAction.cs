@@ -27,17 +27,23 @@ public class ListCraftsAction : ISocketRpcAction
             Console.WriteLine("Executing list-crafts action");
             var crafts = new List<object>();
 
+
+
             // For now, only return the controlled vehicle if it exists
             // TODO: Expand to list all vehicles when KSA API is better understood
             var controlledVehicle = Program.ControlledVehicle;
-            if (controlledVehicle != null)
+
+            var vehicles = Universe.CurrentSystem?.Vehicles.GetList() ?? Enumerable.Empty<Vehicle>();
+
+            foreach (Vehicle vehicle in vehicles)
             {
                 crafts.Add(new
                 {
-                    name = $"Controlled Vehicle",
-                    isControlled = true
+                    name = vehicle.Id,
+                    isControlled = controlledVehicle?.Id == vehicle.Id
                 });
             }
+
 
             _logger.LogDebug("list-crafts returning {Count} vehicles", crafts.Count);
             return SocketRpcResponse.Ok(crafts);
