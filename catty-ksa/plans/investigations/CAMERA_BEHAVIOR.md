@@ -6,7 +6,7 @@ We have some code which is doing camera manipulation in the `caTTY.SkunkworksGam
 
 We need to go back to fundamental building blocks of ways to control the camera in-game before building up the more complex features like the existing keyframe system and orbit animation.
 
-# Task
+# Goal
 
 1. Refactor the existing SkukworksGameMod ImGui code to put all the existing animation/orbit code into a ImGui collapsing header and arrange the code to expect many collapsing headers of distinct, separate experimental code that has no relation to one another.  Name the existing one "Orbit Animation"
 2. Add a new collapsing header section for "Camera Basics"
@@ -15,6 +15,13 @@ We need to go back to fundamental building blocks of ways to control the camera 
     2. A series of buttons to move the camera in various vector directions to test moving camera
 
 # Tasks
+
+## MUST FOLLOW RULES FOR ALL TASKS
+
+- Before a task is complete
+    - the solution must compile successfully with `dotnet build`
+- Upon task completion
+    - create a git commit of all changes with a good subject line and detailed markdown body of what was implemented.  the subject should be prefixed with e.g. [phase 1 task 1]: [subject here]
 
 ## Phase 1: UI Refactoring - Collapsing Header Structure
 
@@ -359,6 +366,11 @@ public class CameraBasicsPanel
     // Movement parameters (UI state)
     private float _moveDistance = 10.0f; // meters
     private float _rotationDegrees = 15.0f; // degrees
+
+    // SetFollow flag experiment UI state
+    private bool _setFollowUnknown0 = false;
+    private bool _setFollowChangeControl = false;
+    private bool _setFollowAlert = false;
     
     public CameraBasicsPanel(ICameraService cameraService)
     {
@@ -414,6 +426,11 @@ private void RenderCameraModeSection()
     // Display current mode
     var currentMode = _cameraService.GetCurrentMode();
     ImGui.Text($"Current Mode: {currentMode}");
+
+    // Display native control/controller debug if available
+    var nativeMode = _cameraService.GetNativeControlModeDebug();
+    if (!string.IsNullOrWhiteSpace(nativeMode))
+        ImGui.TextDisabled($"Native Control Mode: {nativeMode}");
     
     // Display follow target if any
     var followTarget = _cameraService.FollowTarget;
@@ -427,74 +444,110 @@ private void RenderCameraModeSection()
     }
     
     ImGui.Spacing();
-    
+
     // Mode switching buttons
     ImGui.Text("Switch Mode:");
-    
-    // Following mode button
+
     bool hasTarget = followTarget != null;
-    bool isFollowing = _cameraService.IsFollowing;
-    
-    if (!hasTarget)
-        ImGui.BeginDisabled();
-    
-    if (ImGui.Button("Native Follow Mode"))
+
+    // Expose SetFollow flags for experimentation
+    ImGui.SeparatorText("SetFollow Flags (Experiment)");
+    ImGui.TextDisabled("These map to SetFollow(Astronomical, bool unknown0, bool changeControl, bool alert)");
+    ImGui.Checkbox("unknown0", ref _setFollowUnknown0);
+    ImGui.SameLine();
+    ImGui.Checkbox("changeControl", ref _setFollowChangeControl);
+    ImGui.SameLine();
+    ImGui.Checkbox("alert", ref _setFollowAlert);
+
+    // Native follow (default)
+    if (!hasTarget) ImGui.BeginDisabled();
+    if (ImGui.Button("Native Follow (default)"))
     {
         if (_cameraService.StartFollowing())
-        {
-            Console.WriteLine("[CameraBasicsPanel] Switched to native follow mode");
-        }
+            Console.WriteLine("[CameraBasicsPanel] Switched to native follow (default)");
         else
-        {
-            Console.WriteLine("[CameraBasicsPanel] Failed to start following - no target");
-        }
+            Console.WriteLine("[CameraBasicsPanel] Failed to start following (default)");
     }
     if (ImGui.IsItemHovered())
-        ImGui.SetTooltip("Use KSA's built-in follow mode with default offset");
-    
-    if (!hasTarget)
-        ImGui.EndDisabled();
-    
+        ImGui.SetTooltip("Use KSA's built-in follow mode with default parameters");
+    if (!hasTarget) ImGui.EndDisabled();
+
     ImGui.SameLine();
-    
-    // Free camera button
-    if (ImGui.Button("Free Camera Mode"))
+
+    // Native follow (flags)
+    if (!hasTarget) ImGui.BeginDisabled();
+    if (ImGui.Button("Native Follow (flags)"))
+    {
+        if (_cameraService.TryStartFollowingWithOptions(_setFollowUnknown0, _setFollowChangeControl, _setFollowAlert))
+            Console.WriteLine("[CameraBasicsPanel] Switched to native follow (flags)");
+        else
+            Console.WriteLine("[CameraBasicsPanel] Failed to start following (flags)");
+    }
+    if (ImGui.IsItemHovered())
+        ImGui.SetTooltip("Invoke SetFollow with explicit flags to discover their behavior");
+    if (!hasTarget) ImGui.EndDisabled();
+
+    // Free camera
+    if (ImGui.Button("Free Camera"))
     {
         _cameraService.EnterFreeCameraMode();
         Console.WriteLine("[CameraBasicsPanel] Switched to free camera mode");
     }
     if (ImGui.IsItemHovered())
-        ImGui.SetTooltip("Stop following, camera becomes fully manual");
-    
-    ImGui.SameLine();
-    
-    // Manual follow button (existing feature)
-    if (!hasTarget)
-        ImGui.BeginDisabled();
-    
-    if (ImGui.Button("Manual Follow Mode"))
+        ImGui.SetTooltip("Stop following; camera becomes fully manual");
+
+    // Manual follow entry/exit
+    ImGui.SeparatorText("Manual Follow");
+
+    if (!hasTarget) ImGui.BeginDisabled();
+    if (ImGui.Button("Enter Manual Follow"))
     {
         var currentOffset = _cameraService.Position - _cameraService.GetTargetPosition();
         _cameraService.StartManualFollow(currentOffset);
-        Console.WriteLine("[CameraBasicsPanel] Switched to manual follow mode");
+        Console.WriteLine("[CameraBasicsPanel] Entered manual follow mode");
     }
     if (ImGui.IsItemHovered())
-        ImGui.SetTooltip("Custom follow mode that maintains current offset");
-    
-    if (!hasTarget)
-        ImGui.EndDisabled();
+        ImGui.SetTooltip("Custom tracking mode that preserves the current offset");
+    if (!hasTarget) ImGui.EndDisabled();
+
+    ImGui.SameLine();
+
+    if (ImGui.Button("Exit Manual Follow (keep offset)"))
+    {
+        _cameraService.ExitManualFollow(ManualFollowExitMode.KeepCurrentOffset);
+        Console.WriteLine("[CameraBasicsPanel] Exit manual follow (keep offset)");
+    }
+
+    ImGui.SameLine();
+
+    if (!hasTarget) ImGui.BeginDisabled();
+    if (ImGui.Button("Exit Manual Follow (restore native)"))
+    {
+        _cameraService.ExitManualFollow(
+            ManualFollowExitMode.RestoreNativeFollow,
+            unknown0: _setFollowUnknown0,
+            changeControl: _setFollowChangeControl,
+            alert: _setFollowAlert);
+        Console.WriteLine("[CameraBasicsPanel] Exit manual follow (restore native)");
+    }
+    if (ImGui.IsItemHovered())
+        ImGui.SetTooltip("Attempts to restore native follow/control via SetFollow; may snap depending on KSA behavior");
+    if (!hasTarget) ImGui.EndDisabled();
 }
 ```
 
 **Key Features**:
 - Visual indication of current mode (text display)
-- Three mode buttons: Native Follow, Free Camera, Manual Follow
+- Native mode/controller debug display (best-effort)
+- Mode switching includes: native follow (default), native follow (flagged), free camera
+- Manual follow includes explicit exit behaviors (keep offset vs restore native)
 - Buttons disabled when no follow target available (where applicable)
 - Tooltips explaining each mode
 - Console logging for debugging
 
 **Acceptance Criteria**:
-- All three camera modes can be switched between using buttons
+- Follow/unfollow/manual-follow entry/exit can be exercised independently
+- SetFollow flags can be toggled and invoked to observe effects on native control mode
 - Buttons are appropriately disabled when target unavailable
 - Current mode is displayed accurately
 - Tooltips provide clear explanations
