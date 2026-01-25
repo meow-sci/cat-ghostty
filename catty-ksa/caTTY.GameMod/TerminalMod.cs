@@ -24,6 +24,7 @@ public class TerminalMod
     private bool _isInitialized;
     private ITerminalEmulator? _terminal;
     private bool _terminalVisible;
+    private ISocketRpcServer? _socketRpcServer;
 
 
     /// <summary>
@@ -93,7 +94,7 @@ public class TerminalMod
             // Note: GameConsoleShell is automatically discovered via CustomShellRegistry.DiscoverShells()
             // No manual registration needed - it will be found when GetAvailableShells() is called
 
-            // Socket RPC is now handled per-process by ProcessManager - no need for GameMod-level server
+            // Socket RPC server is a singleton game mod feature, independent of terminal emulation
 
             InitializeTerminal();
         }
@@ -180,12 +181,29 @@ public class TerminalMod
                 NullLogger.Instance,
                 bytes => _outputBuffer.Add(bytes));
 
-            // Create session manager with persisted shell configuration and ALL RPC handlers (CSI, OSC, Socket)
+            // Start singleton socket RPC server at mod level (BEFORE creating sessions)
+            try
+            {
+                _socketRpcServer = SocketRpcServerFactory.Create(socketRpcHandler, NullLogger.Instance);
+                _socketRpcServer.StartAsync().Wait();
+
+                // Register endpoint with factory for ProcessManager to query
+                SocketRpcServerFactory.RegisterEndpoint(_socketRpcServer.Endpoint);
+
+                Console.WriteLine($"[caTTY GameMod] Socket RPC server started at {_socketRpcServer.Endpoint}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[caTTY GameMod] Failed to start socket RPC server: {ex.Message}");
+                _socketRpcServer = null;
+                SocketRpcServerFactory.ClearEndpoint();
+            }
+
+            // Create session manager with persisted shell configuration and RPC handlers (CSI, OSC)
             var sessionManager = SessionManagerFactory.CreateWithPersistedConfiguration(
                 maxSessions: 20,
                 rpcHandler: rpcHandler,
-                oscRpcHandler: oscRpcHandler,
-                socketRpcHandler: socketRpcHandler);
+                oscRpcHandler: oscRpcHandler);
             var session = sessionManager.CreateSessionAsync().Result;
 
             _terminal = session.Terminal;
@@ -276,6 +294,26 @@ public class TerminalMod
 
             _terminal?.Dispose();
             _terminal = null;
+
+            // Stop and dispose singleton socket RPC server
+            if (_socketRpcServer != null)
+            {
+                try
+                {
+                    _socketRpcServer.StopAsync().Wait(1000);
+                    _socketRpcServer.Dispose();
+                    _socketRpcServer = null;
+
+                    // Clear endpoint registration
+                    SocketRpcServerFactory.ClearEndpoint();
+
+                    Console.WriteLine("[caTTY GameMod] Socket RPC server stopped");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[caTTY GameMod] Error stopping socket RPC server: {ex.Message}");
+                }
+            }
 
             _isInitialized = false;
             _isDisposed = true;

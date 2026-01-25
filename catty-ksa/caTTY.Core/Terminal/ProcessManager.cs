@@ -23,7 +23,7 @@ namespace caTTY.Core.Terminal;
 ///     Follows Microsoft's recommended approach from:
 ///     https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session
 /// </summary>
-public class ProcessManager : IProcessManager, ISocketRpcIntegration
+public class ProcessManager : IProcessManager
 {
     private readonly object _processLock = new();
     private Process.ConPtyNative.COORD _currentSize;
@@ -38,9 +38,6 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
     private IntPtr _pseudoConsole = IntPtr.Zero;
     private CancellationTokenSource? _readCancellationSource;
 
-    // Socket RPC integration
-    private ISocketRpcHandler? _socketRpcHandler;
-    private ISocketRpcServer? _socketRpcServer;
     private readonly ILogger _logger;
 
     /// <summary>
@@ -67,12 +64,6 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
     /// </summary>
     public int? ExitCode => ProcessStateManager.GetExitCode(_process, _processLock);
 
-    /// <inheritdoc />
-    public ISocketRpcServer? SocketRpcServer => _socketRpcServer;
-
-    /// <inheritdoc />
-    public string? SocketRpcPath => _socketRpcServer?.Endpoint;
-
     /// <summary>
     ///     Event raised when data is received from the shell process stdout/stderr.
     /// </summary>
@@ -87,16 +78,6 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
     ///     Event raised when an error occurs during process operations.
     /// </summary>
     public event EventHandler<ProcessErrorEventArgs>? ProcessError;
-
-    /// <inheritdoc />
-    public void ConfigureSocketRpc(ISocketRpcHandler handler)
-    {
-        if (_process != null)
-        {
-            throw new InvalidOperationException("Cannot configure socket RPC while a process is running");
-        }
-        _socketRpcHandler = handler;
-    }
 
     /// <summary>
     ///     Starts a new shell process with the specified options using Windows ConPTY.
@@ -150,29 +131,15 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
                 throw;
             }
 
-            // Start socket RPC server BEFORE creating the process so we can pass the socket path to the child
-            if (_socketRpcHandler != null)
+            // Query if socket RPC server is available and add endpoint to environment
+            var endpoint = SocketRpcServerFactory.GetActiveEndpoint();
+            if (endpoint != null)
             {
-                try
-                {
-                    _socketRpcServer = SocketRpcServerFactory.Create(_socketRpcHandler, _logger);
-                    await _socketRpcServer.StartAsync(cancellationToken);
-                    
-                    // Add endpoint to environment variables for child process
-                    options.EnvironmentVariables[SocketRpcServerFactory.EndpointEnvVar] = _socketRpcServer.Endpoint;
-                    Console.WriteLine($"[caTTY] Setting {SocketRpcServerFactory.EndpointEnvVar}={_socketRpcServer.Endpoint} for child process");
-                    
-                    _logger.LogInformation("Socket RPC server started at {Endpoint} before process creation", _socketRpcServer.Endpoint);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to start socket RPC server, continuing without RPC");
-                    _socketRpcServer?.Dispose();
-                    _socketRpcServer = null;
-                }
+                options.EnvironmentVariables[SocketRpcServerFactory.EndpointEnvVar] = endpoint;
+                _logger.LogDebug("Socket RPC endpoint {Endpoint} added to child process environment", endpoint);
             }
 
-            // Create environment block from options (includes socket RPC path if configured)
+            // Create environment block from options (includes socket RPC endpoint if available)
             IntPtr envBlock = IntPtr.Zero;
             try
             {
@@ -427,18 +394,6 @@ public class ProcessManager : IProcessManager, ISocketRpcIntegration
     {
         lock (_processLock)
         {
-            // Stop socket RPC server
-            if (_socketRpcServer != null)
-            {
-                try
-                {
-                    _socketRpcServer.StopAsync().Wait(1000);
-                }
-                catch { /* ignore */ }
-                _socketRpcServer.Dispose();
-                _socketRpcServer = null;
-            }
-
             _readCancellationSource?.Cancel();
             _readCancellationSource?.Dispose();
             _readCancellationSource = null;
