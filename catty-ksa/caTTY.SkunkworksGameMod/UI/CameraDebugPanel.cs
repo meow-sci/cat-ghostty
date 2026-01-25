@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 using Brutal.ImGuiApi;
 using Brutal.Numerics;
 using caTTY.SkunkworksGameMod.Camera;
 using caTTY.SkunkworksGameMod.Camera.Animation;
 using caTTY.SkunkworksGameMod.Rpc.Actions;
+using KSA;
 
 namespace caTTY.SkunkworksGameMod.UI;
 
@@ -16,6 +18,7 @@ public class CameraDebugPanel
     private readonly ICameraAnimationPlayer _animationPlayer;
     private readonly CameraOrbitRpcAction _orbitAction;
     private readonly KeyframePreviewPanel _previewPanel;
+    private readonly AlexsTestPanel _alexsTestPanel;
     private readonly CameraBasicsPanel _cameraBasicsPanel;
 
     // Orbit action parameters (UI state)
@@ -44,6 +47,7 @@ public class CameraDebugPanel
         _animationPlayer = animationPlayer;
         _orbitAction = new CameraOrbitRpcAction(cameraService, animationPlayer);
         _previewPanel = new KeyframePreviewPanel();
+        _alexsTestPanel = new AlexsTestPanel();
         _cameraBasicsPanel = new CameraBasicsPanel(cameraService);
     }
 
@@ -52,12 +56,20 @@ public class CameraDebugPanel
     /// </summary>
     public void Render()
     {
+
         ImGui.SeparatorText("Camera Info");
         RenderCameraInfo();
 
+        // Alex's test panel — open by default and shown first
+        if (ImGui.CollapsingHeader("Alexs Test Panel", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            _alexsTestPanel.Render();
+        }
+
+
         ImGui.Spacing();
 
-        // Camera Basics section
+        // Camera Basics section (closed by default)
         if (ImGui.CollapsingHeader("Camera Basics", ImGuiTreeNodeFlags.DefaultOpen))
         {
             _cameraBasicsPanel.Render();
@@ -89,10 +101,14 @@ public class CameraDebugPanel
             return;
         }
 
-        var pos = _cameraService.Position;
-        ImGui.Text($"Position: ({pos.X:F1}, {pos.Y:F1}, {pos.Z:F1})");
+        var camera = Program.GetCamera();
 
-        var fov = _cameraService.FieldOfView;
+        var pos = camera.PositionEcl;
+
+        ImGui.Text($"Position (default): ({pos.X:F1}, {pos.Y:F1}, {pos.Z:F1})");
+
+        var fov = camera.GetFieldOfView()  * 57.2958f; // radians to deg
+
         ImGui.Text($"FOV: {fov:F1}°");
 
         var target = _cameraService.FollowTarget;

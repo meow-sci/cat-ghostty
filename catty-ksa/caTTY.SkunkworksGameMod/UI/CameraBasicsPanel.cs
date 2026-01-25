@@ -145,7 +145,7 @@ public class CameraBasicsPanel
             ImGui.SetTooltip("Custom tracking mode that preserves the current offset");
         if (!hasTarget) ImGui.EndDisabled();
 
-        ImGui.SameLine();
+        // ImGui.SameLine();
 
         if (ImGui.Button("Exit Manual Follow (keep offset)"))
         {
@@ -153,7 +153,7 @@ public class CameraBasicsPanel
             Console.WriteLine("[CameraBasicsPanel] Exit manual follow (keep offset)");
         }
 
-        ImGui.SameLine();
+        // ImGui.SameLine();
 
         if (!hasTarget) ImGui.BeginDisabled();
         if (ImGui.Button("Exit Manual Follow (restore native)"))

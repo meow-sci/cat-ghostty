@@ -182,16 +182,6 @@ public class SkunkworksMod
             ImGui.TextColored(new float4(0.0f, 1.0f, 0.0f, 1.0f), "Camera Orbit Test Panel");
             ImGui.Separator();
 
-            // Status information
-            ImGui.Text("Status: Running");
-            ImGui.Text("Version: 0.1.0 - Camera Orbit");
-
-            // Calculate uptime
-            var uptime = DateTime.Now - _startTime;
-            ImGui.Text($"Uptime: {uptime.Hours:D2}:{uptime.Minutes:D2}:{uptime.Seconds:D2}");
-
-            ImGui.Separator();
-
             // Camera debug panel
             if (_cameraDebugPanel != null)
             {
