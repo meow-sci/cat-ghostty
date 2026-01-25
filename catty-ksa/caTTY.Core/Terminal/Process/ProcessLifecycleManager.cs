@@ -98,14 +98,23 @@ internal static class ProcessLifecycleManager
     /// <param name="commandLine">The command line to execute</param>
     /// <param name="workingDirectory">The working directory for the process</param>
     /// <param name="startupInfo">The startup information with attribute list</param>
+    /// <param name="environmentBlock">Optional pointer to environment block for the new process</param>
     /// <returns>The process information structure</returns>
     /// <exception cref="ProcessStartException">Thrown if process creation fails</exception>
     internal static ConPtyNative.PROCESS_INFORMATION CreateProcess(
         string commandLine,
         string workingDirectory,
-        ref ConPtyNative.STARTUPINFOEX startupInfo)
+        ref ConPtyNative.STARTUPINFOEX startupInfo,
+        IntPtr environmentBlock = default)
     {
         var processInfo = new ConPtyNative.PROCESS_INFORMATION();
+
+        // Include CREATE_UNICODE_ENVIRONMENT flag when environment block is provided
+        uint creationFlags = ConPtyNative.EXTENDED_STARTUPINFO_PRESENT;
+        if (environmentBlock != IntPtr.Zero)
+        {
+            creationFlags |= ConPtyNative.CREATE_UNICODE_ENVIRONMENT;
+        }
 
         if (!ConPtyNative.CreateProcessW(
                 null,
@@ -113,8 +122,8 @@ internal static class ProcessLifecycleManager
                 IntPtr.Zero,
                 IntPtr.Zero,
                 false,
-                ConPtyNative.EXTENDED_STARTUPINFO_PRESENT,
-                IntPtr.Zero,
+                creationFlags,
+                environmentBlock,
                 workingDirectory,
                 ref startupInfo,
                 out processInfo))
@@ -124,6 +133,62 @@ internal static class ProcessLifecycleManager
         }
 
         return processInfo;
+    }
+
+    /// <summary>
+    ///     Creates an environment block from the current environment plus additional variables.
+    ///     Environment blocks for CreateProcess must be Unicode (UTF-16) null-terminated strings
+    ///     in the format "NAME=VALUE\0NAME2=VALUE2\0\0".
+    /// </summary>
+    /// <param name="additionalVariables">Additional environment variables to add/override</param>
+    /// <returns>Pointer to the environment block (must be freed with Marshal.FreeHGlobal)</returns>
+    internal static IntPtr CreateEnvironmentBlock(Dictionary<string, string>? additionalVariables)
+    {
+        if (additionalVariables == null || additionalVariables.Count == 0)
+        {
+            return IntPtr.Zero; // Use parent process environment
+        }
+
+        try
+        {
+            // Merge current environment with additional variables
+            var envVars = Environment.GetEnvironmentVariables();
+            foreach (var kvp in additionalVariables)
+            {
+                if (!string.IsNullOrEmpty(kvp.Key))
+                {
+                    envVars[kvp.Key] = kvp.Value ?? string.Empty;
+                }
+            }
+
+            // Build environment block string: "NAME=VALUE\0NAME2=VALUE2\0\0"
+            var envBlock = new System.Text.StringBuilder();
+            foreach (System.Collections.DictionaryEntry entry in envVars)
+            {
+                // Skip null keys or values
+                if (entry.Key == null || entry.Value == null)
+                    continue;
+                
+                string key = entry.Key.ToString() ?? string.Empty;
+                string value = entry.Value.ToString() ?? string.Empty;
+                
+                if (!string.IsNullOrEmpty(key))
+                {
+                    envBlock.Append($"{key}={value}\0");
+                }
+            }
+            envBlock.Append("\0"); // Final null terminator
+
+            // Allocate unmanaged memory for Unicode environment block
+            string envString = envBlock.ToString();
+            IntPtr envBlockPtr = Marshal.StringToHGlobalUni(envString);
+            return envBlockPtr;
+        }
+        catch (Exception)
+        {
+            // If environment block creation fails, return IntPtr.Zero to use parent environment
+            return IntPtr.Zero;
+        }
     }
 
     /// <summary>

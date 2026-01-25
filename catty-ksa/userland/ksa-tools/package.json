@@ -1,0 +1,29 @@
+{
+  "name": "@ksa/tools",
+  "version": "0.1.0",
+  "description": "Example CLI tools for Kitten Space Agency RPC",
+  "type": "module",
+  "bin": {
+    "ksa-list-crafts": "./bin/ksa-list-crafts.ts",
+    "ksa-current-craft": "./bin/ksa-current-craft.ts",
+    "ksa-ignite": "./bin/ksa-ignite.ts",
+    "ksa-shutdown": "./bin/ksa-shutdown.ts"
+  },
+  "dependencies": {
+    "@ksa/rpc-client": "file:../ksa-rpc-client"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "scripts": {
+    "link": "bun link",
+    "test": "bun test"
+  },
+  "keywords": [
+    "ksa",
+    "cli",
+    "rpc",
+    "terminal"
+  ],
+  "license": "MIT"
+}

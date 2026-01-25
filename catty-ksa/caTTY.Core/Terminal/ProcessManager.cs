@@ -1,5 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using caTTY.Core.Rpc.Socket;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using AttributeListBuilder = caTTY.Core.Terminal.Process.AttributeListBuilder;
 using ConPtyInputWriter = caTTY.Core.Terminal.Process.ConPtyInputWriter;
 using ConPtyNative = caTTY.Core.Terminal.Process.ConPtyNative;
@@ -34,6 +37,17 @@ public class ProcessManager : IProcessManager
 
     private IntPtr _pseudoConsole = IntPtr.Zero;
     private CancellationTokenSource? _readCancellationSource;
+
+    private readonly ILogger _logger;
+
+    /// <summary>
+    ///     Creates a new ProcessManager with optional logging.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostics (optional)</param>
+    public ProcessManager(ILogger? logger = null)
+    {
+        _logger = logger ?? NullLogger.Instance;
+    }
 
     /// <summary>
     ///     Gets whether a shell process is currently running.
@@ -117,6 +131,25 @@ public class ProcessManager : IProcessManager
                 throw;
             }
 
+            // Query if socket RPC server is available and add endpoint to environment
+            var endpoint = SocketRpcServerFactory.GetActiveEndpoint();
+            if (endpoint != null)
+            {
+                options.EnvironmentVariables[SocketRpcServerFactory.EndpointEnvVar] = endpoint;
+                _logger.LogDebug("Socket RPC endpoint {Endpoint} added to child process environment", endpoint);
+            }
+
+            // Create environment block from options (includes socket RPC endpoint if available)
+            IntPtr envBlock = IntPtr.Zero;
+            try
+            {
+                envBlock = ProcessLifecycleManager.CreateEnvironmentBlock(options.EnvironmentVariables);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to create environment block, using parent environment");
+            }
+
             // Resolve shell command
             (string shellPath, string shellArgs) = ShellCommandResolver.ResolveShellCommand(options);
             string commandLine = string.IsNullOrEmpty(shellArgs) ? shellPath : $"{shellPath} {shellArgs}";
@@ -128,13 +161,26 @@ public class ProcessManager : IProcessManager
                 processInfo = ProcessLifecycleManager.CreateProcess(
                     commandLine,
                     options.WorkingDirectory ?? Environment.CurrentDirectory,
-                    ref startupInfo);
+                    ref startupInfo,
+                    envBlock);
             }
             catch
             {
+                if (envBlock != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(envBlock);
+                }
                 AttributeListBuilder.FreeAttributeList(startupInfo.lpAttributeList);
                 CleanupPseudoConsole();
                 throw;
+            }
+            finally
+            {
+                // Free environment block after process creation
+                if (envBlock != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(envBlock);
+                }
             }
 
             // Clean up startup info

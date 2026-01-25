@@ -1,5 +1,6 @@
 using System.Reflection;
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 using caTTY.Core.Terminal;
 
 namespace caTTY.Display.Configuration;

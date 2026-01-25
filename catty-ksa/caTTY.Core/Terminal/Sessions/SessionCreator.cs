@@ -1,4 +1,5 @@
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 
 namespace caTTY.Core.Terminal;
 

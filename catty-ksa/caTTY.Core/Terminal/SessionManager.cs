@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using caTTY.Core.Rpc;
+using caTTY.Core.Rpc.Socket;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace caTTY.Core.Terminal;
