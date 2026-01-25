@@ -73,6 +73,12 @@ public class CameraOrbitRpcAction : ISocketRpcAction
                 currentFov
             );
 
+            Console.WriteLine($"[CameraOrbit] Captured original state:");
+            Console.WriteLine($"[CameraOrbit]   Camera position: {_cameraService.Position}");
+            Console.WriteLine($"[CameraOrbit]   Target position: {targetPosition}");
+            Console.WriteLine($"[CameraOrbit]   Original offset: {currentOffset}");
+            Console.WriteLine($"[CameraOrbit]   Original YPR: ({currentYaw:F1}, {currentPitch:F1}, {currentRoll:F1})");
+
             // Build context
             var context = new CameraActionContext
             {

@@ -62,6 +62,13 @@ public interface ICameraService
     void StartManualFollow(double3 offset);
 
     /// <summary>
+    /// Updates the follow offset during manual follow mode.
+    /// This should be called to sync the offset with animation frames before calling StopManualFollow.
+    /// </summary>
+    /// <param name="offset">New offset from target in ECL coordinates.</param>
+    void UpdateFollowOffset(double3 offset);
+
+    /// <summary>
     /// Stops manual follow mode.
     /// </summary>
     void StopManualFollow();

@@ -26,6 +26,7 @@ public class SkunkworksMod
 
     // Animation state tracking
     private bool _wasAnimationPlaying = false;
+    private int _framesSinceRestore = -1; // -1 = not tracking, 0+ = frames since restore
 
     [StarMapImmediateLoad]
     public void OnImmediateLoad()
@@ -91,22 +92,44 @@ public class SkunkworksMod
 
                 // Apply FOV
                 _cameraService.FieldOfView = frame.Fov;
+
+                // Keep follow offset in sync with animation (critical for smooth restoration)
+                _cameraService.UpdateFollowOffset(frame.Offset);
             }
 
             // Restore camera state when animation ends
             if (_wasAnimationPlaying && !isCurrentlyPlaying && _cameraService != null)
             {
                 // Animation just ended - restore camera to safe state
-                Console.WriteLine("Skunkworks: Animation ended, restoring camera state");
+                Console.WriteLine("[Skunkworks] Animation state transitioned from playing to stopped");
+                Console.WriteLine($"[Skunkworks] Current camera position: {_cameraService.Position}");
+                Console.WriteLine($"[Skunkworks] Is manual following: {_cameraService.IsManualFollowing}");
 
                 // Stop manual following and restore normal camera follow
                 if (_cameraService.IsManualFollowing)
                 {
+                    Console.WriteLine("[Skunkworks] Calling StopManualFollow to restore camera mode...");
                     _cameraService.StopManualFollow();
+                    Console.WriteLine($"[Skunkworks] After StopManualFollow, camera position: {_cameraService.Position}");
+
+                    // Mark that we just restored, so we can check next frame
+                    _framesSinceRestore = 0;
                 }
 
                 // The camera should now be back in normal follow mode
                 // You may want to re-follow the target here if needed
+            }
+
+            // Track position stability after restore (diagnostic)
+            if (_framesSinceRestore >= 0 && _framesSinceRestore < 5 && _cameraService != null)
+            {
+                var currentPos = _cameraService.Position;
+                var targetPos = _cameraService.GetTargetPosition();
+                var currentOffset = currentPos - targetPos;
+                Console.WriteLine($"[Skunkworks] Frame {_framesSinceRestore} after restore:");
+                Console.WriteLine($"[Skunkworks]   Position: {currentPos}");
+                Console.WriteLine($"[Skunkworks]   Offset from target: {currentOffset}");
+                _framesSinceRestore++;
             }
 
             _wasAnimationPlaying = isCurrentlyPlaying;

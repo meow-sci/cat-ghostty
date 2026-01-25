@@ -107,29 +107,30 @@ public class KsaCameraService : ICameraService
         }
     }
 
+    public void UpdateFollowOffset(double3 offset)
+    {
+        if (_isManualFollowing)
+        {
+            _followOffset = offset;
+            // Removed per-frame logging to reduce verbosity
+        }
+    }
+
     public void StopManualFollow()
     {
-        // Try to re-follow the original object if it's an Astronomical
-        if (_followedObject is KSA.Astronomical astronomical)
-        {
-            var camera = GetCamera();
-            if (camera != null)
-            {
-                try
-                {
-                    camera.SetFollow(astronomical, false, changeControl: false, alert: false);
-                    Console.WriteLine("KsaCameraService: Re-followed target after manual follow ended");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"KsaCameraService: Error re-following target: {ex.Message}");
-                }
-            }
-        }
+        // DON'T call SetFollow() - it re-applies KSA's default offset, causing a snap
+        // Instead, just clear the manual follow state and leave camera following with current offset
+        // The Update() method will continue to maintain the follow relationship
 
-        _isManualFollowing = false;
-        _followedObject = null;
-        _followOffset = double3.Zero;
+        Console.WriteLine($"[CameraRestore] Stopping manual follow (keeping current offset {_followOffset})");
+        Console.WriteLine($"[CameraRestore] Camera will continue following target at current position");
+
+        // Keep _followedObject and _followOffset active!
+        // Keep _isManualFollowing = true!
+        // This allows the camera to continue smoothly following the target
+
+        // User can manually re-follow with default offset later if desired
+        // (e.g., via a button or keybind that calls the old SetFollow logic)
     }
 
     public void LookAt(double3 target)

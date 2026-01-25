@@ -64,6 +64,13 @@ public class CameraAnimationPlayer : ICameraAnimationPlayer
             CurrentTime = _keyframes.Last().Timestamp;
             IsPlaying = false;
             var last = _keyframes.Last();
+            Console.WriteLine($"[AnimationEnd] Animation completed at timestamp {last.Timestamp:F2}s");
+            Console.WriteLine($"[AnimationEnd] Final offset: {last.Offset}");
+            Console.WriteLine($"[AnimationEnd] Final YPR: ({last.Yaw:F1}, {last.Pitch:F1}, {last.Roll:F1})");
+            if (last.DebugLabel != null)
+            {
+                Console.WriteLine($"[AnimationEnd] Final keyframe label: {last.DebugLabel}");
+            }
             return new CameraAnimationFrame
             {
                 Offset = last.Offset,
