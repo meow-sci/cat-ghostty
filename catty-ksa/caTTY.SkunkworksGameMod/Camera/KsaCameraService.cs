@@ -435,6 +435,82 @@ public class KsaCameraService : ICameraService
     }
 
     /// <summary>
+    /// Attempts to discover and expose KSA's internal camera control/controller mode
+    /// using reflection. Looks for common property/field names that might indicate
+    /// the camera's internal state beyond Follow/Unfollow/ManualFollow.
+    /// </summary>
+    /// <returns>
+    /// A formatted string with type and value information if discoverable,
+    /// or null if no relevant mode information can be found.
+    /// </returns>
+    public string? GetNativeControlModeDebug()
+    {
+        var camera = GetCamera();
+        if (camera == null) return null;
+
+        var cameraType = camera.GetType();
+        var candidateNames = new[]
+        {
+            "ControlMode",
+            "Controller",
+            "CameraController",
+            "Mode",
+            "State",
+            "ControllerMode",
+            "CameraMode",
+            "CameraState",
+            "Control"
+        };
+
+        // Search for properties first
+        foreach (var name in candidateNames)
+        {
+            try
+            {
+                var property = cameraType.GetProperty(name,
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (property != null && property.CanRead)
+                {
+                    var value = property.GetValue(camera);
+                    var typeName = property.PropertyType.Name;
+                    var valueStr = value?.ToString() ?? "null";
+                    return $"{name} ({typeName}): {valueStr}";
+                }
+            }
+            catch
+            {
+                // Silently continue on read errors
+            }
+        }
+
+        // Search for fields if properties not found
+        foreach (var name in candidateNames)
+        {
+            try
+            {
+                var field = cameraType.GetField(name,
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (field != null)
+                {
+                    var value = field.GetValue(camera);
+                    var typeName = field.FieldType.Name;
+                    var valueStr = value?.ToString() ?? "null";
+                    return $"{name} ({typeName}): {valueStr}";
+                }
+            }
+            catch
+            {
+                // Silently continue on read errors
+            }
+        }
+
+        // Nothing found
+        return null;
+    }
+
+    /// <summary>
     /// Gets the KSA camera instance via reflection.
     /// Caches the result for performance.
     /// </summary>
