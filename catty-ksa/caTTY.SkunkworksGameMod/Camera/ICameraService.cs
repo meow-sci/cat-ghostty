@@ -111,6 +111,42 @@ public interface ICameraService
     bool IsManualFollowing { get; }
 
     /// <summary>
+    /// Gets whether the camera is currently following an object in native KSA follow mode.
+    /// </summary>
+    bool IsFollowing { get; }
+
+    /// <summary>
+    /// Starts following the current follow target using native KSA follow mode.
+    /// Restores the camera to standard following behavior with default offset.
+    /// </summary>
+    /// <returns>True if successfully started following, false if no target available.</returns>
+    bool StartFollowing();
+
+    /// <summary>
+    /// Attempts native KSA SetFollow using the provided flags.
+    /// This exists specifically to explore the meaning of SetFollow's boolean parameters.
+    /// </summary>
+    bool TryStartFollowingWithOptions(bool unknown0, bool changeControl, bool alert);
+
+    /// <summary>
+    /// Stops following and enters free camera mode.
+    /// Camera position and rotation become fully manual.
+    /// </summary>
+    void EnterFreeCameraMode();
+
+    /// <summary>
+    /// Gets the current camera control mode as a human-readable string.
+    /// E.g., "Following", "Free Camera", "Manual Follow"
+    /// </summary>
+    string GetCurrentMode();
+
+    /// <summary>
+    /// Best-effort debug string describing KSA's internal camera controller/control mode.
+    /// Returns null if not discoverable via reflection.
+    /// </summary>
+    string? GetNativeControlModeDebug();
+
+    /// <summary>
     /// Orients the camera to look at a target position.
     /// </summary>
     /// <param name="target">Target position in ECL coordinates.</param>

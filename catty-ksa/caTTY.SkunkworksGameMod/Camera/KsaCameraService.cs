@@ -89,6 +89,16 @@ public class KsaCameraService : ICameraService
 
     public bool IsManualFollowing => _isManualFollowing;
 
+    public bool IsFollowing
+    {
+        get
+        {
+            if (_isManualFollowing) return false; // Manual follow is distinct from native KSA follow
+            var camera = GetCamera();
+            return camera?.Following != null;
+        }
+    }
+
     public double3 GetTargetPosition()
     {
         var target = FollowTarget;
@@ -107,6 +117,125 @@ public class KsaCameraService : ICameraService
         {
             return Position;
         }
+    }
+
+    public bool StartFollowing()
+    {
+        var camera = GetCamera();
+        if (camera == null)
+        {
+            Console.WriteLine("[StartFollowing] Camera not available");
+            return false;
+        }
+
+        var target = FollowTarget;
+        if (target == null)
+        {
+            Console.WriteLine("[StartFollowing] No follow target available");
+            return false;
+        }
+
+        // If already in manual follow, exit it first
+        if (_isManualFollowing)
+        {
+            _isManualFollowing = false;
+            _followedObject = null;
+            _followOffset = double3.Zero;
+        }
+
+        // Use default SetFollow options (true, true, false)
+        var options = SetFollowOptions.Default;
+        var success = TrySetFollow(target, options, out var error);
+
+        if (!success)
+        {
+            Console.WriteLine($"[StartFollowing] Failed: {error}");
+        }
+        else
+        {
+            Console.WriteLine("[StartFollowing] Successfully restored native follow mode");
+        }
+
+        return success;
+    }
+
+    public bool TryStartFollowingWithOptions(bool unknown0, bool changeControl, bool alert)
+    {
+        var camera = GetCamera();
+        if (camera == null)
+        {
+            Console.WriteLine("[TryStartFollowingWithOptions] Camera not available");
+            return false;
+        }
+
+        var target = FollowTarget;
+        if (target == null)
+        {
+            Console.WriteLine("[TryStartFollowingWithOptions] No follow target available");
+            return false;
+        }
+
+        // If in manual follow, exit it first
+        if (_isManualFollowing)
+        {
+            _isManualFollowing = false;
+            _followedObject = null;
+            _followOffset = double3.Zero;
+        }
+
+        var options = new SetFollowOptions(unknown0, changeControl, alert);
+        var success = TrySetFollow(target, options, out var error);
+
+        if (!success)
+        {
+            Console.WriteLine($"[TryStartFollowingWithOptions] Failed: {error}");
+        }
+
+        return success;
+    }
+
+    public void EnterFreeCameraMode()
+    {
+        var camera = GetCamera();
+        if (camera == null)
+        {
+            Console.WriteLine("[EnterFreeCameraMode] Camera not available");
+            return;
+        }
+
+        // Exit manual follow if active
+        if (_isManualFollowing)
+        {
+            _isManualFollowing = false;
+            _followedObject = null;
+            _followOffset = double3.Zero;
+            Console.WriteLine("[EnterFreeCameraMode] Exited manual follow mode");
+        }
+
+        // Unfollow to enter free camera
+        camera.Unfollow();
+        Console.WriteLine("[EnterFreeCameraMode] Entered free camera mode");
+    }
+
+    public string GetCurrentMode()
+    {
+        if (_isManualFollowing)
+        {
+            return "Manual Follow";
+        }
+
+        var camera = GetCamera();
+        if (camera == null)
+        {
+            return "Unavailable";
+        }
+
+        if (camera.Following != null)
+        {
+            return "Following";
+        }
+
+        return "Free Camera";
     }
 
     public void StartManualFollow(double3 offset)
