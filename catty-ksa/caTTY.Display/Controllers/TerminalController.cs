@@ -560,8 +560,9 @@ public class TerminalController : ITerminalController
 
       bool isAnyItemHovered = ImGui.IsAnyItemHovered(); // Detects when mouse is over menu items, buttons, etc.
       // Include mouse released to keep UI visible during click release frame (needed for tab close button, etc.)
-      bool isInteracting = ImGui.IsMouseDown(ImGuiMouseButton.Left) || ImGui.IsMouseDown(ImGuiMouseButton.Right) ||
-                           ImGui.IsMouseReleased(ImGuiMouseButton.Left) || ImGui.IsMouseReleased(ImGuiMouseButton.Right) ||
+      // Only consider mouse buttons as interaction if mouse is within window bounds
+      bool isInteracting = (isMouseInWindowBounds && (ImGui.IsMouseDown(ImGuiMouseButton.Left) || ImGui.IsMouseDown(ImGuiMouseButton.Right) ||
+                           ImGui.IsMouseReleased(ImGuiMouseButton.Left) || ImGui.IsMouseReleased(ImGuiMouseButton.Right))) ||
                            ImGui.IsAnyItemActive();
 
       // Update menu state from settings panel (which now properly tracks BeginMenu return values)
