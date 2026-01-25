@@ -1,9 +1,26 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using Brutal.Numerics;
 using KSA;
 
 namespace caTTY.SkunkworksGameMod.Camera;
+
+/// <summary>
+/// Options for calling KSA.Camera.SetFollow with boolean flags.
+/// Enables systematic experimentation of camera control behavior.
+/// </summary>
+public readonly record struct SetFollowOptions(
+    bool Unknown0,
+    bool ChangeControl,
+    bool Alert)
+{
+    /// <summary>
+    /// Default options: Unknown0=true, ChangeControl=true, Alert=false
+    /// (Based on observed KSA behavior)
+    /// </summary>
+    public static readonly SetFollowOptions Default = new(true, true, false);
+}
 
 /// <summary>
 /// KSA-specific camera service implementation using reflection.
@@ -320,6 +337,100 @@ public class KsaCameraService : ICameraService
                 _isManualFollowing = false;
                 _followedObject = null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Attempts to call KSA.Camera.SetFollow using reflection, allowing dynamic/object targets.
+    /// This method provides safe invocation even when the follow target is not statically typed
+    /// as Astronomical, and enables systematic experimentation of camera control flags.
+    /// </summary>
+    /// <param name="target">The object to follow (typically an Astronomical but stored as object/dynamic)</param>
+    /// <param name="options">The boolean flags to pass to SetFollow</param>
+    /// <param name="error">Receives a detailed error message on failure</param>
+    /// <returns>True if SetFollow was successfully invoked, false otherwise</returns>
+    public bool TrySetFollow(object target, SetFollowOptions options, out string? error)
+    {
+        error = null;
+        var camera = GetCamera();
+
+        if (camera == null)
+        {
+            error = "Camera is not available";
+            return false;
+        }
+
+        if (target == null)
+        {
+            error = "Target object is null";
+            return false;
+        }
+
+        try
+        {
+            var cameraType = camera.GetType();
+            
+            // Find SetFollow method with 4 parameters (object, bool, bool, bool)
+            var setFollowMethod = cameraType.GetMethod("SetFollow",
+                BindingFlags.Public | BindingFlags.Instance,
+                null,
+                new[] { typeof(object), typeof(bool), typeof(bool), typeof(bool) },
+                null);
+
+            if (setFollowMethod == null)
+            {
+                // Fallback: search by name and parameter count
+                var methods = cameraType.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(m => m.Name == "SetFollow" && m.GetParameters().Length == 4)
+                    .ToArray();
+
+                if (methods.Length == 0)
+                {
+                    error = "SetFollow method with 4 parameters not found on Camera type";
+                    return false;
+                }
+
+                setFollowMethod = methods[0];
+            }
+
+            // Validate parameter[0] type compatibility
+            var parameters = setFollowMethod.GetParameters();
+            var targetParamType = parameters[0].ParameterType;
+            var actualType = target.GetType();
+
+            if (!targetParamType.IsAssignableFrom(actualType))
+            {
+                error = $"Type mismatch: SetFollow expects {targetParamType.Name} but target is {actualType.Name}";
+                return false;
+            }
+
+            // Invoke with the three bool flags
+            object?[] args = new object?[]
+            {
+                target,
+                options.Unknown0,
+                options.ChangeControl,
+                options.Alert
+            };
+
+            setFollowMethod.Invoke(camera, args);
+
+            Console.WriteLine($"[SetFollow] Success: target={actualType.Name}, " +
+                            $"unknown0={options.Unknown0}, changeControl={options.ChangeControl}, alert={options.Alert}");
+            return true;
+        }
+        catch (TargetInvocationException ex)
+        {
+            var innerEx = ex.InnerException ?? ex;
+            error = $"SetFollow threw exception: {innerEx.GetType().Name}: {innerEx.Message}";
+            Console.WriteLine($"[SetFollow] Failed: {error}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            error = $"Reflection error: {ex.GetType().Name}: {ex.Message}";
+            Console.WriteLine($"[SetFollow] Failed: {error}");
+            return false;
         }
     }
 
