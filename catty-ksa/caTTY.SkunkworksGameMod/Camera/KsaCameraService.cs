@@ -122,38 +122,28 @@ public class KsaCameraService : ICameraService
     public bool StartFollowing()
     {
         var camera = GetCamera();
-        if (camera == null)
-        {
-            Console.WriteLine("[StartFollowing] Camera not available");
-            return false;
-        }
+        if (camera == null) return false;
 
-        var target = FollowTarget;
-        if (target == null)
-        {
-            Console.WriteLine("[StartFollowing] No follow target available");
-            return false;
-        }
+        // If we have a stored follow object from manual follow, use it
+        var targetObject = _followedObject ?? camera.Following;
+        if (targetObject == null) return false;
 
-        // If already in manual follow, exit it first
-        if (_isManualFollowing)
-        {
-            _isManualFollowing = false;
-            _followedObject = null;
-            _followOffset = double3.Zero;
-        }
+        // Clear manual follow state
+        _isManualFollowing = false;
+        _followedObject = null;
 
-        // Use default SetFollow options (true, true, false)
-        var options = SetFollowOptions.Default;
-        var success = TrySetFollow(target, options, out var error);
+        // Call SetFollow with default parameters
+        // Parameters: (object, bool, bool changeControl, bool alert)
+        var options = new SetFollowOptions(false, false, false);
+        var success = TrySetFollow(targetObject, options, out string? error);
 
-        if (!success)
+        if (success)
         {
-            Console.WriteLine($"[StartFollowing] Failed: {error}");
+            Console.WriteLine($"[KsaCameraService] Started following in native KSA mode");
         }
         else
         {
-            Console.WriteLine("[StartFollowing] Successfully restored native follow mode");
+            Console.WriteLine($"[KsaCameraService] Failed to start following: {error}");
         }
 
         return success;
