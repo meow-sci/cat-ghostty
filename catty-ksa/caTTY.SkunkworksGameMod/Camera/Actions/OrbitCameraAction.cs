@@ -31,9 +31,19 @@ public class OrbitCameraAction : ICameraAction
             return ValidationResult.Fail("Distance cannot be negative");
         }
 
-        if (context.UseLerp && context.LerpTime <= 0)
+        if (context.UseStartLerp && context.StartLerpTime <= 0)
         {
-            return ValidationResult.Fail("LerpTime must be greater than 0 when UseLerp is true");
+            return ValidationResult.Fail("StartLerpTime must be greater than 0 when UseStartLerp is true");
+        }
+
+        if (context.UseEndLerp && context.EndLerpTime <= 0)
+        {
+            return ValidationResult.Fail("EndLerpTime must be greater than 0 when UseEndLerp is true");
+        }
+
+        if (context.UseEndLerp && context.OriginalState == null)
+        {
+            return ValidationResult.Fail("OriginalState is required when UseEndLerp is true");
         }
 
         return ValidationResult.Success();
@@ -67,54 +77,6 @@ public class OrbitCameraAction : ICameraAction
         // ECL up vector
         double3 upEcl = new double3(0, 0, 1);
 
-        float currentTime = 0f;
-
-        // Generate lerp keyframes if requested
-        if (context.UseLerp)
-        {
-            // Starting position (current)
-            keyframes.Add(new CameraKeyframe(
-                currentTime,
-                currentOffset,
-                ExtractYaw(context.CurrentRotation),
-                ExtractPitch(context.CurrentRotation),
-                ExtractRoll(context.CurrentRotation),
-                context.CurrentFov,
-                "Lerp Start"
-            ));
-
-            // Target position (start of orbit)
-            double3 orbitStartOffset = new double3(
-                radius * Math.Cos(startAngle),
-                altitudeOffset,
-                radius * Math.Sin(startAngle)
-            );
-
-            // Calculate look-at rotation for orbit start
-            double3 orbitStartPos = context.TargetPosition + orbitStartOffset;
-            double3 lookDir = (context.TargetPosition - orbitStartPos);
-            double lookMag = lookDir.Length();
-            if (lookMag > 0.001)
-            {
-                lookDir = lookDir / lookMag;
-            }
-
-            doubleQuat lookAtQuat = KSA.Camera.LookAtRotation(lookDir, upEcl);
-            var (yaw, pitch, roll) = QuaternionToYPR(lookAtQuat);
-
-            keyframes.Add(new CameraKeyframe(
-                context.LerpTime,
-                orbitStartOffset,
-                yaw,
-                pitch,
-                roll,
-                context.CurrentFov,
-                "Lerp End / Orbit Start"
-            ));
-
-            currentTime = context.LerpTime;
-        }
-
         // Generate 25 orbit keyframes for smooth full circle
         int keyframeCount = 25;
 
@@ -146,8 +108,8 @@ public class OrbitCameraAction : ICameraAction
             doubleQuat lookAtQuaternion = KSA.Camera.LookAtRotation(lookDirection, upEcl);
             var (orbitYaw, orbitPitch, orbitRoll) = QuaternionToYPR(lookAtQuaternion);
 
-            // Use linear progress for timestamp (easing is already applied to angular position)
-            float timestamp = currentTime + (linearProgress * context.Duration);
+            // Timestamp is linear progress * duration (starts at 0)
+            float timestamp = linearProgress * context.Duration;
 
             string? debugLabel = i == 0 ? "Orbit Start" :
                                  i == keyframeCount - 1 ? "Orbit End" :

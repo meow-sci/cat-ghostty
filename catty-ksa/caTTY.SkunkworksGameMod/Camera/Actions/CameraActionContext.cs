@@ -46,17 +46,42 @@ public sealed class CameraActionContext
     public float Distance { get; init; }
 
     /// <summary>
+    /// Original camera state before animation started (for end lerp restoration).
+    /// </summary>
+    public OriginalCameraState? OriginalState { get; init; }
+
+    /// <summary>
     /// Whether to smoothly lerp to the start position before beginning the main animation.
     /// </summary>
-    public bool UseLerp { get; init; }
+    public bool UseStartLerp { get; init; }
 
     /// <summary>
-    /// Duration of the lerp phase in seconds (if UseLerp is true).
+    /// Duration of the start lerp phase in seconds (if UseStartLerp is true).
     /// </summary>
-    public float LerpTime { get; init; }
+    public float StartLerpTime { get; init; }
 
     /// <summary>
-    /// Easing function to apply to the animation.
+    /// Easing function for the start lerp.
+    /// </summary>
+    public EasingType StartLerpEasing { get; init; } = EasingType.EaseInOut;
+
+    /// <summary>
+    /// Whether to smoothly lerp back to original position after the main animation.
+    /// </summary>
+    public bool UseEndLerp { get; init; }
+
+    /// <summary>
+    /// Duration of the end lerp phase in seconds (if UseEndLerp is true).
+    /// </summary>
+    public float EndLerpTime { get; init; }
+
+    /// <summary>
+    /// Easing function for the end lerp.
+    /// </summary>
+    public EasingType EndLerpEasing { get; init; } = EasingType.EaseInOut;
+
+    /// <summary>
+    /// Easing function to apply to the main animation.
     /// </summary>
     public EasingType Easing { get; init; } = EasingType.EaseInOut;
 

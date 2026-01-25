@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json;
 using caTTY.SkunkworksGameMod.Camera;
 using caTTY.SkunkworksGameMod.Camera.Actions;
@@ -35,9 +36,14 @@ public class CameraOrbitRpcAction : ISocketRpcAction
             var orbitParams = ParseParams(@params);
 
             // Validate lerp parameters
-            if (orbitParams.Lerp && !orbitParams.LerpTime.HasValue)
+            if (orbitParams.UseStartLerp && !orbitParams.StartLerpTime.HasValue)
             {
-                return SocketRpcResponse.Fail("lerpTime required when lerp=true");
+                return SocketRpcResponse.Fail("startLerpTime required when useStartLerp=true");
+            }
+
+            if (orbitParams.UseEndLerp && !orbitParams.EndLerpTime.HasValue)
+            {
+                return SocketRpcResponse.Fail("endLerpTime required when useEndLerp=true");
             }
 
             // Check camera availability
@@ -51,19 +57,39 @@ public class CameraOrbitRpcAction : ISocketRpcAction
                 return SocketRpcResponse.Fail("No follow target - camera must be following an object");
             }
 
-            // Build context
+            // Capture original camera state (before any changes)
             var targetPosition = _cameraService.GetTargetPosition();
+            var currentOffset = _cameraService.Position - targetPosition;
+            var currentRotation = _cameraService.Rotation;
+            var currentFov = _cameraService.FieldOfView;
+
+            var (currentYaw, currentPitch, currentRoll) = QuaternionToYPR(currentRotation);
+
+            var originalState = new OriginalCameraState(
+                currentOffset,
+                currentYaw,
+                currentPitch,
+                currentRoll,
+                currentFov
+            );
+
+            // Build context
             var context = new CameraActionContext
             {
                 Camera = _cameraService,
                 TargetPosition = targetPosition,
-                CurrentOffset = _cameraService.Position - targetPosition,
-                CurrentFov = _cameraService.FieldOfView,
-                CurrentRotation = _cameraService.Rotation,
+                CurrentOffset = currentOffset,
+                CurrentFov = currentFov,
+                CurrentRotation = currentRotation,
+                OriginalState = originalState,
                 Duration = orbitParams.Time,
                 Distance = orbitParams.Distance,
-                UseLerp = orbitParams.Lerp,
-                LerpTime = orbitParams.LerpTime ?? 0f,
+                UseStartLerp = orbitParams.UseStartLerp,
+                StartLerpTime = orbitParams.StartLerpTime ?? 0f,
+                StartLerpEasing = orbitParams.StartLerpEasing,
+                UseEndLerp = orbitParams.UseEndLerp,
+                EndLerpTime = orbitParams.EndLerpTime ?? 0f,
+                EndLerpEasing = orbitParams.EndLerpEasing,
                 Easing = orbitParams.Easing,
                 CounterClockwise = orbitParams.CounterClockwise
             };
@@ -75,12 +101,15 @@ public class CameraOrbitRpcAction : ISocketRpcAction
                 return SocketRpcResponse.Fail(validation.ErrorMessage ?? "Validation failed");
             }
 
-            // Generate keyframes
-            var keyframes = _orbitAction.GenerateKeyframes(context);
+            // Generate action keyframes
+            var actionKeyframes = _orbitAction.GenerateKeyframes(context);
+
+            // Build complete animation with start/end lerps
+            var completeKeyframes = CameraAnimationBuilder.BuildAnimation(actionKeyframes, context);
 
             // Load keyframes and start animation
             _animationPlayer.ClearKeyframes();
-            _animationPlayer.SetKeyframes(keyframes);
+            _animationPlayer.SetKeyframes(completeKeyframes);
 
             // Set up manual follow with zero offset (offset handled by animation)
             _cameraService.StartManualFollow(Brutal.Numerics.double3.Zero);
@@ -93,8 +122,10 @@ public class CameraOrbitRpcAction : ISocketRpcAction
                 status = "playing",
                 duration = orbitParams.Time,
                 distance = orbitParams.Distance,
-                useLerp = orbitParams.Lerp,
-                counterClockwise = orbitParams.CounterClockwise
+                useStartLerp = orbitParams.UseStartLerp,
+                useEndLerp = orbitParams.UseEndLerp,
+                counterClockwise = orbitParams.CounterClockwise,
+                totalKeyframes = completeKeyframes.Count()
             });
         }
         catch (Exception ex)
@@ -102,6 +133,34 @@ public class CameraOrbitRpcAction : ISocketRpcAction
             Console.WriteLine($"CameraOrbitRpcAction: Error executing orbit: {ex.Message}");
             return SocketRpcResponse.Fail($"Failed to execute orbit: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Converts a quaternion to Yaw/Pitch/Roll angles.
+    /// </summary>
+    private static (float yaw, float pitch, float roll) QuaternionToYPR(Brutal.Numerics.doubleQuat q)
+    {
+        var qw = q.W;
+        var qx = q.X;
+        var qy = q.Y;
+        var qz = q.Z;
+
+        double r00 = 1.0 - 2.0 * (qy * qy + qz * qz);
+        double r01 = 2.0 * (qx * qy - qw * qz);
+        double r11 = 1.0 - 2.0 * (qx * qx + qz * qz);
+        double r20 = 2.0 * (qx * qz - qw * qy);
+        double r21 = 2.0 * (qy * qz + qw * qx);
+        double r22 = 1.0 - 2.0 * (qx * qx + qy * qy);
+
+        var pitch = Math.Asin(Math.Clamp(r21, -1.0, 1.0));
+        var yaw = Math.Atan2(-r01, r11);
+        var roll = Math.Atan2(-r20, r22);
+
+        return (
+            (float)(yaw * 180.0 / Math.PI),
+            (float)(pitch * 180.0 / Math.PI),
+            (float)(roll * 180.0 / Math.PI)
+        );
     }
 
     private OrbitParams ParseParams(JsonElement? @params)
@@ -127,16 +186,39 @@ public class CameraOrbitRpcAction : ISocketRpcAction
                 result.Distance = distanceProp.GetSingle();
             }
 
-            if (elem.TryGetProperty("lerp", out var lerpProp))
+            // Start lerp parameters
+            if (elem.TryGetProperty("useStartLerp", out var useStartLerpProp))
             {
-                result.Lerp = lerpProp.GetBoolean();
+                result.UseStartLerp = useStartLerpProp.GetBoolean();
             }
 
-            if (elem.TryGetProperty("lerpTime", out var lerpTimeProp))
+            if (elem.TryGetProperty("startLerpTime", out var startLerpTimeProp))
             {
-                result.LerpTime = lerpTimeProp.GetSingle();
+                result.StartLerpTime = startLerpTimeProp.GetSingle();
             }
 
+            if (elem.TryGetProperty("startLerpEasing", out var startLerpEasingProp))
+            {
+                result.StartLerpEasing = ParseEasing(startLerpEasingProp.GetString());
+            }
+
+            // End lerp parameters
+            if (elem.TryGetProperty("useEndLerp", out var useEndLerpProp))
+            {
+                result.UseEndLerp = useEndLerpProp.GetBoolean();
+            }
+
+            if (elem.TryGetProperty("endLerpTime", out var endLerpTimeProp))
+            {
+                result.EndLerpTime = endLerpTimeProp.GetSingle();
+            }
+
+            if (elem.TryGetProperty("endLerpEasing", out var endLerpEasingProp))
+            {
+                result.EndLerpEasing = ParseEasing(endLerpEasingProp.GetString());
+            }
+
+            // Main animation parameters
             if (elem.TryGetProperty("counterClockwise", out var ccwProp))
             {
                 result.CounterClockwise = ccwProp.GetBoolean();
@@ -144,27 +226,41 @@ public class CameraOrbitRpcAction : ISocketRpcAction
 
             if (elem.TryGetProperty("easing", out var easingProp))
             {
-                var easingStr = easingProp.GetString();
-                result.Easing = easingStr?.ToLowerInvariant() switch
-                {
-                    "linear" => EasingType.Linear,
-                    "easein" => EasingType.EaseIn,
-                    "easeout" => EasingType.EaseOut,
-                    "easeinout" => EasingType.EaseInOut,
-                    _ => EasingType.EaseInOut
-                };
+                result.Easing = ParseEasing(easingProp.GetString());
             }
         }
 
         return result;
     }
 
+    private EasingType ParseEasing(string? easingStr)
+    {
+        return easingStr?.ToLowerInvariant() switch
+        {
+            "linear" => EasingType.Linear,
+            "easein" => EasingType.EaseIn,
+            "easeout" => EasingType.EaseOut,
+            "easeinout" => EasingType.EaseInOut,
+            _ => EasingType.EaseInOut
+        };
+    }
+
     private class OrbitParams
     {
         public float Time { get; set; } = 5.0f;
         public float Distance { get; set; } = 100.0f;
-        public bool Lerp { get; set; } = false;
-        public float? LerpTime { get; set; }
+
+        // Start lerp
+        public bool UseStartLerp { get; set; } = false;
+        public float? StartLerpTime { get; set; }
+        public EasingType StartLerpEasing { get; set; } = EasingType.EaseInOut;
+
+        // End lerp
+        public bool UseEndLerp { get; set; } = false;
+        public float? EndLerpTime { get; set; }
+        public EasingType EndLerpEasing { get; set; } = EasingType.EaseInOut;
+
+        // Main animation
         public bool CounterClockwise { get; set; } = false;
         public EasingType Easing { get; set; } = EasingType.EaseInOut;
     }

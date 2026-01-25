@@ -20,8 +20,18 @@ public class CameraDebugPanel
     // Orbit action parameters (UI state)
     private float _duration = 5.0f;
     private float _distance = 100.0f;
-    private bool _useLerp = false;
-    private float _lerpTime = 1.0f;
+
+    // Start lerp
+    private bool _useStartLerp = false;
+    private float _startLerpTime = 1.0f;
+    private int _startLerpEasingIndex = 3; // EaseInOut
+
+    // End lerp
+    private bool _useEndLerp = false;
+    private float _endLerpTime = 1.0f;
+    private int _endLerpEasingIndex = 3; // EaseInOut
+
+    // Main animation
     private bool _counterClockwise = false;
     private int _easingIndex = 3; // EaseInOut
 
@@ -88,42 +98,95 @@ public class CameraDebugPanel
 
     private void RenderOrbitControls()
     {
-        // Duration slider
+        // Main animation parameters
+        ImGui.Text("Main Animation:");
         ImGui.SliderFloat("Duration (s)", ref _duration, 0.1f, 30.0f);
-
-        // Distance slider
         ImGui.SliderFloat("Distance (m)", ref _distance, 10.0f, 1000.0f);
+        ImGui.Checkbox("Counter-clockwise", ref _counterClockwise);
 
-        // Lerp checkbox
-        ImGui.Checkbox("Lerp to start", ref _useLerp);
+        ImGui.Text("Main Easing:");
+        ImGui.RadioButton("Linear##main", ref _easingIndex, 0);
+        ImGui.SameLine();
+        ImGui.RadioButton("Ease In##main", ref _easingIndex, 1);
+        ImGui.SameLine();
+        ImGui.RadioButton("Ease Out##main", ref _easingIndex, 2);
+        ImGui.SameLine();
+        ImGui.RadioButton("Ease In-Out##main", ref _easingIndex, 3);
 
-        // Lerp time (conditional)
-        if (_useLerp)
+        ImGui.Spacing();
+        ImGui.Separator();
+
+        // Start lerp controls
+        ImGui.Text("Start Lerp (to animation start):");
+        ImGui.Checkbox("Enable Start Lerp", ref _useStartLerp);
+
+        if (_useStartLerp)
         {
-            ImGui.SliderFloat("Lerp Time (s)", ref _lerpTime, 0.1f, 10.0f);
+            ImGui.SliderFloat("Start Lerp Time (s)", ref _startLerpTime, 0.1f, 10.0f);
+            ImGui.Text("Start Lerp Easing:");
+            ImGui.RadioButton("Linear##start", ref _startLerpEasingIndex, 0);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In##start", ref _startLerpEasingIndex, 1);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease Out##start", ref _startLerpEasingIndex, 2);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In-Out##start", ref _startLerpEasingIndex, 3);
         }
         else
         {
             ImGui.BeginDisabled();
-            float disabledLerpTime = _lerpTime;
-            ImGui.SliderFloat("Lerp Time (s)", ref disabledLerpTime, 0.1f, 10.0f);
+            float disabledStartTime = _startLerpTime;
+            ImGui.SliderFloat("Start Lerp Time (s)", ref disabledStartTime, 0.1f, 10.0f);
+            ImGui.Text("Start Lerp Easing:");
+            int disabledStartEasing = _startLerpEasingIndex;
+            ImGui.RadioButton("Linear##start", ref disabledStartEasing, 0);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In##start", ref disabledStartEasing, 1);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease Out##start", ref disabledStartEasing, 2);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In-Out##start", ref disabledStartEasing, 3);
             ImGui.EndDisabled();
         }
 
-        // Easing radio buttons
-        ImGui.Text("Easing:");
-        ImGui.RadioButton("Linear", ref _easingIndex, 0);
-        ImGui.SameLine();
-        ImGui.RadioButton("Ease In", ref _easingIndex, 1);
-        ImGui.SameLine();
-        ImGui.RadioButton("Ease Out", ref _easingIndex, 2);
-        ImGui.SameLine();
-        ImGui.RadioButton("Ease In-Out", ref _easingIndex, 3);
+        ImGui.Spacing();
+        ImGui.Separator();
 
-        // Counter-clockwise checkbox
-        ImGui.Checkbox("Counter-clockwise", ref _counterClockwise);
+        // End lerp controls
+        ImGui.Text("End Lerp (back to original position):");
+        ImGui.Checkbox("Enable End Lerp", ref _useEndLerp);
+
+        if (_useEndLerp)
+        {
+            ImGui.SliderFloat("End Lerp Time (s)", ref _endLerpTime, 0.1f, 10.0f);
+            ImGui.Text("End Lerp Easing:");
+            ImGui.RadioButton("Linear##end", ref _endLerpEasingIndex, 0);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In##end", ref _endLerpEasingIndex, 1);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease Out##end", ref _endLerpEasingIndex, 2);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In-Out##end", ref _endLerpEasingIndex, 3);
+        }
+        else
+        {
+            ImGui.BeginDisabled();
+            float disabledEndTime = _endLerpTime;
+            ImGui.SliderFloat("End Lerp Time (s)", ref disabledEndTime, 0.1f, 10.0f);
+            ImGui.Text("End Lerp Easing:");
+            int disabledEndEasing = _endLerpEasingIndex;
+            ImGui.RadioButton("Linear##end", ref disabledEndEasing, 0);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In##end", ref disabledEndEasing, 1);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease Out##end", ref disabledEndEasing, 2);
+            ImGui.SameLine();
+            ImGui.RadioButton("Ease In-Out##end", ref disabledEndEasing, 3);
+            ImGui.EndDisabled();
+        }
 
         ImGui.Spacing();
+        ImGui.Separator();
 
         // Action buttons
         if (ImGui.Button("Preview Keyframes"))
@@ -185,9 +248,14 @@ public class CameraDebugPanel
                 return;
             }
 
-            var keyframes = orbitAction.GenerateKeyframes(context);
-            _previewPanel.SetPreviewKeyframes(keyframes);
-            Console.WriteLine($"CameraDebugPanel: Generated {System.Linq.Enumerable.Count(keyframes)} preview keyframes");
+            // Generate action keyframes
+            var actionKeyframes = orbitAction.GenerateKeyframes(context);
+
+            // Build complete animation with start/end lerps
+            var completeKeyframes = Camera.Actions.CameraAnimationBuilder.BuildAnimation(actionKeyframes, context);
+
+            _previewPanel.SetPreviewKeyframes(completeKeyframes);
+            Console.WriteLine($"CameraDebugPanel: Generated {System.Linq.Enumerable.Count(completeKeyframes)} preview keyframes");
         }
         catch (Exception ex)
         {
@@ -204,10 +272,14 @@ public class CameraDebugPanel
             {
                 time = _duration,
                 distance = _distance,
-                lerp = _useLerp,
-                lerpTime = _useLerp ? _lerpTime : (float?)null,
+                useStartLerp = _useStartLerp,
+                startLerpTime = _useStartLerp ? _startLerpTime : (float?)null,
+                startLerpEasing = GetEasingString(_startLerpEasingIndex),
+                useEndLerp = _useEndLerp,
+                endLerpTime = _useEndLerp ? _endLerpTime : (float?)null,
+                endLerpEasing = GetEasingString(_endLerpEasingIndex),
                 counterClockwise = _counterClockwise,
-                easing = GetEasingString()
+                easing = GetEasingString(_easingIndex)
             });
 
             var response = _orbitAction.Execute(paramsJson);
@@ -242,26 +314,44 @@ public class CameraDebugPanel
         }
 
         var targetPosition = _cameraService.GetTargetPosition();
+        var currentOffset = _cameraService.Position - targetPosition;
+        var currentRotation = _cameraService.Rotation;
+        var currentFov = _cameraService.FieldOfView;
+
+        // Capture original state
+        var (currentYaw, currentPitch, currentRoll) = QuaternionToYPR(currentRotation);
+        var originalState = new Camera.Actions.OriginalCameraState(
+            currentOffset,
+            currentYaw,
+            currentPitch,
+            currentRoll,
+            currentFov
+        );
 
         return new Camera.Actions.CameraActionContext
         {
             Camera = _cameraService,
             TargetPosition = targetPosition,
-            CurrentOffset = _cameraService.Position - targetPosition,
-            CurrentFov = _cameraService.FieldOfView,
-            CurrentRotation = _cameraService.Rotation,
+            CurrentOffset = currentOffset,
+            CurrentFov = currentFov,
+            CurrentRotation = currentRotation,
+            OriginalState = originalState,
             Duration = _duration,
             Distance = _distance,
-            UseLerp = _useLerp,
-            LerpTime = _lerpTime,
-            Easing = GetEasingType(),
+            UseStartLerp = _useStartLerp,
+            StartLerpTime = _startLerpTime,
+            StartLerpEasing = GetEasingType(_startLerpEasingIndex),
+            UseEndLerp = _useEndLerp,
+            EndLerpTime = _endLerpTime,
+            EndLerpEasing = GetEasingType(_endLerpEasingIndex),
+            Easing = GetEasingType(_easingIndex),
             CounterClockwise = _counterClockwise
         };
     }
 
-    private EasingType GetEasingType()
+    private EasingType GetEasingType(int index)
     {
-        return _easingIndex switch
+        return index switch
         {
             0 => EasingType.Linear,
             1 => EasingType.EaseIn,
@@ -271,9 +361,9 @@ public class CameraDebugPanel
         };
     }
 
-    private string GetEasingString()
+    private string GetEasingString(int index)
     {
-        return _easingIndex switch
+        return index switch
         {
             0 => "linear",
             1 => "easein",
@@ -281,5 +371,30 @@ public class CameraDebugPanel
             3 => "easeinout",
             _ => "easeinout"
         };
+    }
+
+    private static (float yaw, float pitch, float roll) QuaternionToYPR(Brutal.Numerics.doubleQuat q)
+    {
+        var qw = q.W;
+        var qx = q.X;
+        var qy = q.Y;
+        var qz = q.Z;
+
+        double r00 = 1.0 - 2.0 * (qy * qy + qz * qz);
+        double r01 = 2.0 * (qx * qy - qw * qz);
+        double r11 = 1.0 - 2.0 * (qx * qx + qz * qz);
+        double r20 = 2.0 * (qx * qz - qw * qy);
+        double r21 = 2.0 * (qy * qz + qw * qx);
+        double r22 = 1.0 - 2.0 * (qx * qx + qy * qy);
+
+        var pitch = Math.Asin(Math.Clamp(r21, -1.0, 1.0));
+        var yaw = Math.Atan2(-r01, r11);
+        var roll = Math.Atan2(-r20, r22);
+
+        return (
+            (float)(yaw * 180.0 / Math.PI),
+            (float)(pitch * 180.0 / Math.PI),
+            (float)(roll * 180.0 / Math.PI)
+        );
     }
 }
