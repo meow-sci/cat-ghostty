@@ -2,6 +2,9 @@ using System;
 using Brutal.Numerics;
 using Brutal.ImGuiApi;
 using StarMap.API;
+using caTTY.SkunkworksGameMod.Camera;
+using caTTY.SkunkworksGameMod.Camera.Animation;
+using caTTY.SkunkworksGameMod.UI;
 
 namespace caTTY.SkunkworksGameMod;
 
@@ -16,6 +19,11 @@ public class SkunkworksMod
     private int _frameCount = 0;
     private DateTime _startTime;
 
+    // Camera system components
+    private ICameraService? _cameraService;
+    private ICameraAnimationPlayer? _animationPlayer;
+    private CameraDebugPanel? _cameraDebugPanel;
+
     [StarMapImmediateLoad]
     public void OnImmediateLoad()
     {
@@ -29,6 +37,12 @@ public class SkunkworksMod
         {
             Console.WriteLine("Skunkworks OnFullyLoaded");
             Patcher.Patch();
+
+            // Initialize camera system
+            _cameraService = new KsaCameraService();
+            _animationPlayer = new CameraAnimationPlayer();
+            _cameraDebugPanel = new CameraDebugPanel(_cameraService, _animationPlayer);
+
             _isInitialized = true;
             _startTime = DateTime.Now;
             Console.WriteLine("Skunkworks: Initialized successfully. Press F11 to toggle window.");
@@ -52,6 +66,26 @@ public class SkunkworksMod
         {
             if (!_isInitialized || _isDisposed)
                 return;
+
+            // Update camera service (handles manual follow updates)
+            _cameraService?.Update(dt);
+
+            // Update animation player and apply frame to camera
+            var animFrame = _animationPlayer?.Update(dt);
+            if (animFrame.HasValue && _cameraService != null)
+            {
+                var frame = animFrame.Value;
+
+                // Apply position offset (relative to target)
+                var targetPos = _cameraService.GetTargetPosition();
+                _cameraService.Position = targetPos + frame.Offset;
+
+                // Look at target (overrides YPR from keyframes)
+                _cameraService.LookAt(targetPos);
+
+                // Apply FOV
+                _cameraService.FieldOfView = frame.Fov;
+            }
 
             // Check F11 key press
             if (ImGui.IsKeyPressed(ImGuiKey.F11))
@@ -91,35 +125,38 @@ public class SkunkworksMod
 
     private void RenderWindow()
     {
-        // Set initial window size
-        ImGui.SetNextWindowSize(new float2(400, 300), ImGuiCond.FirstUseEver);
+        // Set initial window size (larger for camera controls)
+        ImGui.SetNextWindowSize(new float2(600, 700), ImGuiCond.FirstUseEver);
 
         // Begin window
         if (ImGui.Begin("Skunkworks Mod", ref _windowVisible))
         {
             // Header
-            ImGui.TextColored(new float4(0.0f, 1.0f, 0.0f, 1.0f), "Hello from Skunkworks!");
+            ImGui.TextColored(new float4(0.0f, 1.0f, 0.0f, 1.0f), "Camera Orbit Test Panel");
             ImGui.Separator();
 
             // Status information
             ImGui.Text("Status: Running");
-            ImGui.Text("Version: 0.1.0");
+            ImGui.Text("Version: 0.1.0 - Camera Orbit");
 
             // Calculate uptime
             var uptime = DateTime.Now - _startTime;
             ImGui.Text($"Uptime: {uptime.Hours:D2}:{uptime.Minutes:D2}:{uptime.Seconds:D2}");
-            ImGui.Text($"Frame count: {_frameCount}");
 
             ImGui.Separator();
 
-            // Informative text
-            ImGui.TextWrapped("This is a minimal KSA mod template demonstrating:");
-            ImGui.BulletText("StarMap.API lifecycle hooks");
-            ImGui.BulletText("ImGui window rendering");
-            ImGui.BulletText("Harmony patching infrastructure");
-            ImGui.BulletText("F11 keybind for window toggle");
+            // Camera debug panel
+            if (_cameraDebugPanel != null)
+            {
+                _cameraDebugPanel.Render();
+            }
+            else
+            {
+                ImGui.TextColored(new float4(1, 0, 0, 1), "Camera system not initialized");
+            }
 
             ImGui.Spacing();
+            ImGui.Separator();
 
             // Close button
             if (ImGui.Button("Close"))
