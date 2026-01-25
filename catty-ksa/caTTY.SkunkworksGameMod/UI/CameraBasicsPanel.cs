@@ -176,6 +176,129 @@ public class CameraBasicsPanel
     /// </summary>
     private void RenderCameraMovementSection()
     {
-        // To be implemented in Task 3.3
+        ImGui.SeparatorText("Camera Movement");
+        
+        if (!_cameraService.IsAvailable)
+        {
+            ImGui.TextColored(new float4(1, 0, 0, 1), "Camera not available");
+            return;
+        }
+        
+        // Movement distance slider
+        ImGui.SliderFloat("Move Distance (m)", ref _moveDistance, 1.0f, 1000.0f);
+        
+        ImGui.Spacing();
+        ImGui.Text("Camera-Relative Movement:");
+        ImGui.TextDisabled("Note: In native follow mode, KSA may overwrite Position each frame; switch to Free Camera or Manual Follow to test movement.");
+        
+        // Forward/Backward
+        if (ImGui.Button("Forward"))
+        {
+            var forward = _cameraService.Forward;
+            var offset = forward * _moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved forward by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Backward"))
+        {
+            var forward = _cameraService.Forward;
+            var offset = forward * -_moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved backward by {_moveDistance}m");
+        }
+        
+        // Left/Right
+        if (ImGui.Button("Left"))
+        {
+            var right = _cameraService.Right;
+            var offset = right * -_moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved left by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Right"))
+        {
+            var right = _cameraService.Right;
+            var offset = right * _moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved right by {_moveDistance}m");
+        }
+        
+        // Up/Down (camera-relative; uses the camera's current Up vector)
+        if (ImGui.Button("Up"))
+        {
+            var up = _cameraService.Up;
+            var offset = up * _moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved up by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Down"))
+        {
+            var up = _cameraService.Up;
+            var offset = up * -_moveDistance;
+            _cameraService.Position += offset;
+            Console.WriteLine($"[CameraBasics] Moved down by {_moveDistance}m");
+        }
+        
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Text("World-Space Movement (ECL):");
+        
+        // World X-axis
+        if (ImGui.Button("+X (ECL)"))
+        {
+            _cameraService.Position += new double3(_moveDistance, 0, 0);
+            Console.WriteLine($"[CameraBasics] Moved +X by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("-X (ECL)"))
+        {
+            _cameraService.Position += new double3(-_moveDistance, 0, 0);
+            Console.WriteLine($"[CameraBasics] Moved -X by {_moveDistance}m");
+        }
+        
+        // World Y-axis
+        if (ImGui.Button("+Y (ECL)"))
+        {
+            _cameraService.Position += new double3(0, _moveDistance, 0);
+            Console.WriteLine($"[CameraBasics] Moved +Y by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("-Y (ECL)"))
+        {
+            _cameraService.Position += new double3(0, -_moveDistance, 0);
+            Console.WriteLine($"[CameraBasics] Moved -Y by {_moveDistance}m");
+        }
+        
+        // World Z-axis
+        if (ImGui.Button("+Z (ECL)"))
+        {
+            _cameraService.Position += new double3(0, 0, _moveDistance);
+            Console.WriteLine($"[CameraBasics] Moved +Z by {_moveDistance}m");
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("-Z (ECL)"))
+        {
+            _cameraService.Position += new double3(0, 0, -_moveDistance);
+            Console.WriteLine($"[CameraBasics] Moved -Z by {_moveDistance}m");
+        }
+        
+        ImGui.Spacing();
+        ImGui.Separator();
+        
+        // Reset button
+        if (ImGui.Button("Snap to Follow Target"))
+        {
+            if (_cameraService.FollowTarget != null)
+            {
+                var targetPos = _cameraService.GetTargetPosition();
+                _cameraService.Position = targetPos;
+                Console.WriteLine("[CameraBasics] Snapped to follow target position");
+            }
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Move camera to exactly the follow target's position");
     }
 }
