@@ -16,6 +16,7 @@ public class CameraDebugPanel
     private readonly ICameraAnimationPlayer _animationPlayer;
     private readonly CameraOrbitRpcAction _orbitAction;
     private readonly KeyframePreviewPanel _previewPanel;
+    private readonly CameraBasicsPanel _cameraBasicsPanel;
 
     // Orbit action parameters (UI state)
     private float _duration = 5.0f;
@@ -43,6 +44,7 @@ public class CameraDebugPanel
         _animationPlayer = animationPlayer;
         _orbitAction = new CameraOrbitRpcAction(cameraService, animationPlayer);
         _previewPanel = new KeyframePreviewPanel();
+        _cameraBasicsPanel = new CameraBasicsPanel(cameraService);
     }
 
     /// <summary>
@@ -54,12 +56,25 @@ public class CameraDebugPanel
         RenderCameraInfo();
 
         ImGui.Spacing();
-        if (ImGui.CollapsingHeader("Orbit Animation", ImGuiTreeNodeFlags.DefaultOpen))
+
+        // Camera Basics section
+        if (ImGui.CollapsingHeader("Camera Basics", ImGuiTreeNodeFlags.DefaultOpen))
         {
+            _cameraBasicsPanel.Render();
+        }
+
+        ImGui.Spacing();
+
+        // Orbit Animation section (from Task 1.1)
+        if (ImGui.CollapsingHeader("Orbit Animation"))
+        {
+            ImGui.SeparatorText("Orbit Action");
             RenderOrbitControls();
+
             ImGui.Spacing();
             ImGui.SeparatorText("Animation Status");
             RenderAnimationStatus();
+
             ImGui.Spacing();
             ImGui.SeparatorText("Keyframe Preview");
             _previewPanel.Render(_cameraService);
