@@ -54,16 +54,16 @@ public class CameraDebugPanel
         RenderCameraInfo();
 
         ImGui.Spacing();
-        ImGui.SeparatorText("Orbit Action");
-        RenderOrbitControls();
-
-        ImGui.Spacing();
-        ImGui.SeparatorText("Animation Status");
-        RenderAnimationStatus();
-
-        ImGui.Spacing();
-        ImGui.SeparatorText("Keyframe Preview");
-        _previewPanel.Render(_cameraService);
+        if (ImGui.CollapsingHeader("Orbit Animation", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            RenderOrbitControls();
+            ImGui.Spacing();
+            ImGui.SeparatorText("Animation Status");
+            RenderAnimationStatus();
+            ImGui.Spacing();
+            ImGui.SeparatorText("Keyframe Preview");
+            _previewPanel.Render(_cameraService);
+        }
     }
 
     private void RenderCameraInfo()
