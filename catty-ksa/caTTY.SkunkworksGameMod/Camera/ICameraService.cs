@@ -3,6 +3,24 @@ using Brutal.Numerics;
 namespace caTTY.SkunkworksGameMod.Camera;
 
 /// <summary>
+/// Defines how to exit manual follow mode.
+/// </summary>
+public enum ManualFollowExitMode
+{
+    /// <summary>
+    /// Keep the current camera offset and avoid snapping.
+    /// Camera continues following with the current offset.
+    /// </summary>
+    KeepCurrentOffset,
+
+    /// <summary>
+    /// Restore native KSA follow behavior with default offset.
+    /// Attempts to call SetFollow with native flags.
+    /// </summary>
+    RestoreNativeFollow,
+}
+
+/// <summary>
 /// Abstraction over KSA camera access and manipulation.
 /// Provides a clean interface for camera operations without exposing KSA internals.
 /// </summary>
@@ -72,6 +90,20 @@ public interface ICameraService
     /// Stops manual follow mode.
     /// </summary>
     void StopManualFollow();
+
+    /// <summary>
+    /// Exits manual follow mode with explicit behavior control.
+    /// </summary>
+    /// <param name="mode">How to exit manual follow mode.</param>
+    /// <param name="unknown0">Optional native SetFollow flag (behavior unknown).</param>
+    /// <param name="changeControl">Optional flag to change camera control.</param>
+    /// <param name="alert">Optional flag to show alert.</param>
+    /// <returns>True if exit succeeded; false if operation failed (e.g., wrong target type for native restore).</returns>
+    bool ExitManualFollow(
+        ManualFollowExitMode mode,
+        bool? unknown0 = null,
+        bool? changeControl = null,
+        bool? alert = null);
 
     /// <summary>
     /// Whether manual follow mode is active.

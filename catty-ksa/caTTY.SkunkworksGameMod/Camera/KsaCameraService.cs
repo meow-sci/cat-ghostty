@@ -133,6 +133,120 @@ public class KsaCameraService : ICameraService
         // (e.g., via a button or keybind that calls the old SetFollow logic)
     }
 
+    public bool ExitManualFollow(
+        ManualFollowExitMode mode,
+        bool? unknown0 = null,
+        bool? changeControl = null,
+        bool? alert = null)
+    {
+        if (!_isManualFollowing)
+        {
+            Console.WriteLine("[CameraExit] Not in manual follow mode, nothing to exit");
+            return true; // Already not in manual follow
+        }
+
+        switch (mode)
+        {
+            case ManualFollowExitMode.KeepCurrentOffset:
+                return ExitKeepOffset();
+
+            case ManualFollowExitMode.RestoreNativeFollow:
+                return ExitRestoreNative(unknown0, changeControl, alert);
+
+            default:
+                Console.WriteLine($"[CameraExit] Unknown exit mode: {mode}");
+                return false;
+        }
+    }
+
+    private bool ExitKeepOffset()
+    {
+        Console.WriteLine($"[CameraExit] Exiting manual follow (keeping current offset {_followOffset})");
+        Console.WriteLine($"[CameraExit] Camera will continue following target at current position");
+
+        // Keep _followedObject and _followOffset active!
+        // Keep _isManualFollowing = true!
+        // This allows the camera to continue smoothly following the target
+        // without snapping to KSA's default offset
+
+        return true;
+    }
+
+    private bool ExitRestoreNative(bool? unknown0, bool? changeControl, bool? alert)
+    {
+        var camera = GetCamera();
+        if (camera == null)
+        {
+            Console.WriteLine("[CameraExit] Camera not available for native restore");
+            return false;
+        }
+
+        if (_followedObject == null)
+        {
+            Console.WriteLine("[CameraExit] No follow target to restore");
+            _isManualFollowing = false;
+            return true;
+        }
+
+        try
+        {
+            // Try to call SetFollow via reflection with optional flags
+            var cameraType = camera.GetType();
+            var setFollowMethod = cameraType.GetMethod("SetFollow",
+                BindingFlags.Public | BindingFlags.Instance);
+
+            if (setFollowMethod == null)
+            {
+                Console.WriteLine("[CameraExit] SetFollow method not found on camera");
+                return false;
+            }
+
+            var parameters = setFollowMethod.GetParameters();
+            Console.WriteLine($"[CameraExit] Restoring native follow via SetFollow with {parameters.Length} parameters");
+
+            object?[] args;
+            if (parameters.Length == 1)
+            {
+                // Simple case: only target object
+                args = new object?[] { _followedObject };
+            }
+            else if (parameters.Length == 4)
+            {
+                // Full signature: SetFollow(object target, bool unknown0, bool changeControl, bool alert)
+                args = new object?[]
+                {
+                    _followedObject,
+                    unknown0 ?? true,
+                    changeControl ?? true,
+                    alert ?? false
+                };
+                Console.WriteLine($"[CameraExit] Using flags: unknown0={args[1]}, changeControl={args[2]}, alert={args[3]}");
+            }
+            else
+            {
+                Console.WriteLine($"[CameraExit] Unexpected SetFollow signature with {parameters.Length} parameters");
+                return false;
+            }
+
+            // Call SetFollow to restore native behavior
+            setFollowMethod.Invoke(camera, args);
+
+            // Clear manual follow state
+            _isManualFollowing = false;
+            _followedObject = null;
+            _followOffset = double3.Zero;
+
+            Console.WriteLine("[CameraExit] Successfully restored native follow behavior");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CameraExit] Failed to restore native follow: {ex.Message}");
+            Console.WriteLine($"[CameraExit] Target type: {_followedObject?.GetType().Name ?? "null"}");
+            return false;
+        }
+    }
+
     public void LookAt(double3 target)
     {
         var camera = GetCamera();
