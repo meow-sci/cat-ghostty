@@ -109,6 +109,24 @@ public class KsaCameraService : ICameraService
 
     public void StopManualFollow()
     {
+        // Try to re-follow the original object if it's an Astronomical
+        if (_followedObject is KSA.Astronomical astronomical)
+        {
+            var camera = GetCamera();
+            if (camera != null)
+            {
+                try
+                {
+                    camera.SetFollow(astronomical, false, changeControl: false, alert: false);
+                    Console.WriteLine("KsaCameraService: Re-followed target after manual follow ended");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"KsaCameraService: Error re-following target: {ex.Message}");
+                }
+            }
+        }
+
         _isManualFollowing = false;
         _followedObject = null;
         _followOffset = double3.Zero;

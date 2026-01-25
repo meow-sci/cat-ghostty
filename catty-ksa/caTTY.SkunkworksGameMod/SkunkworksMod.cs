@@ -24,6 +24,9 @@ public class SkunkworksMod
     private ICameraAnimationPlayer? _animationPlayer;
     private CameraDebugPanel? _cameraDebugPanel;
 
+    // Animation state tracking
+    private bool _wasAnimationPlaying = false;
+
     [StarMapImmediateLoad]
     public void OnImmediateLoad()
     {
@@ -67,6 +70,9 @@ public class SkunkworksMod
             if (!_isInitialized || _isDisposed)
                 return;
 
+            // Track animation state transitions
+            bool isCurrentlyPlaying = _animationPlayer?.IsPlaying ?? false;
+
             // Update camera service (handles manual follow updates)
             _cameraService?.Update(dt);
 
@@ -86,6 +92,24 @@ public class SkunkworksMod
                 // Apply FOV
                 _cameraService.FieldOfView = frame.Fov;
             }
+
+            // Restore camera state when animation ends
+            if (_wasAnimationPlaying && !isCurrentlyPlaying && _cameraService != null)
+            {
+                // Animation just ended - restore camera to safe state
+                Console.WriteLine("Skunkworks: Animation ended, restoring camera state");
+
+                // Stop manual following and restore normal camera follow
+                if (_cameraService.IsManualFollowing)
+                {
+                    _cameraService.StopManualFollow();
+                }
+
+                // The camera should now be back in normal follow mode
+                // You may want to re-follow the target here if needed
+            }
+
+            _wasAnimationPlaying = isCurrentlyPlaying;
 
             // Check F11 key press
             if (ImGui.IsKeyPressed(ImGuiKey.F11))
